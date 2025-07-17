@@ -20,7 +20,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 #import locale
 #locale.getpreferredencoding()
 
-VERSION = '1.0.16'
+VERSION = '1.0.17'
 LOG_LEVEL_LIST={'deeptrace':0,'trace':1,'debug':2,'info':3,'notice':4,'warning':5,'error':6,'fatal':7}
 LOG_FILE = 'SberGate.log'
 LOG_FILE_MAX_SIZE = 1024*1024*7
@@ -71,6 +71,31 @@ def ha_OnOff(id):
    hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
    response=requests.post(url, json={"entity_id": id}, headers=hds)
 #   print(response)
+
+def ha_climate(id,changes):
+   hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
+   entity_domain,entity_name=id.split('.',1)
+   log('Отправляем команду в HA для '+id+' Climate: ')
+#   if changes.get('hvac_temp_set',False):
+   url=Options['ha-api_url']+'/api/services/'+entity_domain+'/set_temperature'
+   log('HA REST API REQUEST: '+ url)
+   if DevicesDB.get_state(id,'on_off'):
+      payload = {"entity_id": id, "temperature": DevicesDB.get_state(id,'hvac_temp_set'), "hvac_mode": "cool"}
+   else:
+      payload = {"entity_id": id, "temperature": DevicesDB.get_state(id,'hvac_temp_set'), "hvac_mode": "off"}
+   response=requests.post(url, json=payload, headers=hds)
+
+#   if changes.get('on_off',False):
+#      url=Options['ha-api_url']+'/api/services/'+entity_domain+'/'
+#      if DevicesDB.get_state(id,'on_off'):
+#         url += 'turn_on'
+#      else:
+#         url += 'turn_off'
+#      log('HA REST API REQUEST: '+ url)
+#      response=requests.post(url, json={"entity_id": id}, headers=hds)
+#   print(response)
+
+
 
 def ha_switch(id,OnOff):
 #   if DevicesDB.DB[id].get('entity_ha',False):
@@ -215,6 +240,13 @@ class CDevicesDB(object):
          r.append({'key':'online','value':{"type": "BOOL", "bool_value": True}})
          r.append({'key':'button_event','value':{"type": "ENUM", "enum_value": v}})
 
+      if d['category'] == 'hvac_ac':
+         v=round(s.get('temperature',20)*10)
+         vv=round(s.get('hvac_temp_set',20)*10)
+         r.append({'key':'online','value':{"type": "BOOL", "bool_value": True}})
+         r.append({'key':'on_off','value':{"type": "BOOL", "bool_value": True}})
+         r.append({'key':'temperature','value':{"type": "INTEGER", "integer_value": v}})
+         r.append({'key':'hvac_temp_set','value':{"type": "INTEGER", "integer_value": vv}})
 
       if d['category'] == 'hvac_radiator':
 #         log('hvac')
@@ -411,9 +443,9 @@ def send_status(mqttc, s):
 
 def on_message_cmd(mqttc, obj, msg):
    data=json.loads(msg.payload)
-#Command: {'devices': {'Relay_03': {'states': [{'key': 'on_off', 'value': {'type': 'BOOL'}}]}}}
    log("Sber MQTT Command: " + str(data))
    for id,v in data['devices'].items():
+      changes={}
       for k in v['states']:
          type=k['value'].get('type','')
          val=''
@@ -423,11 +455,21 @@ def on_message_cmd(mqttc, obj, msg):
             val=k['value'].get('integer_value',0)
          if type == 'ENUM':
             val=k['value'].get('enum_value','')
+
+         if DevicesDB.DB[id].get(k['key'],None) == val:
+            changes[k['key']] = False
+         else:
+            changes[k['key']] = True
+
          DevicesDB.change_state(id,k['key'],val)
-      if DevicesDB.DB[id].get('entity_ha',False):
-         ha_OnOff(id)
+
+      if DevicesDB.DB[id].get('entity_type',None) == 'climate':
+         ha_climate(id,changes)
       else:
-         log('Объект отсутствует в HA: ' + id)
+         if DevicesDB.DB[id].get('entity_ha',False):
+            ha_OnOff(id)
+         else:
+            log('Объект отсутствует в HA: ' + id)
    send_status(mqttc,DevicesDB.do_mqtt_json_states_list([id]))
 
 #   log(DevicesDB.mqtt_json_states_list)
@@ -528,8 +570,7 @@ def ws_event(ws,mdata):
    old_state=mdata['event']['data']['old_state']['state']
    new_state=mdata['event']['data']['new_state']['state']
    dev=DevicesDB.DB.get(id,None)
-   if not (dev is None): #   if DevicesDB.dev_inBase(id):
-      #log(dev)
+   if not (dev is None):
       if dev['enabled']:
          log('HA Event: ' + id + ': ' + old_state + ' -> ' + new_state)
          if dev['category'] == 'sensor_temp':
@@ -539,7 +580,13 @@ def ws_event(ws,mdata):
             if not (DevicesDB.DB[id]['States'].get('button_event',None) is None):
                DevicesDB.DB[id]['States']['button_event']='click'
          else:
-            DevicesDB.change_state(id,'on_off',False)
+            if dev['entity_type'] == 'climate':
+               if new_state == 'off':
+                  DevicesDB.change_state(id,'on_off',False)
+               else:
+                  DevicesDB.change_state(id,'on_off',True)
+            else:
+               DevicesDB.change_state(id,'on_off',False)
             if not (DevicesDB.DB[id]['States'].get('button_event',None) is None):
                DevicesDB.DB[id]['States']['button_event']='double_click'
          send_status(mqttc,DevicesDB.do_mqtt_json_states_list([id]))
@@ -660,6 +707,13 @@ def upd_input_boolean(id,s):
    log('input_boolean: ' + s['entity_id'] + ' '+fn+'('+dc+')',0)
    DevicesDB.update(id,{'entity_ha': True,'entity_type': 'input_boolean', 'friendly_name': fn,'category': 'scenario_button'})
 
+def upd_climate(id,s):
+   dc=s['attributes'].get('device_class','')
+   fn=s['attributes'].get('friendly_name','')
+   log('climate: ' + s['entity_id'] + ' '+fn+'('+dc+')',0)
+   DevicesDB.update(id,{'entity_ha': True,'entity_type': 'climate', 'friendly_name': fn,'category': 'hvac_ac'})
+
+
 def upd_hvac_radiator(id,s):
    dc=s['attributes'].get('device_class','')
    fn=s['attributes'].get('friendly_name','')
@@ -680,6 +734,7 @@ for s in ha_dev:
       'sensor': upd_sensor,
       'button': upd_button,
       'input_boolean': upd_input_boolean,
+      'climate': upd_climate,
       'hvac_radiator': upd_hvac_radiator
    }
    dict.get(a, upd_default)(s['entity_id'],s)
