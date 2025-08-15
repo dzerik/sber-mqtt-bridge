@@ -1,9 +1,9 @@
 ---
-name: "MQTT SberGate"
-slug: "mqtt-sber-gate"
-version: "1.0.17"
-description: "MQTT SberGate SberDevice IoT Agent for Home Assistant"
-url: "https://github.com/JanchEwgen/MQTT-SberGate"
+name: "MQTT SberGate.OOP"
+slug: "mqtt-sber-gate-oop"
+version: "0.0.1"
+description: "MQTT SberGate SberDevice IoT Agent for Home Assistant. Refactored"
+url: "https://gitverse.ru/mberezovsky/MQTT-SberGate.git"
 webui: "http://[HOST]:[PORT:9123]"
 init: false
 arch:
