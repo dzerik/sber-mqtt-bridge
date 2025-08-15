@@ -49,7 +49,7 @@ def json_read(f):
       r=json.loads(d)
    except:
       r={}
-      log('!!! Неверная конфигурация в файле: '+f)
+      logger.info('!!! Неверная конфигурация в файле: '+f)
    return r
 
 def json_write(f,d):
@@ -60,16 +60,16 @@ def json_write(f,d):
 def options_change(k,v):
    t=Options.get(k,None)
    if (t is None):
-      log('В настройках отсутствует параметр: '+k+' (добавляю.)')
+      logger.info('В настройках отсутствует параметр: '+k+' (добавляю.)')
    if (t != v):
       Options[k]=v
-      log('В настройках изменился параметр: '+k+' с '+str(t)+' на '+str(v)+' (обновляю и сохраняю).')
+      logger.info('В настройках изменился параметр: '+k+' с '+str(t)+' на '+str(v)+' (обновляю и сохраняю).')
       json_write(fOptions,Options)
 
 def ha_OnOff(id):
    OnOff = DevicesDB.get_state(id,'on_off')
    entity_domain,entity_name=id.split('.',1)
-   log('Отправляем команду в HA для '+id+' ON: '+str(OnOff))
+   logger.info('Отправляем команду в HA для '+id+' ON: '+str(OnOff))
    url=Options['ha-api_url']+'/api/services/'+entity_domain+'/'
    if entity_domain == 'button':
       url += 'press'
@@ -78,7 +78,7 @@ def ha_OnOff(id):
          url += 'turn_on'
       else:
          url += 'turn_off'
-   log('HA REST API REQUEST: '+ url)
+   logger.info('HA REST API REQUEST: '+ url)
    hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
    response=requests.post(url, json={"entity_id": id}, headers=hds)
 #   print(response)
@@ -86,10 +86,10 @@ def ha_OnOff(id):
 def ha_climate(id,changes):
    hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
    entity_domain,entity_name=id.split('.',1)
-   log('Отправляем команду в HA для '+id+' Climate: ')
+   logger.info('Отправляем команду в HA для '+id+' Climate: ')
 #   if changes.get('hvac_temp_set',False):
    url=Options['ha-api_url']+'/api/services/'+entity_domain+'/set_temperature'
-   log('HA REST API REQUEST: '+ url)
+   logger.info('HA REST API REQUEST: '+ url)
    if DevicesDB.get_state(id,'on_off'):
       payload = {"entity_id": id, "temperature": DevicesDB.get_state(id,'hvac_temp_set'), "hvac_mode": "cool"}
    else:
@@ -102,7 +102,7 @@ def ha_climate(id,changes):
 #         url += 'turn_on'
 #      else:
 #         url += 'turn_off'
-#      log('HA REST API REQUEST: '+ url)
+#      logger.info('HA REST API REQUEST: '+ url)
 #      response=requests.post(url, json={"entity_id": id}, headers=hds)
 #   print(response)
 
@@ -110,7 +110,7 @@ def ha_climate(id,changes):
 
 def ha_switch(id,OnOff):
 #   if DevicesDB.DB[id].get('entity_ha',False):
-   log('Отправляем команду в HA для '+id+' ON: '+str(OnOff))
+   logger.info('Отправляем команду в HA для '+id+' ON: '+str(OnOff))
    if OnOff:
       url=Options['ha-api_url']+'/api/services/switch/turn_on'
    else:
@@ -118,12 +118,12 @@ def ha_switch(id,OnOff):
    hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
    response=requests.post(url, json={"entity_id": id}, headers=hds)
 #   if response.status_code == 200:
-#      log(response.text)
+#      logger.info(response.text)
 #   else:
-#      log(response.status_code)
+#      logger.info(response.status_code)
 
 def ha_script(id,OnOff):
-   log('Отправляем команду в HA для '+id+' ON: '+str(OnOff))
+   logger.info('Отправляем команду в HA для '+id+' ON: '+str(OnOff))
    if OnOff:
       url=Options['ha-api_url']+'/api/services/script/turn_on'
    else:
@@ -170,7 +170,7 @@ class CDevicesDB(object):
    def dev_del(self,id):
       self.DB.pop(id, None)
       self.save_DB()
-      log('Delete Device: '+id+'!')
+      logger.info('Delete Device: '+id+'!')
 
    def dev_inBase(self,id):
       if self.DB.get(id,None) is None:
@@ -180,13 +180,13 @@ class CDevicesDB(object):
 
    def change_state(self,id,key,value):
       if self.DB.get(id,None) is None:
-         log('Device id='+str(id)+' not found')
+         logger.info('Device id='+str(id)+' not found')
          return
       if self.DB[id].get('States',None) is None:
-         log('Device id='+str(id)+' States not Found. Create.')
+         logger.info('Device id='+str(id)+' States not Found. Create.')
          self.DB[id]['States']={}
       if self.DB[id]['States'].get(key,None) is None:
-         log('Device id='+str(id)+' key='+str(key)+' not Found. Create.')
+         logger.info('Device id='+str(id)+' key='+str(key)+' not Found. Create.')
       self.DB[id]['States'][key]=value
 #      self.do_mqtt_json_states_list([id])
 
@@ -213,7 +213,7 @@ class CDevicesDB(object):
       fl['entity_type']=''
       fl['friendly_name']=''
       if (self.DB.get(id,None) is None):
-         log('Device '+id+' Not Found. Adding')
+         logger.info('Device '+id+' Not Found. Adding')
          self.DB[id]={}
          for k,v in fl.items():
             self.DB[id][k]=d.get(k,v)
@@ -228,14 +228,14 @@ class CDevicesDB(object):
 
    def DeviceStates_mqttSber(self,id):
       d=self.DB.get(id,None)
-#      log(d)
+#      logger.info(d)
       r=[]
       if (d is None):
-         log('Запрошен несуществующий объект: '+id)
+         logger.info('Запрошен несуществующий объект: '+id)
          return r
       s=d.get('States',None)
       if (s is None):
-         log('У объекта: '+id+'отсутствует информация о состояниях')
+         logger.info('У объекта: '+id+'отсутствует информация о состояниях')
          return r
       if d['category'] == 'relay':
          v=s.get('on_off',False)
@@ -260,24 +260,24 @@ class CDevicesDB(object):
          r.append({'key':'hvac_temp_set','value':{"type": "INTEGER", "integer_value": vv}})
 
       if d['category'] == 'hvac_radiator':
-#         log('hvac')
+#         logger.info('hvac')
          v=round(s.get('temperature',0)*10)
          r.append({'key':'online','value':{"type": "BOOL", "bool_value": True}})
          r.append({'key':'on_off','value':{"type": "BOOL", "bool_value": True}})
          r.append({'key':'temperature','value':{"type": "INTEGER", "integer_value": v}})
          r.append({'key':'hvac_temp_set','value':{"type": "INTEGER", "integer_value": 30}})
-#         log(r)
+#         logger.info(r)
 
 
 
 #      for k,v in s.items():
-#         log(k)
+#         logger.info(k)
 #         if (isinstance(v,bool)):
 #            o={'key':k,'value':{"type": "BOOL", "bool_value": v}}
 #         elif (isinstance(v, int)):
 #            o={'key':k,'value':{"type": "INTEGER", "integer_value": v}}
 #         else:
-#            log(v)
+#            logger.info(v)
 #            o={'key':k,'value':{"type": "BOOL", "bool_value": False}}
 #         r.append(o)
       return r
@@ -307,11 +307,11 @@ class CDevicesDB(object):
                         f.append(ft['name'])
 
             d['model']={'id': 'ID_'+dev_cat, 'manufacturer': 'Janch', 'model': 'Model_'+dev_cat, 'category': dev_cat, 'features': f}
-#            log(d['model'])
+#            logger.info(d['model'])
             d['model_id']=''
             Dev['devices'].append(d)
       self.mqtt_json_devices_list=json.dumps(Dev)
-      log('New Devices List for MQTT: '+self.mqtt_json_devices_list,1)
+      logger.debug('New Devices List for MQTT: '+self.mqtt_json_devices_list)
       return self.mqtt_json_devices_list
 
    def DefaultValue(self,feature):
@@ -323,7 +323,7 @@ class CDevicesDB(object):
       }
       v=dv_dict.get(t, None)
       if v is None:
-         log('Неизвестный тип даных: '+t)
+         logger.info('Неизвестный тип даных: '+t)
          return False
       else:
          if feature['name'] == 'online':
@@ -342,7 +342,7 @@ class CDevicesDB(object):
          r={'key':feature['name'],'value':{'type': 'INTEGER', 'integer_value': int(State)}}
       if feature['data_type'] == 'ENUM':
          r={'key':feature['name'],'value':{'type': 'ENUM', 'enum_value': State}}
-      log(id+': '+str(r),0)
+      logger.debug(id+': '+str(r))
       return r
 
    def do_mqtt_json_states_list(self,dl):
@@ -367,7 +367,7 @@ class CDevicesDB(object):
                   state_value = self.DB[id]['States'].get(ft['name'],None)
                   if state_value is None:
                      if ft.get('required',False):
-                        log('отсутствует обязательное состояние сущности: ' + ft['name'])
+                        logger.info('отсутствует обязательное состояние сущности: ' + ft['name'])
                         self.DB[id]['States'][ft['name']]=self.DefaultValue(ft)
                   if not (self.DB[id]['States'].get(ft['name'], None) is None):
                      r.append(self.StateValue(id,ft))
@@ -375,7 +375,7 @@ class CDevicesDB(object):
                         self.DB[id]['States']['button_event']=''
                DStat['devices'][id]['states']=r
 #               if (s is None):
-#                  log('У объекта: '+id+'отсутствует информация о состояниях')
+#                  logger.info('У объекта: '+id+'отсутствует информация о состояниях')
 #                  self.DB[id]['States']={}
 #                  self.DB[id]['States']['online']=True
 #               DStat['devices'][id]['states']=self.DeviceStates_mqttSber(id)
@@ -383,7 +383,7 @@ class CDevicesDB(object):
       if (len(DStat['devices']) == 0):
             DStat['devices']={"root": {"states": [{"key": "online", "value": {"type": "BOOL", "bool_value": True}}]}}
       self.mqtt_json_states_list=json.dumps(DStat)
-      log(f"Отправка состояний в Sber: {self.mqtt_json_states_list}",1)
+      logger.debug(f"Отправка состояний в Sber: {self.mqtt_json_states_list}")
       return self.mqtt_json_states_list
 
    def do_http_json_devices_list(self):
@@ -413,16 +413,16 @@ class CDevicesDB(object):
 
 #-------------------------------------------------
 def on_connect_local(mqttc, obj, flags, rc):
-   log("HA Connect Local Broker, rc: " + str(rc))
+   logger.info("HA Connect Local Broker, rc: " + str(rc))
 
 #-------------------------------------------------
 def on_connect(mqttc, obj, flags, rc):
    if rc==0:
-      log("Connect OK SberDevices Broker, rc: " + str(rc))
+      logger.info("Connect OK SberDevices Broker, rc: " + str(rc))
       mqttc.subscribe(stdown+"/#", 0)
       mqttc.subscribe("sberdevices/v1/__config", 0)
    else:
-      log("Connect Fail SberDevices Broker, rc: " + str(rc))
+      logger.info("Connect Fail SberDevices Broker, rc: " + str(rc))
 #0: Connection successful
 #1: Connection refused – incorrect protocol version
 #2: Connection refused – invalid client identifier
@@ -433,19 +433,19 @@ def on_connect(mqttc, obj, flags, rc):
 
 def on_disconnect(client, userdata, rc):
     if rc != 0:
-        log("Unexpected MQTT disconnection. Will auto-reconnect. rc: "+str(rc))
+        logger.info("Unexpected MQTT disconnection. Will auto-reconnect. rc: "+str(rc))
 
 def on_message(mqttc, obj, msg):
-    log(msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+    logger.info(msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
 
 def on_publish(mqttc, obj, mid):
-    log("mid: " + str(mid))
+    logger.info("mid: " + str(mid))
 
 def on_subscribe(mqttc, obj, mid, granted_qos):
-    log("SD Subscribed: " + str(mid) + " " + str(granted_qos))
+    logger.info("SD Subscribed: " + str(mid) + " " + str(granted_qos))
 
 def on_log(mqttc, obj, level, string):
-    log(string)
+    logger.info(string)
 
 def send_status(mqttc, s):
    infot = mqttc.publish(sber_root_topic+'/up/status', s, qos=0)
@@ -454,7 +454,7 @@ def send_status(mqttc, s):
 
 def on_message_cmd(mqttc, obj, msg):
    data=json.loads(msg.payload)
-   log("Sber MQTT Command: " + str(data))
+   logger.info("Sber MQTT Command: " + str(data))
    for id,v in data['devices'].items():
       changes={}
       for k in v['states']:
@@ -480,25 +480,25 @@ def on_message_cmd(mqttc, obj, msg):
          if DevicesDB.DB[id].get('entity_ha',False):
             ha_OnOff(id)
          else:
-            log('Объект отсутствует в HA: ' + id)
+            logger.info('Объект отсутствует в HA: ' + id)
    send_status(mqttc,DevicesDB.do_mqtt_json_states_list([id]))
 
-#   log(DevicesDB.mqtt_json_states_list)
+#   logger.info(DevicesDB.mqtt_json_states_list)
 
 def on_message_stat(mqttc, obj, msg):
    try:
       data=json.loads(msg.payload).get('devices',[])
    except:
       data=[]
-   log("GetStatus: "  +  str(msg.payload))
+   logger.info("GetStatus: "  +  str(msg.payload))
    send_status(mqttc,DevicesDB.do_mqtt_json_states_list(data))
-   log("Answer: "+DevicesDB.mqtt_json_states_list,0)
+   logger.info("Answer: "+DevicesDB.mqtt_json_states_list,0)
 
 def on_errors(mqttc, obj, msg):
-   log("Sber MQTT Errors: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+   logger.info("Sber MQTT Errors: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
 
 def on_message_conf(mqttc, obj, msg):
-   log("Config: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+   logger.info("Config: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
    infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
 #!!!!!!!
 
@@ -520,6 +520,7 @@ def log(message, l="info"):
     """
     # Определение уровня логирования
     level_map = {
+       "trace": logger.debug,
         "debug": logger.debug,
         "info": logger.info,
         "warning": logger.warning,
@@ -539,9 +540,9 @@ def ws_on_open(ws):
    log("WebSocket: opened",3)
 
 def ws_on_close(ws,a,b):
-   log("WebSocket: Connection closed")
+   logger.info("WebSocket: Connection closed")
 def ws_on_message(ws, message):
-   log(f"WebSocket: Received message: {message}",0)
+   logger.debug(f"WebSocket: Received message: {message}")
    mdata=json.loads(message)
    ws_dict={
       'auth_required': ws_auth_required,
@@ -554,50 +555,50 @@ def ws_on_message(ws, message):
    ws_dict.get(mdata.get('type', 'None'), ws_default )(ws,mdata)
 
 def ws_auth_required(ws,mdata):
-   log("WebSocket: auth_required")
+   logger.info("WebSocket: auth_required")
    ws.send(json.dumps({"type": "auth", "access_token": Options['ha-api_token']}))
 def ws_auth_ok(ws,mdata):
-   log("WebSocket: auth_ok")
+   logger.info("WebSocket: auth_ok")
    ws.send(json.dumps({'id': 1, 'type': 'subscribe_events', 'event_type': 'state_changed'}))
    ws.send(json.dumps({'id': 2, 'type': 'config/area_registry/list'}))
 #   ws.send(json.dumps({'id': 3, 'type': 'config/device_registry/list'}))
    ws.send(json.dumps({'id': 4, 'type': 'config/entity_registry/list'}))
 
 def ws_auth_invalid(ws,mdata):
-   log("WebSocket: auth_invalid",7)
+   logger.critical("WebSocket: auth_invalid",7)
 def ws_result(ws,mdata):
    global HA_AREA
-   log(f"WebSocket: result: {mdata}",0)
+   logger.trace(f"WebSocket: result: {mdata}",0)
    if mdata.get('id', 'None') == 2:
-      log(f"WebSocket: Получен список зон: {mdata}",0)
+      logger.trace(f"WebSocket: Получен список зон: {mdata}",0)
       HA_AREA = {}
       for a in mdata.get('result',[]):
          HA_AREA[a['area_id']]=a['name']
-      log(f"HA_AREA: {HA_AREA}",1)
+      logger.info(f"HA_AREA: {HA_AREA}")
          
    if mdata.get('id', 'None') == 4:
-      log(f"WebSocket: Получен список сущностей.")
-      log(f"Данные: {mdata}",0)
+      logger.info(f"WebSocket: Получен список сущностей.")
+      logger.debug(f"Данные: {mdata}")
       res=mdata.get('result',[])
       for a in res:
          entity=DevicesDB.DB.get(a['entity_id'],False)
-#         log(f"entity list: {a['entity_id']}")
+#         logger.info(f"entity list: {a['entity_id']}")
          if entity:
             room=HA_AREA.get(a['area_id'],'')
             room_db=DevicesDB.DB[a['entity_id']].get('room',False)
             if room_db != room:
-               log(f"Изменилось расположение сущности {a['entity_id']} с {room_db} на {room}")
+               logger.info(f"Изменилось расположение сущности {a['entity_id']} с {room_db} на {room}")
                DevicesDB.update_only(a['entity_id'],{'entity_ha': True,'room': room})
 
 def ws_event(ws,mdata):
-#   log("vvv WebSocket: event vvv",0)
+#   logger.info("vvv WebSocket: event vvv",0)
    id=mdata['event']['data']['new_state']['entity_id']
    old_state=mdata['event']['data']['old_state']['state']
    new_state=mdata['event']['data']['new_state']['state']
    dev=DevicesDB.DB.get(id,None)
    if not (dev is None):
       if dev['enabled']:
-         log('HA Event: ' + id + ': ' + old_state + ' -> ' + new_state)
+         logger.info('HA Event: ' + id + ': ' + old_state + ' -> ' + new_state)
          if dev['category'] == 'sensor_temp':
             DevicesDB.change_state(id,'temperature',float(new_state))
          if new_state == 'on':
@@ -616,13 +617,13 @@ def ws_event(ws,mdata):
                DevicesDB.DB[id]['States']['button_event']='double_click'
          send_status(mqttc,DevicesDB.do_mqtt_json_states_list([id]))
       else:
-         log('!HA Event: ' + id + ': ' + old_state + ' -> ' + new_state)
+         logger.info('!HA Event: ' + id + ': ' + old_state + ' -> ' + new_state)
 #   else:
 #      print(id+' нет в базе')
-#   log("^^^ WebSocket: event ^^^",0)
+#   logger.info("^^^ WebSocket: event ^^^",0)
 
 def ws_default(ws,mdata):
-   log("WebSocket: default")
+   logger.info("WebSocket: default")
 
 #^^^^^^^ WebSocket ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -637,27 +638,27 @@ sber_types={'FLOAT':'float_value','INTEGER':'integer_value','STRING':'string_val
 if os.path.isfile(LOG_FILE):
    if os.path.getsize(LOG_FILE)>LOG_FILE_MAX_SIZE:
       os.remove(LOG_FILE)
-log('Start MQTT SberGate IoT Agent for Home Assistant version: '+VERSION)
-log("Запущено в системе: "+ os.name)
-log("Версия Python     : "+ sys.version)
-log("Размещение скрипта: "+ os.path.realpath(__file__))
-log("Текущая директория: "+ os.getcwd())
-log("Размер Log файла  : "+ str(os.path.getsize(LOG_FILE)))
-log("Log Level         : "+ Options.get('log_level','info'))
-#log("LOG_FILE_MAX_SIZE : "+ str(LOG_FILE_MAX_SIZE)
-log("Кодировка         : "+ sys.getdefaultencoding())
-log("Список файлов     : "+ str(os.listdir('.')))
-#log("Список файлов2   : "+ str(os.listdir('../app/data')))
-#log(": "+ sys.getfilesystemencoding())
-#log(": "+ sys.getfilesystemencodeerrors())
-#log(": "+ str(sys.maxunicode))
+logger.info('Start MQTT SberGate IoT Agent for Home Assistant version: '+VERSION)
+logger.info("Запущено в системе: "+ os.name)
+logger.info("Версия Python     : "+ sys.version)
+logger.info("Размещение скрипта: "+ os.path.realpath(__file__))
+logger.info("Текущая директория: "+ os.getcwd())
+logger.info("Размер Log файла  : "+ str(os.path.getsize(LOG_FILE)))
+logger.info("Log Level         : "+ Options.get('log_level','info'))
+#logger.info("LOG_FILE_MAX_SIZE : "+ str(LOG_FILE_MAX_SIZE)
+logger.info("Кодировка         : "+ sys.getdefaultencoding())
+logger.info("Список файлов     : "+ str(os.listdir('.')))
+#logger.info("Список файлов2   : "+ str(os.listdir('../app/data')))
+#logger.info(": "+ sys.getfilesystemencoding())
+#logger.info(": "+ sys.getfilesystemencodeerrors())
+#logger.info(": "+ str(sys.maxunicode))
 
 #installed_packages = pkg_resources.working_set
 #installed_packages_list = sorted(["%s==%s" % (i.key, i.version) for i in installed_packages])
 #pkg=[]
 #for i in pkg_resources.working_set:
 #   pkg.append(i.key)
-#log(pkg)
+#logger.info(pkg)
 
 #sys.setdefaultencoding('utf8')
 #print(sys.stdout.encoding)
@@ -665,56 +666,56 @@ log("Список файлов     : "+ str(os.listdir('.')))
 if not os.path.exists(fDevicesDB):
    json_write(fDevicesDB,{})
 
-log('Чтение базы устройств')
+logger.info('Чтение базы устройств')
 DevicesDB=CDevicesDB(fDevicesDB)
 AgentStatus={"online": True, "error": "",  "credentials": {'username':Options['sber-mqtt_login'],"password": "***",'broker': Options['sber-mqtt_broker']}}
 
-#log(Options['ha-api_url'])
-#log(Options['ha-api_token'])
+#logger.info(Options['ha-api_url'])
+#logger.info(Options['ha-api_token'])
 
 
 #url = "http://localhost:8123/ENDPOINT"
 hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
 url=Options['ha-api_url']+'/api/states'
-log('Подключаемся к HA, (ha-api_url: ' + Options['ha-api_url'] + ')')
+logger.info('Подключаемся к HA, (ha-api_url: ' + Options['ha-api_url'] + ')')
 cx=0
 while cx<10:
    cx = cx+1
    try:
       res = requests.get(url, headers=hds)
    except:
-      log('Ошибка подключения к HA. Ждём 5 сек перед повторным подключением.')
+      logger.info('Ошибка подключения к HA. Ждём 5 сек перед повторным подключением.')
       time.sleep(5)
 if res.status_code == 200:
-   log('Запрос устройств из Home Assistant выполнен штатно.')
+   logger.info('Запрос устройств из Home Assistant выполнен штатно.')
    ha_dev=res.json()
-   log(ha_dev,0)
+   logger.debug(ha_dev)
 else:
-   log('ОШИБКА! Запрос устройств из Home Assistant выполнен некоректно.')
+   logger.info('ОШИБКА! Запрос устройств из Home Assistant выполнен некоректно.')
    ha_dev=[]
-   log('Запрошенный URL: ' + url)
-   log('Код ответа сервера: ' + str(res.status_code))
+   logger.info('Запрошенный URL: ' + url)
+   logger.info('Код ответа сервера: ' + str(res.status_code))
    #Нет смысла продолжать выполнение
 
 
 def upd_sw(id,s):
    attr=s['attributes'].get('friendly_name','')
-   log('switch: ' + s['entity_id'] + ' '+attr,0)
+   logger.debug('switch: ' + s['entity_id'] + ' '+attr)
    DevicesDB.update(s['entity_id'],{'entity_ha': True,'entity_type': 'sw','friendly_name':attr,'category': 'relay'})
 def upd_light(id,s):
    attr=s['attributes'].get('friendly_name','')
-   log('light: ' + s['entity_id'] + ' '+attr,0)
+   logger.debug('light: ' + s['entity_id'] + ' '+attr)
    DevicesDB.update(s['entity_id'],{'entity_ha': True,'entity_type': 'light','friendly_name':attr,'category': 'light'})
 
 def upd_scr(id,s):
    attr=s['attributes'].get('friendly_name','')
-   log('script: ' + s['entity_id'] + ' '+attr,0)
+   logger.debug('script: ' + s['entity_id'] + ' '+attr)
    DevicesDB.update(s['entity_id'],{'entity_ha': True,'entity_type': 'scr','friendly_name':attr,'category': 'relay'})
 def upd_sensor(id,s):
    dc=s['attributes'].get('device_class','')
    fn=s['attributes'].get('friendly_name','')
    if dc == 'temperature':
-#      log('Сенсор температуры: ' + id + ' ' + fn)
+#      logger.info('Сенсор температуры: ' + id + ' ' + fn)
       DevicesDB.update(id,{'entity_ha': True,'entity_type': 'sensor_temp', 'friendly_name': fn,'category': 'sensor_temp'})
 #   if dc == 'pressure':
 #      DevicesDB.update(id,{'entity_ha': True,'entity_type': 'sensor_pressure', 'friendly_name': fn,'category': 'sensor_pressure'})
@@ -723,19 +724,19 @@ def upd_sensor(id,s):
 def upd_button(id,s):
    dc=s['attributes'].get('device_class','')
    fn=s['attributes'].get('friendly_name','')
-   log('button: ' + s['entity_id'] + ' '+fn+'('+dc+')',0)
+   logger.debug('button: ' + s['entity_id'] + ' '+fn+'('+dc+')')
    DevicesDB.update(id,{'entity_ha': True,'entity_type': 'button', 'friendly_name': fn,'category': 'relay'})
 
 def upd_input_boolean(id,s):
    dc=s['attributes'].get('device_class','')
    fn=s['attributes'].get('friendly_name','')
-   log('input_boolean: ' + s['entity_id'] + ' '+fn+'('+dc+')',0)
+   logger.debug('input_boolean: ' + s['entity_id'] + ' '+fn+'('+dc+')')
    DevicesDB.update(id,{'entity_ha': True,'entity_type': 'input_boolean', 'friendly_name': fn,'category': 'scenario_button'})
 
 def upd_climate(id,s):
    dc=s['attributes'].get('device_class','')
    fn=s['attributes'].get('friendly_name','')
-   log('climate: ' + s['entity_id'] + ' '+fn+'('+dc+')',0)
+   logger.debug('climate: ' + s['entity_id'] + ' '+fn+'('+dc+')')
    DevicesDB.update(id,{'entity_ha': True,'entity_type': 'climate', 'friendly_name': fn,'category': 'hvac_ac'})
 
 
@@ -743,11 +744,11 @@ def upd_hvac_radiator(id,s):
    dc=s['attributes'].get('device_class','')
    fn=s['attributes'].get('friendly_name','')
    if dc == 'temperature':
-#      log('Радиатор отопления: ' + id + ' ' + fn)
+#      logger.info('Радиатор отопления: ' + id + ' ' + fn)
       DevicesDB.update(id,{'entity_ha': True,'entity_type': 'hvac_radiator', 'friendly_name': fn,'category': 'hvac_radiator'})
 
 def upd_default(id,s):
-   log('Неиспользуемый тип: ' + s['entity_id'],0)
+   logger.debug('Неиспользуемый тип: ' + s['entity_id'])
    pass
 
 for s in ha_dev:
@@ -804,42 +805,42 @@ mqttc.loop_start()
 if Options.get('sber-http_api_endpoint',None) is None:
    options_change('sber-http_api_endpoint','')
 while (Options['sber-http_api_endpoint'] == ''):
-   log('Ожидаем получение SberDevice http_api_endpoint')
+   logger.info('Ожидаем получение SberDevice http_api_endpoint')
    time.sleep(1)
-log('SberDevice http_api_endpoint: '+Options['sber-http_api_endpoint'])
+logger.info('SberDevice http_api_endpoint: '+Options['sber-http_api_endpoint'])
 
 hds = {'content-type': 'application/json'}
 if not os.path.exists('models.json'):
-   log('Файл моделей отсутствует. Получаем...')
+   logger.info('Файл моделей отсутствует. Получаем...')
    SD_Models = requests.get(Options['sber-http_api_endpoint']+'/v1/mqtt-gate/models', headers=hds,auth=(Options['sber-mqtt_login'], Options['sber-mqtt_password']))
    if SD_Models.status_code == 200:
-#      log(SD_Models.text)
+#      logger.info(SD_Models.text)
       json_write('models.json',SD_Models.json())
    else:
-      log('ОШИБКА! Запрос models завершился с ошибкой: '+str(SD_Models.status_code))
+      logger.info('ОШИБКА! Запрос models завершился с ошибкой: '+str(SD_Models.status_code))
    
 def GetCategory():
    if not os.path.exists(fCategories):
-      log('Файл категорий отсутствует. Получаем...')
+      logger.info('Файл категорий отсутствует. Получаем...')
       Categories={}
       SD_Categories = requests.get(Options['sber-http_api_endpoint']+'/v1/mqtt-gate/categories', headers=hds,auth=(Options['sber-mqtt_login'], Options['sber-mqtt_password'])).json()
       for id in SD_Categories['categories']:
-         log('Получаем опции для котегории: '+id)
+         logger.info('Получаем опции для котегории: '+id)
          SD_Features = requests.get(Options['sber-http_api_endpoint']+'/v1/mqtt-gate/categories/'+id+'/features', headers=hds,auth=(Options['sber-mqtt_login'], Options['sber-mqtt_password'])).json()
          Categories[id]=SD_Features['features']
-   #   log(Categories)
+   #   logger.info(Categories)
       json_write('categories.json',Categories)
    else:
-      log('Список категорий получен из файла: ' + fCategories)
+      logger.info('Список категорий получен из файла: ' + fCategories)
       Categories=json_read(fCategories)
    return Categories
 
 Categories=GetCategory()
 
 if Categories.get('categories',False):
-   log('Старая версия файла категорий, удаляем.')
+   logger.info('Старая версия файла категорий, удаляем.')
    os.remove(fCategories)
-   log('Повторное получения категорий.')
+   logger.info('Повторное получения категорий.')
    Categories=GetCategory()
 
 #Получаем список категорий в формате Сбер API для возврата по запросу
@@ -886,7 +887,7 @@ def api_devices(self):
    send_data(self, DevicesDB.do_http_json_devices_list(), "application/json")
 
 def api_devices_post(self,d):
-   log('SberAgent добавляет новое устройство: '+str(d))
+   logger.info('SberAgent добавляет новое устройство: '+str(d))
    cat=d.get('category','')
    if cat != '':
       id=DevicesDB.NewID(cat)
@@ -896,23 +897,23 @@ def api_devices_post(self,d):
       infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
 
 def api_default_post(self,d):
-   log('Неизвестный POST запрос '+str(d))
+   logger.info('Неизвестный POST запрос '+str(d))
 
 def api2_devices_post(self,d):
-   log('Меняем данные для'+str(d['devices']))
+   logger.info('Меняем данные для'+str(d['devices']))
    for i in d['devices']:
       for id,prop in i.items():
-         log(id+':'+str(prop))
+         logger.info(id+':'+str(prop))
          DevicesDB.update(id, prop)
    infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
    DevicesDB.save_DB()
 
 
 def command_default(d):
-   log('Получили неизвестную команду'+str(d))
+   logger.info('Получили неизвестную команду'+str(d))
 
 def command_exit(d):
-   log('Выход. '+str(d))
+   logger.info('Выход. '+str(d))
    sys.exit()
 
 def api2_command_post(self,d):
@@ -942,7 +943,7 @@ def api_aggregations(self):
    d='{"aggregations": ["bool_status_oneof"]}'
    send_data(self,d,"application/json")
 def api_categories(self):
-   log('Запрос категорий')
+   logger.info('Запрос категорий')
 #   d='{"categories": ["light","socket","relay","led_strip","hub","ipc","sensor_pir","sensor_door","sensor_temp","scenario_button","hvac_ac","hvac_fan","hvac_humidifier","hvac_air_purifier","hvac_heater","hvac_radiator","hvac_boiler","hvac_underfloor_heating","window_blind","curtain","gate","kettle","sensor_water_leak","valve"]}'
    d=json.dumps(resCategories)
    send_data(self,d,"application/json")
@@ -961,23 +962,23 @@ def api_default(self):
    #Проверка на запрос features
    get_feature=re.findall(r'/api/v1/categories/(.+)/features',self.path)
    if len(get_feature) == 1:
-#      log('Запрошен: ' + get_feature[0])
+#      logger.info('Запрошен: ' + get_feature[0])
       #Получаем список опций для категории в формате Сбер API для возврата по запросу
       resFeatures={'features':Categories.get(get_feature[0],[])}
-#      log('Ответ: ' + json.dumps(resFeatures))
+#      logger.info('Ответ: ' + json.dumps(resFeatures))
       send_data(self,json.dumps(resFeatures),"application/json")
    else:
    #Иначе прокси
       api='/api/v1/'
       if self.path[:len(api)] == api:
-         log('PROXY '+api+': '+self.path)
+         logger.info('PROXY '+api+': '+self.path)
          url=Options['sber-http_api_endpoint']+'/v1/mqtt-gate/' + self.path[len(api):]
          req_v1=requests.get(url, headers=hds,auth=(Options['sber-mqtt_login'], Options['sber-mqtt_password']))
          if req_v1.status_code == 200:
-   #         log(req_v1.text)
+   #         logger.info(req_v1.text)
             send_data(self,req_v1.text,"application/json")
          else:
-            log('ОШИБКА! Запрос: '+url+' завершился с ошибкой: '+str(req_v1.status_code))
+            logger.info('ОШИБКА! Запрос: '+url+' завершился с ошибкой: '+str(req_v1.status_code))
       else:
          api_default_d(self)
 #   dict.get(self.path, api_default )(self)
@@ -989,7 +990,7 @@ def static_answer(self,file):
       f=file.replace('/','\\')
    else:
       f=file
-   log('Отправка файла: '+f+'; MIME:'+m)
+   logger.info('Отправка файла: '+f+'; MIME:'+m)
    send_file(self,f,m+'; charset=utf-8')
 
 hostName = ''
@@ -1000,7 +1001,7 @@ class MyServer(BaseHTTPRequestHandler):
       api='/api/v1/devices/'
       if self.path[:len(api)] == api:
          DevicesDB.dev_del(self.path[len(api):])
-      log('DELETE: '+self.path+'; ')
+      logger.info('DELETE: '+self.path+'; ')
       infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
 
    def do_GET(self):
@@ -1028,7 +1029,7 @@ class MyServer(BaseHTTPRequestHandler):
 
    def do_PUT(self):
       send_data(self,'{}',"application/json")
-      log('PUT: '+self.path)
+      logger.info('PUT: '+self.path)
       data=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
       api='/api/v1/devices/'
       if self.path[:len(api)] == api:
@@ -1041,7 +1042,7 @@ class MyServer(BaseHTTPRequestHandler):
       
    def do_POST(self):
       send_data(self,'{}',"application/json")
-      log('POST: '+self.path)
+      logger.info('POST: '+self.path)
       d=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
       dict={
          '/api/v1/devices': api_devices_post,
@@ -1084,7 +1085,7 @@ static_request={
 
 
 webServer = HTTPServer((hostName, serverPort), MyServer)
-log("Server started http://%s:%s" % (hostName, serverPort))
+logger.info("Server started http://%s:%s" % (hostName, serverPort))
 
 try:
 #   webServer.serve_forever()
@@ -1098,7 +1099,7 @@ except KeyboardInterrupt:
 
 
 ws_url=Options['ha-api_url'].replace('http','ws',1) + '/api/websocket'
-log('Start WebSocket Client URL: ' + ws_url)
+logger.info('Start WebSocket Client URL: ' + ws_url)
 #websocket.enableTrace(True)
 ws = websocket.WebSocketApp(ws_url,
                             on_open=ws_on_open,
@@ -1108,19 +1109,19 @@ ws = websocket.WebSocketApp(ws_url,
 socketRun=True
 while socketRun:
    ws.run_forever()
-   log('Socket disconect')
+   logger.info('Socket disconect')
    time.sleep(1)
-   log('Connecting')
+   logger.info('Connecting')
 
 
 
 #tsrv.join()
 
 webServer.server_close()
-log("Server stopped.")
+logger.info("Server stopped.")
 
 #---------------------------------------------
 
 while True:
    time.sleep(10)
-   log('Agent HB')
+   logger.info('Agent HB')
