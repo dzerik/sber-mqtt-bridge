@@ -7,6 +7,7 @@ import sys
 import ssl
 import time
 import json
+import logging
 import paho
 import random
 import requests
@@ -20,7 +21,17 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 #import locale
 #locale.getpreferredencoding()
 
-VERSION = '1.0.17'
+logger = logging.getLogger(__name__)
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    filename='SberGate.log',
+    filemode='w'
+)
+
+VERSION = '0.0.1'
 LOG_LEVEL_LIST={'deeptrace':0,'trace':1,'debug':2,'info':3,'notice':4,'warning':5,'error':6,'fatal':7}
 LOG_FILE = 'SberGate.log'
 LOG_FILE_MAX_SIZE = 1024*1024*7
@@ -495,18 +506,32 @@ def on_global_conf(mqttc, obj, msg):
    data=json.loads(msg.payload)
    options_change('sber-http_api_endpoint',data.get('http_api_endpoint',''))
 
-def log(s,l=3):
-   out_file = open(LOG_FILE, "a", encoding="utf-8")
+import logging
 
-#   log_lv=LOG_LEVEL_LIST.get(l,2)
-   if l >= log_level:
-      dt=datetime.now().strftime("%Y%m%d-%H%M%S.%f")+': '+str(s)
-      print(dt)
-      out_file.write(dt+'\r\n')
+# Создание или получение логгера
+logger = logging.getLogger(__name__)
 
-#   dt=time.strftime("%Y%m%d-%H%M%S.%f", time.localtime())[:-3]
-#   dt=datetime.utcnow().strftime("%Y%m%d-%H%M%S.%f")
-   out_file.close()
+def log(message, l="info"):
+    """
+    Логирует сообщение с указанным уровнем.
+    
+    :param message: Текст сообщения
+    :param l: Уровень логирования (debug, info, warning, error, critical)
+    """
+    # Определение уровня логирования
+    level_map = {
+        "debug": logger.debug,
+        "info": logger.info,
+        "warning": logger.warning,
+        "error": logger.error,
+        "critical": logger.critical
+    }
+    
+    # Вызов соответствующего метода логгера
+    if l in level_map:
+        level_map[l](message)
+    else:
+        logger.warning(f"Неизвестный уровень логирования '{l}'. Сообщение не было записано.")
 
 #vvvvvvv WebSocket vvvvvvv
 
