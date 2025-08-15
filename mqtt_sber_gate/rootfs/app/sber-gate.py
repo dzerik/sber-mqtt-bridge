@@ -31,7 +31,7 @@ logging.basicConfig(
     filemode='w'
 )
 
-VERSION = '0.0.1'
+VERSION = '0.0.2'
 LOG_LEVEL_LIST={'deeptrace':0,'trace':1,'debug':2,'info':3,'notice':4,'warning':5,'error':6,'fatal':7}
 LOG_FILE = 'SberGate.log'
 LOG_FILE_MAX_SIZE = 1024*1024*7
