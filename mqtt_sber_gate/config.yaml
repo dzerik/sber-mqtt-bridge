@@ -1,7 +1,7 @@
 ---
 name: "MQTT SberGate.OOP"
 slug: "mqtt-sber-gate-oop"
-version: "0.0.2"
+version: "0.0.2.1"
 description: "MQTT SberGate SberDevice IoT Agent for Home Assistant. Refactored"
 url: "https://gitverse.ru/mberezovsky/MQTT-SberGate.git"
 webui: "http://[HOST]:[PORT:9123]"
