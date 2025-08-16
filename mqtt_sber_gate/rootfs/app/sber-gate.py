@@ -18,25 +18,42 @@ import paho.mqtt.client as mqtt
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import importlib.metadata
+
+try:
+    # Замените "sber-gate" на имя вашего пакета (как указано в setup.py/pyproject.toml)
+    VERSION = importlib.metadata.version("mqtt-sber-gate-oop")
+except importlib.metadata.PackageNotFoundError:
+    # Фallback-значение, если пакет не найден
+    VERSION = "0.0.3"
+
 #import locale
 #locale.getpreferredencoding()
 
-logger = logging.getLogger(__name__)
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s %(levelname)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    filename='SberGate.log',
-    filemode='w'
-)
-
-VERSION = '0.0.1'
+# VERSION = '0.0.1'
 LOG_LEVEL_LIST={'deeptrace':0,'trace':1,'debug':2,'info':3,'notice':4,'warning':5,'error':6,'fatal':7}
 LOG_FILE = 'SberGate.log'
 LOG_FILE_MAX_SIZE = 1024*1024*7
 log_level = 3
 HA_AREA = {}
+
+# Настройка логгирования (файл + консоль)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    filename=LOG_FILE,
+    filemode='w'
+)
+
+# Добавление логгирования в консоль
+console_handler = logging.StreamHandler()
+console_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+console_handler.setFormatter(console_formatter)
+root_logger = logging.getLogger()
+root_logger.addHandler(console_handler)
+
+logger = logging.getLogger(__name__)
 
 fOptions='options.json'
 fDevicesDB='devices.json'
