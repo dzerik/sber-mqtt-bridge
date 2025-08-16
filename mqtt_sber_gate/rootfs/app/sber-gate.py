@@ -20,23 +20,41 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 #import locale
 #locale.getpreferredencoding()
+import importlib.metadata
 
-logger = logging.getLogger(__name__)
+try:
+    # Замените "sber-gate" на имя вашего пакета (как указано в setup.py/pyproject.toml)
+    VERSION = importlib.metadata.version("sber-gate")
+except importlib.metadata.PackageNotFoundError:
+    # Фallback-значение, если пакет не найден
+    VERSION = "0.0.3"
 
+
+# VERSION = '0.0.3'
+LOG_LEVEL_LIST={'deeptrace':0,'trace':1,'debug':2,'info':3,'notice':4,'warning':5,'error':6,'fatal':7}
+LOG_FILE = 'SberGate.log'
+LOG_FILE_MAX_SIZE = 1024*1024*7
+# log_level = 3
+HA_AREA = {}
+
+# Настройка логгирования (файл + консоль)
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s %(levelname)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
-    filename='SberGate.log',
+    filename=LOG_FILE,
+    maxBytes=LOG_FILE_MAX_SIZE,
     filemode='w'
 )
 
-VERSION = '0.0.2'
-LOG_LEVEL_LIST={'deeptrace':0,'trace':1,'debug':2,'info':3,'notice':4,'warning':5,'error':6,'fatal':7}
-LOG_FILE = 'SberGate.log'
-LOG_FILE_MAX_SIZE = 1024*1024*7
-log_level = 3
-HA_AREA = {}
+# Добавление логгирования в консоль
+console_handler = logging.StreamHandler()
+console_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+console_handler.setFormatter(console_formatter)
+root_logger = logging.getLogger()
+root_logger.addHandler(console_handler)
+
+logger = logging.getLogger(__name__)
 
 fOptions='options.json'
 fDevicesDB='devices.json'
@@ -630,7 +648,7 @@ def ws_default(ws,mdata):
 #********** Start **********************************
 
 Options=json_read(fOptions)
-log_level = LOG_LEVEL_LIST.get(Options.get('log_level','info'),3)
+# log_level = LOG_LEVEL_LIST.get(Options.get('log_level','info'),3)
 
 #https://developers.sber.ru/docs/ru/smarthome/c2c/value
 sber_types={'FLOAT':'float_value','INTEGER':'integer_value','STRING':'string_value','BOOL':'bool_value','ENUM':'enum_value','JSON':'','COLOUR':'colour_value'}
