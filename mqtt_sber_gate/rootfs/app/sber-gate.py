@@ -655,6 +655,7 @@ while cx<10:
    cx = cx+1
    try:
       res = requests.get(url, headers=hds)
+      break
    except:
       logger.info('Ошибка подключения к HA. Ждём 5 сек перед повторным подключением.')
       time.sleep(5)
