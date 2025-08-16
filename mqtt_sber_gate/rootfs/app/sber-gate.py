@@ -506,38 +506,10 @@ def on_global_conf(mqttc, obj, msg):
    data=json.loads(msg.payload)
    options_change('sber-http_api_endpoint',data.get('http_api_endpoint',''))
 
-import logging
-
-# Создание или получение логгера
-logger = logging.getLogger(__name__)
-
-def log(message, l="info"):
-    """
-    Логирует сообщение с указанным уровнем.
-    
-    :param message: Текст сообщения
-    :param l: Уровень логирования (debug, info, warning, error, critical)
-    """
-    # Определение уровня логирования
-    level_map = {
-       "trace": logger.debug,
-        "debug": logger.debug,
-        "info": logger.info,
-        "warning": logger.warning,
-        "error": logger.error,
-        "critical": logger.critical
-    }
-    
-    # Вызов соответствующего метода логгера
-    if l in level_map:
-        level_map[l](message)
-    else:
-        logger.warning(f"Неизвестный уровень логирования '{l}'. Сообщение не было записано.")
-
 #vvvvvvv WebSocket vvvvvvv
 
 def ws_on_open(ws):
-   log("WebSocket: opened",3)
+   logger.info("WebSocket: opened")
 
 def ws_on_close(ws,a,b):
    logger.info("WebSocket: Connection closed")
