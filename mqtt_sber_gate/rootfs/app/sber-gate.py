@@ -851,6 +851,7 @@ for id in Categories:
 
 
 infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
+logger.debug("INFO: "+str(infot))
 
 #************** WebServer*********************************
 def send_data(self,data,ct):
