@@ -492,7 +492,7 @@ def on_message_stat(mqttc, obj, msg):
       data=[]
    logger.info("GetStatus: "  +  str(msg.payload))
    send_status(mqttc,DevicesDB.do_mqtt_json_states_list(data))
-   logger.info("Answer: "+DevicesDB.mqtt_json_states_list,0)
+   logger.info("Answer: "+DevicesDB.mqtt_json_states_list)
 
 def on_errors(mqttc, obj, msg):
    logger.info("Sber MQTT Errors: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
