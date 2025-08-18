@@ -619,7 +619,8 @@ def ws_default(ws,mdata):
 #********** Start **********************************
 
 Options=json_read(fOptions)
-log_level = LOG_LEVEL_LIST.get(Options.get('log_level','info'),3)
+log_level = LOG_LEVEL_LIST.get(Options.get('log_level','INFO'),'INFO')
+logger.setLevel(log_level)
 
 #https://developers.sber.ru/docs/ru/smarthome/c2c/value
 sber_types={'FLOAT':'float_value','INTEGER':'integer_value','STRING':'string_value','BOOL':'bool_value','ENUM':'enum_value','JSON':'','COLOUR':'colour_value'}

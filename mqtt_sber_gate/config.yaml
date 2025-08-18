@@ -1,7 +1,7 @@
 ---
 name: "MQTT SberGate.OOP"
 slug: "mqtt-sber-gate-oop"
-version: "0.0.2.5"
+version: "0.0.2.6"
 description: "MQTT SberGate SberDevice IoT Agent for Home Assistant. Refactored"
 url: "https://gitverse.ru/mberezovsky/MQTT-SberGate.git"
 webui: "http://[HOST]:[PORT:9123]"
@@ -26,7 +26,7 @@ options:
   sber-mqtt_login: "mqtt-sber-login"
   sber-mqtt_password: "mqtt-sber-password"
   sber-http_api_endpoint: "https://mqtt-partners.iot.sberdevices.ru"
-  log_level: info
+  log_level: INFO
 
 schema:
   ha-api_url: str
@@ -36,4 +36,4 @@ schema:
   sber-mqtt_login: str
   sber-mqtt_password: password
   sber-http_api_endpoint: str?
-  log_level: list(trace|debug|info|notice|warning|error|fatal)
+  log_level: list(DEBUG|INFO|WARNING|ERROR|FATAL)
