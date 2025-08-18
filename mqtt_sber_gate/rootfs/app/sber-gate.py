@@ -18,6 +18,15 @@ import paho.mqtt.client as mqtt
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import importlib.metadata
+
+try:
+    # Замените "sber-gate" на имя вашего пакета (как указано в setup.py/pyproject.toml)
+    VERSION = importlib.metadata.version("mqtt-sber-gate-oop")
+except importlib.metadata.PackageNotFoundError:
+    # Фallback-значение, если пакет не найден
+    VERSION = "0.0.3"
+
 #import locale
 #locale.getpreferredencoding()
 import importlib.metadata
@@ -43,7 +52,6 @@ logging.basicConfig(
     format='%(asctime)s %(levelname)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     filename=LOG_FILE,
-    maxBytes=LOG_FILE_MAX_SIZE,
     filemode='w'
 )
 
@@ -510,7 +518,7 @@ def on_message_stat(mqttc, obj, msg):
       data=[]
    logger.info("GetStatus: "  +  str(msg.payload))
    send_status(mqttc,DevicesDB.do_mqtt_json_states_list(data))
-   logger.info("Answer: "+DevicesDB.mqtt_json_states_list,0)
+   logger.info("Answer: "+DevicesDB.mqtt_json_states_list)
 
 def on_errors(mqttc, obj, msg):
    logger.info("Sber MQTT Errors: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
@@ -524,38 +532,10 @@ def on_global_conf(mqttc, obj, msg):
    data=json.loads(msg.payload)
    options_change('sber-http_api_endpoint',data.get('http_api_endpoint',''))
 
-import logging
-
-# Создание или получение логгера
-logger = logging.getLogger(__name__)
-
-def log(message, l="info"):
-    """
-    Логирует сообщение с указанным уровнем.
-    
-    :param message: Текст сообщения
-    :param l: Уровень логирования (debug, info, warning, error, critical)
-    """
-    # Определение уровня логирования
-    level_map = {
-       "trace": logger.debug,
-        "debug": logger.debug,
-        "info": logger.info,
-        "warning": logger.warning,
-        "error": logger.error,
-        "critical": logger.critical
-    }
-    
-    # Вызов соответствующего метода логгера
-    if l in level_map:
-        level_map[l](message)
-    else:
-        logger.warning(f"Неизвестный уровень логирования '{l}'. Сообщение не было записано.")
-
 #vvvvvvv WebSocket vvvvvvv
 
 def ws_on_open(ws):
-   log("WebSocket: opened",3)
+   logger.info("WebSocket: opened")
 
 def ws_on_close(ws,a,b):
    logger.info("WebSocket: Connection closed")
@@ -648,7 +628,8 @@ def ws_default(ws,mdata):
 #********** Start **********************************
 
 Options=json_read(fOptions)
-# log_level = LOG_LEVEL_LIST.get(Options.get('log_level','info'),3)
+log_level = LOG_LEVEL_LIST.get(Options.get('log_level','INFO'),'INFO')
+logger.setLevel(log_level)
 
 #https://developers.sber.ru/docs/ru/smarthome/c2c/value
 sber_types={'FLOAT':'float_value','INTEGER':'integer_value','STRING':'string_value','BOOL':'bool_value','ENUM':'enum_value','JSON':'','COLOUR':'colour_value'}
@@ -701,6 +682,7 @@ while cx<10:
    cx = cx+1
    try:
       res = requests.get(url, headers=hds)
+      break
    except:
       logger.info('Ошибка подключения к HA. Ждём 5 сек перед повторным подключением.')
       time.sleep(5)
@@ -869,6 +851,7 @@ for id in Categories:
 
 
 infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
+logger.debug("INFO: "+str(infot))
 
 #************** WebServer*********************************
 def send_data(self,data,ct):
