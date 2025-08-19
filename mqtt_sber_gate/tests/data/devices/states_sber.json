@@ -1,0 +1,63 @@
+[
+    {
+   "id": "QWERTY124",
+   "manufacturer": "Xiaqara",
+   "model": "SM1123456789",
+   "hw_version": "3.1",
+   "sw_version": "5.6",
+   "description": "Умный кондиционер Xiaqara",
+   "category": "hvac_ac",
+   "features": [
+      "online",
+      "on_off",
+      "hvac_temp_set",
+      "hvac_air_flow_direction",
+      "hvac_air_flow_power",
+      "hvac_humidity_set",
+      "hvac_ionization",
+      "hvac_night_mode",
+      "hvac_work_mode",
+      "temperature"
+   ],
+   "allowed_values": {
+      "hvac_air_flow_direction": {
+         "type": "ENUM",
+         "enum_values": {
+            "values": [
+                "auto",
+               "horizontal",
+               "no",
+               "rotation",
+               "swing",
+               "vertical"
+            ]
+         }
+      },
+      "hvac_air_flow_power":{
+         "type": "ENUM",
+         "enum_values": {
+            "values": [
+               "auto",
+               "high",
+               "low",
+               "medium",
+               "quite",
+               "turbo"
+            ]
+         }
+      },
+      "hvac_work_mode": {
+         "type": "ENUM",
+         "enum_values": {
+            "values": [
+               "auto",
+               "cool",
+               "heat",
+               "dry",
+               "fan"
+            ]
+         }
+      }
+   }
+}
+]

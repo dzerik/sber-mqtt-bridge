@@ -40,7 +40,6 @@ except importlib.metadata.PackageNotFoundError:
 
 
 # VERSION = '0.0.3'
-LOG_LEVEL_LIST={'deeptrace':0,'trace':1,'debug':2,'info':3,'notice':4,'warning':5,'error':6,'fatal':7}
 LOG_FILE = 'SberGate.log'
 LOG_FILE_MAX_SIZE = 1024*1024*7
 # log_level = 3
@@ -566,9 +565,9 @@ def ws_auth_invalid(ws,mdata):
    logger.critical("WebSocket: auth_invalid",7)
 def ws_result(ws,mdata):
    global HA_AREA
-   logger.trace(f"WebSocket: result: {mdata}",0)
+   logger.trace(f"WebSocket: result: {mdata}")
    if mdata.get('id', 'None') == 2:
-      logger.trace(f"WebSocket: Получен список зон: {mdata}",0)
+      logger.trace(f"WebSocket: Получен список зон: {mdata}")
       HA_AREA = {}
       for a in mdata.get('result',[]):
          HA_AREA[a['area_id']]=a['name']
