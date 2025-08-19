@@ -1,7 +1,7 @@
 # devices/relay.py
-from .base import Device
+from .base import BaseDevice
 
-class RelayDevice(Device):
+class RelayDevice(BaseDevice):
     category = "relay"
     
     def __init__(self, device_id, name=""):

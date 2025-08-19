@@ -1,7 +1,7 @@
 # devices/motion_sensor.py
-from .base import Device
+from .base import BaseDevice
 
-class MotionSensorDevice(Device):
+class MotionSensorDevice(BaseDevice):
     category = "motion"
     
     def __init__(self, device_id, name=""):

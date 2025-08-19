@@ -1,6 +1,6 @@
 # sber-gate.py (фрагмент)
 import json
-from devices.base import Device
+from devices.base import BaseDevice
 
 class CDevicesDB:
     def __init__(self, db_file):

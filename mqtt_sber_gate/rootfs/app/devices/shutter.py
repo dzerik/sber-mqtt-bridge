@@ -1,7 +1,7 @@
 # devices/shutter.py
-from .base import Device
+from .base import BaseDevice
 
-class ShutterDevice(Device):
+class ShutterDevice(BaseDevice):
     category = "shutter"
     
     def __init__(self, device_id, name=""):

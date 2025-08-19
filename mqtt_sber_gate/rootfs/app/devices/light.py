@@ -1,7 +1,7 @@
 # devices/light.py
-from .base import Device
+from .base import BaseDevice
 
-class LightDevice(Device):
+class LightDevice(BaseDevice):
     category = "light"
     
     def __init__(self, device_id, name=""):

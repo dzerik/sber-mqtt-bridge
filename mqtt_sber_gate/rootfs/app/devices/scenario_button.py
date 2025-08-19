@@ -1,7 +1,7 @@
 # devices/scenario_button.py
-from .base import Device
+from .base import BaseDevice
 
-class ScenarioButtonDevice(Device):
+class ScenarioButtonDevice(BaseDevice):
     category = "button"
     
     def __init__(self, device_id, name=""):
