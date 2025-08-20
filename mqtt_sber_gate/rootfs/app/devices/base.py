@@ -6,6 +6,8 @@ class BaseDevice:
     _id: str
     _description: str
     _online: bool
+    _on_off: bool
+    _context: dict
 
     def __init__(self, ha_state):
         self._id=ha_state.get("entity_id")
@@ -13,28 +15,69 @@ class BaseDevice:
         self._online=ha_state["attributes"].get("available", False)
 
         # self._id = device_id
-        self._online = ha_state.get("state", "off") != "off"  # Стандартное состояние
-        self._manufacturer = "Unknown manufacturer"
-        self._model = "unknown model"
-        self._hw_version = "unknown hw version"
-        self._sw_version = "unknown sw version"
-        # self._description = """
-        # Описание устройства
-        # """
+        self._on_off = ha_state.get("state", "off") != "off"  # Стандартное состояние
+        self._manufacturer = "Unknown"
+        self._model = "Unknown"
+        self._hw_version = "Unknown"
+        self._sw_version = "Unknown"
         self._features = []  # Список доступных функций
         self._dependencies = {}
         self._allowed_values = {}
+        self._context = {
+            "id": ha_state["context"]["id"],
+            "parent_id": ha_state["context"]["parent_id"],
+            "user_id": ha_state["context"]["user_id"]
+        }
+        self._last_changed = ha_state["last_changed"]
+        self._last_reported = ha_state["last_reported"]
+        self._last_updated = ha_state["last_updated"]
+
+    def to_ha_state(self):
+        """
+        Возвращает состояние устройства в формате Home Assistant
+        """
+        return {
+            "entity_id": self.id,
+            "attributes": {
+                "friendly_name": self.description,
+                "available": self.online,
+            },
+            "context": {
+                "id": self._context["id"],
+                "parent_id": self._context["parent_id"],
+                "user_id": self._context["user_id"]
+            },
+            "state": "on" if self.online else "off",
+            "last_changed": self._last_changed,
+            "last_reported": self._last_reported,
+            "last_updated": self._last_updated
+        }
+
+    def _create_features_list(self):
+        features = []
+        features += ["online"]
+        features += ["on_off"]
+        return features
+
+    def to_sber_state(self):
+        
+        return {
+            "id": self.id,
+            "manufacturer": self.manufacturer,
+            "model": self.model,
+            "hw_version": self.hw_version,
+            "sw_version": self.sw_version,
+            "description": self.description,
+            "category": self.category,
+
+            "features": self._create_features_list(),
+            "allowed_values": []
+        }
 
     @property
     def id(self) -> str:
         """Идентификатор устройства"""
         return self._id
-
-    # @id.setter
-    # def id(self, value: str):
-    #     if not isinstance(value, str) or not value.strip():
-    #         raise ValueError("ID должно быть непустой строкой")
-    #     self._id = value
 
     @property
     def online(self) -> bool:
@@ -46,6 +89,17 @@ class BaseDevice:
         if not isinstance(value, bool):
             raise TypeError("Online должен быть boolean")
         self._online = value
+
+    @property
+    def on_off(self) -> bool:
+        """Статус включения/выключения устройства"""
+        return self._on_off
+
+    @on_off.setter
+    def on_off(self, value: bool):
+        if not isinstance(value, bool):
+            raise TypeError("On/Off должен быть boolean")
+        self._on_off = value
 
     @property
     def manufacturer(self) -> str:
@@ -136,28 +190,22 @@ class BaseDevice:
         self._allowed_values = value
 
     @classmethod
-    def to_sber_state(self):
-        """Создаёт устройство из состояния Home Assistant"""
-        return {
-            "id": self.id,
-            "manufacturer": self.manufacturer,
-            "model": self.model,
-            "hw_version": self.hw_version,
-            "sw_version": self.sw_version,
-            "description": self.description,
-            "features": self.features,
-            "dependencies": self.dependencies,
-            "allowed_values": self.allowed_values,
-            "category": self.get_device_category(),
-            "type": "device"
-        }
-
-    @classmethod
     def get_device_category(cls):
         """
         Возвращает категорию устройства
         """
         raise NotImplementedError("Метод get_device_category должен быть переопределен")
+
+
+    def get_entity_domain(self) -> str:
+        """
+        Извлекает домен из entity_id (например, 'climate' из 'climate.living_room')
+        """
+        if not isinstance(self.id, str) or '.' not in self.id:
+            raise ValueError(f"entity_id '{self.id}' имеет недопустимый формат")
+
+        domain, _ = self.id.split('.', 1)
+        return domain
 
     @abstractmethod
     def process_cmd(self, source, cmd_data):

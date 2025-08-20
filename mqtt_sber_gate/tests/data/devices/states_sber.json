@@ -1,11 +1,11 @@
 [
     {
-   "id": "QWERTY124",
-   "manufacturer": "Xiaqara",
-   "model": "SM1123456789",
-   "hw_version": "3.1",
-   "sw_version": "5.6",
-   "description": "Умный кондиционер Xiaqara",
+   "id": "climate.aux_cloud_e87072945e65_ac",
+   "manufacturer": "Unknown manufacturer",
+   "model": "Unknown model",
+   "hw_version": "Unknown",
+   "sw_version": "Unknown",
+   "description": "air conditioner Air Conditioner",
    "category": "hvac_ac",
    "features": [
       "online",
@@ -13,9 +13,6 @@
       "hvac_temp_set",
       "hvac_air_flow_direction",
       "hvac_air_flow_power",
-      "hvac_humidity_set",
-      "hvac_ionization",
-      "hvac_night_mode",
       "hvac_work_mode",
       "temperature"
    ],
@@ -24,12 +21,10 @@
          "type": "ENUM",
          "enum_values": {
             "values": [
-                "auto",
+                "off",
+               "vertical",
                "horizontal",
-               "no",
-               "rotation",
-               "swing",
-               "vertical"
+               "both"
             ]
          }
       },
@@ -41,7 +36,7 @@
                "high",
                "low",
                "medium",
-               "quite",
+               "silent",
                "turbo"
             ]
          }
@@ -50,11 +45,12 @@
          "type": "ENUM",
          "enum_values": {
             "values": [
+               "off",
                "auto",
                "cool",
                "heat",
                "dry",
-               "fan"
+               "fan_only"
             ]
          }
       }

@@ -4,19 +4,114 @@ from .base import BaseDevice
 
 class ClimateDevice(BaseDevice):
     category = "hvac_ac"
-    _temperature: float = 20.0
-    _hvac_temp_set: float = 26.0
-    _on_off: bool = False
+    _temperature: float = None
+    _hvac_temp_set: float = None
     _fan_modes = []
     _swing_modes = []
-    
+    _hvac_actions = []
+    _fan_mode: str
+    _swing_mode: str
+    _hvac_action: str
+    _icon: str
+    _max_temp: float
+    _min_temp: float
+    _supported_features: int
+    _target_temp_step: float
+
     def __init__(self, ha_state):
         super().__init__(ha_state)
-        self._temperature = ha_state["attributes"].get("current_temperature", self.temperature)
-        self._hvac_temp_set = ha_state["attributes"].get("temperature", self.hvac_temp_set)
-        self._on_off = ha_state.get("state", "off") != "off"
+        self._temperature = ha_state["attributes"].get("current_temperature", self._temperature)
+        self._hvac_temp_set = ha_state["attributes"].get("temperature", self._hvac_temp_set)
         self._fan_modes = ha_state["attributes"].get("fan_modes", [])
         self._swing_modes = ha_state["attributes"].get("swing_modes", [])
+        self._fan_mode = ha_state["attributes"].get("fan_mode", self._fan_modes[0])
+        self._swing_mode = ha_state["attributes"].get("swing_mode", self._swing_modes[0])
+        self._hvac_actions = ha_state["attributes"].get("hvac_modes", [])
+        self._hvac_action = ha_state["attributes"].get("hvac_action", self.hvac_actions[0])
+        self._icon = ha_state["attributes"].get("icon", "mdi:air-conditioner")
+        self._max_temp = ha_state["attributes"].get("max_temp", None)
+        self._min_temp = ha_state["attributes"].get("min_temp", None)
+        self._supported_features = ha_state["attributes"].get("supported_features", None)
+        self._target_temp_step = ha_state["attributes"].get("target_temp_step", None)
+
+    def get_device_category(self):
+        return self.category
+    
+    def to_ha_state(self):
+        """Формирует состояние для Home Assistant"""
+        res = super().to_ha_state()
+        
+        return res | {
+            # "state": "on" if self.on_off else "off",
+            "attributes": {
+                "current_temperature": self.temperature,
+                "temperature": self.hvac_temp_set,
+                "friendly_name": self.description,
+                "fan_modes": self.fan_modes,
+                "swing_modes": self.swing_modes,
+                "fan_mode": self.fan_mode,
+                "swing_mode": self.swing_mode,
+                "hvac_modes": self.hvac_actions,
+                "hvac_action": self.hvac_action,
+                "icon": self.icon,
+                "max_temp": self.max_temp,
+                "min_temp": self.min_temp,
+                "supported_features": self._supported_features,
+                "target_temp_step": self._target_temp_step
+            }
+        }
+
+    def _create_features_list(self):
+        """Формирует список возможных функций"""
+        
+        features = super()._create_features_list()
+        features += ["temperature"]
+        features += ["hvac_temp_set"]
+        features += ["hvac_air_flow_direction"] if len(self._swing_modes) > 0 else []
+        features += ["hvac_air_flow_power"] if len(self._fan_modes) > 0 else []
+        features += ["hvac_work_mode"] if len(self._hvac_actions) > 0 else []
+        return features
+
+    def _create_allowed_values_list(self):
+        """Формирует список допустимых значений"""
+        allowed_values = {}
+        if len(self._fan_modes) > 0:
+            allowed_values |= {
+                "hvac_air_flow_power": {
+                    "type": "ENUM",
+                    "enum_values": {
+                        "values": self._fan_modes
+                    }
+                }
+            }
+        if len(self._swing_modes) > 0:
+            allowed_values |= {
+                "hvac_air_flow_direction": {
+                    "type": "ENUM",
+                    "enum_values": {
+                        "values": self._swing_modes
+                    }
+                }
+            }
+        if len(self._hvac_actions) > 0:
+            allowed_values |= {
+                "hvac_work_mode": {
+                    "type": "ENUM",
+                    "enum_values": {
+                        "values": self._hvac_actions
+                    }
+                }
+            }
+        return allowed_values
+
+    def to_sber_state(self):
+        """Формирует состояние для Сбер"""
+        res = super().to_sber_state()
+        
+        return res | {
+            "features": self._create_features_list(),
+            "allowed_values": self._create_allowed_values_list()
+        }
 
     # --- Аксессоры ---
     @property
@@ -46,17 +141,6 @@ class ClimateDevice(BaseDevice):
         self._hvac_temp_set = value
 
     @property
-    def on_off(self) -> bool:
-        """Состояние включения/выключения"""
-        return self._on_off
-
-    @on_off.setter
-    def on_off(self, value: bool):
-        if not isinstance(value, bool):
-            raise TypeError("on_off должен быть boolean")
-        self._on_off = value
-
-    @property
     def fan_modes(self) -> list:
         """Режимы вентиляции"""
         return self._fan_modes
@@ -78,71 +162,99 @@ class ClimateDevice(BaseDevice):
             raise TypeError("swing_modes должен быть списком")
         self._swing_modes = value
 
-    # --- Метод from_ha_state ---
-    # @classmethod
-    # def from_ha_state(cls, ha_state):
-    #     """
-    #     Создаёт устройство на основе состояния из Home Assistant
-        
-    #     Args:
-    #         ha_state (dict): Словарь с данными из Home Assistant
-            
-    #     Returns:
-    #         ClimateDevice: Экземпляр климатического устройства
-    #     """
-    #     entity_id = ha_state.get("entity_id", "unknown")
-        
-    #     # Извлечение атрибутов
-    #     attributes = ha_state.get("attributes", {})
-    #     friendly_name = attributes.get("friendly_name", "Unknown")
-    #     available = attributes.get("available", False)
-    #     current_temperature = attributes.get("current_temperature", 20.0)
-    #     temperature = attributes.get("temperature", 20.0)
-    #     state = attributes.get("state", "off")
-        
-    #     # Определение состояния включения/выключения
-    #     is_on = state.lower() not in ["off", "idle"]
-        
-    #     return cls(
-    #         device_id=entity_id,
-    #         name=friendly_name
-    #     )
+    @property
+    def fan_mode(self) -> str:
+        """Текущий режим вентиляции"""
+        return self._fan_mode
+
+    @fan_mode.setter
+    def fan_mode(self, value: str):
+        if value not in self.fan_modes:
+            raise ValueError("Недопустимый режим вентиляции")
+        self._fan_mode = value
+
+    @property
+    def swing_mode(self) -> str:
+        """Текущий режим подъема/спуска"""
+        return self._swing_mode
+
+    @swing_mode.setter
+    def swing_mode(self, value: str):
+        if value not in self.swing_modes:
+            raise ValueError("Недопустимый режим подъема/спуска")
+        self._swing_mode = value
+
+    @property
+    def hvac_actions(self) -> list:
+        """Доступные действия климатической системы"""
+        return self._hvac_actions
+
+    @hvac_actions.setter
+    def hvac_actions(self, value: list):
+        if not isinstance(value, list):
+            raise TypeError("hvac_actions должен быть списком")
+        self._hvac_actions = value
+
+    @property
+    def hvac_action(self) -> str:
+        """Текущее действие климатической системы"""
+        return self._hvac_action
+
+    @hvac_action.setter
+    def hvac_action(self, value: str):
+        if value not in self.hvac_actions:
+            raise ValueError("Недопустимое действие климатической системы")
+        self._hvac_action = value
+
+    @property
+    def icon(self) -> str:
+        """Иконка устройства"""
+        return self._icon
+
+    @icon.setter
+    def icon(self, value: str):
+        self._icon = value
+
+    @property
+    def max_temp(self) -> float:
+        """Максимальная допустимая температура"""
+        return self._max_temp
+    
+    @max_temp.setter
+    def max_temp(self, value: float):
+        self._max_temp = value
+
+    @property
+    def min_temp(self) -> float:
+        """Минимальная допустимая температура"""
+        return self._min_temp
+    
+    @min_temp.setter
+    def min_temp(self, value: float):
+        self._min_temp = value
 
     # --- Методы ---
-    def to_ha_state(self):
-        """Формирует состояние для Home Assistant"""
-        return {
-            "id": self.id,
-            "name": self.description,
-            "temperature": self.temperature,
-            "hvac_temp_set": self.hvac_temp_set,
-            "on_off": self.on_off,
-            "online": self.online
-        }
-
-    def to_sber_state(self):
-        """Формирует состояние для Sber"""
-        return {
-            "id": self.id,
-            "states": [
-                {"key": "online", "value": {"type": "BOOL", "bool_value": self.online}},
-                {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.on_off}},
-                {"key": "temperature", "value": {"type": "INTEGER", "integer_value": int(self.temperature * 10)}},
-                {"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": int(self.hvac_temp_set * 10)}}
-            ]
-        }
-
     def process_cmd(self, source, cmd_data):
         """Обрабатывает команду от Sber или HA"""
-        changed = False
+        if cmd_data is None:
+            return None
+        
         if "on_off" in cmd_data:
-            new_on_off = cmd_data["on_off"]
-            if self.on_off != new_on_off:
-                self.on_off = new_on_off
-                changed = True
+            return {
+                "url": "/api/services/"+self.get_entity_domain()+("/turn_on" if cmd_data["on_off"] else "/turn_off"),
+                "data": { "entity_id": self.id }
+            }
+            # new_on_off = cmd_data["on_off"]
+            # if self.on_off != new_on_off:
+            #     self.on_off = new_on_off
+            #     changed = True
         if "hvac_temp_set" in cmd_data:
-            new_temp = cmd_data["hvac_temp_set"]
-            if self.hvac_temp_set != new_temp:
-                self.hvac_temp_set = new_temp
-                changed = True
-        return changed
+            return {
+                "url": "/api/services/"+self.get_entity_domain()+"/set_temperature",
+                "data": {
+                    "temperature": cmd_data["hvac_temp_set"],
+                    "entity_id": self.id,
+                    "hvac_mode": "cool" if self.on_off else "heat"
+                }
+            }
+        return None
