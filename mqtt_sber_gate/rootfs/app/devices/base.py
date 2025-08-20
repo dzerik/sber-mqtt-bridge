@@ -47,7 +47,7 @@ class BaseDevice:
                 "parent_id": self._context["parent_id"],
                 "user_id": self._context["user_id"]
             },
-            "state": "on" if self.online else "off",
+            "state": "on" if self.on_off else "off",
             "last_changed": self._last_changed,
             "last_reported": self._last_reported,
             "last_updated": self._last_updated

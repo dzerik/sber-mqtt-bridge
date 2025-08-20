@@ -1,0 +1,38 @@
+{
+    "id": "light.liustra_sp_1",
+    "manufacturer": "Unknown",
+    "model": "Unknown",
+    "hw_version": "Unknown",
+    "sw_version": "Unknown",
+    "description": "Люстра сп 1",
+    "category": "light",
+    "features": [
+        "online",
+        "on_off",
+        "light_mode",
+        "light_brightness",
+        "light_colour",
+        "light_colour_temp"
+    ],
+    "dependencies": {
+        "light_colour": {
+        "key": "light_mode",
+            "value": [
+            {
+                "type": "ENUM",
+                "enum_value": "colour"
+            }
+            ]
+        }
+    },
+    "allowed_values": {
+        "light_brightness": {
+            "type": "INTEGER",
+            "integer_values": {
+            "min": "100",
+            "max": "900",
+            "step": "1"
+            }
+        }
+    }
+}
