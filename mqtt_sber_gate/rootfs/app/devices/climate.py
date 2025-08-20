@@ -24,10 +24,10 @@ class ClimateDevice(BaseDevice):
         self._hvac_temp_set = ha_state["attributes"].get("temperature", self._hvac_temp_set)
         self._fan_modes = ha_state["attributes"].get("fan_modes", [])
         self._swing_modes = ha_state["attributes"].get("swing_modes", [])
-        self._fan_mode = ha_state["attributes"].get("fan_mode", self._fan_modes[0])
-        self._swing_mode = ha_state["attributes"].get("swing_mode", self._swing_modes[0])
+        self._fan_mode = ha_state["attributes"].get("fan_mode", self._fan_modes[0] if self._fan_modes else None)
+        self._swing_mode = ha_state["attributes"].get("swing_mode", self._swing_modes[0] if self._swing_modes else None)
         self._hvac_actions = ha_state["attributes"].get("hvac_modes", [])
-        self._hvac_action = ha_state["attributes"].get("hvac_action", self.hvac_actions[0])
+        self._hvac_action = ha_state["attributes"].get("hvac_action", self._hvac_actions[0] if self._hvac_actions else None)
         self._icon = ha_state["attributes"].get("icon", "mdi:air-conditioner")
         self._max_temp = ha_state["attributes"].get("max_temp", None)
         self._min_temp = ha_state["attributes"].get("min_temp", None)
@@ -244,17 +244,13 @@ class ClimateDevice(BaseDevice):
                 "url": "/api/services/"+self.get_entity_domain()+("/turn_on" if cmd_data["on_off"] else "/turn_off"),
                 "data": { "entity_id": self.id }
             }
-            # new_on_off = cmd_data["on_off"]
-            # if self.on_off != new_on_off:
-            #     self.on_off = new_on_off
-            #     changed = True
         if "hvac_temp_set" in cmd_data:
             return {
                 "url": "/api/services/"+self.get_entity_domain()+"/set_temperature",
                 "data": {
                     "temperature": cmd_data["hvac_temp_set"],
                     "entity_id": self.id,
-                    "hvac_mode": "cool" if self.on_off else "heat"
+                    "hvac_mode": "cool" if self.on_off else "heat" # TODO: Проверить, что работает
                 }
             }
         return None
