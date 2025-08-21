@@ -9,3 +9,4 @@ mqtt_sber_gate/rootfs/app/categories.json
 mqtt_sber_gate/rootfs/app/models.json
 .gitignore
 .vscode/launch.json
+options.json
