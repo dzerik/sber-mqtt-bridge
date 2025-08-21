@@ -8,6 +8,8 @@ import ssl
 import time
 import json
 import logging
+from devices.light import LightDevice
+from devices_db import CDevicesDB
 import paho
 import random
 import requests
@@ -46,22 +48,48 @@ LOG_FILE_MAX_SIZE = 1024*1024*7
 HA_AREA = {}
 
 # Настройка логгирования (файл + консоль)
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s %(levelname)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    filename=LOG_FILE,
-    filemode='w'
-)
+# logging.basicConfig(
+#     level=logging.DEBUG,
+#     format='%(asctime)s %(levelname)s: %(message)s',
+#     datefmt='%Y-%m-%d %H:%M:%S',
+#     filename=LOG_FILE,
+#     filemode='w'
+# )
 
-# Добавление логгирования в консоль
-console_handler = logging.StreamHandler()
-console_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-console_handler.setFormatter(console_formatter)
+# # Добавление логгирования в консоль
+# console_handler = logging.StreamHandler()
+# console_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+# console_handler.setFormatter(console_formatter)
+# root_logger = logging.getLogger()
+# root_logger.addHandler(console_handler)
+
+# logger = logging.getLogger(__name__)
+
+# Проверка размера файла логов
+if os.path.isfile(LOG_FILE):
+    if os.path.getsize(LOG_FILE) > LOG_FILE_MAX_SIZE:
+        os.remove(LOG_FILE)
+
+# Инициализация корневого логгера
 root_logger = logging.getLogger()
+root_logger.setLevel(logging.DEBUG)  # Значение по умолчанию
+
+# Формат сообщений
+formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+# Логирование в файл
+file_handler = logging.FileHandler(LOG_FILE, mode='w')
+file_handler.setFormatter(formatter)
+root_logger.addHandler(file_handler)
+
+# Логирование в консоль
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
 root_logger.addHandler(console_handler)
 
+# Используем отдельный логгер для модуля
 logger = logging.getLogger(__name__)
+
 
 fOptions='options.json'
 fDevicesDB='devices.json'
@@ -69,8 +97,8 @@ fCategories='categories.json'
 
 #*******************************
 def json_read(f):
-   d=open(f,'r', encoding='utf-8').read()
    try:
+      d=open(f,'r', encoding='utf-8').read()
       r=json.loads(d)
    except:
       r={}
@@ -157,99 +185,99 @@ def ha_script(id,OnOff):
    response=requests.post(url, json={"entity_id": id}, headers=hds)
 
 #*******************************
-class CDevicesDB(object):
-   """docstring"""
-   def __init__(self, f):
-      """Constructor 'devices.json'"""
-      self.fDB=f
-      self.DB=json_read(f)
-      for id in self.DB:
-         if self.DB[id].get('enabled',None) == None:
-             self.DB[id]['enabled'] = False
+# class CDevicesDB(object):
+#    """docstring"""
+#    def __init__(self, f):
+#       """Constructor 'devices.json'"""
+#       self.fDB=f
+#       self.DB=json_read(f)
+#       for id in self.DB:
+#          if self.DB[id].get('enabled',None) == None:
+#              self.DB[id]['enabled'] = False
 
-      self.mqtt_json_devices_list='{}'
-      self.mqtt_json_states_list='{}'
-      self.http_json_devices_list='{}'
-#      self.do_mqtt_json_devices_list()
-#      self.do_mqtt_json_states_list({})
-      self.do_http_json_devices_list()
+#       self.mqtt_json_devices_list='{}'
+#       self.mqtt_json_states_list='{}'
+#       self.http_json_devices_list='{}'
+# #      self.do_mqtt_json_devices_list()
+# #      self.do_mqtt_json_states_list({})
+#       self.do_http_json_devices_list()
 
-   def NewID(self,a):
-      r=''
-      for i in range(1,99):
-         r=a+'_'+('00'+str(i))[-2:]
-         if (self.DB.get(r,None) is None):
-            return r
+#    def NewID(self,a):
+#       r=''
+#       for i in range(1,99):
+#          r=a+'_'+('00'+str(i))[-2:]
+#          if (self.DB.get(r,None) is None):
+#             return r
 
-   def save_DB(self):
-      json_write(self.fDB,self.DB)
-#      self.do_http_json_devices_list()
+#    def save_DB(self):
+#       json_write(self.fDB,self.DB)
+# #      self.do_http_json_devices_list()
 
-   def clear(self,d):
-      self.DB={}
-      self.save_DB()
+#    def clear(self,d):
+#       self.DB={}
+#       self.save_DB()
 
-   def dev_add(self):
-      print('device_Add')
+#    def dev_add(self):
+#       print('device_Add')
 
-   def dev_del(self,id):
-      self.DB.pop(id, None)
-      self.save_DB()
-      logger.info('Delete Device: '+id+'!')
+#    def dev_del(self,id):
+#       self.DB.pop(id, None)
+#       self.save_DB()
+#       logger.info('Delete Device: '+id+'!')
 
-   def dev_inBase(self,id):
-      if self.DB.get(id,None) is None:
-         return False
-      else:
-         return True
+#    def dev_inBase(self,id):
+#       if self.DB.get(id,None) is None:
+#          return False
+#       else:
+#          return True
 
-   def change_state(self,id,key,value):
-      if self.DB.get(id,None) is None:
-         logger.info('Device id='+str(id)+' not found')
-         return
-      if self.DB[id].get('States',None) is None:
-         logger.info('Device id='+str(id)+' States not Found. Create.')
-         self.DB[id]['States']={}
-      if self.DB[id]['States'].get(key,None) is None:
-         logger.info('Device id='+str(id)+' key='+str(key)+' not Found. Create.')
-      self.DB[id]['States'][key]=value
-#      self.do_mqtt_json_states_list([id])
+#    def change_state(self,id,key,value):
+#       if self.DB.get(id,None) is None:
+#          logger.info('Device id='+str(id)+' not found')
+#          return
+#       if self.DB[id].get('States',None) is None:
+#          logger.info('Device id='+str(id)+' States not Found. Create.')
+#          self.DB[id]['States']={}
+#       if self.DB[id]['States'].get(key,None) is None:
+#          logger.info('Device id='+str(id)+' key='+str(key)+' not Found. Create.')
+#       self.DB[id]['States'][key]=value
+# #      self.do_mqtt_json_states_list([id])
 
-   def get_states(self,id):
-      d=self.DB.get(id,{})
-      return d.get('States',{})
+#    def get_states(self,id):
+#       d=self.DB.get(id,{})
+#       return d.get('States',{})
 
-   def get_state(self,id,key):
-      d=self.DB.get(id,{})
-      s=d.get('States',{})
-      k=s.get(key,None)
-      if k:
-         return k
+#    def get_state(self,id,key):
+#       d=self.DB.get(id,{})
+#       s=d.get('States',{})
+#       k=s.get(key,None)
+#       if k:
+#          return k
 
-   def update_only(self,id,d):
-      if (self.DB.get(id,None) is not None):
-         for k,v in d.items():
-            self.DB[id][k]=d.get(k,v)
-         self.save_DB()
+#    def update_only(self,id,d):
+#       if (self.DB.get(id,None) is not None):
+#          for k,v in d.items():
+#             self.DB[id][k]=d.get(k,v)
+#          self.save_DB()
 
-   def update(self,id,d):
-      fl={'enabled':False,'name':'','default_name':'','nicknames':[],'home':'','room':'','groups':[],'model_id':'','category':'','hw_version':'hw:'+VERSION,'sw_version':'sw:'+VERSION}
-      fl['entity_ha']=False
-      fl['entity_type']=''
-      fl['friendly_name']=''
-      if (self.DB.get(id,None) is None):
-         logger.info('Device '+id+' Not Found. Adding')
-         self.DB[id]={}
-         for k,v in fl.items():
-            self.DB[id][k]=d.get(k,v)
-         if d['category'] == 'scenario_button':
-            self.DB[id]['States'] = {'button_event':''}
+#    def update(self,id,d):
+#       fl={'enabled':False,'name':'','default_name':'','nicknames':[],'home':'','room':'','groups':[],'model_id':'','category':'','hw_version':'hw:'+VERSION,'sw_version':'sw:'+VERSION}
+#       fl['entity_ha']=False
+#       fl['entity_type']=''
+#       fl['friendly_name']=''
+#       if (self.DB.get(id,None) is None):
+#          logger.info('Device '+id+' Not Found. Adding')
+#          self.DB[id]={}
+#          for k,v in fl.items():
+#             self.DB[id][k]=d.get(k,v)
+#          if d['category'] == 'scenario_button':
+#             self.DB[id]['States'] = {'button_event':''}
 
-      for k,v in d.items():
-         self.DB[id][k]=d.get(k,v)
-      if (self.DB[id]['name'] == ''):
-         self.DB[id]['name'] = self.DB[id]['friendly_name']
-      self.save_DB()
+#       for k,v in d.items():
+#          self.DB[id][k]=d.get(k,v)
+#       if (self.DB[id]['name'] == ''):
+#          self.DB[id]['name'] = self.DB[id]['friendly_name']
+#       self.save_DB()
 
    def DeviceStates_mqttSber(self,id):
       d=self.DB.get(id,None)
@@ -565,9 +593,9 @@ def ws_auth_invalid(ws,mdata):
    logger.critical("WebSocket: auth_invalid",7)
 def ws_result(ws,mdata):
    global HA_AREA
-   logger.trace(f"WebSocket: result: {mdata}")
+   logger.debug(f"WebSocket: result: {mdata}")
    if mdata.get('id', 'None') == 2:
-      logger.trace(f"WebSocket: Получен список зон: {mdata}")
+      logger.debug(f"WebSocket: Получен список зон: {mdata}")
       HA_AREA = {}
       for a in mdata.get('result',[]):
          HA_AREA[a['area_id']]=a['name']
@@ -627,8 +655,13 @@ def ws_default(ws,mdata):
 #********** Start **********************************
 
 Options=json_read(fOptions)
-log_level = LOG_LEVEL_LIST.get(Options.get('log_level','INFO'),'INFO')
-logger.setLevel(log_level)
+log_level = Options.get('log_level','INFO')
+
+# Установка уровня логирования из опций
+log_level_str = Options.get('log_level', 'INFO').upper()
+log_level = getattr(logging, log_level_str, logging.INFO)
+root_logger.setLevel(log_level)
+
 
 #https://developers.sber.ru/docs/ru/smarthome/c2c/value
 sber_types={'FLOAT':'float_value','INTEGER':'integer_value','STRING':'string_value','BOOL':'bool_value','ENUM':'enum_value','JSON':'','COLOUR':'colour_value'}
@@ -665,8 +698,16 @@ if not os.path.exists(fDevicesDB):
    json_write(fDevicesDB,{})
 
 logger.info('Чтение базы устройств')
-DevicesDB=CDevicesDB(fDevicesDB)
-AgentStatus={"online": True, "error": "",  "credentials": {'username':Options['sber-mqtt_login'],"password": "***",'broker': Options['sber-mqtt_broker']}}
+DevicesDB=CDevicesDB(fDevicesDB, logger)
+AgentStatus={
+   "online": True, 
+   "error": "",  
+   "credentials": {
+      'username':Options['sber-mqtt_login'],
+         "password": "***",
+         'broker': Options['sber-mqtt_broker']
+   }
+}
 
 #logger.info(Options['ha-api_url'])
 #logger.info(Options['ha-api_token'])
@@ -705,6 +746,8 @@ def upd_light(id,s):
    attr=s['attributes'].get('friendly_name','')
    logger.debug('light: ' + s['entity_id'] + ' '+attr)
    DevicesDB.update(s['entity_id'],{'entity_ha': True,'entity_type': 'light','friendly_name':attr,'category': 'light'})
+   light_device = LightDevice(s)
+   DevicesDB.deviceStore.store(light_device)
 
 def upd_scr(id,s):
    attr=s['attributes'].get('friendly_name','')
@@ -993,111 +1036,151 @@ def static_answer(self,file):
    logger.info('Отправка файла: '+f+'; MIME:'+m)
    send_file(self,f,m+'; charset=utf-8')
 
-hostName = ''
-serverPort = 9123
-class MyServer(BaseHTTPRequestHandler):
-   def do_DELETE(self):
-      send_data(self,'{}',"application/json")
-      api='/api/v1/devices/'
-      if self.path[:len(api)] == api:
-         DevicesDB.dev_del(self.path[len(api):])
-      logger.info('DELETE: '+self.path+'; ')
-      infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
+# hostName = ''
+# serverPort = 9123
+# class MyServer(BaseHTTPRequestHandler):
+#    def do_DELETE(self):
+#       send_data(self,'{}',"application/json")
+#       api='/api/v1/devices/'
+#       if self.path[:len(api)] == api:
+#          DevicesDB.dev_del(self.path[len(api):])
+#       logger.info('DELETE: '+self.path+'; ')
+#       infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
 
-   def do_GET(self):
-      sf=static_request.get(self.path, None)
-      if (sf is None):
-         dict={
-            '/': api_root,
+#    def do_GET(self):
+#       sf=static_request.get(self.path, None)
+#       if (sf is None):
+#          dict={
+#             '/': api_root,
 
-            '/api/v1/status': api_status,
-            '/api/v1/objects': api_objects,
-            '/api/v1/transformations': api_transformations,
-            '/api/v1/aggregations': api_aggregations,
+#             '/api/v1/status': api_status,
+#             '/api/v1/objects': api_objects,
+#             '/api/v1/transformations': api_transformations,
+#             '/api/v1/aggregations': api_aggregations,
 
-            '/api/v1/models': api_models,
-            '/api/v1/categories': api_categories,
-#            '/api/v1/categories/relay/features': api_categories_relay_features,
+#             '/api/v1/models': api_models,
+#             '/api/v1/categories': api_categories,
+# #            '/api/v1/categories/relay/features': api_categories_relay_features,
 
-            '/api/v1/devices': api_devices,
-            '/api/v2/devices': api2_devices
+#             '/api/v1/devices': api_devices,
+#             '/api/v2/devices': api2_devices
 
-         }
-         dict.get(self.path, api_default )(self)
-      else:
-         static_answer(self, sf)
+#          }
+#          dict.get(self.path, api_default )(self)
+#       else:
+#          static_answer(self, sf)
 
-   def do_PUT(self):
-      send_data(self,'{}',"application/json")
-      logger.info('PUT: '+self.path)
-      data=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-      api='/api/v1/devices/'
-      if self.path[:len(api)] == api:
-         dev=self.path[len(api):]
-         if (dev == data['id']):
-            DevicesDB.update(dev, data)
-            infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
-      else:
-         dev=''
+#    def do_PUT(self):
+#       send_data(self,'{}',"application/json")
+#       logger.info('PUT: '+self.path)
+#       data=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+#       api='/api/v1/devices/'
+#       if self.path[:len(api)] == api:
+#          dev=self.path[len(api):]
+#          if (dev == data['id']):
+#             DevicesDB.update(dev, data)
+#             infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
+#       else:
+#          dev=''
       
-   def do_POST(self):
-      send_data(self,'{}',"application/json")
-      logger.info('POST: '+self.path)
-      d=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-      dict={
-         '/api/v1/devices': api_devices_post,
-         '/api/v2/devices': api2_devices_post,
-         '/api/v2/command': api2_command_post
-      }
-      dict.get(self.path, api_default_post )(self,d)
+#    def do_POST(self):
+#       send_data(self,'{}',"application/json")
+#       logger.info('POST: '+self.path)
+#       d=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+#       dict={
+#          '/api/v1/devices': api_devices_post,
+#          '/api/v2/devices': api2_devices_post,
+#          '/api/v2/command': api2_command_post
+#       }
+#       dict.get(self.path, api_default_post )(self,d)
 
 
 
 
 
-ext_mime_types = {
-   ".html" : "text/html",
-   ".js" : "text/javascript",
-   ".css" : "text/css",
-   ".jpg" : "image/jpeg",
-   ".png" : "image/png",
-   ".json" : "application/json",
-   ".ico" : "image/vnd.microsoft.icon",
-   ".log" : "application/octet-stream",
-   "default" : "text/plain"
-}
+# ext_mime_types = {
+#    ".html" : "text/html",
+#    ".js" : "text/javascript",
+#    ".css" : "text/css",
+#    ".jpg" : "image/jpeg",
+#    ".png" : "image/png",
+#    ".json" : "application/json",
+#    ".ico" : "image/vnd.microsoft.icon",
+#    ".log" : "application/octet-stream",
+#    "default" : "text/plain"
+# }
 
-static_request={
-#   '/api/v1/models': 'models.json',
-#   '/api/v1/categories': 'categories.json',
-   '/SberGate.log': 'SberGate.log',
-   '/': '../app/ui2/index.html',
-   '/ui2/main.js': '../app/ui2/main.js',
-   '/ui2/main.css': '../app/ui2/main.css',
-   '/favicon.ico': '../app/ui2/favicon.ico',
-   '/index.html': '../app/ui/index.html',
-   '/static/css/2.b9b863b2.chunk.css': '../app/ui/static/css/2.b9b863b2.chunk.css',
-   '/static/css/main.1359096b.chunk.css': '../app/ui/static/css/main.1359096b.chunk.css',
-   '/static/js/2.e21fd42c.chunk.js': '../app/ui/static/js/2.e21fd42c.chunk.js',
-   '/static/js/main.a57bb958.chunk.js': '../app/ui/static/js/main.a57bb958.chunk.js',
-   '/static/js/runtime-main.ccc7405a.js': '../app/ui/static/js/runtime-main.ccc7405a.js'
-}
-
-
-webServer = HTTPServer((hostName, serverPort), MyServer)
-logger.info("Server started http://%s:%s" % (hostName, serverPort))
-
-try:
-#   webServer.serve_forever()
-   tsrv=threading.Thread(target=webServer.serve_forever)
-   tsrv.daemon = True
-   tsrv.start()
+# static_request={
+# #   '/api/v1/models': 'models.json',
+# #   '/api/v1/categories': 'categories.json',
+#    '/SberGate.log': 'SberGate.log',
+#    '/': '../app/ui2/index.html',
+#    '/ui2/main.js': '../app/ui2/main.js',
+#    '/ui2/main.css': '../app/ui2/main.css',
+#    '/favicon.ico': '../app/ui2/favicon.ico',
+#    '/index.html': '../app/ui/index.html',
+#    '/static/css/2.b9b863b2.chunk.css': '../app/ui/static/css/2.b9b863b2.chunk.css',
+#    '/static/css/main.1359096b.chunk.css': '../app/ui/static/css/main.1359096b.chunk.css',
+#    '/static/js/2.e21fd42c.chunk.js': '../app/ui/static/js/2.e21fd42c.chunk.js',
+#    '/static/js/main.a57bb958.chunk.js': '../app/ui/static/js/main.a57bb958.chunk.js',
+#    '/static/js/runtime-main.ccc7405a.js': '../app/ui/static/js/runtime-main.ccc7405a.js'
+# }
 
 
-except KeyboardInterrupt:
-   pass
+# webServer = HTTPServer((hostName, serverPort), MyServer)
+# logger.info("Server started http://%s:%s" % (hostName, serverPort))
+
+# try:
+# #   webServer.serve_forever()
+#    tsrv=threading.Thread(target=webServer.serve_forever)
+#    tsrv.daemon = True
+#    tsrv.start()
 
 
+# except KeyboardInterrupt:
+#    pass
+
+def start_webserver():
+    hostName = ''
+    serverPort = 9123
+
+    # Создание HTTP-сервера с передачей зависимостей
+    webServer = HTTPServer(
+        (hostName, serverPort),
+        lambda *args, **kwargs: MyServer(
+            *args,
+            devices_db=DevicesDB,
+            mqttc=mqttc,
+            sber_root_topic=sber_root_topic,
+            ha_dev=ha_dev,
+            **kwargs
+        )
+    )
+    logger.info("Server started http://%s:%s" % (hostName, serverPort))
+
+    # Сохраняем ссылку на сервер для последующего закрытия
+    global webServer_instance
+    webServer_instance = webServer
+
+    tsrv = threading.Thread(target=webServer.serve_forever)
+    tsrv.daemon = True
+    tsrv.start()
+    return {"server": webServer, "thread": tsrv}
+
+def stop_webserver(webServer, tsrv):
+    try:
+        # Останавливаем сервер
+        webServer.shutdown()
+        logger.info("Shutting down HTTP server...")
+        
+        # Ждём завершения потока
+        tsrv.join(timeout=5)
+        
+        # Закрываем сервер
+        webServer.server_close()
+        logger.info("HTTP server closed.")
+    except Exception as e:
+        logger.error(f"Error stopping HTTP server: {e}")
 ws_url=Options['ha-api_url'].replace('http','ws',1) + '/api/websocket'
 logger.info('Start WebSocket Client URL: ' + ws_url)
 #websocket.enableTrace(True)
@@ -1105,6 +1188,8 @@ ws = websocket.WebSocketApp(ws_url,
                             on_open=ws_on_open,
                             on_message=ws_on_message,
                             on_close=ws_on_close)
+
+webServer = start_webserver();
 
 socketRun=True
 while socketRun:
@@ -1117,7 +1202,9 @@ while socketRun:
 
 #tsrv.join()
 
-webServer.server_close()
+# webServer.server_close()
+stop_webserver(webServer["servrer"], webServer["thread"])
+
 logger.info("Server stopped.")
 
 #---------------------------------------------

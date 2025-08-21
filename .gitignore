@@ -1,2 +1,11 @@
 .idea/*
 mqtt_sber_gate/**/__pycache__/*
+*.json.ORIG
+SberGate.log
+.gitignore
+ha_dev.json
+devices.json
+mqtt_sber_gate/rootfs/app/categories.json
+mqtt_sber_gate/rootfs/app/models.json
+.gitignore
+.vscode/launch.json
