@@ -10,6 +10,7 @@ import json
 import logging
 from devices.light import LightDevice
 from devices_db import CDevicesDB, json_read, json_write
+from http_server import MyServer
 import paho
 import random
 import requests
