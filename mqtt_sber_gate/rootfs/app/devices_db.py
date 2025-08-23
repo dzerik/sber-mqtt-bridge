@@ -1,7 +1,13 @@
 # devices_db.py
+import copy
 import json
 import os
 import logging
+from typing import Dict
+
+from devices.base import BaseDevice
+from devices.climate import ClimateDevice
+from devices.light import LightDevice
 
 logger = logging.getLogger(__name__)
 VERSION = "0.0.1"
@@ -19,28 +25,80 @@ def json_write(f, d):
         json.dump(d, file, indent=4)
 
 class DevicesStore:
-    _store = []
+    _store: Dict[str, BaseDevice] = {}
+    _deviceConstructorsMap = {
+        "light":    lambda ha_state: LightDevice(ha_state),
+        "climate":  lambda ha_state: ClimateDevice(ha_state)
+    }
 
     def __init__(self, logger):
         self.logger = logger
 
-    def store(self, device):
-        self._store.append(device)
+    def upsert(self, device: BaseDevice):
+        if device.id in self._store:
+            self.logger.info(f"Обновление устройства: {device.id}")
+        else:
+            self.logger.info(f"Добавление устройства: {device.id}")
+        self._store[device.id] = device
+
+    def get(self, id: str) -> BaseDevice:
+        if id in self._store:
+            return self._store[id]
+        else:
+            return None
+    
+    @staticmethod
+    def _is_ha_state(state: dict) -> bool:
+        return "attributes" in state.keys() and "category" in state.keys()
+
+    def create(self, ha_state: dict):
+        if DevicesStore._is_ha_state(ha_state) and ha_state.get('category') in self._deviceConstructorsMap:
+            return self._deviceConstructorsMap[ha_state['category']](ha_state)
+        else:
+            return None
+        
+   
+    def save(self, f):
+        saving_objects = {}
+        for id, device in self._store.items():
+            saving_objects[id] = device.to_ha_state()
+        json_write("store_"+f, saving_objects)
+
+    # def _restore_from_dict(self, data_dict):
+    #     """Восстанавливает состояние объекта из словаря"""
+    #     for key, value in data_dict.items():
+    #         if hasattr(self, key):
+    #             setattr(self, key, value)
+    #     return self
+
+    def load(self, f):
+        loaded_objects = json_read("store_"+f, {})
+        for id, ha_state in loaded_objects.items():
+            device = self.create(ha_state)
+            if device is not None:
+                self.upsert(device)
 
 class CDevicesDB:
     """Управление базой данных устройств"""
-    _deviceStore = None
+    _deviceStore: DevicesStore = None
     
-    def __init__(self, fDB, logger):
+    def __init__(self, fDB, logger, version):
         self.fDB = fDB
         self.DB = json_read(fDB, {})
         self.logger = logger
         self._deviceStore = DevicesStore(logger)
+        self._deviceStore.load(fDB)
+        VERSION = version
         
+        known_categories = ["light", "climate"]
+
         # Инициализация параметров устройств
-        for id in self.DB:
+        for id, device in self.DB.items():
             if self.DB[id].get('enabled', None) is None:
-                self.DB[id]['enabled'] = False
+                self.DB[id]['enabled'] = False    
+            device_instance = self._deviceStore.create(device)
+            if device_instance is not None:
+                self._deviceStore.upsert(device_instance)
 
         self.mqtt_json_devices_list = '{}'
         self.mqtt_json_states_list = '{}'
@@ -58,6 +116,7 @@ class CDevicesDB:
 
     def save_DB(self):
         json_write(self.fDB, self.DB)
+        self._deviceStore.save(self.fDB)
 
     def clear(self):
         self.DB = {}
@@ -95,7 +154,7 @@ class CDevicesDB:
                 self.DB[id][k] = v
             self.save_DB()
 
-    def update(self, id, d):
+    def upsert(self, id, d):
         defaults = {
             'enabled': False,
             'name': '',
@@ -111,7 +170,7 @@ class CDevicesDB:
         }
 
         if id not in self.DB:
-            self.DB[id] = defaults.copy()
+            self.DB[id] = copy.deepcopy(defaults)
 
         for k, v in d.items():
             self.DB[id][k] = v
@@ -119,7 +178,15 @@ class CDevicesDB:
         if not self.DB[id]['name']:
             self.DB[id]['name'] = self.DB[id]['friendly_name']
 
+
+    def update(self, id, d):
+        self.upsert(id, d)
         self.save_DB()
+
+    def save_DB(self):
+        json_write(self.fDB, self.DB)
+        self._deviceStore.save(self.fDB)
+
 
     def do_mqtt_json_devices_list(self):
         # Реализация как в оригинале...
@@ -128,9 +195,13 @@ class CDevicesDB:
         device_list['devices'].append({"id": "root", "name": "Вумный контроллер", 'hw_version':VERSION, 'sw_version':VERSION })
         device_list['devices'][0]['model']={'id': 'ID_root_hub', 'manufacturer': 'Janch', 'model': 'VHub', 'description': "HA MQTT SberGate HUB", 'category': 'hub', 'features': ['online']}
         for k,v in self.DB.items():
-            if v.get('enabled',False):
+            device = self.deviceStore.get(k)
+            if device is None:
+                if not v.get('enabled',False):
+                    continue
+
                 d={'id': k, 'name': v.get('name',''), 'default_name': v.get('default_name','')}
-                d['home']=v.get('home','Мой дом')
+
                 d['room']=v.get('room','')
             #            d['groups']=['Спальня']
                 d['hw_version']=v.get('hw_version','')
@@ -149,7 +220,10 @@ class CDevicesDB:
                 d['model']={'id': 'ID_'+dev_cat, 'manufacturer': 'Janch', 'model': 'Model_'+dev_cat, 'category': dev_cat, 'features': f}
             #            logger.info(d['model'])
                 d['model_id']=''
-                device_list['devices'].append(d)
+            else:
+                d = device.to_ha_state()
+            device_list['devices'].append(d)
+
         self.mqtt_json_devices_list=json.dumps(device_list)
         logger.debug('New Devices List for MQTT: '+self.mqtt_json_devices_list)
         return self.mqtt_json_devices_list
