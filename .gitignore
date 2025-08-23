@@ -5,8 +5,10 @@ SberGate.log
 .gitignore
 ha_dev.json
 devices.json
+store_devices.json
 mqtt_sber_gate/rootfs/app/categories.json
 mqtt_sber_gate/rootfs/app/models.json
 .gitignore
 .vscode/launch.json
 options.json
+mqtt_sber_gate/rootfs/app/data/debug-data/*.json

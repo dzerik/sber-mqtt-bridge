@@ -9,7 +9,7 @@ import time
 import json
 import logging
 from devices.light import LightDevice
-from devices_db import CDevicesDB
+from devices_db import CDevicesDB, json_read, json_write
 import paho
 import random
 import requests
@@ -91,24 +91,24 @@ root_logger.addHandler(console_handler)
 logger = logging.getLogger(__name__)
 
 
-fOptions='options.json'
+fOptions=os.path.join(os.getcwd(), "data", "debug-data", "options.json")
 fDevicesDB='devices.json'
 fCategories='categories.json'
 
 #*******************************
-def json_read(f):
-   try:
-      d=open(f,'r', encoding='utf-8').read()
-      r=json.loads(d)
-   except:
-      r={}
-      logger.info('!!! Неверная конфигурация в файле: '+f)
-   return r
+# def json_read(f):
+#    try:
+#       d=open(f,'r', encoding='utf-8').read()
+#       r=json.loads(d)
+#    except:
+#       r={}
+#       logger.info('!!! Неверная конфигурация в файле: '+f)
+#    return r
 
-def json_write(f,d):
-   out_file = open(f, "w")
-   json.dump(d, out_file)
-   out_file.close()
+# def json_write(f,d):
+#    out_file = open(f, "w")
+#    json.dump(d, out_file)
+#    out_file.close()
 
 def options_change(k,v):
    t=Options.get(k,None)
@@ -183,101 +183,6 @@ def ha_script(id,OnOff):
       url=Options['ha-api_url']+'/api/services/script/turn_off'
    hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
    response=requests.post(url, json={"entity_id": id}, headers=hds)
-
-#*******************************
-# class CDevicesDB(object):
-#    """docstring"""
-#    def __init__(self, f):
-#       """Constructor 'devices.json'"""
-#       self.fDB=f
-#       self.DB=json_read(f)
-#       for id in self.DB:
-#          if self.DB[id].get('enabled',None) == None:
-#              self.DB[id]['enabled'] = False
-
-#       self.mqtt_json_devices_list='{}'
-#       self.mqtt_json_states_list='{}'
-#       self.http_json_devices_list='{}'
-# #      self.do_mqtt_json_devices_list()
-# #      self.do_mqtt_json_states_list({})
-#       self.do_http_json_devices_list()
-
-#    def NewID(self,a):
-#       r=''
-#       for i in range(1,99):
-#          r=a+'_'+('00'+str(i))[-2:]
-#          if (self.DB.get(r,None) is None):
-#             return r
-
-#    def save_DB(self):
-#       json_write(self.fDB,self.DB)
-# #      self.do_http_json_devices_list()
-
-#    def clear(self,d):
-#       self.DB={}
-#       self.save_DB()
-
-#    def dev_add(self):
-#       print('device_Add')
-
-#    def dev_del(self,id):
-#       self.DB.pop(id, None)
-#       self.save_DB()
-#       logger.info('Delete Device: '+id+'!')
-
-#    def dev_inBase(self,id):
-#       if self.DB.get(id,None) is None:
-#          return False
-#       else:
-#          return True
-
-#    def change_state(self,id,key,value):
-#       if self.DB.get(id,None) is None:
-#          logger.info('Device id='+str(id)+' not found')
-#          return
-#       if self.DB[id].get('States',None) is None:
-#          logger.info('Device id='+str(id)+' States not Found. Create.')
-#          self.DB[id]['States']={}
-#       if self.DB[id]['States'].get(key,None) is None:
-#          logger.info('Device id='+str(id)+' key='+str(key)+' not Found. Create.')
-#       self.DB[id]['States'][key]=value
-# #      self.do_mqtt_json_states_list([id])
-
-#    def get_states(self,id):
-#       d=self.DB.get(id,{})
-#       return d.get('States',{})
-
-#    def get_state(self,id,key):
-#       d=self.DB.get(id,{})
-#       s=d.get('States',{})
-#       k=s.get(key,None)
-#       if k:
-#          return k
-
-#    def update_only(self,id,d):
-#       if (self.DB.get(id,None) is not None):
-#          for k,v in d.items():
-#             self.DB[id][k]=d.get(k,v)
-#          self.save_DB()
-
-#    def update(self,id,d):
-#       fl={'enabled':False,'name':'','default_name':'','nicknames':[],'home':'','room':'','groups':[],'model_id':'','category':'','hw_version':'hw:'+VERSION,'sw_version':'sw:'+VERSION}
-#       fl['entity_ha']=False
-#       fl['entity_type']=''
-#       fl['friendly_name']=''
-#       if (self.DB.get(id,None) is None):
-#          logger.info('Device '+id+' Not Found. Adding')
-#          self.DB[id]={}
-#          for k,v in fl.items():
-#             self.DB[id][k]=d.get(k,v)
-#          if d['category'] == 'scenario_button':
-#             self.DB[id]['States'] = {'button_event':''}
-
-#       for k,v in d.items():
-#          self.DB[id][k]=d.get(k,v)
-#       if (self.DB[id]['name'] == ''):
-#          self.DB[id]['name'] = self.DB[id]['friendly_name']
-#       self.save_DB()
 
    def DeviceStates_mqttSber(self,id):
       d=self.DB.get(id,None)
@@ -552,7 +457,8 @@ def on_errors(mqttc, obj, msg):
 
 def on_message_conf(mqttc, obj, msg):
    logger.info("Config: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
-   infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
+   device_list = DevicesDB.do_mqtt_json_devices_list()
+   infot = mqttc.publish(sber_root_topic+'/up/config', device_list, qos=0)
 #!!!!!!!
 
 def on_global_conf(mqttc, obj, msg):
@@ -593,7 +499,7 @@ def ws_auth_invalid(ws,mdata):
    logger.critical("WebSocket: auth_invalid",7)
 def ws_result(ws,mdata):
    global HA_AREA
-   logger.debug(f"WebSocket: result: {mdata}")
+   logger.debug(f"WebSocket: result: {len(mdata)} bytes")
    if mdata.get('id', 'None') == 2:
       logger.debug(f"WebSocket: Получен список зон: {mdata}")
       HA_AREA = {}
@@ -603,17 +509,23 @@ def ws_result(ws,mdata):
          
    if mdata.get('id', 'None') == 4:
       logger.info(f"WebSocket: Получен список сущностей.")
-      logger.debug(f"Данные: {mdata}")
+      logger.debug(f"Данные: {len(mdata)}")
       res=mdata.get('result',[])
       for a in res:
-         entity=DevicesDB.DB.get(a['entity_id'],False)
-#         logger.info(f"entity list: {a['entity_id']}")
-         if entity:
-            room=HA_AREA.get(a['area_id'],'')
-            room_db=DevicesDB.DB[a['entity_id']].get('room',False)
-            if room_db != room:
-               logger.info(f"Изменилось расположение сущности {a['entity_id']} с {room_db} на {room}")
-               DevicesDB.update_only(a['entity_id'],{'entity_ha': True,'room': room})
+         entity_id = a['entity_id']
+         device = DevicesDB.deviceStore.get(entity_id)
+         if device is None:
+            entity=DevicesDB.DB.get(entity_id, False)
+   #         logger.info(f"entity list: {a['entity_id']}")
+            if entity:
+               room=HA_AREA.get(a['area_id'],'')
+               room_db=DevicesDB.DB[a['entity_id']].get('room',False)
+               if room_db != room:
+                  logger.info(f"Изменилось расположение сущности {a['entity_id']} с {room_db} на {room}")
+                  DevicesDB.update_only(a['entity_id'],{'entity_ha': True,'room': room})
+            # find for area_id 
+         else:
+            logger.debug(f"Entity found in store")
 
 def ws_event(ws,mdata):
 #   logger.info("vvv WebSocket: event vvv",0)
@@ -654,7 +566,7 @@ def ws_default(ws,mdata):
 
 #********** Start **********************************
 
-Options=json_read(fOptions)
+Options=json_read(fOptions, {})
 log_level = Options.get('log_level','INFO')
 
 # Установка уровня логирования из опций
@@ -698,7 +610,7 @@ if not os.path.exists(fDevicesDB):
    json_write(fDevicesDB,{})
 
 logger.info('Чтение базы устройств')
-DevicesDB=CDevicesDB(fDevicesDB, logger)
+DevicesDB=CDevicesDB(fDevicesDB, logger, VERSION)
 AgentStatus={
    "online": True, 
    "error": "",  
@@ -729,6 +641,7 @@ while cx<10:
 if res.status_code == 200:
    logger.info('Запрос устройств из Home Assistant выполнен штатно.')
    ha_dev=res.json()
+   json_write("ha_dev.json", ha_dev)
    logger.debug(ha_dev)
 else:
    logger.info('ОШИБКА! Запрос устройств из Home Assistant выполнен некоректно.')
@@ -741,24 +654,25 @@ else:
 def upd_sw(id,s):
    attr=s['attributes'].get('friendly_name','')
    logger.debug('switch: ' + s['entity_id'] + ' '+attr)
-   DevicesDB.update(s['entity_id'],{'entity_ha': True,'entity_type': 'sw','friendly_name':attr,'category': 'relay'})
+   DevicesDB.upsert(s['entity_id'],{'entity_ha': True,'entity_type': 'sw','friendly_name':attr,'category': 'relay'})
+
 def upd_light(id,s):
    attr=s['attributes'].get('friendly_name','')
    logger.debug('light: ' + s['entity_id'] + ' '+attr)
-   DevicesDB.update(s['entity_id'],{'entity_ha': True,'entity_type': 'light','friendly_name':attr,'category': 'light'})
+   DevicesDB.upsert(s['entity_id'],{'entity_ha': True,'entity_type': 'light','friendly_name':attr,'category': 'light'})
    light_device = LightDevice(s)
-   DevicesDB.deviceStore.store(light_device)
+   DevicesDB.deviceStore.upsert(light_device)
 
 def upd_scr(id,s):
    attr=s['attributes'].get('friendly_name','')
    logger.debug('script: ' + s['entity_id'] + ' '+attr)
-   DevicesDB.update(s['entity_id'],{'entity_ha': True,'entity_type': 'scr','friendly_name':attr,'category': 'relay'})
+   DevicesDB.upsert(s['entity_id'],{'entity_ha': True,'entity_type': 'scr','friendly_name':attr,'category': 'relay'})
 def upd_sensor(id,s):
    dc=s['attributes'].get('device_class','')
    fn=s['attributes'].get('friendly_name','')
    if dc == 'temperature':
 #      logger.info('Сенсор температуры: ' + id + ' ' + fn)
-      DevicesDB.update(id,{'entity_ha': True,'entity_type': 'sensor_temp', 'friendly_name': fn,'category': 'sensor_temp'})
+      DevicesDB.upsert(id,{'entity_ha': True,'entity_type': 'sensor_temp', 'friendly_name': fn,'category': 'sensor_temp'})
 #   if dc == 'pressure':
 #      DevicesDB.update(id,{'entity_ha': True,'entity_type': 'sensor_pressure', 'friendly_name': fn,'category': 'sensor_pressure'})
 
@@ -767,19 +681,19 @@ def upd_button(id,s):
    dc=s['attributes'].get('device_class','')
    fn=s['attributes'].get('friendly_name','')
    logger.debug('button: ' + s['entity_id'] + ' '+fn+'('+dc+')')
-   DevicesDB.update(id,{'entity_ha': True,'entity_type': 'button', 'friendly_name': fn,'category': 'relay'})
+   DevicesDB.upsert(id,{'entity_ha': True,'entity_type': 'button', 'friendly_name': fn,'category': 'relay'})
 
 def upd_input_boolean(id,s):
    dc=s['attributes'].get('device_class','')
    fn=s['attributes'].get('friendly_name','')
    logger.debug('input_boolean: ' + s['entity_id'] + ' '+fn+'('+dc+')')
-   DevicesDB.update(id,{'entity_ha': True,'entity_type': 'input_boolean', 'friendly_name': fn,'category': 'scenario_button'})
+   DevicesDB.upsert(id,{'entity_ha': True,'entity_type': 'input_boolean', 'friendly_name': fn,'category': 'scenario_button'})
 
 def upd_climate(id,s):
    dc=s['attributes'].get('device_class','')
    fn=s['attributes'].get('friendly_name','')
    logger.debug('climate: ' + s['entity_id'] + ' '+fn+'('+dc+')')
-   DevicesDB.update(id,{'entity_ha': True,'entity_type': 'climate', 'friendly_name': fn,'category': 'hvac_ac'})
+   DevicesDB.upsert(id,{'entity_ha': True,'entity_type': 'climate', 'friendly_name': fn,'category': 'hvac_ac'})
 
 
 def upd_hvac_radiator(id,s):
@@ -787,25 +701,29 @@ def upd_hvac_radiator(id,s):
    fn=s['attributes'].get('friendly_name','')
    if dc == 'temperature':
 #      logger.info('Радиатор отопления: ' + id + ' ' + fn)
-      DevicesDB.update(id,{'entity_ha': True,'entity_type': 'hvac_radiator', 'friendly_name': fn,'category': 'hvac_radiator'})
+      DevicesDB.upsert(id,{'entity_ha': True,'entity_type': 'hvac_radiator', 'friendly_name': fn,'category': 'hvac_radiator'})
 
 def upd_default(id,s):
    logger.debug('Неиспользуемый тип: ' + s['entity_id'])
    pass
 
+ha_device_converters_dict={
+   'switch': upd_sw,
+   'light': upd_light,
+   'script': upd_scr,
+   'sensor': upd_sensor,
+   'button': upd_button,
+   'input_boolean': upd_input_boolean,
+   'climate': upd_climate,
+   'hvac_radiator': upd_hvac_radiator
+}
+# Converting ha devices to internal representation
 for s in ha_dev:
-   a,b=s['entity_id'].split('.',1)
-   dict={
-      'switch': upd_sw,
-      'light': upd_light,
-      'script': upd_scr,
-      'sensor': upd_sensor,
-      'button': upd_button,
-      'input_boolean': upd_input_boolean,
-      'climate': upd_climate,
-      'hvac_radiator': upd_hvac_radiator
-   }
-   dict.get(a, upd_default)(s['entity_id'],s)
+   entity_id = s['entity_id']
+   a,b=entity_id.split('.',1)
+   ha_device_converters_dict.get(a, upd_default)(s['entity_id'],s)
+
+DevicesDB.save_DB()
 
 #******************* Configure Local client (HA Broker)
 #mqttHA = mqtt.Client("SberDevicesAgent local client")
@@ -874,7 +792,7 @@ def GetCategory():
       json_write('categories.json',Categories)
    else:
       logger.info('Список категорий получен из файла: ' + fCategories)
-      Categories=json_read(fCategories)
+      Categories=json_read(fCategories, {})
    return Categories
 
 Categories=GetCategory()
