@@ -88,6 +88,7 @@ class CDevicesDB:
         self.logger = logger
         self._deviceStore = DevicesStore(logger)
         self._deviceStore.load(fDB)
+        self._categories = {}
         VERSION = version
         
         known_categories = ["light", "climate"]
@@ -107,6 +108,20 @@ class CDevicesDB:
     @property
     def deviceStore(self):
         return self._deviceStore
+
+    @property
+    def resCategories(self):
+        resCategories = {"categories": []}
+        for id in self._categories:
+            resCategories["categories"].append(id)
+        return resCategories
+    
+    @property
+    def categories(self):
+        return self._categories
+    
+    def setCategories(self, categories):
+        self._categories = categories.copy()
 
     def NewID(self, a):
         for i in range(1, 99):
@@ -207,7 +222,7 @@ class CDevicesDB:
                 d['hw_version']=v.get('hw_version','')
                 d['sw_version']=v.get('sw_version','')
                 dev_cat=v.get('category','relay')
-                c=Categories.get(dev_cat)
+                c=self.categories.get(dev_cat)
                 f=[]
                 for ft in c:
                     if ft.get('required',False):
@@ -243,7 +258,7 @@ class CDevicesDB:
                         device_category='relay'
                         self.DB[id]['category']=device_category
                     DStat['devices'][id]={}
-                    features=Categories.get(device_category)
+                    features=self.categories.get(device_category)
                     if self.DB[id].get('States',None) is None:
                         self.DB[id]['States']={}
                     r=[]
