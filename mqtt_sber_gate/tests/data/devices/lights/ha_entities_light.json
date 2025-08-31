@@ -1,0 +1,463 @@
+[
+            {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755098970.239583,
+            "device_id": "2c4316989f4db8d7a96d7a1ffc32e775",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.liustra_sp_1",
+            "has_entity_name": true,
+            "hidden_by": "integration",
+            "icon": null,
+            "id": "0fced0c6b9560b346903450d934ee348",
+            "labels": [],
+            "modified_at": 1755099306.543407,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:a9:08:6c:3f:88-1"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755098982.266903,
+            "device_id": "cb369d4417ff40a1c84c976faf962a90",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.liustra_sp_2",
+            "has_entity_name": true,
+            "hidden_by": "integration",
+            "icon": null,
+            "id": "dbf8ab38b617d99d04d4b98bc395fab4",
+            "labels": [],
+            "modified_at": 1755099306.544212,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:70:b9:45:0d:9a-1"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755098982.445222,
+            "device_id": "3a5006290624e62c9b76f69cc1d4bb9d",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.liustra_sp_3",
+            "has_entity_name": true,
+            "hidden_by": "integration",
+            "icon": null,
+            "id": "9f846e30b5ccc576c178f9c1f5b31bf1",
+            "labels": [],
+            "modified_at": 1755099306.544712,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:d4:d3:99:95:7f-1"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755098967.019926,
+            "device_id": "76452007c5960bd4864e5514704bef0f",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.liustra_sp_4",
+            "has_entity_name": true,
+            "hidden_by": "integration",
+            "icon": null,
+            "id": "39a73aeaaf0750174cc3d55960b0cab9",
+            "labels": [],
+            "modified_at": 1755099306.545229,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:c1:51:5e:d8:20-1"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755098974.190139,
+            "device_id": "c9bf713a53d8731b9016693fab8a7019",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.liustra_sp_5",
+            "has_entity_name": true,
+            "hidden_by": "integration",
+            "icon": null,
+            "id": "d3000e1bd44b2b03a3c6943e451655a0",
+            "labels": [],
+            "modified_at": 1755099306.545612,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:02:42:f4:e1:e0-1"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755098973.720632,
+            "device_id": "054ada0765ada80e002cd3868bc9e723",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.liustra_sp_6",
+            "has_entity_name": true,
+            "hidden_by": "integration",
+            "icon": null,
+            "id": "d5344ff8a612c4eb96e7bd6f4414b183",
+            "labels": [],
+            "modified_at": 1755099306.545974,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:f5:b7:99:bf:9d-1"
+        },
+        {
+            "area_id": "spalnia",
+            "categories": {},
+            "config_entry_id": "01K2J146HJC3P7F9BSN0KPJ56Z",
+            "config_subentry_id": null,
+            "created_at": 1755099306.550044,
+            "device_id": null,
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.liustra_sp",
+            "has_entity_name": false,
+            "hidden_by": null,
+            "icon": null,
+            "id": "799a0cd190cb3e6a3b4afe4a56460a6a",
+            "labels": [
+                "sleep"
+            ],
+            "modified_at": 1755856590.227354,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f",
+            "platform": "group",
+            "translation_key": null,
+            "unique_id": "01K2J146HJC3P7F9BSN0KPJ56Z"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755251405.599541,
+            "device_id": "58f8057098131509324c35c10e9e19fc",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.spot1_sp",
+            "has_entity_name": true,
+            "hidden_by": null,
+            "icon": null,
+            "id": "2534f5f350c04f7b960d3fe84b6753ce",
+            "labels": [],
+            "modified_at": 1755251431.669823,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:bc:8d:97:28:3c-1"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755251402.639258,
+            "device_id": "693fab18e91019a10e2c5f0c8b7f2272",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.spot2_sp",
+            "has_entity_name": true,
+            "hidden_by": null,
+            "icon": null,
+            "id": "a2fe674d7d87c2b7090e17e67d662677",
+            "labels": [],
+            "modified_at": 1755251760.86711,
+            "name": "\u0421\u043f\u043e\u04422 \u043b\u0435\u0432 \u0441\u043f",
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:cc:ee:d7:cf:eb-1"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755251407.637935,
+            "device_id": "e5882d9a984b945bc5c0ec50d728915d",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.spot3_sp",
+            "has_entity_name": true,
+            "hidden_by": null,
+            "icon": null,
+            "id": "dadb5a391c6a46634e78ced85b5e9dda",
+            "labels": [],
+            "modified_at": 1755251451.586574,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:30:31:fd:04:43-1"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755251411.487849,
+            "device_id": "9d992a4e406e1cc822611ca42d058205",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.spot4_sp",
+            "has_entity_name": true,
+            "hidden_by": null,
+            "icon": null,
+            "id": "8fe1e5a02a279a141d9e641ae95ff845",
+            "labels": [],
+            "modified_at": 1755251461.089635,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:39:ab:5e:02:31-1"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755251412.953839,
+            "device_id": "928d46b3917c33edfdd629ef7982cee1",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.spot5_sp",
+            "has_entity_name": true,
+            "hidden_by": null,
+            "icon": null,
+            "id": "0df9a8962993bdaed148ac97a13a9898",
+            "labels": [],
+            "modified_at": 1755251470.440538,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:d8:41:7f:66:bc-1"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K0PM5YEV5FHB1856R4362QP7",
+            "config_subentry_id": null,
+            "created_at": 1755251413.19143,
+            "device_id": "1a487e05845e983850b0a53cb493f139",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.spot6_sp",
+            "has_entity_name": true,
+            "hidden_by": null,
+            "icon": null,
+            "id": "5e031ad4eeac6e73f12e42b0b608ac78",
+            "labels": [],
+            "modified_at": 1755251479.068869,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "zha",
+            "translation_key": "light",
+            "unique_id": "a4:c1:38:44:8c:f3:39:2d-1"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K2PJB15F3BW056EE07P1N059",
+            "config_subentry_id": null,
+            "created_at": 1755251573.936439,
+            "device_id": null,
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.spoty_pr_sp",
+            "has_entity_name": false,
+            "hidden_by": null,
+            "icon": null,
+            "id": "7f7c16c8874d4fc64b4b947e48f48eec",
+            "labels": [],
+            "modified_at": 1755856590.227841,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": "\u0421\u043f\u043e\u0442\u044b \u043f\u0440 \u0441\u043f",
+            "platform": "group",
+            "translation_key": null,
+            "unique_id": "01K2PJB15F3BW056EE07P1N059"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K2PJTMAXK27G4Q5TWKSBZYFB",
+            "config_subentry_id": null,
+            "created_at": 1755252085.085702,
+            "device_id": null,
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.spoty_lev_sp",
+            "has_entity_name": false,
+            "hidden_by": null,
+            "icon": null,
+            "id": "9efc5008129be5452dd2169c2777c777",
+            "labels": [],
+            "modified_at": 1755856590.2282,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": "\u0421\u043f\u043e\u0442\u044b \u043b\u0435\u0432 \u0441\u043f",
+            "platform": "group",
+            "translation_key": null,
+            "unique_id": "01K2PJTMAXK27G4Q5TWKSBZYFB"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K2PJW37FQS70AFMSGSW60JWJ",
+            "config_subentry_id": null,
+            "created_at": 1755252133.104406,
+            "device_id": null,
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.spoty_sp",
+            "has_entity_name": false,
+            "hidden_by": null,
+            "icon": null,
+            "id": "d1130590197556e893bcd039379af8cf",
+            "labels": [],
+            "modified_at": 1755856590.228489,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": "\u0421\u043f\u043e\u0442\u044b \u0441\u043f",
+            "platform": "group",
+            "translation_key": null,
+            "unique_id": "01K2PJW37FQS70AFMSGSW60JWJ"
+        },
+        {
+            "area_id": null,
+            "categories": {},
+            "config_entry_id": "01K38NEPC5NB17JPPZVMJR7QZ8",
+            "config_subentry_id": null,
+            "created_at": 1755858821.959652,
+            "device_id": "1de4b4725d456d06411a64666a8067b0",
+            "disabled_by": null,
+            "entity_category": null,
+            "entity_id": "light.smart_bulb_zigbee_e14",
+            "has_entity_name": true,
+            "hidden_by": null,
+            "icon": null,
+            "id": "1d724bf84c56a64944692fc65f941e3a",
+            "labels": [],
+            "modified_at": 1755858821.959971,
+            "name": null,
+            "options": {
+                "conversation": {
+                    "should_expose": true
+                }
+            },
+            "original_name": null,
+            "platform": "tuya",
+            "translation_key": null,
+            "unique_id": "tuya.bfd97707b96d691c16v2huswitch_led"
+        }
+]

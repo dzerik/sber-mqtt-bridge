@@ -1,7 +1,7 @@
 # devices/motion_sensor.py
-from .base import BaseDevice
+from .base_entity import BaseEntity
 
-class MotionSensorDevice(BaseDevice):
+class MotionSensorDevice(BaseEntity):
     category = "motion"
     
     def __init__(self, device_id, name=""):

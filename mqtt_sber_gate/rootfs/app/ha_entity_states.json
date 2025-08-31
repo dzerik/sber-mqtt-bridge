@@ -1,0 +1,4843 @@
+[
+    {
+        "entity_id": "update.home_assistant_supervisor_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": true,
+            "display_precision": 0,
+            "installed_version": "2025.08.3",
+            "in_progress": false,
+            "latest_version": "2025.08.3",
+            "release_summary": null,
+            "release_url": "https://github.com/home-assistant/supervisor/releases/tag/2025.08.3",
+            "skipped_version": null,
+            "title": "Home Assistant Supervisor",
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/hassio/icon.png",
+            "friendly_name": "Home Assistant Supervisor \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
+            "supported_features": 1
+        },
+        "last_changed": "2025-08-29T03:32:35.746586+00:00",
+        "last_reported": "2025-08-29T03:33:10.116012+00:00",
+        "last_updated": "2025-08-29T03:32:35.746586+00:00",
+        "context": {
+            "id": "01K3SY4QS2PT4X3BBB7R93VHWX",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.home_assistant_core_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "2025.8.3",
+            "in_progress": false,
+            "latest_version": "2025.8.3",
+            "release_summary": null,
+            "release_url": "https://www.home-assistant.io/latest-release-notes/",
+            "skipped_version": null,
+            "title": "Home Assistant Core",
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/homeassistant/icon.png",
+            "friendly_name": "Home Assistant Core \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
+            "supported_features": 11
+        },
+        "last_changed": "2025-08-29T03:32:35.746879+00:00",
+        "last_reported": "2025-08-29T03:33:10.116129+00:00",
+        "last_updated": "2025-08-29T03:32:35.746879+00:00",
+        "context": {
+            "id": "01K3SY4QS2476RYAKQ1FA7SNK9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.esphome_device_builder_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "2025.8.2",
+            "in_progress": false,
+            "latest_version": "2025.8.2",
+            "release_summary": null,
+            "release_url": null,
+            "skipped_version": null,
+            "title": "ESPHome Device Builder",
+            "update_percentage": null,
+            "entity_picture": "/api/hassio/addons/5c53de3b_esphome/icon",
+            "friendly_name": "ESPHome Device Builder \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
+            "supported_features": 25
+        },
+        "last_changed": "2025-08-29T03:33:10.116192+00:00",
+        "last_reported": "2025-08-29T03:33:10.116644+00:00",
+        "last_updated": "2025-08-29T03:33:10.116644+00:00",
+        "context": {
+            "id": "01K3SY5SB4M5W3HTW8QNGV60N9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.mosquitto_broker_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "6.5.1",
+            "in_progress": false,
+            "latest_version": "6.5.1",
+            "release_summary": null,
+            "release_url": null,
+            "skipped_version": null,
+            "title": "Mosquitto broker",
+            "update_percentage": null,
+            "entity_picture": "/api/hassio/addons/core_mosquitto/icon",
+            "friendly_name": "Mosquitto broker \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
+            "supported_features": 25
+        },
+        "last_changed": "2025-08-29T03:32:35.747352+00:00",
+        "last_reported": "2025-08-29T03:33:10.116333+00:00",
+        "last_updated": "2025-08-29T03:32:35.747352+00:00",
+        "context": {
+            "id": "01K3SY4QS3V13EEGSQ9ZNVY1R1",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.advanced_ssh_web_terminal_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "21.0.2",
+            "in_progress": false,
+            "latest_version": "21.0.2",
+            "release_summary": null,
+            "release_url": null,
+            "skipped_version": null,
+            "title": "Advanced SSH & Web Terminal",
+            "update_percentage": null,
+            "entity_picture": "/api/hassio/addons/a0d7b954_ssh/icon",
+            "friendly_name": "Advanced SSH & Web Terminal \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
+            "supported_features": 25
+        },
+        "last_changed": "2025-08-29T03:32:35.747495+00:00",
+        "last_reported": "2025-08-29T03:33:10.116368+00:00",
+        "last_updated": "2025-08-29T03:32:35.747495+00:00",
+        "context": {
+            "id": "01K3SY4QS387F8G21QF11JXBVS",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.rhasspy_assistant_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "2.5.11",
+            "in_progress": false,
+            "latest_version": "2.5.11",
+            "release_summary": null,
+            "release_url": null,
+            "skipped_version": null,
+            "title": "Rhasspy Assistant",
+            "update_percentage": null,
+            "entity_picture": "/api/hassio/addons/47701997_rhasspy/icon",
+            "friendly_name": "Rhasspy Assistant \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
+            "supported_features": 25
+        },
+        "last_changed": "2025-08-29T03:32:35.747637+00:00",
+        "last_reported": "2025-08-29T03:33:10.116398+00:00",
+        "last_updated": "2025-08-29T03:32:35.747637+00:00",
+        "context": {
+            "id": "01K3SY4QS3AFVHVXBA4XBKQWCB",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.hassos_serial_configurator_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "0.5a",
+            "in_progress": false,
+            "latest_version": "0.5a",
+            "release_summary": null,
+            "release_url": null,
+            "skipped_version": null,
+            "title": "HassOS Serial Configurator",
+            "update_percentage": null,
+            "entity_picture": "/api/hassio/addons/1f3d020e_hassos_serial_configurator_addon/icon",
+            "friendly_name": "HassOS Serial Configurator \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
+            "supported_features": 25
+        },
+        "last_changed": "2025-08-29T03:32:35.747770+00:00",
+        "last_reported": "2025-08-29T03:33:10.116427+00:00",
+        "last_updated": "2025-08-29T03:32:35.747770+00:00",
+        "context": {
+            "id": "01K3SY4QS3EWXNZGYNS4ZSAF9H",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.file_editor_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "5.8.0",
+            "in_progress": false,
+            "latest_version": "5.8.0",
+            "release_summary": null,
+            "release_url": null,
+            "skipped_version": null,
+            "title": "File editor",
+            "update_percentage": null,
+            "entity_picture": "/api/hassio/addons/core_configurator/icon",
+            "friendly_name": "File editor \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
+            "supported_features": 25
+        },
+        "last_changed": "2025-08-29T03:32:35.747887+00:00",
+        "last_reported": "2025-08-29T03:33:10.116457+00:00",
+        "last_updated": "2025-08-29T03:32:35.747887+00:00",
+        "context": {
+            "id": "01K3SY4QS38Z04D0B00H316QKC",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.samba_share_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "12.5.2",
+            "in_progress": false,
+            "latest_version": "12.5.2",
+            "release_summary": null,
+            "release_url": null,
+            "skipped_version": null,
+            "title": "Samba share",
+            "update_percentage": null,
+            "entity_picture": "/api/hassio/addons/core_samba/icon",
+            "friendly_name": "Samba share \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
+            "supported_features": 25
+        },
+        "last_changed": "2025-08-29T03:32:35.748005+00:00",
+        "last_reported": "2025-08-29T03:33:10.116482+00:00",
+        "last_updated": "2025-08-29T03:32:35.748005+00:00",
+        "context": {
+            "id": "01K3SY4QS4ZD2646A4SPE0FPJ9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.mqtt_sbergate_oop_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "0.0.2.9",
+            "in_progress": false,
+            "latest_version": "0.0.2.9",
+            "release_summary": null,
+            "release_url": null,
+            "skipped_version": null,
+            "title": "MQTT SberGate.OOP",
+            "update_percentage": null,
+            "entity_picture": "/api/hassio/addons/fdff691d_mqtt-sber-gate-oop/icon",
+            "friendly_name": "MQTT SberGate.OOP \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
+            "supported_features": 25
+        },
+        "last_changed": "2025-08-29T03:32:35.748123+00:00",
+        "last_reported": "2025-08-29T03:33:10.116508+00:00",
+        "last_updated": "2025-08-29T03:32:35.748123+00:00",
+        "context": {
+            "id": "01K3SY4QS46D41T52TH1332CC0",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.home_assistant_operating_system_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "16.1",
+            "in_progress": false,
+            "latest_version": "16.1",
+            "release_summary": null,
+            "release_url": "https://github.com/home-assistant/operating-system/releases/tag/16.1",
+            "skipped_version": null,
+            "title": "Home Assistant Operating System",
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/homeassistant/icon.png",
+            "friendly_name": "Home Assistant Operating System \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
+            "supported_features": 11
+        },
+        "last_changed": "2025-08-29T03:32:35.748312+00:00",
+        "last_reported": "2025-08-29T03:33:10.116583+00:00",
+        "last_updated": "2025-08-29T03:32:35.748312+00:00",
+        "context": {
+            "id": "01K3SY4QS4GYHJ8EM6R6XGH8YP",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "conversation.home_assistant",
+        "state": "unknown",
+        "attributes": {
+            "friendly_name": "Home Assistant",
+            "supported_features": 1
+        },
+        "last_changed": "2025-08-29T03:32:36.689898+00:00",
+        "last_reported": "2025-08-29T03:32:36.689898+00:00",
+        "last_updated": "2025-08-29T03:32:36.689898+00:00",
+        "context": {
+            "id": "01K3SY4RPHJ1DXDMHRM4SZ9YXS",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.backup_backup_manager_state",
+        "state": "idle",
+        "attributes": {
+            "options": [
+                "idle",
+                "create_backup",
+                "blocked",
+                "receive_backup",
+                "restore_backup"
+            ],
+            "device_class": "enum",
+            "friendly_name": "Backup \u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430 \u0440\u0435\u0437\u0435\u0440\u0432\u043d\u043e\u0433\u043e \u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T21:46:36.033356+00:00",
+        "last_reported": "2025-08-29T21:46:36.033356+00:00",
+        "last_updated": "2025-08-29T21:46:36.033356+00:00",
+        "context": {
+            "id": "01K3VWQXM1Q7NMQT60RBES5FCA",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.backup_next_scheduled_automatic_backup",
+        "state": "2025-08-30T21:58:23+00:00",
+        "attributes": {
+            "device_class": "timestamp",
+            "friendly_name": "Backup \u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u0435 \u0437\u0430\u043f\u043b\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u043e\u0435 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u043e\u0435 \u0440\u0435\u0437\u0435\u0440\u0432\u043d\u043e\u0435 \u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435"
+        },
+        "last_changed": "2025-08-29T21:46:36.001178+00:00",
+        "last_reported": "2025-08-29T21:46:36.033415+00:00",
+        "last_updated": "2025-08-29T21:46:36.001178+00:00",
+        "context": {
+            "id": "01K3VWQXK1MACXPKBJN759MP01",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.backup_last_successful_automatic_backup",
+        "state": "2025-08-17T21:58:02+00:00",
+        "attributes": {
+            "device_class": "timestamp",
+            "friendly_name": "Backup \u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0435 \u0443\u0441\u043f\u0435\u0448\u043d\u043e\u0435 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u043e\u0435 \u0440\u0435\u0437\u0435\u0440\u0432\u043d\u043e\u0435 \u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435"
+        },
+        "last_changed": "2025-08-29T03:32:36.721760+00:00",
+        "last_reported": "2025-08-29T03:33:11.440933+00:00",
+        "last_updated": "2025-08-29T03:32:36.721760+00:00",
+        "context": {
+            "id": "01K3SY4RQH0VYTZXA55S9JT147",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.backup_last_attempted_automatic_backup",
+        "state": "2025-08-29T21:46:36+00:00",
+        "attributes": {
+            "device_class": "timestamp",
+            "friendly_name": "Backup \u041f\u043e\u0441\u043b\u0435\u0434\u043d\u044f\u044f \u043f\u043e\u043f\u044b\u0442\u043a\u0430 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u043e\u0433\u043e \u0440\u0435\u0437\u0435\u0440\u0432\u043d\u043e\u0433\u043e \u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T21:46:36.001285+00:00",
+        "last_reported": "2025-08-29T21:46:36.033462+00:00",
+        "last_updated": "2025-08-29T21:46:36.001285+00:00",
+        "context": {
+            "id": "01K3VWQXK1FKATJTCTF3ZKSXMJ",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "event.backup_automatic_backup",
+        "state": "2025-08-29T21:46:36.033+00:00",
+        "attributes": {
+            "event_types": [
+                "completed",
+                "failed",
+                "in_progress"
+            ],
+            "event_type": "failed",
+            "backup_stage": null,
+            "failed_reason": "upload_failed",
+            "friendly_name": "Backup \u0410\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u043e\u0435 \u0440\u0435\u0437\u0435\u0440\u0432\u043d\u043e\u0435 \u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435"
+        },
+        "last_changed": "2025-08-29T21:46:36.033267+00:00",
+        "last_reported": "2025-08-29T21:46:36.033267+00:00",
+        "last_updated": "2025-08-29T21:46:36.033267+00:00",
+        "context": {
+            "id": "01K3VWQXM1NXHYTM8RG54YJ2QD",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "zone.home",
+        "state": "1",
+        "attributes": {
+            "latitude": 54.965505170483816,
+            "longitude": 82.95474350452423,
+            "radius": 100,
+            "passive": false,
+            "persons": [
+                "person.mikhaiil_vitalevich_berezovskii"
+            ],
+            "editable": true,
+            "icon": "mdi:home",
+            "friendly_name": "Home Assistant"
+        },
+        "last_changed": "2025-08-30T03:52:46.597206+00:00",
+        "last_reported": "2025-08-30T03:52:46.597206+00:00",
+        "last_updated": "2025-08-30T03:52:46.597206+00:00",
+        "context": {
+            "id": "01K3WHPD85KXTAPR22NC08PM6J",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "person.mikhaiil_vitalevich_berezovskii",
+        "state": "home",
+        "attributes": {
+            "editable": true,
+            "id": "mikhaiil_vitalevich_berezovskii",
+            "device_trackers": [
+                "device_tracker.vog_l29"
+            ],
+            "latitude": 54.965642,
+            "longitude": 82.9546912,
+            "gps_accuracy": 20,
+            "source": "device_tracker.vog_l29",
+            "user_id": "1056ceca4bb04cab9885845a35d1d696",
+            "friendly_name": "\u041c\u0438\u0445\u0430\u0438\u0438\u043b \u0412\u0438\u0442\u0430\u043b\u044c\u0435\u0432\u0438\u0447 \u0411\u0435\u0440\u0435\u0437\u043e\u0432\u0441\u043a\u0438\u0439"
+        },
+        "last_changed": "2025-08-30T03:52:46.597090+00:00",
+        "last_reported": "2025-08-30T10:10:38.723508+00:00",
+        "last_updated": "2025-08-30T10:10:38.723508+00:00",
+        "context": {
+            "id": "01K3X7AA03NC4A2ZDWY40V6Y5E",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "person.mosquito_user",
+        "state": "unknown",
+        "attributes": {
+            "editable": true,
+            "id": "mosquito_user",
+            "device_trackers": [],
+            "user_id": "8f5e201df29646d999e9e6fbe919d1e4",
+            "friendly_name": "mosquito user"
+        },
+        "last_changed": "2025-08-29T03:32:36.838098+00:00",
+        "last_reported": "2025-08-29T03:33:10.121855+00:00",
+        "last_updated": "2025-08-29T03:33:10.121855+00:00",
+        "context": {
+            "id": "01K3SY5SB92FEKPQT8B2BXK3SX",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "person.olga",
+        "state": "unknown",
+        "attributes": {
+            "editable": true,
+            "id": "olga",
+            "device_trackers": [],
+            "friendly_name": "Olga"
+        },
+        "last_changed": "2025-08-29T03:32:36.838258+00:00",
+        "last_reported": "2025-08-29T03:33:10.121934+00:00",
+        "last_updated": "2025-08-29T03:33:10.121934+00:00",
+        "context": {
+            "id": "01K3SY5SB9FY2QABAA1V0XR1A5",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "icon": "mdi:lightbulb-group",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:21:35.686277+00:00",
+        "last_reported": "2025-08-29T18:21:35.686277+00:00",
+        "last_updated": "2025-08-29T18:21:35.686277+00:00",
+        "context": {
+            "id": "01K3VH0HJ5PFY1YH91EC0SFJ63",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.spoty_pr_sp",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "icon": "mdi:lightbulb-group",
+            "friendly_name": "\u0421\u043f\u043e\u0442\u044b \u043f\u0440 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:18:53.042385+00:00",
+        "last_reported": "2025-08-29T18:18:53.042385+00:00",
+        "last_updated": "2025-08-29T18:18:53.042385+00:00",
+        "context": {
+            "id": "01K3VGVJQG3X9G7FYWRWJ1SFSM",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.spoty_lev_sp",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "icon": "mdi:lightbulb-group",
+            "friendly_name": "\u0421\u043f\u043e\u0442\u044b \u043b\u0435\u0432 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:18:53.042536+00:00",
+        "last_reported": "2025-08-29T18:18:53.042647+00:00",
+        "last_updated": "2025-08-29T18:18:53.042536+00:00",
+        "context": {
+            "id": "01K3VGVJQHQ43VYJVGFN70KNGA",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.spoty_sp",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "icon": "mdi:lightbulb-group",
+            "friendly_name": "\u0421\u043f\u043e\u0442\u044b \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:18:53.042740+00:00",
+        "last_reported": "2025-08-29T18:18:53.042837+00:00",
+        "last_updated": "2025-08-29T18:18:53.042740+00:00",
+        "context": {
+            "id": "01K3VGVJQG3X9G7FYWRWJ1SFSM",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sun.sun",
+        "state": "above_horizon",
+        "attributes": {
+            "next_dawn": "2025-08-30T22:50:39.683733+00:00",
+            "next_dusk": "2025-08-30T14:07:31.648418+00:00",
+            "next_midnight": "2025-08-30T18:28:31+00:00",
+            "next_noon": "2025-08-31T06:28:35+00:00",
+            "next_rising": "2025-08-30T23:30:11.345201+00:00",
+            "next_setting": "2025-08-30T13:28:04.465720+00:00",
+            "elevation": 20.34,
+            "azimuth": 255.95,
+            "rising": false,
+            "friendly_name": "Sun"
+        },
+        "last_changed": "2025-08-29T23:30:18.943755+00:00",
+        "last_reported": "2025-08-30T10:56:58.166806+00:00",
+        "last_updated": "2025-08-30T10:56:54.054481+00:00",
+        "context": {
+            "id": "01K3X9Z096DV5P0J6ADS4HD8P2",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.sun_next_dawn",
+        "state": "2025-08-30T22:50:39+00:00",
+        "attributes": {
+            "device_class": "timestamp",
+            "friendly_name": "Sun \u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0440\u0430\u0441\u0441\u0432\u0435\u0442"
+        },
+        "last_changed": "2025-08-29T22:48:36.436149+00:00",
+        "last_reported": "2025-08-29T22:48:36.436149+00:00",
+        "last_updated": "2025-08-29T22:48:36.436149+00:00",
+        "context": {
+            "id": "01K3W09ETM3JH29Z3KHKRDMVM5",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.sun_next_dusk",
+        "state": "2025-08-30T14:07:31+00:00",
+        "attributes": {
+            "device_class": "timestamp",
+            "friendly_name": "Sun \u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0435 \u0441\u0443\u043c\u0435\u0440\u043a\u0438"
+        },
+        "last_changed": "2025-08-29T14:10:11.334747+00:00",
+        "last_reported": "2025-08-29T14:10:11.334747+00:00",
+        "last_updated": "2025-08-29T14:10:11.334747+00:00",
+        "context": {
+            "id": "01K3V2M6R68H4TEKTCE94T38JV",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.sun_next_midnight",
+        "state": "2025-08-30T18:28:31+00:00",
+        "attributes": {
+            "device_class": "timestamp",
+            "friendly_name": "Sun \u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0430\u044f \u043f\u043e\u043b\u043d\u043e\u0447\u044c"
+        },
+        "last_changed": "2025-08-29T18:28:50.001938+00:00",
+        "last_reported": "2025-08-29T18:28:50.001938+00:00",
+        "last_updated": "2025-08-29T18:28:50.001938+00:00",
+        "context": {
+            "id": "01K3VHDSPH2FD1RZ6BR94XQDVJ",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.sun_next_noon",
+        "state": "2025-08-31T06:28:35+00:00",
+        "attributes": {
+            "device_class": "timestamp",
+            "friendly_name": "Sun \u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u043f\u043e\u043b\u0434\u0435\u043d\u044c"
+        },
+        "last_changed": "2025-08-30T06:28:54.003061+00:00",
+        "last_reported": "2025-08-30T06:28:54.003061+00:00",
+        "last_updated": "2025-08-30T06:28:54.003061+00:00",
+        "context": {
+            "id": "01K3WTM93KGA4EDT9N8V1T8S30",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.sun_next_rising",
+        "state": "2025-08-30T23:30:11+00:00",
+        "attributes": {
+            "device_class": "timestamp",
+            "friendly_name": "Sun \u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0432\u043e\u0441\u0445\u043e\u0434"
+        },
+        "last_changed": "2025-08-29T23:28:18.943536+00:00",
+        "last_reported": "2025-08-29T23:28:18.943536+00:00",
+        "last_updated": "2025-08-29T23:28:18.943536+00:00",
+        "context": {
+            "id": "01K3W2J5FZ6HW92WB8Z5E72N49",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.sun_next_setting",
+        "state": "2025-08-30T13:28:04+00:00",
+        "attributes": {
+            "device_class": "timestamp",
+            "friendly_name": "Sun \u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0437\u0430\u0445\u043e\u0434"
+        },
+        "last_changed": "2025-08-29T13:30:33.220610+00:00",
+        "last_reported": "2025-08-29T13:30:33.220610+00:00",
+        "last_updated": "2025-08-29T13:30:33.220610+00:00",
+        "context": {
+            "id": "01K3V0BMC4JYQBAJNMTGD557JS",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "automation.my_test_automation",
+        "state": "on",
+        "attributes": {
+            "id": "1753161936073",
+            "last_triggered": "2025-07-22T09:56:03.277562+00:00",
+            "mode": "single",
+            "current": 0,
+            "friendly_name": "My Test Automation"
+        },
+        "last_changed": "2025-08-29T03:32:39.298051+00:00",
+        "last_reported": "2025-08-29T03:32:39.298051+00:00",
+        "last_updated": "2025-08-29T03:32:39.298051+00:00",
+        "context": {
+            "id": "01K3SY4V82PABDH8WKNH0RR0F1",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "device_tracker.vog_l29",
+        "state": "home",
+        "attributes": {
+            "source_type": "gps",
+            "latitude": 54.965642,
+            "longitude": 82.9546912,
+            "gps_accuracy": 20,
+            "altitude": 101.0,
+            "course": 0,
+            "speed": 0,
+            "vertical_accuracy": 15,
+            "friendly_name": "\u0414\u043e\u043c"
+        },
+        "last_changed": "2025-08-30T10:10:38.723259+00:00",
+        "last_reported": "2025-08-30T10:10:38.723259+00:00",
+        "last_updated": "2025-08-30T10:10:38.723259+00:00",
+        "context": {
+            "id": "01K3X7AA039BWYXSDD611NAZEB",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.vog_l29_battery_level",
+        "state": "58",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "%",
+            "device_class": "battery",
+            "icon": "mdi:battery-50",
+            "friendly_name": "\u0414\u043e\u043c Battery level"
+        },
+        "last_changed": "2025-08-30T09:58:54.682023+00:00",
+        "last_reported": "2025-08-30T09:58:54.682023+00:00",
+        "last_updated": "2025-08-30T09:58:54.682023+00:00",
+        "context": {
+            "id": "01K3X6MTETG5MM1PPTAC0AZJ4K",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.vog_l29_battery_state",
+        "state": "discharging",
+        "attributes": {
+            "options": [
+                "charging",
+                "discharging",
+                "full",
+                "not_charging"
+            ],
+            "device_class": "enum",
+            "icon": "mdi:battery-minus",
+            "friendly_name": "\u0414\u043e\u043c Battery state"
+        },
+        "last_changed": "2025-08-30T00:48:33.372301+00:00",
+        "last_reported": "2025-08-30T00:48:33.372301+00:00",
+        "last_updated": "2025-08-30T00:48:33.372301+00:00",
+        "context": {
+            "id": "01K3W7532WR234Y3ZSCFMWHNH7",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.vog_l29_charger_type",
+        "state": "none",
+        "attributes": {
+            "options": [
+                "ac",
+                "usb",
+                "wireless",
+                "dock",
+                "none"
+            ],
+            "device_class": "enum",
+            "icon": "mdi:battery",
+            "friendly_name": "\u0414\u043e\u043c Charger type"
+        },
+        "last_changed": "2025-08-30T00:48:33.372438+00:00",
+        "last_reported": "2025-08-30T00:48:33.372438+00:00",
+        "last_updated": "2025-08-30T00:48:33.372438+00:00",
+        "context": {
+            "id": "01K3W7532WTB958HGGAZFVWNXF",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "device_tracker.iphone_olia",
+        "state": "home",
+        "attributes": {
+            "source_type": "gps",
+            "battery_level": 40,
+            "latitude": 54.96558016283502,
+            "longitude": 82.95473841248447,
+            "gps_accuracy": 12,
+            "altitude": 144.5318993351436,
+            "vertical_accuracy": 30,
+            "friendly_name": "iPhone \u041e\u043b\u044f"
+        },
+        "last_changed": "2025-08-29T03:32:39.843125+00:00",
+        "last_reported": "2025-08-29T03:32:39.843125+00:00",
+        "last_updated": "2025-08-29T03:32:39.843125+00:00",
+        "context": {
+            "id": "01K3SY4VS33S49R7SE4KX65232",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_battery_level",
+        "state": "40",
+        "attributes": {
+            "unit_of_measurement": "%",
+            "device_class": "battery",
+            "icon": "mdi:battery-40",
+            "friendly_name": "iPhone \u041e\u043b\u044f Battery Level"
+        },
+        "last_changed": "2025-08-29T03:32:39.845856+00:00",
+        "last_reported": "2025-08-29T03:32:39.845856+00:00",
+        "last_updated": "2025-08-29T03:32:39.845856+00:00",
+        "context": {
+            "id": "01K3SY4VS58VS12ZC0JMF3NHPC",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_sim_1",
+        "state": "unavailable",
+        "attributes": {
+            "icon": "mdi:dots-square",
+            "friendly_name": "iPhone \u041e\u043b\u044f SIM 1"
+        },
+        "last_changed": "2025-08-29T03:32:39.846674+00:00",
+        "last_reported": "2025-08-29T03:32:39.846674+00:00",
+        "last_updated": "2025-08-29T03:32:39.846674+00:00",
+        "context": {
+            "id": "01K3SY4VS6S2W39FKKA4VFBJRV",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_sim_2",
+        "state": "unavailable",
+        "attributes": {
+            "icon": "mdi:dots-square",
+            "friendly_name": "iPhone \u041e\u043b\u044f SIM 2"
+        },
+        "last_changed": "2025-08-29T03:32:39.846899+00:00",
+        "last_reported": "2025-08-29T03:32:39.846899+00:00",
+        "last_updated": "2025-08-29T03:32:39.846899+00:00",
+        "context": {
+            "id": "01K3SY4VS6VJ8A8WX77861485K",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_geocoded_location",
+        "state": "\u041e\u0431\u043e\u0433\u0430\u0442\u0438\u0442\u0435\u043b\u044c\u043d\u0430\u044f \u0443\u043b\u0438\u0446\u0430, 7/1\n\u041d\u043e\u0432\u043e\u0441\u0438\u0431\u0438\u0440\u0441\u043a\n\u041d\u043e\u0432\u043e\u0441\u0438\u0431\u0438\u0440\u0441\u043a\u0430\u044f \u043e\u0431\u043b\u0430\u0441\u0442\u044c\n\u0420\u043e\u0441\u0441\u0438\u044f\n630033",
+        "attributes": {
+            "Administrative Area": "\u041d\u043e\u0432\u043e\u0441\u0438\u0431\u0438\u0440\u0441\u043a\u0430\u044f \u043e\u0431\u043b\u0430\u0441\u0442\u044c",
+            "Areas Of Interest": "N/A",
+            "Country": "\u0420\u043e\u0441\u0441\u0438\u044f",
+            "Inland Water": "N/A",
+            "ISO Country Code": "RU",
+            "Locality": "\u041d\u043e\u0432\u043e\u0441\u0438\u0431\u0438\u0440\u0441\u043a",
+            "Location": [
+                54.96558016283502,
+                82.95473841248447
+            ],
+            "Name": "\u041e\u0431\u043e\u0433\u0430\u0442\u0438\u0442\u0435\u043b\u044c\u043d\u0430\u044f \u0443\u043b\u0438\u0446\u0430, 7/1",
+            "Ocean": "N/A",
+            "Postal Code": "630033",
+            "Sub Administrative Area": "\u0413\u043e\u0440\u043e\u0434\u0441\u043a\u043e\u0439 \u041e\u043a\u0440\u0443\u0433 \u041d\u043e\u0432\u043e\u0441\u0438\u0431\u0438\u0440\u0441\u043a",
+            "Sub Locality": "\u041a\u0438\u0440\u043e\u0432\u0441\u043a\u0438\u0439",
+            "Sub Thoroughfare": "7/1",
+            "Thoroughfare": "\u041e\u0431\u043e\u0433\u0430\u0442\u0438\u0442\u0435\u043b\u044c\u043d\u0430\u044f \u0443\u043b\u0438\u0446\u0430",
+            "Time Zone": "Asia/Novosibirsk",
+            "Zones": [
+                "Home Assistant"
+            ],
+            "icon": "mdi:map",
+            "friendly_name": "iPhone \u041e\u043b\u044f Geocoded Location"
+        },
+        "last_changed": "2025-08-29T03:32:39.847106+00:00",
+        "last_reported": "2025-08-29T03:32:39.847106+00:00",
+        "last_updated": "2025-08-29T03:32:39.847106+00:00",
+        "context": {
+            "id": "01K3SY4VS7HAK5TP3955XGQYK9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_last_update_trigger",
+        "state": "unavailable",
+        "attributes": {
+            "icon": "mdi:dots-square",
+            "friendly_name": "iPhone \u041e\u043b\u044f Last Update Trigger"
+        },
+        "last_changed": "2025-08-29T03:32:39.847303+00:00",
+        "last_reported": "2025-08-29T03:32:39.847303+00:00",
+        "last_updated": "2025-08-29T03:32:39.847303+00:00",
+        "context": {
+            "id": "01K3SY4VS713NT3R0E3G9AN0NA",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_app_version",
+        "state": "2025.7.2",
+        "attributes": {
+            "icon": "mdi:cellphone",
+            "friendly_name": "iPhone \u041e\u043b\u044f App Version"
+        },
+        "last_changed": "2025-08-29T03:32:39.847521+00:00",
+        "last_reported": "2025-08-29T03:32:39.847521+00:00",
+        "last_updated": "2025-08-29T03:32:39.847521+00:00",
+        "context": {
+            "id": "01K3SY4VS7YD4AYZHVCSWFG55K",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_ssid",
+        "state": "TP-Link_089C",
+        "attributes": {
+            "icon": "mdi:wifi",
+            "friendly_name": "iPhone \u041e\u043b\u044f SSID"
+        },
+        "last_changed": "2025-08-29T03:32:39.847686+00:00",
+        "last_reported": "2025-08-29T03:32:39.847686+00:00",
+        "last_updated": "2025-08-29T03:32:39.847686+00:00",
+        "context": {
+            "id": "01K3SY4VS7K5ZKK8GS339Y6ETK",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_bssid",
+        "state": "20:23:51:12:8:9a",
+        "attributes": {
+            "icon": "mdi:wifi-star",
+            "friendly_name": "iPhone \u041e\u043b\u044f BSSID"
+        },
+        "last_changed": "2025-08-29T03:32:39.847856+00:00",
+        "last_reported": "2025-08-29T03:32:39.847856+00:00",
+        "last_updated": "2025-08-29T03:32:39.847856+00:00",
+        "context": {
+            "id": "01K3SY4VS7ZDJ693F8E8ESXPCT",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_battery_state",
+        "state": "Not Charging",
+        "attributes": {
+            "Low Power Mode": true,
+            "icon": "mdi:battery-40",
+            "friendly_name": "iPhone \u041e\u043b\u044f Battery State"
+        },
+        "last_changed": "2025-08-29T03:32:39.848026+00:00",
+        "last_reported": "2025-08-29T03:32:39.848026+00:00",
+        "last_updated": "2025-08-29T03:32:39.848026+00:00",
+        "context": {
+            "id": "01K3SY4VS82PVNNEQ4EEGE324D",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_storage",
+        "state": "unavailable",
+        "attributes": {
+            "unit_of_measurement": "% available",
+            "icon": "mdi:dots-square",
+            "friendly_name": "iPhone \u041e\u043b\u044f Storage"
+        },
+        "last_changed": "2025-08-29T03:32:39.848180+00:00",
+        "last_reported": "2025-08-29T03:32:39.848180+00:00",
+        "last_updated": "2025-08-29T03:32:39.848180+00:00",
+        "context": {
+            "id": "01K3SY4VS8BXZSVQYB2H05G7SG",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_connection_type",
+        "state": "unavailable",
+        "attributes": {
+            "icon": "mdi:dots-square",
+            "friendly_name": "iPhone \u041e\u043b\u044f Connection Type"
+        },
+        "last_changed": "2025-08-29T03:32:39.848326+00:00",
+        "last_reported": "2025-08-29T03:32:39.848326+00:00",
+        "last_updated": "2025-08-29T03:32:39.848326+00:00",
+        "context": {
+            "id": "01K3SY4VS8M3RN586BPY9HRDAF",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_location_permission",
+        "state": "Authorized when in use",
+        "attributes": {
+            "icon": "mdi:map",
+            "friendly_name": "iPhone \u041e\u043b\u044f Location permission"
+        },
+        "last_changed": "2025-08-29T03:32:39.848485+00:00",
+        "last_reported": "2025-08-29T03:32:39.848485+00:00",
+        "last_updated": "2025-08-29T03:32:39.848485+00:00",
+        "context": {
+            "id": "01K3SY4VS88S2E27M7VNQH2CR0",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.iphone_olia_audio_output",
+        "state": "unavailable",
+        "attributes": {
+            "icon": "mdi:dots-square",
+            "friendly_name": "iPhone \u041e\u043b\u044f Audio Output"
+        },
+        "last_changed": "2025-08-29T03:32:39.848637+00:00",
+        "last_reported": "2025-08-29T03:32:39.848637+00:00",
+        "last_updated": "2025-08-29T03:32:39.848637+00:00",
+        "context": {
+            "id": "01K3SY4VS8T7Y37YEQS593403N",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_pogoda_temperature",
+        "state": "unavailable",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "\u00b0C",
+            "attribution": "Data provided by Yandex Pogoda",
+            "device_class": "temperature",
+            "friendly_name": "Yandex Pogoda Temperature"
+        },
+        "last_changed": "2025-08-29T03:32:40.455459+00:00",
+        "last_reported": "2025-08-29T03:32:40.455459+00:00",
+        "last_updated": "2025-08-29T03:32:40.455459+00:00",
+        "context": {
+            "id": "01K3SY4WC70EAZ8BSJENVC8PVJ",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_pogoda_feels_like_temperature",
+        "state": "unavailable",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "\u00b0C",
+            "attribution": "Data provided by Yandex Pogoda",
+            "device_class": "temperature",
+            "friendly_name": "Yandex Pogoda Feels like temperature"
+        },
+        "last_changed": "2025-08-29T03:32:40.455579+00:00",
+        "last_reported": "2025-08-29T03:32:40.455579+00:00",
+        "last_updated": "2025-08-29T03:32:40.455579+00:00",
+        "context": {
+            "id": "01K3SY4WC7W15R8ZCR2C0HD1F9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_pogoda_wind_speed",
+        "state": "unavailable",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "m/s",
+            "attribution": "Data provided by Yandex Pogoda",
+            "icon": "mdi:weather-windy",
+            "friendly_name": "Yandex Pogoda Wind speed"
+        },
+        "last_changed": "2025-08-29T03:32:40.455625+00:00",
+        "last_reported": "2025-08-29T03:32:40.455625+00:00",
+        "last_updated": "2025-08-29T03:32:40.455625+00:00",
+        "context": {
+            "id": "01K3SY4WC7029Q51HEMAYGCW33",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_pogoda_wind_gust",
+        "state": "unavailable",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "m/s",
+            "attribution": "Data provided by Yandex Pogoda",
+            "icon": "mdi:weather-windy",
+            "friendly_name": "Yandex Pogoda Wind gust"
+        },
+        "last_changed": "2025-08-29T03:32:40.455661+00:00",
+        "last_reported": "2025-08-29T03:32:40.455661+00:00",
+        "last_updated": "2025-08-29T03:32:40.455661+00:00",
+        "context": {
+            "id": "01K3SY4WC7YZXPWF4DVFP6KYME",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_pogoda_wind_direction",
+        "state": "unavailable",
+        "attributes": {
+            "attribution": "Data provided by Yandex Pogoda",
+            "icon": "mdi:compass-rose",
+            "friendly_name": "Yandex Pogoda Wind direction"
+        },
+        "last_changed": "2025-08-29T03:32:40.455697+00:00",
+        "last_reported": "2025-08-29T03:32:40.455697+00:00",
+        "last_updated": "2025-08-29T03:32:40.455697+00:00",
+        "context": {
+            "id": "01K3SY4WC7Z3EHNEYMG4JSEKNK",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_pogoda_data_update_time",
+        "state": "unavailable",
+        "attributes": {
+            "attribution": "Data provided by Yandex Pogoda",
+            "device_class": "timestamp",
+            "friendly_name": "Yandex Pogoda Data update time"
+        },
+        "last_changed": "2025-08-29T03:32:40.455728+00:00",
+        "last_reported": "2025-08-29T03:32:40.455728+00:00",
+        "last_updated": "2025-08-29T03:32:40.455728+00:00",
+        "context": {
+            "id": "01K3SY4WC7MQJF5445W1G1D00T",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_pogoda_condition_yandex",
+        "state": "unavailable",
+        "attributes": {
+            "options": [
+                "clear",
+                "partly_cloudy",
+                "cloudy",
+                "overcast",
+                "light_rain",
+                "rain",
+                "heavy_rain",
+                "showers",
+                "sleet",
+                "light_snow",
+                "snow",
+                "snowfall",
+                "hail",
+                "thunderstorm",
+                "thunderstorm_with_rain",
+                "thunderstorm_with_hail"
+            ],
+            "attribution": "Data provided by Yandex Pogoda",
+            "device_class": "enum",
+            "friendly_name": "Yandex Pogoda Condition Yandex"
+        },
+        "last_changed": "2025-08-29T03:32:40.455767+00:00",
+        "last_reported": "2025-08-29T03:32:40.455767+00:00",
+        "last_updated": "2025-08-29T03:32:40.455767+00:00",
+        "context": {
+            "id": "01K3SY4WC7SNZFF3PCRQ2SG5ZS",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_pogoda_minimal_forecast_temperature",
+        "state": "unavailable",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "\u00b0C",
+            "attribution": "Data provided by Yandex Pogoda",
+            "device_class": "temperature",
+            "icon": "mdi:thermometer-chevron-down",
+            "friendly_name": "Yandex Pogoda Minimal forecast temperature"
+        },
+        "last_changed": "2025-08-29T03:32:40.455803+00:00",
+        "last_reported": "2025-08-29T03:32:40.455803+00:00",
+        "last_updated": "2025-08-29T03:32:40.455803+00:00",
+        "context": {
+            "id": "01K3SY4WC7RA0MM53VZXQRPBEQ",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_pogoda_next_sunrise",
+        "state": "unavailable",
+        "attributes": {
+            "attribution": "Data provided by Yandex Pogoda",
+            "device_class": "timestamp",
+            "friendly_name": "Yandex Pogoda Next sunrise"
+        },
+        "last_changed": "2025-08-29T03:32:40.455832+00:00",
+        "last_reported": "2025-08-29T03:32:40.455832+00:00",
+        "last_updated": "2025-08-29T03:32:40.455832+00:00",
+        "context": {
+            "id": "01K3SY4WC7YM49ZCARBP06EB4M",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_pogoda_next_sunset",
+        "state": "unavailable",
+        "attributes": {
+            "attribution": "Data provided by Yandex Pogoda",
+            "device_class": "timestamp",
+            "friendly_name": "Yandex Pogoda Next sunset"
+        },
+        "last_changed": "2025-08-29T03:32:40.455859+00:00",
+        "last_reported": "2025-08-29T03:32:40.455859+00:00",
+        "last_updated": "2025-08-29T03:32:40.455859+00:00",
+        "context": {
+            "id": "01K3SY4WC73K5F059NQGKGEC9R",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "binary_sensor.rpi_power_status",
+        "state": "off",
+        "attributes": {
+            "device_class": "problem",
+            "icon": "mdi:raspberry-pi",
+            "friendly_name": "RPi Power status"
+        },
+        "last_changed": "2025-08-29T03:32:39.880946+00:00",
+        "last_reported": "2025-08-29T03:33:09.883855+00:00",
+        "last_updated": "2025-08-29T03:32:39.880946+00:00",
+        "context": {
+            "id": "01K3SY4VT89AVP099E0253GK1A",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "todo.shopping_list",
+        "state": "0",
+        "attributes": {
+            "friendly_name": "\u0421\u043f\u0438\u0441\u043e\u043a \u043f\u043e\u043a\u0443\u043f\u043e\u043a",
+            "supported_features": 15
+        },
+        "last_changed": "2025-08-29T03:32:39.881398+00:00",
+        "last_reported": "2025-08-29T03:32:39.881398+00:00",
+        "last_updated": "2025-08-29T03:32:39.881398+00:00",
+        "context": {
+            "id": "01K3SY4VT911GFRQDHAB22TH24",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.hp_laserjet_1018_foomatic_foo2zjs_z1_recommended",
+        "state": "stopped",
+        "attributes": {
+            "options": [
+                "idle",
+                "printing",
+                "stopped"
+            ],
+            "info": "HP LaserJet 1018",
+            "serial": null,
+            "location": "",
+            "state_message": "Unplugged or turned off",
+            "state_reason": null,
+            "command_set": "ACL",
+            "uri_supported": "ipps://192.168.0.210:631/printers/HP_LaserJet_1018",
+            "device_class": "enum",
+            "friendly_name": "HP LaserJet 1018"
+        },
+        "last_changed": "2025-08-29T03:32:39.887734+00:00",
+        "last_reported": "2025-08-29T03:32:39.887734+00:00",
+        "last_updated": "2025-08-29T03:32:39.887734+00:00",
+        "context": {
+            "id": "01K3SY4VTF7567VZDDF1K2N9X9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "tts.google_translate_en_com",
+        "state": "2025-07-24T11:32:00.803701+00:00",
+        "attributes": {
+            "friendly_name": "Google Translate en com"
+        },
+        "last_changed": "2025-08-29T03:32:39.912837+00:00",
+        "last_reported": "2025-08-29T03:32:39.912837+00:00",
+        "last_updated": "2025-08-29T03:32:39.912837+00:00",
+        "context": {
+            "id": "01K3SY4VV8PCTFZ2WGBWP8FFN0",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.ui_lovelace_minimalist_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v1.3.18",
+            "in_progress": false,
+            "latest_version": "v1.3.18",
+            "release_summary": null,
+            "release_url": "https://github.com/UI-Lovelace-Minimalist/UI/releases/v1.3.18",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/_/ui_lovelace_minimalist/icon.png",
+            "friendly_name": "UI Lovelace Minimalist update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.918449+00:00",
+        "last_reported": "2025-08-29T03:32:39.918449+00:00",
+        "last_updated": "2025-08-29T03:32:39.918449+00:00",
+        "context": {
+            "id": "01K3SY4VVETG4F2VJTDMFMTF68",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.atomic_calendar_revive_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v10.0.0",
+            "in_progress": false,
+            "latest_version": "v10.0.0",
+            "release_summary": null,
+            "release_url": "https://github.com/totaldebug/atomic-calendar-revive/releases/v10.0.0",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "Atomic Calendar Revive update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.918760+00:00",
+        "last_reported": "2025-08-29T03:32:39.918760+00:00",
+        "last_updated": "2025-08-29T03:32:39.918760+00:00",
+        "context": {
+            "id": "01K3SY4VVEY9SJCCPNQCWY8X2F",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.xiaomi_vacuum_map_card_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v2.3.1",
+            "in_progress": false,
+            "latest_version": "v2.3.1",
+            "release_summary": null,
+            "release_url": "https://github.com/PiotrMachowski/lovelace-xiaomi-vacuum-map-card/releases/v2.3.1",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "icon": "mdi:robot-vacuum",
+            "friendly_name": "Ecovacs Deebot OZMO900",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.918954+00:00",
+        "last_reported": "2025-08-29T03:32:39.918954+00:00",
+        "last_updated": "2025-08-29T03:32:39.918954+00:00",
+        "context": {
+            "id": "01K3SY4VVEX198FAHH7GBKDR5T",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.ios_themes_dark_mode_and_light_mode_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v3.0.1",
+            "in_progress": false,
+            "latest_version": "v3.0.1",
+            "release_summary": null,
+            "release_url": "https://github.com/basnijholt/lovelace-ios-themes/releases/v3.0.1",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "iOS Themes - Dark Mode and Light Mode update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.919147+00:00",
+        "last_reported": "2025-08-29T03:32:39.919147+00:00",
+        "last_updated": "2025-08-29T03:32:39.919147+00:00",
+        "context": {
+            "id": "01K3SY4VVFZTYEXJ5X3YTG206D",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.extended_gauge_card_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v0.1.3",
+            "in_progress": false,
+            "latest_version": "v0.1.3",
+            "release_summary": null,
+            "release_url": "https://github.com/microteq/extended-gauge/releases/v0.1.3",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "Extended Gauge Card update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.919353+00:00",
+        "last_reported": "2025-08-29T03:32:39.919353+00:00",
+        "last_updated": "2025-08-29T03:32:39.919353+00:00",
+        "context": {
+            "id": "01K3SY4VVFT6K3NMSRHD1FJD4M",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.gauge_card_pro_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v1.5.4",
+            "in_progress": false,
+            "latest_version": "v1.5.4",
+            "release_summary": null,
+            "release_url": "https://github.com/benjamin-dcs/gauge-card-pro/releases/v1.5.4",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "Gauge Card Pro update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.919546+00:00",
+        "last_reported": "2025-08-29T03:32:39.919546+00:00",
+        "last_updated": "2025-08-29T03:32:39.919546+00:00",
+        "context": {
+            "id": "01K3SY4VVFKGJ0BSR4CVH4J3YH",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.yandex_pogoda_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v0.0.9",
+            "in_progress": false,
+            "latest_version": "v0.0.9",
+            "release_summary": null,
+            "release_url": "https://github.com/yandex/pogoda-home-assistant/releases/v0.0.9",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/_/yandex_pogoda/icon.png",
+            "friendly_name": "Yandex Pogoda update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.919721+00:00",
+        "last_reported": "2025-08-29T03:32:39.919721+00:00",
+        "last_updated": "2025-08-29T03:32:39.919721+00:00",
+        "context": {
+            "id": "01K3SY4VVFTPR9BP0VQ6PWGQZR",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.yandex_smart_home_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v1.0.2",
+            "in_progress": false,
+            "latest_version": "v1.0.2",
+            "release_summary": null,
+            "release_url": "https://github.com/dext0r/yandex_smart_home/releases/v1.0.2",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/_/yandex_smart_home/icon.png",
+            "friendly_name": "Yandex Smart Home update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.919889+00:00",
+        "last_reported": "2025-08-29T03:32:39.919889+00:00",
+        "last_updated": "2025-08-29T03:32:39.919889+00:00",
+        "context": {
+            "id": "01K3SY4VVF65G5P1EM18MY7KV9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.aux_cloud_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v1.0.6",
+            "in_progress": false,
+            "latest_version": "v1.0.6",
+            "release_summary": null,
+            "release_url": "https://github.com/maeek/ha-aux-cloud/releases/v1.0.6",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/_/aux_cloud/icon.png",
+            "friendly_name": "AUX Cloud update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.920063+00:00",
+        "last_reported": "2025-08-29T03:32:39.920063+00:00",
+        "last_updated": "2025-08-29T03:32:39.920063+00:00",
+        "context": {
+            "id": "01K3SY4VVGQTTCDP2NA08XQA6S",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.xiaomi_cloud_map_extractor_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v2.2.5",
+            "in_progress": false,
+            "latest_version": "v2.2.5",
+            "release_summary": null,
+            "release_url": "https://github.com/PiotrMachowski/Home-Assistant-custom-components-Xiaomi-Cloud-Map-Extractor/releases/v2.2.5",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/_/xiaomi_cloud_map_extractor/icon.png",
+            "friendly_name": "Xiaomi Cloud Map Extractor update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.920233+00:00",
+        "last_reported": "2025-08-29T03:32:39.920233+00:00",
+        "last_updated": "2025-08-29T03:32:39.920233+00:00",
+        "context": {
+            "id": "01K3SY4VVGT8334YZ58B0F3NS6",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.clock_weather_card_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v2.9.0",
+            "in_progress": false,
+            "latest_version": "v2.9.0",
+            "release_summary": null,
+            "release_url": "https://github.com/pkissling/clock-weather-card/releases/v2.9.0",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "Clock Weather Card update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.920411+00:00",
+        "last_reported": "2025-08-29T03:32:39.920411+00:00",
+        "last_updated": "2025-08-29T03:32:39.920411+00:00",
+        "context": {
+            "id": "01K3SY4VVGCGGFPPD10K446FPG",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.curtain_card_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "0.1.4",
+            "in_progress": false,
+            "latest_version": "0.1.4",
+            "release_summary": null,
+            "release_url": "https://github.com/georgezhao2010/lovelace-curtain-card/releases/0.1.4",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "Curtain Card update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.920575+00:00",
+        "last_reported": "2025-08-29T03:32:39.920575+00:00",
+        "last_updated": "2025-08-29T03:32:39.920575+00:00",
+        "context": {
+            "id": "01K3SY4VVGVDE2RV10SC81P4RW",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.modern_circular_gauge_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v0.11.2",
+            "in_progress": false,
+            "latest_version": "v0.11.2",
+            "release_summary": null,
+            "release_url": "https://github.com/selvalt7/modern-circular-gauge/releases/v0.11.2",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "Modern Circular Gauge update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.920733+00:00",
+        "last_reported": "2025-08-29T03:32:39.920733+00:00",
+        "last_updated": "2025-08-29T03:32:39.920733+00:00",
+        "context": {
+            "id": "01K3SY4VVGVPP3M23DHPEEBC5A",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.hacs_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "2.0.5",
+            "in_progress": false,
+            "latest_version": "2.0.5",
+            "release_summary": null,
+            "release_url": "https://github.com/hacs/integration/releases/2.0.5",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/_/hacs/icon.png",
+            "friendly_name": "HACS update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.920902+00:00",
+        "last_reported": "2025-08-29T03:32:39.920902+00:00",
+        "last_updated": "2025-08-29T03:32:39.920902+00:00",
+        "context": {
+            "id": "01K3SY4VVGNGND93NXAWMJD5XA",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.mini_graph_card_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v0.13.0",
+            "in_progress": false,
+            "latest_version": "v0.13.0",
+            "release_summary": null,
+            "release_url": "https://github.com/kalkih/mini-graph-card/releases/v0.13.0",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "mini-graph-card update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.921059+00:00",
+        "last_reported": "2025-08-29T03:32:39.921059+00:00",
+        "last_updated": "2025-08-29T03:32:39.921059+00:00",
+        "context": {
+            "id": "01K3SY4VVH8YT7CRV69WF0KZ3W",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.simple_vacuum_card_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v4.5.0",
+            "in_progress": false,
+            "latest_version": "v4.5.0",
+            "release_summary": null,
+            "release_url": "https://github.com/benct/lovelace-xiaomi-vacuum-card/releases/v4.5.0",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "Simple Vacuum Card update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.921220+00:00",
+        "last_reported": "2025-08-29T03:32:39.921220+00:00",
+        "last_updated": "2025-08-29T03:32:39.921220+00:00",
+        "context": {
+            "id": "01K3SY4VVH0ZEAPDMQ5ZZFJ6PX",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.platinum_weather_card_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "1.0.5",
+            "in_progress": false,
+            "latest_version": "1.0.5",
+            "release_summary": null,
+            "release_url": "https://github.com/Makin-Things/platinum-weather-card/releases/1.0.5",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "Platinum Weather Card update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.921375+00:00",
+        "last_reported": "2025-08-29T03:32:39.921375+00:00",
+        "last_updated": "2025-08-29T03:32:39.921375+00:00",
+        "context": {
+            "id": "01K3SY4VVH03D0BGPJQZNJPH07",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.breezer",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v0.2.3",
+            "in_progress": false,
+            "latest_version": "v0.2.3",
+            "release_summary": null,
+            "release_url": "https://github.com/vakio-ru/vakio_base_smart/releases/v0.2.3",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/_/vakio_base_smart/icon.png",
+            "icon": "mdi:air-conditioner",
+            "friendly_name": "Breezer",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.921535+00:00",
+        "last_reported": "2025-08-29T03:32:39.921535+00:00",
+        "last_updated": "2025-08-29T03:32:39.921535+00:00",
+        "context": {
+            "id": "01K3SY4VVHXJFA2ZWBW806F7P1",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.tuya_vacuum_maps_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v0.1.4",
+            "in_progress": false,
+            "latest_version": "v0.1.4",
+            "release_summary": null,
+            "release_url": "https://github.com/jaidenlabelle/tuya-vacuum-maps/releases/v0.1.4",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/_/tuya_vacuum_maps/icon.png",
+            "friendly_name": "Tuya Vacuum Maps update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.921685+00:00",
+        "last_reported": "2025-08-29T03:32:39.921685+00:00",
+        "last_updated": "2025-08-29T03:32:39.921685+00:00",
+        "context": {
+            "id": "01K3SY4VVH593R0RW77MP6HY04",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.yandex_weather_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v4.0.6",
+            "in_progress": false,
+            "latest_version": "v4.0.6",
+            "release_summary": null,
+            "release_url": "https://github.com/IATkachenko/HA-YandexWeather/releases/v4.0.6",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/_/yandex_weather/icon.png",
+            "friendly_name": "Yandex weather update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.921962+00:00",
+        "last_reported": "2025-08-29T03:32:39.921962+00:00",
+        "last_updated": "2025-08-29T03:32:39.921962+00:00",
+        "context": {
+            "id": "01K3SY4VVHV8E0VME19B5S9ET4",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.flexible_horseshoe_card_for_lovelace_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v1.2",
+            "in_progress": false,
+            "latest_version": "v1.2",
+            "release_summary": null,
+            "release_url": "https://github.com/AmoebeLabs/flex-horseshoe-card/releases/v1.2",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "Flexible Horseshoe Card for Lovelace update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.922127+00:00",
+        "last_reported": "2025-08-29T03:32:39.922127+00:00",
+        "last_updated": "2025-08-29T03:32:39.922127+00:00",
+        "context": {
+            "id": "01K3SY4VVJGJ77B0GEMX4X59VW",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.plotly_graph_card_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v3.3.5",
+            "in_progress": false,
+            "latest_version": "v3.3.5",
+            "release_summary": null,
+            "release_url": "https://github.com/dbuezas/lovelace-plotly-graph-card/releases/v3.3.5",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "friendly_name": "Plotly Graph Card update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.922295+00:00",
+        "last_reported": "2025-08-29T03:32:39.922295+00:00",
+        "last_updated": "2025-08-29T03:32:39.922295+00:00",
+        "context": {
+            "id": "01K3SY4VVJEZ0ZXTCK83A49S95",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.local_tuya_update",
+        "state": "off",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 0,
+            "installed_version": "v5.2.4",
+            "in_progress": false,
+            "latest_version": "v5.2.4",
+            "release_summary": null,
+            "release_url": "https://github.com/rospogrigio/localtuya/releases/v5.2.4",
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "entity_picture": "https://brands.home-assistant.io/_/localtuya/icon.png",
+            "friendly_name": "Local Tuya update",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:39.922456+00:00",
+        "last_reported": "2025-08-29T03:32:39.922456+00:00",
+        "last_updated": "2025-08-29T03:32:39.922456+00:00",
+        "context": {
+            "id": "01K3SY4VVJC3S1R0AZY1FD9KKT",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "binary_sensor.archer_ax58_wan_status",
+        "state": "on",
+        "attributes": {
+            "device_class": "connectivity",
+            "friendly_name": "Archer AX58 \u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 WAN"
+        },
+        "last_changed": "2025-08-29T03:32:39.937017+00:00",
+        "last_reported": "2025-08-29T03:33:09.377062+00:00",
+        "last_updated": "2025-08-29T03:32:39.937017+00:00",
+        "context": {
+            "id": "01K3SY4VW19Z9YZF1FKERFHC6D",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.archer_ax58_external_ip",
+        "state": "100.72.152.126",
+        "attributes": {
+            "friendly_name": "Archer AX58 \u0412\u043d\u0435\u0448\u043d\u0438\u0439 IP"
+        },
+        "last_changed": "2025-08-29T03:32:39.937860+00:00",
+        "last_reported": "2025-08-29T03:33:09.377155+00:00",
+        "last_updated": "2025-08-29T03:32:39.937860+00:00",
+        "context": {
+            "id": "01K3SY4VW1RKMSC1R0K6QZ1NKR",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.archer_ax58_download_speed",
+        "state": "57057.0382646192",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "KiB/s",
+            "device_class": "data_rate",
+            "friendly_name": "Archer AX58 \u0421\u043a\u043e\u0440\u043e\u0441\u0442\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438"
+        },
+        "last_changed": "2025-08-30T10:59:09.376993+00:00",
+        "last_reported": "2025-08-30T10:59:09.376993+00:00",
+        "last_updated": "2025-08-30T10:59:09.376993+00:00",
+        "context": {
+            "id": "01K3XA34E0NKQXWSZQ5VZYHMYR",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.archer_ax58_upload_speed",
+        "state": "1135.24227062107",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "KiB/s",
+            "device_class": "data_rate",
+            "friendly_name": "Archer AX58 \u0421\u043a\u043e\u0440\u043e\u0441\u0442\u044c \u043f\u0435\u0440\u0435\u0434\u0430\u0447\u0438"
+        },
+        "last_changed": "2025-08-30T10:59:09.377114+00:00",
+        "last_reported": "2025-08-30T10:59:09.377114+00:00",
+        "last_updated": "2025-08-30T10:59:09.377114+00:00",
+        "context": {
+            "id": "01K3XA34E1Q7F5TMMH1XV4K4Q6",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_weather_condition_homeassistant",
+        "state": "unavailable",
+        "attributes": {
+            "attribution": "Data provided by Yandex Weather",
+            "friendly_name": "Yandex Weather Condition HomeAssistant"
+        },
+        "last_changed": "2025-08-29T03:32:40.825780+00:00",
+        "last_reported": "2025-08-29T03:32:40.825780+00:00",
+        "last_updated": "2025-08-29T03:32:40.825780+00:00",
+        "context": {
+            "id": "01K3SY4WQSKQBP00HSKHE5C80B",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_weather_data_update_time",
+        "state": "unavailable",
+        "attributes": {
+            "attribution": "Data provided by Yandex Weather",
+            "device_class": "timestamp",
+            "friendly_name": "Yandex Weather Data update time"
+        },
+        "last_changed": "2025-08-29T03:32:40.825900+00:00",
+        "last_reported": "2025-08-29T03:32:40.825900+00:00",
+        "last_updated": "2025-08-29T03:32:40.825900+00:00",
+        "context": {
+            "id": "01K3SY4WQS85W87X36VYNM66MY",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.yandex_weather_condition_yandex",
+        "state": "unavailable",
+        "attributes": {
+            "attribution": "Data provided by Yandex Weather",
+            "friendly_name": "\u042f\u043d\u0434\u0435\u043a\u0441 \u043f\u043e\u0433\u043e\u0434\u0430"
+        },
+        "last_changed": "2025-08-29T03:32:40.825947+00:00",
+        "last_reported": "2025-08-29T03:32:40.825947+00:00",
+        "last_updated": "2025-08-29T03:32:40.825947+00:00",
+        "context": {
+            "id": "01K3SY4WQSW2M81XFKRQ70CP82",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "weather.forecast_home_assistant",
+        "state": "partlycloudy",
+        "attributes": {
+            "temperature": 20.7,
+            "dew_point": 8.4,
+            "temperature_unit": "\u00b0C",
+            "humidity": 45,
+            "cloud_coverage": 50.8,
+            "uv_index": 1.5,
+            "pressure": 755.54,
+            "pressure_unit": "mmHg",
+            "wind_bearing": 28.2,
+            "wind_speed": 2.11,
+            "wind_speed_unit": "m/s",
+            "visibility_unit": "km",
+            "precipitation_unit": "mm",
+            "attribution": "Weather forecast from met.no, delivered by the Norwegian Meteorological Institute.",
+            "friendly_name": "\u041f\u043e\u0433\u043e\u0434\u0430",
+            "supported_features": 3
+        },
+        "last_changed": "2025-08-30T10:42:57.128764+00:00",
+        "last_reported": "2025-08-30T10:42:57.128764+00:00",
+        "last_updated": "2025-08-30T10:42:57.128764+00:00",
+        "context": {
+            "id": "01K3X95EZ8DWF24MR4VGF37R5C",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "fan.base_smart",
+        "state": "on",
+        "attributes": {
+            "preset_modes": [
+                "\u041f\u0440\u0438\u0442\u043e\u043a",
+                "\u041f\u0440\u0438\u0442\u043e\u043a MAX",
+                "\u0420\u0435\u043a\u0443\u043f\u0435\u0440\u0430\u0446\u0438\u044f (\u043b\u0435\u0442\u043e)",
+                "\u0420\u0435\u043a\u0443\u043f\u0435\u0440\u0430\u0446\u0438\u044f (\u0437\u0438\u043c\u0430)",
+                "\u0412\u044b\u0442\u044f\u0436\u043a\u0430",
+                "\u0412\u044b\u0442\u044f\u0436\u043a\u0430 MAX",
+                "\u041d\u043e\u0447\u043d\u043e\u0439"
+            ],
+            "percentage": 0,
+            "percentage_step": 14.285714285714286,
+            "preset_mode": "\u0420\u0435\u043a\u0443\u043f\u0435\u0440\u0430\u0446\u0438\u044f (\u043b\u0435\u0442\u043e)",
+            "icon": "mdi:fan",
+            "friendly_name": "\u0411\u0440\u0438\u0437\u0435\u0440",
+            "supported_features": 57
+        },
+        "last_changed": "2025-08-29T03:32:41.058478+00:00",
+        "last_reported": "2025-08-29T03:33:17.090634+00:00",
+        "last_updated": "2025-08-29T03:32:41.058478+00:00",
+        "context": {
+            "id": "01K3SY4WZ2RXE0T2G74W3G5HX6",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "binary_sensor.water_leak_sensor_moisture",
+        "state": "off",
+        "attributes": {
+            "device_class": "moisture",
+            "friendly_name": "Water leak sensor \u0412\u043b\u0430\u0433\u0430"
+        },
+        "last_changed": "2025-08-29T03:32:41.071452+00:00",
+        "last_reported": "2025-08-29T03:32:41.071452+00:00",
+        "last_updated": "2025-08-29T03:32:41.071452+00:00",
+        "context": {
+            "id": "01K3SY4WZFD8PRBT8PD6GC7F7C",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.smart_bulb_zigbee_e14",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6500,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "hs"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "friendly_name": "Smart Bulb Zigbee E14 ",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-30T06:52:52.407420+00:00",
+        "last_reported": "2025-08-30T06:52:52.407420+00:00",
+        "last_updated": "2025-08-30T06:52:52.407420+00:00",
+        "context": {
+            "id": "01K3WW05SQ8V3S7MPGK4MBGYYB",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "select.right_tank_water_switch_power_on_behavior",
+        "state": "power_off",
+        "attributes": {
+            "options": [
+                "power_off",
+                "power_on",
+                "last"
+            ],
+            "friendly_name": "right tank water switch \u041f\u043e\u0432\u0435\u0434\u0435\u043d\u0438\u0435 \u043f\u0440\u0438 \u0432\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0438"
+        },
+        "last_changed": "2025-08-30T10:58:53.945759+00:00",
+        "last_reported": "2025-08-30T10:58:53.945759+00:00",
+        "last_updated": "2025-08-30T10:58:53.945759+00:00",
+        "context": {
+            "id": "01K3XA2NBSWWRRKZ5P5TVT4KKA",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.water_leak_sensor_battery",
+        "state": "81.0",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "%",
+            "device_class": "battery",
+            "friendly_name": "Water leak sensor \u0411\u0430\u0442\u0430\u0440\u0435\u044f"
+        },
+        "last_changed": "2025-08-29T03:32:41.252485+00:00",
+        "last_reported": "2025-08-29T03:32:41.252485+00:00",
+        "last_updated": "2025-08-29T03:32:41.252485+00:00",
+        "context": {
+            "id": "01K3SY4X542FH27Y1MJ6H3D5K9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.right_tank_water_switch_switch_1",
+        "state": "off",
+        "attributes": {
+            "device_class": "outlet",
+            "friendly_name": "right tank water switch Switch 1"
+        },
+        "last_changed": "2025-08-30T10:58:53.945918+00:00",
+        "last_reported": "2025-08-30T10:58:53.945918+00:00",
+        "last_updated": "2025-08-30T10:58:53.945918+00:00",
+        "context": {
+            "id": "01K3XA2NBSV6DCY41ZFPJFM2VR",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.zigebee_smart_meter_pro_child_lock",
+        "state": "off",
+        "attributes": {
+            "friendly_name": "Zigebee Smart Meter Pro \u0411\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u043a\u0430 \u043e\u0442 \u0434\u0435\u0442\u0435\u0439"
+        },
+        "last_changed": "2025-08-29T03:32:41.258893+00:00",
+        "last_reported": "2025-08-29T03:32:41.258893+00:00",
+        "last_updated": "2025-08-29T03:32:41.258893+00:00",
+        "context": {
+            "id": "01K3SY4X5A9M3P6R02GTJQJBP8",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.zigebee_smart_meter_pro_switch",
+        "state": "on",
+        "attributes": {
+            "friendly_name": "Zigebee Smart Meter Pro \u0412\u044b\u043a\u043b\u044e\u0447\u0430\u0442\u0435\u043b\u044c"
+        },
+        "last_changed": "2025-08-30T06:52:04.385912+00:00",
+        "last_reported": "2025-08-30T06:52:12.527217+00:00",
+        "last_updated": "2025-08-30T06:52:04.385912+00:00",
+        "context": {
+            "id": "01K3WVYPX1XKSZEVHCW7EWEPNA",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.robik_reset_edge_brush",
+        "state": "unknown",
+        "attributes": {
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0431\u043e\u043a\u043e\u0432\u0443\u044e \u0449\u0435\u0442\u043a\u0443"
+        },
+        "last_changed": "2025-08-30T10:41:28.679036+00:00",
+        "last_reported": "2025-08-30T10:41:30.258593+00:00",
+        "last_updated": "2025-08-30T10:41:28.679036+00:00",
+        "context": {
+            "id": "01K3X92RK7HWPHERVCCN3DYFZP",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.robik_reset_filter",
+        "state": "unknown",
+        "attributes": {
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440"
+        },
+        "last_changed": "2025-08-30T10:41:28.679168+00:00",
+        "last_reported": "2025-08-30T10:41:30.258644+00:00",
+        "last_updated": "2025-08-30T10:41:28.679168+00:00",
+        "context": {
+            "id": "01K3X92RK73WB5J2HP7NK4K4QX",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.robik_reset_map",
+        "state": "unknown",
+        "attributes": {
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u043a\u0430\u0440\u0442\u0443"
+        },
+        "last_changed": "2025-08-30T10:41:28.679224+00:00",
+        "last_reported": "2025-08-30T10:41:30.258669+00:00",
+        "last_updated": "2025-08-30T10:41:28.679224+00:00",
+        "context": {
+            "id": "01K3X92RK7M7PV2F086Y3VQVP9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.robik_reset_roll_brush",
+        "state": "unknown",
+        "attributes": {
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0440\u043e\u043b\u0438\u043a\u043e\u0432\u0443\u044e \u0449\u0435\u0442\u043a\u0443"
+        },
+        "last_changed": "2025-08-30T10:41:28.679271+00:00",
+        "last_reported": "2025-08-30T10:41:30.258691+00:00",
+        "last_updated": "2025-08-30T10:41:28.679271+00:00",
+        "context": {
+            "id": "01K3X92RK7P9KWH6HCYRF6E9JG",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "cover.umnyi_robot_zanaves_curtain",
+        "state": "closed",
+        "attributes": {
+            "current_position": 0,
+            "device_class": "curtain",
+            "friendly_name": "\u0423\u043c\u043d\u044b\u0439 \u0440\u043e\u0431\u043e\u0442-\u0437\u0430\u043d\u0430\u0432\u0435\u0441 \u0417\u0430\u043d\u0430\u0432\u0435\u0441\u043a\u0430",
+            "supported_features": 15
+        },
+        "last_changed": "2025-08-29T03:32:41.266190+00:00",
+        "last_reported": "2025-08-29T03:32:41.266190+00:00",
+        "last_updated": "2025-08-29T03:32:41.266190+00:00",
+        "context": {
+            "id": "01K3SY4X5J80N7P7KM518E9AEW",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "number.robik_volume",
+        "state": "1.0",
+        "attributes": {
+            "min": 0.0,
+            "max": 7.0,
+            "step": 1.0,
+            "mode": "auto",
+            "unit_of_measurement": "%",
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0413\u0440\u043e\u043c\u043a\u043e\u0441\u0442\u044c"
+        },
+        "last_changed": "2025-08-30T10:41:28.679379+00:00",
+        "last_reported": "2025-08-30T10:41:30.258749+00:00",
+        "last_updated": "2025-08-30T10:41:28.679379+00:00",
+        "context": {
+            "id": "01K3X92RK747ZP4Z79AJKHFRFR",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "select.robik_water_tank_adjustment",
+        "state": "high",
+        "attributes": {
+            "options": [
+                "low",
+                "middle",
+                "high"
+            ],
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0420\u0435\u0433\u0443\u043b\u0438\u0440\u043e\u0432\u043a\u0430 \u0431\u0430\u043a\u0430 \u0434\u043b\u044f \u0432\u043e\u0434\u044b"
+        },
+        "last_changed": "2025-08-30T10:41:28.679457+00:00",
+        "last_reported": "2025-08-30T10:41:30.258785+00:00",
+        "last_updated": "2025-08-30T10:41:28.679457+00:00",
+        "context": {
+            "id": "01K3X92RK7N996R201RM2S4YN6",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "select.robik_mode",
+        "state": "unknown",
+        "attributes": {
+            "options": [
+                "smart",
+                "zone",
+                "pose",
+                "part"
+            ],
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0420\u0435\u0436\u0438\u043c"
+        },
+        "last_changed": "2025-08-30T10:41:28.679507+00:00",
+        "last_reported": "2025-08-30T10:41:30.258812+00:00",
+        "last_updated": "2025-08-30T10:41:28.679507+00:00",
+        "context": {
+            "id": "01K3X92RK7ESCNENXVW0W0KT7S",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.robik_cleaning_area",
+        "state": "72.0",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "\u33a1",
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0417\u043e\u043d\u0430 \u0443\u0431\u043e\u0440\u043a\u0438"
+        },
+        "last_changed": "2025-08-30T10:41:28.679600+00:00",
+        "last_reported": "2025-08-30T10:41:30.258865+00:00",
+        "last_updated": "2025-08-30T10:41:28.679600+00:00",
+        "context": {
+            "id": "01K3X92RK78JFH1M03HYPSE22T",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.robik_cleaning_time",
+        "state": "84.0",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "min",
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0412\u0440\u0435\u043c\u044f \u0443\u0431\u043e\u0440\u043a\u0438"
+        },
+        "last_changed": "2025-08-30T10:41:28.679667+00:00",
+        "last_reported": "2025-08-30T10:41:30.258898+00:00",
+        "last_updated": "2025-08-30T10:41:28.679667+00:00",
+        "context": {
+            "id": "01K3X92RK72N6A248VDEQ2W008",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.robik_side_brush_lifetime",
+        "state": "8893.0",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "min",
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0421\u0440\u043e\u043a \u0441\u043b\u0443\u0436\u0431\u044b \u0431\u043e\u043a\u043e\u0432\u043e\u0439 \u0449\u0435\u0442\u043a\u0438"
+        },
+        "last_changed": "2025-08-30T10:41:28.679729+00:00",
+        "last_reported": "2025-08-30T10:41:30.258929+00:00",
+        "last_updated": "2025-08-30T10:41:28.679729+00:00",
+        "context": {
+            "id": "01K3X92RK786946VB7DD2XV9MF",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.robik_filter_lifetime",
+        "state": "8914.0",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "min",
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0421\u0440\u043e\u043a \u0441\u043b\u0443\u0436\u0431\u044b \u0444\u0438\u043b\u044c\u0442\u0440\u0430"
+        },
+        "last_changed": "2025-08-30T10:41:28.679788+00:00",
+        "last_reported": "2025-08-30T10:41:30.258962+00:00",
+        "last_updated": "2025-08-30T10:41:28.679788+00:00",
+        "context": {
+            "id": "01K3X92RK7NHWMCB8FX17RS8DS",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.robik_rolling_brush_lifetime",
+        "state": "17914.0",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "min",
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0421\u0440\u043e\u043a \u0441\u043b\u0443\u0436\u0431\u044b \u0440\u043e\u043b\u0438\u043a\u043e\u0432\u043e\u0439 \u0449\u0435\u0442\u043a\u0438"
+        },
+        "last_changed": "2025-08-30T10:41:28.679841+00:00",
+        "last_reported": "2025-08-30T10:41:30.258993+00:00",
+        "last_updated": "2025-08-30T10:41:28.679841+00:00",
+        "context": {
+            "id": "01K3X92RK7KG9G4XZBWZEC7R11",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.robik_battery",
+        "state": "100.0",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "%",
+            "device_class": "battery",
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u0411\u0430\u0442\u0430\u0440\u0435\u044f"
+        },
+        "last_changed": "2025-08-30T10:41:28.679900+00:00",
+        "last_reported": "2025-08-30T10:41:30.259031+00:00",
+        "last_updated": "2025-08-30T10:41:28.679900+00:00",
+        "context": {
+            "id": "01K3X92RK7G9772EBS6Z6KB7K9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.robik_do_not_disturb",
+        "state": "off",
+        "attributes": {
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a \u041d\u0435 \u0431\u0435\u0441\u043f\u043e\u043a\u043e\u0438\u0442\u044c"
+        },
+        "last_changed": "2025-08-30T10:41:28.679958+00:00",
+        "last_reported": "2025-08-30T10:41:30.259063+00:00",
+        "last_updated": "2025-08-30T10:41:28.679958+00:00",
+        "context": {
+            "id": "01K3X92RK7FYSQWZK73JB8KEEW",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "vacuum.robik",
+        "state": "idle",
+        "attributes": {
+            "fan_speed_list": [
+                "gentle",
+                "normal",
+                "strong"
+            ],
+            "fan_speed": "normal",
+            "friendly_name": "\u0420\u043e\u0431\u0438\u043a",
+            "supported_features": 13116
+        },
+        "last_changed": "2025-08-30T10:41:28.680048+00:00",
+        "last_reported": "2025-08-30T10:41:30.259112+00:00",
+        "last_updated": "2025-08-30T10:41:28.680048+00:00",
+        "context": {
+            "id": "01K3X92RK8N7421SXFT2S233ZS",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "climate.aux_cloud_e87072945e65_ac",
+        "state": "off",
+        "attributes": {
+            "hvac_modes": [
+                "off",
+                "auto",
+                "cool",
+                "heat",
+                "dry",
+                "fan_only"
+            ],
+            "min_temp": 16,
+            "max_temp": 32,
+            "target_temp_step": 0.5,
+            "fan_modes": [
+                "auto",
+                "low",
+                "medium",
+                "high",
+                "turbo",
+                "silent"
+            ],
+            "swing_modes": [
+                "off",
+                "vertical",
+                "horizontal",
+                "both"
+            ],
+            "current_temperature": 27.3,
+            "temperature": 22.0,
+            "fan_mode": "auto",
+            "hvac_action": "off",
+            "swing_mode": "off",
+            "icon": "mdi:air-conditioner",
+            "friendly_name": "air conditioner Air Conditioner",
+            "supported_features": 425
+        },
+        "last_changed": "2025-08-29T08:51:20.296083+00:00",
+        "last_reported": "2025-08-30T10:54:09.495984+00:00",
+        "last_updated": "2025-08-30T10:54:09.493274+00:00",
+        "context": {
+            "id": "01K3X9SZJNPD2VJK7JW1R5ATBV",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.aux_cloud_e8707294565f_envtemp",
+        "state": "27.3",
+        "attributes": {
+            "unit_of_measurement": "\u00b0C",
+            "device_class": "temperature",
+            "icon": "mdi:thermometer",
+            "friendly_name": "air conditioner Ambient Temperature"
+        },
+        "last_changed": "2025-08-30T10:59:19.470658+00:00",
+        "last_reported": "2025-08-30T10:59:19.473303+00:00",
+        "last_updated": "2025-08-30T10:59:19.470658+00:00",
+        "context": {
+            "id": "01K3XA3E9EWY822HXMX9WC78VQ",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.aux_cloud_e8707294565f_temp",
+        "state": "16.0",
+        "attributes": {
+            "unit_of_measurement": "\u00b0C",
+            "device_class": "temperature",
+            "icon": "mdi:home-thermometer",
+            "friendly_name": "air conditioner AC Temperature"
+        },
+        "last_changed": "2025-08-29T03:32:41.316089+00:00",
+        "last_reported": "2025-08-29T03:32:42.944145+00:00",
+        "last_updated": "2025-08-29T03:32:41.316089+00:00",
+        "context": {
+            "id": "01K3SY4X74QFGA02YWD2VQBT5S",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.aux_cloud_e8707294565f_err_flag",
+        "state": "0",
+        "attributes": {
+            "device_class": "diagnostic",
+            "icon": "mdi:alert-circle",
+            "friendly_name": "air conditioner Error Flag"
+        },
+        "last_changed": "2025-08-29T03:32:41.316360+00:00",
+        "last_reported": "2025-08-29T03:32:42.944162+00:00",
+        "last_updated": "2025-08-29T03:32:41.316360+00:00",
+        "context": {
+            "id": "01K3SY4X744EHJSE1GXBEHYGED",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.aux_cloud_e87072945e65_envtemp",
+        "state": "27.3",
+        "attributes": {
+            "unit_of_measurement": "\u00b0C",
+            "device_class": "temperature",
+            "icon": "mdi:thermometer",
+            "friendly_name": "air conditioner Ambient Temperature"
+        },
+        "last_changed": "2025-08-30T10:54:09.495191+00:00",
+        "last_reported": "2025-08-30T10:54:09.496090+00:00",
+        "last_updated": "2025-08-30T10:54:09.495191+00:00",
+        "context": {
+            "id": "01K3X9SZJQ6WKM0FS4G3YFS88B",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.aux_cloud_e87072945e65_temp",
+        "state": "22.0",
+        "attributes": {
+            "unit_of_measurement": "\u00b0C",
+            "device_class": "temperature",
+            "icon": "mdi:home-thermometer",
+            "friendly_name": "air conditioner AC Temperature"
+        },
+        "last_changed": "2025-08-29T03:32:41.316844+00:00",
+        "last_reported": "2025-08-29T03:32:42.944198+00:00",
+        "last_updated": "2025-08-29T03:32:41.316844+00:00",
+        "context": {
+            "id": "01K3SY4X74CF05SSNSSD202G90",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.aux_cloud_e87072945e65_err_flag",
+        "state": "0",
+        "attributes": {
+            "device_class": "diagnostic",
+            "icon": "mdi:alert-circle",
+            "friendly_name": "air conditioner Error Flag"
+        },
+        "last_changed": "2025-08-29T03:32:41.317041+00:00",
+        "last_reported": "2025-08-29T03:32:42.944213+00:00",
+        "last_updated": "2025-08-29T03:32:41.317041+00:00",
+        "context": {
+            "id": "01K3SY4X75J3SFZQKXYWS9F727",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e8707294565f_ecomode",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:leaf",
+            "friendly_name": "air conditioner Ecomode"
+        },
+        "last_changed": "2025-08-29T03:32:41.321890+00:00",
+        "last_reported": "2025-08-29T03:32:42.944226+00:00",
+        "last_updated": "2025-08-29T03:32:41.321890+00:00",
+        "context": {
+            "id": "01K3SY4X79CRCPCJ2T3T85R52Z",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e8707294565f_pwr",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:air-conditioner",
+            "friendly_name": "air conditioner AC Power"
+        },
+        "last_changed": "2025-08-29T03:32:41.322161+00:00",
+        "last_reported": "2025-08-29T03:32:42.944239+00:00",
+        "last_updated": "2025-08-29T03:32:41.322161+00:00",
+        "context": {
+            "id": "01K3SY4X7A5V2P0VSDZ2QKK798",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e8707294565f_ac_astheat",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:heat-wave",
+            "friendly_name": "air conditioner Auxiliary Heat"
+        },
+        "last_changed": "2025-08-29T03:32:41.322342+00:00",
+        "last_reported": "2025-08-29T03:32:42.944251+00:00",
+        "last_updated": "2025-08-29T03:32:41.322342+00:00",
+        "context": {
+            "id": "01K3SY4X7AH14CGC788CP9H55N",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e8707294565f_ac_clean",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:water-pump",
+            "friendly_name": "air conditioner Self Cleaning"
+        },
+        "last_changed": "2025-08-29T03:32:41.322502+00:00",
+        "last_reported": "2025-08-29T03:32:42.944262+00:00",
+        "last_updated": "2025-08-29T03:32:41.322502+00:00",
+        "context": {
+            "id": "01K3SY4X7A25CG2C0FJTB9SANP",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e8707294565f_childlock",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:lock",
+            "friendly_name": "air conditioner Child Lock"
+        },
+        "last_changed": "2025-08-29T03:32:41.322653+00:00",
+        "last_reported": "2025-08-29T03:32:42.944273+00:00",
+        "last_updated": "2025-08-29T03:32:41.322653+00:00",
+        "context": {
+            "id": "01K3SY4X7AZB265BVSBCHY50DG",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e8707294565f_comfwind",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:fan",
+            "friendly_name": "air conditioner Comfortable Wind"
+        },
+        "last_changed": "2025-08-29T03:32:41.322800+00:00",
+        "last_reported": "2025-08-29T03:32:42.944284+00:00",
+        "last_updated": "2025-08-29T03:32:41.322800+00:00",
+        "context": {
+            "id": "01K3SY4X7A6YPCNSGKJVWRGGZY",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e8707294565f_ac_health",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:shield-check",
+            "friendly_name": "air conditioner Health Mode"
+        },
+        "last_changed": "2025-08-29T03:32:41.322943+00:00",
+        "last_reported": "2025-08-29T03:32:42.944295+00:00",
+        "last_updated": "2025-08-29T03:32:41.322943+00:00",
+        "context": {
+            "id": "01K3SY4X7A6FCYMJZNFAWQ5G6K",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e8707294565f_mldprf",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:water-off",
+            "friendly_name": "air conditioner Mildew Proof"
+        },
+        "last_changed": "2025-08-29T03:32:41.323081+00:00",
+        "last_reported": "2025-08-29T03:32:42.944306+00:00",
+        "last_updated": "2025-08-29T03:32:41.323081+00:00",
+        "context": {
+            "id": "01K3SY4X7BN3FVS119BT1PM5S7",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e8707294565f_ac_slp",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:sleep",
+            "friendly_name": "air conditioner Sleep Mode"
+        },
+        "last_changed": "2025-08-29T03:32:41.323220+00:00",
+        "last_reported": "2025-08-29T03:32:42.944317+00:00",
+        "last_updated": "2025-08-29T03:32:41.323220+00:00",
+        "context": {
+            "id": "01K3SY4X7B2Z7MM71FWWD0V1MC",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e8707294565f_scrdisp",
+        "state": "on",
+        "attributes": {
+            "icon": "mdi:monitor-dashboard",
+            "friendly_name": "air conditioner Screen Display"
+        },
+        "last_changed": "2025-08-29T03:32:41.323381+00:00",
+        "last_reported": "2025-08-29T03:32:42.944329+00:00",
+        "last_updated": "2025-08-29T03:32:41.323381+00:00",
+        "context": {
+            "id": "01K3SY4X7B1YQM90YZ5888S4PE",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e8707294565f_pwrlimitswitch",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:power-socket-eu",
+            "friendly_name": "air conditioner Power Limit"
+        },
+        "last_changed": "2025-08-29T03:32:41.323533+00:00",
+        "last_reported": "2025-08-29T03:32:42.944340+00:00",
+        "last_updated": "2025-08-29T03:32:41.323533+00:00",
+        "context": {
+            "id": "01K3SY4X7BKE5YYBV5BYASH0SP",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e87072945e65_ecomode",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:leaf",
+            "friendly_name": "air conditioner Ecomode"
+        },
+        "last_changed": "2025-08-29T03:32:41.323678+00:00",
+        "last_reported": "2025-08-29T03:32:42.944351+00:00",
+        "last_updated": "2025-08-29T03:32:41.323678+00:00",
+        "context": {
+            "id": "01K3SY4X7BE39AZKQ8KGF92P4C",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e87072945e65_pwr",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:air-conditioner",
+            "friendly_name": "air conditioner AC Power"
+        },
+        "last_changed": "2025-08-29T08:51:20.298211+00:00",
+        "last_reported": "2025-08-29T08:51:20.298972+00:00",
+        "last_updated": "2025-08-29T08:51:20.298211+00:00",
+        "context": {
+            "id": "01K3TGCC3AZKRDDRAE5RGS1841",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e87072945e65_ac_astheat",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:heat-wave",
+            "friendly_name": "air conditioner Auxiliary Heat"
+        },
+        "last_changed": "2025-08-29T03:32:41.323947+00:00",
+        "last_reported": "2025-08-29T03:32:42.944372+00:00",
+        "last_updated": "2025-08-29T03:32:41.323947+00:00",
+        "context": {
+            "id": "01K3SY4X7BXSN0JBYMWA6H1JR5",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e87072945e65_ac_clean",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:water-pump",
+            "friendly_name": "air conditioner Self Cleaning"
+        },
+        "last_changed": "2025-08-29T03:32:41.324080+00:00",
+        "last_reported": "2025-08-29T03:32:42.944383+00:00",
+        "last_updated": "2025-08-29T03:32:41.324080+00:00",
+        "context": {
+            "id": "01K3SY4X7C1KZWJZPA4KW6BYW4",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e87072945e65_childlock",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:lock",
+            "friendly_name": "air conditioner Child Lock"
+        },
+        "last_changed": "2025-08-29T03:32:41.324209+00:00",
+        "last_reported": "2025-08-29T03:32:42.944395+00:00",
+        "last_updated": "2025-08-29T03:32:41.324209+00:00",
+        "context": {
+            "id": "01K3SY4X7C9ZRTX0M5JHTZVA6M",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e87072945e65_comfwind",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:fan",
+            "friendly_name": "air conditioner Comfortable Wind"
+        },
+        "last_changed": "2025-08-29T03:32:41.324338+00:00",
+        "last_reported": "2025-08-29T03:32:42.944406+00:00",
+        "last_updated": "2025-08-29T03:32:41.324338+00:00",
+        "context": {
+            "id": "01K3SY4X7CZPCH44W0JFBKC17W",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e87072945e65_ac_health",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:shield-check",
+            "friendly_name": "air conditioner Health Mode"
+        },
+        "last_changed": "2025-08-29T03:32:41.324466+00:00",
+        "last_reported": "2025-08-29T03:32:42.944417+00:00",
+        "last_updated": "2025-08-29T03:32:41.324466+00:00",
+        "context": {
+            "id": "01K3SY4X7CC2R02RWMTDQ77A4W",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e87072945e65_mldprf",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:water-off",
+            "friendly_name": "air conditioner Mildew Proof"
+        },
+        "last_changed": "2025-08-29T03:32:41.324620+00:00",
+        "last_reported": "2025-08-29T03:32:42.944427+00:00",
+        "last_updated": "2025-08-29T03:32:41.324620+00:00",
+        "context": {
+            "id": "01K3SY4X7CG9ZDJPCY7M7H523V",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e87072945e65_ac_slp",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:sleep",
+            "friendly_name": "air conditioner Sleep Mode"
+        },
+        "last_changed": "2025-08-29T03:32:41.324751+00:00",
+        "last_reported": "2025-08-29T03:32:42.944438+00:00",
+        "last_updated": "2025-08-29T03:32:41.324751+00:00",
+        "context": {
+            "id": "01K3SY4X7C4WP5P594XXCFVDP5",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e87072945e65_scrdisp",
+        "state": "on",
+        "attributes": {
+            "icon": "mdi:monitor-dashboard",
+            "friendly_name": "air conditioner Screen Display"
+        },
+        "last_changed": "2025-08-29T03:32:41.324878+00:00",
+        "last_reported": "2025-08-29T03:32:42.944448+00:00",
+        "last_updated": "2025-08-29T03:32:41.324878+00:00",
+        "context": {
+            "id": "01K3SY4X7CAZCM8BBBF73CQ3EM",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "switch.aux_cloud_e87072945e65_pwrlimitswitch",
+        "state": "off",
+        "attributes": {
+            "icon": "mdi:power-socket-eu",
+            "friendly_name": "air conditioner Power Limit"
+        },
+        "last_changed": "2025-08-29T03:32:41.325004+00:00",
+        "last_reported": "2025-08-29T03:32:42.944459+00:00",
+        "last_updated": "2025-08-29T03:32:41.325004+00:00",
+        "context": {
+            "id": "01K3SY4X7D7BB65CJ42V0H3QDT",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "number.aux_cloud_e8707294565f_pwrlimit",
+        "state": "0",
+        "attributes": {
+            "min": 0,
+            "max": 90,
+            "step": 1,
+            "mode": "auto",
+            "unit_of_measurement": "%",
+            "icon": "mdi:percent",
+            "friendly_name": "air conditioner Power Limit Percentage"
+        },
+        "last_changed": "2025-08-29T03:32:41.325796+00:00",
+        "last_reported": "2025-08-29T03:32:42.944478+00:00",
+        "last_updated": "2025-08-29T03:32:41.325796+00:00",
+        "context": {
+            "id": "01K3SY4X7DRRFPT91HEA0K03WT",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "number.aux_cloud_e87072945e65_pwrlimit",
+        "state": "0",
+        "attributes": {
+            "min": 0,
+            "max": 90,
+            "step": 1,
+            "mode": "auto",
+            "unit_of_measurement": "%",
+            "icon": "mdi:percent",
+            "friendly_name": "air conditioner Power Limit Percentage"
+        },
+        "last_changed": "2025-08-29T03:32:41.326001+00:00",
+        "last_reported": "2025-08-29T03:32:42.944496+00:00",
+        "last_updated": "2025-08-29T03:32:41.326001+00:00",
+        "context": {
+            "id": "01K3SY4X7E7Q034MTF6PPKJTQ5",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.my_sharp_client_temperature_sensor_1",
+        "state": "unknown",
+        "attributes": {
+            "unit_of_measurement": "\u00b0C",
+            "icon": "mdi:temperature-celsius",
+            "friendly_name": "\u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430 1"
+        },
+        "last_changed": "2025-08-29T03:32:41.327936+00:00",
+        "last_reported": "2025-08-29T03:32:41.327936+00:00",
+        "last_updated": "2025-08-29T03:32:41.327936+00:00",
+        "context": {
+            "id": "01K3SY4X7FE57B14Q5T7F2N9QS",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.my_sharp_client_temperature_sensor_2",
+        "state": "unknown",
+        "attributes": {
+            "unit_of_measurement": "\u00b0C",
+            "icon": "mdi:temperature-celsius",
+            "friendly_name": "\u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430 2"
+        },
+        "last_changed": "2025-08-29T03:32:41.329878+00:00",
+        "last_reported": "2025-08-29T03:32:41.329878+00:00",
+        "last_updated": "2025-08-29T03:32:41.329878+00:00",
+        "context": {
+            "id": "01K3SY4X7HRS8CQABA1GFCHSG5",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "scene.indikatsiia_zapolneniia",
+        "state": "unknown",
+        "attributes": {
+            "friendly_name": "\u0438\u043d\u0434\u0438\u043a\u0430\u0446\u0438\u044f \u0437\u0430\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T03:32:41.484772+00:00",
+        "last_reported": "2025-08-29T03:32:41.484772+00:00",
+        "last_updated": "2025-08-29T03:32:41.484772+00:00",
+        "context": {
+            "id": "01K3SY4XCCMSHK06W4TB5H1R6A",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "scene.drying",
+        "state": "unknown",
+        "attributes": {
+            "friendly_name": "drying"
+        },
+        "last_changed": "2025-08-29T03:32:41.485195+00:00",
+        "last_reported": "2025-08-29T03:32:41.485195+00:00",
+        "last_updated": "2025-08-29T03:32:41.485195+00:00",
+        "context": {
+            "id": "01K3SY4XCDX4589FD6EMKPKPKJ",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "scene.flooding",
+        "state": "unknown",
+        "attributes": {
+            "friendly_name": "flooding"
+        },
+        "last_changed": "2025-08-29T03:32:41.485539+00:00",
+        "last_reported": "2025-08-29T03:32:41.485539+00:00",
+        "last_updated": "2025-08-29T03:32:41.485539+00:00",
+        "context": {
+            "id": "01K3SY4XCDQNKZBREAY9SG6NAN",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "scene.vykl_bak1",
+        "state": "unavailable",
+        "attributes": {
+            "friendly_name": "\u0432\u044b\u043a\u043b \u0431\u0430\u043a1"
+        },
+        "last_changed": "2025-08-29T03:32:41.485854+00:00",
+        "last_reported": "2025-08-29T03:32:41.485854+00:00",
+        "last_updated": "2025-08-29T03:32:41.485854+00:00",
+        "context": {
+            "id": "01K3SY4XCD3BDRPTNCFKW5TNXF",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "scene.bak_1",
+        "state": "unknown",
+        "attributes": {
+            "friendly_name": "\u0431\u0430\u043a 1"
+        },
+        "last_changed": "2025-08-29T03:32:41.486148+00:00",
+        "last_reported": "2025-08-29T03:32:41.486148+00:00",
+        "last_updated": "2025-08-29T03:32:41.486148+00:00",
+        "context": {
+            "id": "01K3SY4XCED8AFR9DJH4ZHPGJA",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "scene.vkl_vykl_nasos",
+        "state": "unknown",
+        "attributes": {
+            "friendly_name": "\u0432\u043a\u043b/ \u0432\u044b\u043a\u043b \u043d\u0430\u0441\u043e\u0441"
+        },
+        "last_changed": "2025-08-29T03:32:41.486434+00:00",
+        "last_reported": "2025-08-29T03:32:41.486434+00:00",
+        "last_updated": "2025-08-29T03:32:41.486434+00:00",
+        "context": {
+            "id": "01K3SY4XCETWP4TFX7ZCDPF0W9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "scene.vkl_nasos",
+        "state": "unknown",
+        "attributes": {
+            "friendly_name": "\u0432\u043a\u043b \u043d\u0430\u0441\u043e\u0441"
+        },
+        "last_changed": "2025-08-29T03:32:41.486713+00:00",
+        "last_reported": "2025-08-29T03:32:41.486713+00:00",
+        "last_updated": "2025-08-29T03:32:41.486713+00:00",
+        "context": {
+            "id": "01K3SY4XCEABEPKANA5HDZ1556",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "climate.aux_cloud_e8707294565f_ac",
+        "state": "off",
+        "attributes": {
+            "hvac_modes": [
+                "off",
+                "auto",
+                "cool",
+                "heat",
+                "dry",
+                "fan_only"
+            ],
+            "min_temp": 16,
+            "max_temp": 32,
+            "target_temp_step": 0.5,
+            "fan_modes": [
+                "auto",
+                "low",
+                "medium",
+                "high",
+                "turbo",
+                "silent"
+            ],
+            "swing_modes": [
+                "off",
+                "vertical",
+                "horizontal",
+                "both"
+            ],
+            "current_temperature": 27.3,
+            "temperature": 16.0,
+            "fan_mode": "auto",
+            "hvac_action": "off",
+            "swing_mode": "off",
+            "icon": "mdi:air-conditioner",
+            "friendly_name": "air conditioner Air Conditioner",
+            "supported_features": 425
+        },
+        "last_changed": "2025-08-29T03:32:42.944876+00:00",
+        "last_reported": "2025-08-30T10:59:19.473890+00:00",
+        "last_updated": "2025-08-30T10:59:19.471482+00:00",
+        "context": {
+            "id": "01K3XA3E9F6BDVXRM9A7TFNZF4",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "binary_sensor.tz3000_rr1cqjwu_ts0207",
+        "state": "off",
+        "attributes": {
+            "device_class": "moisture",
+            "friendly_name": "\u041f\u0440\u043e\u0442\u0435\u0447\u043a\u0430"
+        },
+        "last_changed": "2025-08-29T03:32:44.770306+00:00",
+        "last_reported": "2025-08-29T03:32:44.770306+00:00",
+        "last_updated": "2025-08-29T03:32:44.770306+00:00",
+        "context": {
+            "id": "01K3SY50K2T2SXY22504NY9TQC",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "binary_sensor.datchik_osveshchennosti_i_prisutstviia_zaniatost",
+        "state": "off",
+        "attributes": {
+            "device_class": "occupancy",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043e\u0441\u0432\u0435\u0449\u0435\u043d\u043d\u043e\u0441\u0442\u0438 \u0438 \u043f\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f \u0417\u0430\u043d\u044f\u0442\u043e\u0441\u0442\u044c"
+        },
+        "last_changed": "2025-08-30T10:56:24.285640+00:00",
+        "last_reported": "2025-08-30T10:56:24.285640+00:00",
+        "last_updated": "2025-08-30T10:56:24.285640+00:00",
+        "context": {
+            "id": "01K3X9Y36X9SJDNTJ9AQ60GCKX",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "binary_sensor.datchik_osveshchennosti_i_prisutstviia",
+        "state": "off",
+        "attributes": {
+            "device_class": "motion",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043e\u0441\u0432\u0435\u0449\u0435\u043d\u043d\u043e\u0441\u0442\u0438 \u0438 \u043f\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f"
+        },
+        "last_changed": "2025-08-30T10:56:24.847252+00:00",
+        "last_reported": "2025-08-30T10:56:24.847252+00:00",
+        "last_updated": "2025-08-30T10:56:24.847252+00:00",
+        "context": {
+            "id": "01K3X9Y3RFWK2QG40FC5P2CZVG",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.tz3000_rr1cqjwu_ts0207_identifikatsiia",
+        "state": "2025-08-14T08:06:34.521398+00:00",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u041f\u0440\u043e\u0442\u0435\u0447\u043a\u0430 \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T03:32:44.771973+00:00",
+        "last_reported": "2025-08-29T03:32:44.771973+00:00",
+        "last_updated": "2025-08-29T03:32:44.771973+00:00",
+        "context": {
+            "id": "01K3SY50K3YC84Q0EG1DNDVGGV",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.liustra_sp_1_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 1 \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T18:19:33.694894+00:00",
+        "last_reported": "2025-08-29T18:19:33.694894+00:00",
+        "last_updated": "2025-08-29T18:19:33.694894+00:00",
+        "context": {
+            "id": "01K3VGWTDY16CX6YCTZC98N97V",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.liustra_sp_4_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 4 \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T17:53:37.146829+00:00",
+        "last_reported": "2025-08-29T17:53:37.146829+00:00",
+        "last_updated": "2025-08-29T17:53:37.146829+00:00",
+        "context": {
+            "id": "01K3VFDABTHVK4DXHG331QPVFV",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.liustra_sp_5_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 5 \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T18:21:35.685430+00:00",
+        "last_reported": "2025-08-29T18:21:35.685430+00:00",
+        "last_updated": "2025-08-29T18:21:35.685430+00:00",
+        "context": {
+            "id": "01K3VH0HJ5JKZ29VE84RX3DYWS",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.liustra_sp_6_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 6 \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T18:20:55.035298+00:00",
+        "last_reported": "2025-08-29T18:20:55.035298+00:00",
+        "last_updated": "2025-08-29T18:20:55.035298+00:00",
+        "context": {
+            "id": "01K3VGZ9VVDRN88BAK26REVT6N",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.liustra_sp_2_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 2 \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T17:48:17.180078+00:00",
+        "last_reported": "2025-08-29T17:48:17.180078+00:00",
+        "last_updated": "2025-08-29T17:48:17.180078+00:00",
+        "context": {
+            "id": "01K3VF3HWWRM6MEEAEDSES4PPK",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.liustra_sp_3_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 3 \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T17:48:57.835943+00:00",
+        "last_reported": "2025-08-29T17:48:57.835943+00:00",
+        "last_updated": "2025-08-29T17:48:57.835943+00:00",
+        "context": {
+            "id": "01K3VF4SKBR7XAN68WBRGKFB0R",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.spot1_sp_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u0421\u043f\u043e\u04421 \u043f\u0440 \u0441\u043f \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T18:03:46.584817+00:00",
+        "last_reported": "2025-08-29T18:03:46.584817+00:00",
+        "last_updated": "2025-08-29T18:03:46.584817+00:00",
+        "context": {
+            "id": "01K3VFZXGRW4JRFAW7DA64279T",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.spot2_sp_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u0421\u043f\u043e\u04422 \u043b\u0435\u0432 \u0441\u043f \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T18:03:46.585340+00:00",
+        "last_reported": "2025-08-29T18:03:46.585340+00:00",
+        "last_updated": "2025-08-29T18:03:46.585340+00:00",
+        "context": {
+            "id": "01K3VFZXGS23D4Z8SQRCC69E6J",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.spot3_sp_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u0421\u043f\u043e\u04422 \u043f\u0440 \u0441\u043f \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T18:03:46.585727+00:00",
+        "last_reported": "2025-08-29T18:03:46.585727+00:00",
+        "last_updated": "2025-08-29T18:03:46.585727+00:00",
+        "context": {
+            "id": "01K3VFZXGSPT3Q6474V5P3BEK0",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.spot4_sp_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u0421\u043f\u043e\u04423 \u043f\u0440 \u0441\u043f \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T18:18:53.040904+00:00",
+        "last_reported": "2025-08-29T18:18:53.040904+00:00",
+        "last_updated": "2025-08-29T18:18:53.040904+00:00",
+        "context": {
+            "id": "01K3VGVJQGTAYN0111EEKFJC52",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.spot5_sp_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u0421\u043f\u043e\u04421 \u043b\u0435\u0432 \u0441\u043f \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T18:18:53.041453+00:00",
+        "last_reported": "2025-08-29T18:18:53.041453+00:00",
+        "last_updated": "2025-08-29T18:18:53.041453+00:00",
+        "context": {
+            "id": "01K3VGVJQH8DAV6ZJG41J6DR56",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.spot6_sp_identifikatsiia",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u0421\u043f\u043e\u04423 \u043b\u0435\u0432 \u0441\u043f \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T18:18:53.041864+00:00",
+        "last_reported": "2025-08-29T18:18:53.041864+00:00",
+        "last_updated": "2025-08-29T18:18:53.041864+00:00",
+        "context": {
+            "id": "01K3VGVJQH3SS9Z68DHB4HM8Y9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.datchik_osveshchennosti_i_prisutstviia_identifikatsiia",
+        "state": "unknown",
+        "attributes": {
+            "device_class": "identify",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043e\u0441\u0432\u0435\u0449\u0435\u043d\u043d\u043e\u0441\u0442\u0438 \u0438 \u043f\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f \u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T03:32:44.775792+00:00",
+        "last_reported": "2025-08-29T03:32:44.775792+00:00",
+        "last_updated": "2025-08-29T03:32:44.775792+00:00",
+        "context": {
+            "id": "01K3SY50K7CW3JRPQ1RAX9PKNQ",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_1",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 1",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:19:33.694656+00:00",
+        "last_reported": "2025-08-29T18:19:33.694656+00:00",
+        "last_updated": "2025-08-29T18:19:33.694656+00:00",
+        "context": {
+            "id": "01K3VGWTDYT8S73ZQD8VVAR58D",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_4",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 4",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T17:53:37.146590+00:00",
+        "last_reported": "2025-08-29T17:53:37.146590+00:00",
+        "last_updated": "2025-08-29T17:53:37.146590+00:00",
+        "context": {
+            "id": "01K3VFDABTW03GV7JTZ7EFCTSA",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_5",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 5",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:21:35.685191+00:00",
+        "last_reported": "2025-08-29T18:21:35.685191+00:00",
+        "last_updated": "2025-08-29T18:21:35.685191+00:00",
+        "context": {
+            "id": "01K3VH0HJ5PFY1YH91EC0SFJ63",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_6",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 6",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:20:55.035083+00:00",
+        "last_reported": "2025-08-29T18:20:55.035083+00:00",
+        "last_updated": "2025-08-29T18:20:55.035083+00:00",
+        "context": {
+            "id": "01K3VGZ9VVB3Q272ECT7BPRB99",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_2",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 2",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T17:48:17.179837+00:00",
+        "last_reported": "2025-08-29T17:48:17.179837+00:00",
+        "last_updated": "2025-08-29T17:48:17.179837+00:00",
+        "context": {
+            "id": "01K3VF3HWV274WRNPB1PGK6JTJ",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_3",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 3",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T17:48:57.835713+00:00",
+        "last_reported": "2025-08-29T17:48:57.835713+00:00",
+        "last_updated": "2025-08-29T17:48:57.835713+00:00",
+        "context": {
+            "id": "01K3VF4SKBV1HAMPGSZZDGS5Z3",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.spot1_sp",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u0421\u043f\u043e\u04421 \u043f\u0440 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:03:46.584579+00:00",
+        "last_reported": "2025-08-29T18:03:46.584579+00:00",
+        "last_updated": "2025-08-29T18:03:46.584579+00:00",
+        "context": {
+            "id": "01K3VFZXGR9PMMY67KTVBS4E6V",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.spot2_sp",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u0421\u043f\u043e\u04422 \u043b\u0435\u0432 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:03:46.585240+00:00",
+        "last_reported": "2025-08-29T18:03:46.585240+00:00",
+        "last_updated": "2025-08-29T18:03:46.585240+00:00",
+        "context": {
+            "id": "01K3VFZXGSJX5XQTX2NFMZ81XN",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.spot3_sp",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u0421\u043f\u043e\u04422 \u043f\u0440 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:03:46.585638+00:00",
+        "last_reported": "2025-08-29T18:03:46.585638+00:00",
+        "last_updated": "2025-08-29T18:03:46.585638+00:00",
+        "context": {
+            "id": "01K3VFZXGS0580WKF29EWT0AX1",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.spot4_sp",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u0421\u043f\u043e\u04423 \u043f\u0440 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:18:53.040673+00:00",
+        "last_reported": "2025-08-29T18:18:53.040673+00:00",
+        "last_updated": "2025-08-29T18:18:53.040673+00:00",
+        "context": {
+            "id": "01K3VGVJQG3X9G7FYWRWJ1SFSM",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.spot5_sp",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u0421\u043f\u043e\u04421 \u043b\u0435\u0432 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:18:53.041346+00:00",
+        "last_reported": "2025-08-29T18:18:53.041346+00:00",
+        "last_updated": "2025-08-29T18:18:53.041346+00:00",
+        "context": {
+            "id": "01K3VGVJQHQ43VYJVGFN70KNGA",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "light.spot6_sp",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "\u0421\u043f\u043e\u04423 \u043b\u0435\u0432 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-29T18:18:53.041773+00:00",
+        "last_reported": "2025-08-29T18:18:53.041773+00:00",
+        "last_updated": "2025-08-29T18:18:53.041773+00:00",
+        "context": {
+            "id": "01K3VGVJQHQTGDMJ614JEW1Q9W",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "number.datchik_osveshchennosti_i_prisutstviia_interval_osveshchennosti",
+        "state": "unknown",
+        "attributes": {
+            "min": 1,
+            "max": 720,
+            "step": 1,
+            "mode": "auto",
+            "unit_of_measurement": "min",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043e\u0441\u0432\u0435\u0449\u0435\u043d\u043d\u043e\u0441\u0442\u0438 \u0438 \u043f\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f \u0418\u043d\u0442\u0435\u0440\u0432\u0430\u043b \u043e\u0441\u0432\u0435\u0449\u0435\u043d\u043d\u043e\u0441\u0442\u0438"
+        },
+        "last_changed": "2025-08-29T03:32:44.780718+00:00",
+        "last_reported": "2025-08-29T03:32:44.780718+00:00",
+        "last_updated": "2025-08-29T03:32:44.780718+00:00",
+        "context": {
+            "id": "01K3SY50KCSDW5ZYGFESEP1ZWK",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "select.datchik_osveshchennosti_i_prisutstviia_chuvstvitelnost_k_prisutstviiu",
+        "state": "High",
+        "attributes": {
+            "options": [
+                "Low",
+                "Medium",
+                "High"
+            ],
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043e\u0441\u0432\u0435\u0449\u0435\u043d\u043d\u043e\u0441\u0442\u0438 \u0438 \u043f\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f \u0427\u0443\u0432\u0441\u0442\u0432\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0441\u0442\u044c \u043a \u043f\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044e"
+        },
+        "last_changed": "2025-08-29T03:32:44.781229+00:00",
+        "last_reported": "2025-08-29T03:32:44.781229+00:00",
+        "last_updated": "2025-08-29T03:32:44.781229+00:00",
+        "context": {
+            "id": "01K3SY50KDJRGXEZ1RG6C13SW0",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "select.datchik_osveshchennosti_i_prisutstviia_vremia_zatukhaniia",
+        "state": " 10 seconds",
+        "attributes": {
+            "options": [
+                " 10 seconds",
+                " 30 seconds",
+                " 60 seconds",
+                " 120 seconds"
+            ],
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043e\u0441\u0432\u0435\u0449\u0435\u043d\u043d\u043e\u0441\u0442\u0438 \u0438 \u043f\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f \u0412\u0440\u0435\u043c\u044f \u0437\u0430\u0442\u0443\u0445\u0430\u043d\u0438\u044f"
+        },
+        "last_changed": "2025-08-29T03:32:44.781515+00:00",
+        "last_reported": "2025-08-29T03:32:44.781515+00:00",
+        "last_updated": "2025-08-29T03:32:44.781515+00:00",
+        "context": {
+            "id": "01K3SY50KD7H4KN3630HPTJKFF",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.tz3000_rr1cqjwu_ts0207_batareia",
+        "state": "46.0",
+        "attributes": {
+            "state_class": "measurement",
+            "battery_voltage": 2.7,
+            "unit_of_measurement": "%",
+            "device_class": "battery",
+            "friendly_name": "\u041f\u0440\u043e\u0442\u0435\u0447\u043a\u0430 \u0411\u0430\u0442\u0430\u0440\u0435\u044f"
+        },
+        "last_changed": "2025-08-29T03:32:44.787606+00:00",
+        "last_reported": "2025-08-29T03:32:44.787606+00:00",
+        "last_updated": "2025-08-29T03:32:44.787606+00:00",
+        "context": {
+            "id": "01K3SY50KK2C70NW24YJ9634QG",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.datchik_kachestva_vozdukha_temperatura",
+        "state": "26.2",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "\u00b0C",
+            "device_class": "temperature",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0430 \u0432\u043e\u0437\u0434\u0443\u0445\u0430 \u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430"
+        },
+        "last_changed": "2025-08-30T10:59:25.817898+00:00",
+        "last_reported": "2025-08-30T10:59:25.817898+00:00",
+        "last_updated": "2025-08-30T10:59:25.817898+00:00",
+        "context": {
+            "id": "01K3XA3MFSDH2PXCRQZCJMW5FB",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.datchik_kachestva_vozdukha_uglekislyi_gaz",
+        "state": "359.0",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "ppm",
+            "device_class": "carbon_dioxide",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0430 \u0432\u043e\u0437\u0434\u0443\u0445\u0430 \u0423\u0433\u043b\u0435\u043a\u0438\u0441\u043b\u044b\u0439 \u0433\u0430\u0437"
+        },
+        "last_changed": "2025-08-30T10:59:26.041489+00:00",
+        "last_reported": "2025-08-30T10:59:26.041489+00:00",
+        "last_updated": "2025-08-30T10:59:26.041489+00:00",
+        "context": {
+            "id": "01K3XA3MPSA012P4BH5JMBAKFC",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.datchik_kachestva_vozdukha_pm2_5",
+        "state": "unknown",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "\u00b5g/m\u00b3",
+            "device_class": "pm25",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0430 \u0432\u043e\u0437\u0434\u0443\u0445\u0430 PM2.5"
+        },
+        "last_changed": "2025-08-29T03:32:44.788845+00:00",
+        "last_reported": "2025-08-29T03:32:44.788845+00:00",
+        "last_updated": "2025-08-29T03:32:44.788845+00:00",
+        "context": {
+            "id": "01K3SY50KMAS630EVFF5MSA0ME",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.datchik_kachestva_vozdukha_kontsentratsiia_formaldegida",
+        "state": "0.02",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "ppm",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0430 \u0432\u043e\u0437\u0434\u0443\u0445\u0430 \u041a\u043e\u043d\u0446\u0435\u043d\u0442\u0440\u0430\u0446\u0438\u044f \u0444\u043e\u0440\u043c\u0430\u043b\u044c\u0434\u0435\u0433\u0438\u0434\u0430"
+        },
+        "last_changed": "2025-08-30T10:59:15.278857+00:00",
+        "last_reported": "2025-08-30T10:59:15.278857+00:00",
+        "last_updated": "2025-08-30T10:59:15.278857+00:00",
+        "context": {
+            "id": "01K3XA3A6E0TY0TV6B3N0QF74Z",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.datchik_kachestva_vozdukha_vlazhnost",
+        "state": "38.4",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "%",
+            "device_class": "humidity",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0430 \u0432\u043e\u0437\u0434\u0443\u0445\u0430 \u0412\u043b\u0430\u0436\u043d\u043e\u0441\u0442\u044c"
+        },
+        "last_changed": "2025-08-30T10:59:25.875477+00:00",
+        "last_reported": "2025-08-30T10:59:25.875477+00:00",
+        "last_updated": "2025-08-30T10:59:25.875477+00:00",
+        "context": {
+            "id": "01K3XA3MHKHYE2VK5BMQ0JQVM2",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.datchik_kachestva_vozdukha_letuchie_organicheskie_veshchestva",
+        "state": "5.0",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "\u00b5g/m\u00b3",
+            "device_class": "volatile_organic_compounds",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0430 \u0432\u043e\u0437\u0434\u0443\u0445\u0430 \u041b\u0435\u0442\u0443\u0447\u0438\u0435 \u043e\u0440\u0433\u0430\u043d\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0432\u0435\u0449\u0435\u0441\u0442\u0432\u0430"
+        },
+        "last_changed": "2025-08-30T10:59:25.985427+00:00",
+        "last_reported": "2025-08-30T10:59:25.985427+00:00",
+        "last_updated": "2025-08-30T10:59:25.985427+00:00",
+        "context": {
+            "id": "01K3XA3MN1FPX85SZNEXFVVDRR",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.umnaia_knopka_batareia",
+        "state": "unknown",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "%",
+            "device_class": "battery",
+            "friendly_name": "\u0423\u043c\u043d\u0430\u044f \u043a\u043d\u043e\u043f\u043a\u0430 \u0411\u0430\u0442\u0430\u0440\u0435\u044f"
+        },
+        "last_changed": "2025-08-29T03:32:44.792246+00:00",
+        "last_reported": "2025-08-29T03:32:44.792246+00:00",
+        "last_updated": "2025-08-29T03:32:44.792246+00:00",
+        "context": {
+            "id": "01K3SY50KRG6PX6BR3CH1KZBFY",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.datchik_osveshchennosti_i_prisutstviia_batareia",
+        "state": "100.0",
+        "attributes": {
+            "state_class": "measurement",
+            "battery_quantity": 2,
+            "battery_voltage": 3.0,
+            "battery_size": "AA",
+            "unit_of_measurement": "%",
+            "device_class": "battery",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043e\u0441\u0432\u0435\u0449\u0435\u043d\u043d\u043e\u0441\u0442\u0438 \u0438 \u043f\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f \u0411\u0430\u0442\u0430\u0440\u0435\u044f"
+        },
+        "last_changed": "2025-08-29T03:32:44.792873+00:00",
+        "last_reported": "2025-08-29T03:32:44.792873+00:00",
+        "last_updated": "2025-08-29T03:32:44.792873+00:00",
+        "context": {
+            "id": "01K3SY50KR4654DRQ6QJ6WK697",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.datchik_osveshchennosti_i_prisutstviia_osveshchennost",
+        "state": "2705",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "lx",
+            "device_class": "illuminance",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043e\u0441\u0432\u0435\u0449\u0435\u043d\u043d\u043e\u0441\u0442\u0438 \u0438 \u043f\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f \u041e\u0441\u0432\u0435\u0449\u0435\u043d\u043d\u043e\u0441\u0442\u044c"
+        },
+        "last_changed": "2025-08-30T10:56:26.164560+00:00",
+        "last_reported": "2025-08-30T10:56:26.164560+00:00",
+        "last_updated": "2025-08-30T10:56:26.164560+00:00",
+        "context": {
+            "id": "01K3X9Y51M1BX2K8AY7F8MP3S2",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.tz3000_rr1cqjwu_ts0207_obnovlenie_proshivki",
+        "state": "unknown",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 2,
+            "installed_version": "0x10023607",
+            "in_progress": false,
+            "latest_version": null,
+            "release_summary": null,
+            "release_url": null,
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u041f\u0440\u043e\u0442\u0435\u0447\u043a\u0430 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:44.795088+00:00",
+        "last_reported": "2025-08-29T03:32:44.795088+00:00",
+        "last_updated": "2025-08-29T03:32:44.795088+00:00",
+        "context": {
+            "id": "01K3SY50KV65S1GJQT71YD2HAB",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.datchik_kachestva_vozdukha_obnovlenie_proshivki",
+        "state": "unknown",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 2,
+            "installed_version": "0x00000046",
+            "in_progress": false,
+            "latest_version": null,
+            "release_summary": null,
+            "release_url": null,
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u0414\u0430\u0442\u0447\u0438\u043a \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0430 \u0432\u043e\u0437\u0434\u0443\u0445\u0430 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:44.795373+00:00",
+        "last_reported": "2025-08-29T03:32:44.795373+00:00",
+        "last_updated": "2025-08-29T03:32:44.795373+00:00",
+        "context": {
+            "id": "01K3SY50KVV1JQJQWCZC2E3QN5",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.liustra_sp_1_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 1 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T18:19:33.695090+00:00",
+        "last_reported": "2025-08-29T18:19:33.695090+00:00",
+        "last_updated": "2025-08-29T18:19:33.695090+00:00",
+        "context": {
+            "id": "01K3VGWTDZJXBBTJBJME5HVHQA",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.liustra_sp_4_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 4 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T17:53:37.147028+00:00",
+        "last_reported": "2025-08-29T17:53:37.147028+00:00",
+        "last_updated": "2025-08-29T17:53:37.147028+00:00",
+        "context": {
+            "id": "01K3VFDABVPVC445RK1CMTCZ3Z",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.liustra_sp_5_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 5 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T18:21:35.685627+00:00",
+        "last_reported": "2025-08-29T18:21:35.685627+00:00",
+        "last_updated": "2025-08-29T18:21:35.685627+00:00",
+        "context": {
+            "id": "01K3VH0HJ51J6FNMBDYB7HS6C0",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.liustra_sp_6_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 6 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T18:20:55.035510+00:00",
+        "last_reported": "2025-08-29T18:20:55.035510+00:00",
+        "last_updated": "2025-08-29T18:20:55.035510+00:00",
+        "context": {
+            "id": "01K3VGZ9VVB95F1HS3Q05W64DK",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.liustra_sp_2_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 2 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T17:48:17.180283+00:00",
+        "last_reported": "2025-08-29T17:48:17.180283+00:00",
+        "last_updated": "2025-08-29T17:48:17.180283+00:00",
+        "context": {
+            "id": "01K3VF3HWWNYGMXBZJ51819MV3",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.liustra_sp_3_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 3 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T17:48:57.836136+00:00",
+        "last_reported": "2025-08-29T17:48:57.836136+00:00",
+        "last_updated": "2025-08-29T17:48:57.836136+00:00",
+        "context": {
+            "id": "01K3VF4SKC7PJBZWXA6JQ9DJKM",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.spot1_sp_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u0421\u043f\u043e\u04421 \u043f\u0440 \u0441\u043f \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T18:03:46.585021+00:00",
+        "last_reported": "2025-08-29T18:03:46.585021+00:00",
+        "last_updated": "2025-08-29T18:03:46.585021+00:00",
+        "context": {
+            "id": "01K3VFZXGSBQHKY36VSZ2XC735",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.spot2_sp_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u0421\u043f\u043e\u04422 \u043b\u0435\u0432 \u0441\u043f \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T18:03:46.585470+00:00",
+        "last_reported": "2025-08-29T18:03:46.585470+00:00",
+        "last_updated": "2025-08-29T18:03:46.585470+00:00",
+        "context": {
+            "id": "01K3VFZXGSV94TVCJ5H1RTYPW8",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.spot3_sp_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u0421\u043f\u043e\u04422 \u043f\u0440 \u0441\u043f \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T18:03:46.585844+00:00",
+        "last_reported": "2025-08-29T18:03:46.585844+00:00",
+        "last_updated": "2025-08-29T18:03:46.585844+00:00",
+        "context": {
+            "id": "01K3VFZXGS9YWZJBAQPAYA1VMM",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.spot4_sp_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u0421\u043f\u043e\u04423 \u043f\u0440 \u0441\u043f \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T18:18:53.041112+00:00",
+        "last_reported": "2025-08-29T18:18:53.041112+00:00",
+        "last_updated": "2025-08-29T18:18:53.041112+00:00",
+        "context": {
+            "id": "01K3VGVJQH99Y48SCJT778QTXW",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.spot5_sp_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u0421\u043f\u043e\u04421 \u043b\u0435\u0432 \u0441\u043f \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T18:18:53.041594+00:00",
+        "last_reported": "2025-08-29T18:18:53.041594+00:00",
+        "last_updated": "2025-08-29T18:18:53.041594+00:00",
+        "context": {
+            "id": "01K3VGVJQHWF9NMYR3W31J0CN9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.spot6_sp_obnovlenie_proshivki",
+        "state": "unavailable",
+        "attributes": {
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u0421\u043f\u043e\u04423 \u043b\u0435\u0432 \u0441\u043f \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T18:18:53.041986+00:00",
+        "last_reported": "2025-08-29T18:18:53.041986+00:00",
+        "last_updated": "2025-08-29T18:18:53.041986+00:00",
+        "context": {
+            "id": "01K3VGVJQH31ZMFP7WBJGYBCY7",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "update.umnaia_knopka_obnovlenie_proshivki",
+        "state": "unknown",
+        "attributes": {
+            "auto_update": false,
+            "display_precision": 2,
+            "installed_version": "0x00000046",
+            "in_progress": false,
+            "latest_version": null,
+            "release_summary": null,
+            "release_url": null,
+            "skipped_version": null,
+            "title": null,
+            "update_percentage": null,
+            "device_class": "firmware",
+            "entity_picture": "https://brands.home-assistant.io/_/zha/icon.png",
+            "friendly_name": "\u0423\u043c\u043d\u0430\u044f \u043a\u043d\u043e\u043f\u043a\u0430 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0448\u0438\u0432\u043a\u0438",
+            "supported_features": 23
+        },
+        "last_changed": "2025-08-29T03:32:44.798472+00:00",
+        "last_reported": "2025-08-29T03:32:44.798472+00:00",
+        "last_updated": "2025-08-29T03:32:44.798472+00:00",
+        "context": {
+            "id": "01K3SY50KYY3HZX8QG5KVN6SDP",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "weather.yandex_weather",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "friendly_name": "\u042f\u043d\u0434\u0435\u043a\u0441 \u041f\u043e\u0433\u043e\u0434\u0430",
+            "supported_features": 2
+        },
+        "last_changed": "2025-08-29T03:33:10.117405+00:00",
+        "last_reported": "2025-08-29T03:33:10.117405+00:00",
+        "last_updated": "2025-08-29T03:33:10.117405+00:00",
+        "context": {
+            "id": "01K3SY5SB57SCCK3ZP0P75H836",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "binary_sensor.octoprint_printing",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "friendly_name": "OctoPrint Printing",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117465+00:00",
+        "last_reported": "2025-08-29T03:33:10.117465+00:00",
+        "last_updated": "2025-08-29T03:33:10.117465+00:00",
+        "context": {
+            "id": "01K3SY5SB54JZWKCHB8QJXVEAS",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "binary_sensor.octoprint_printing_error",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "friendly_name": "OctoPrint Printing Error",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117507+00:00",
+        "last_reported": "2025-08-29T03:33:10.117507+00:00",
+        "last_updated": "2025-08-29T03:33:10.117507+00:00",
+        "context": {
+            "id": "01K3SY5SB5CXPCJJN0HYJTRAYJ",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.octoprint_resume_job",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "friendly_name": "OctoPrint Resume Job",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117536+00:00",
+        "last_reported": "2025-08-29T03:33:10.117536+00:00",
+        "last_updated": "2025-08-29T03:33:10.117536+00:00",
+        "context": {
+            "id": "01K3SY5SB5DJC0JDDRTYM5EZQ1",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.octoprint_pause_job",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "friendly_name": "OctoPrint Pause Job",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117564+00:00",
+        "last_reported": "2025-08-29T03:33:10.117564+00:00",
+        "last_updated": "2025-08-29T03:33:10.117564+00:00",
+        "context": {
+            "id": "01K3SY5SB5NTDHFCC9KB7AWW4H",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.octoprint_stop_job",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "friendly_name": "OctoPrint Stop Job",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117589+00:00",
+        "last_reported": "2025-08-29T03:33:10.117589+00:00",
+        "last_updated": "2025-08-29T03:33:10.117589+00:00",
+        "context": {
+            "id": "01K3SY5SB5Q2MQGK25E4QT49GR",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.octoprint_shutdown_system",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "friendly_name": "OctoPrint Shutdown System",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117614+00:00",
+        "last_reported": "2025-08-29T03:33:10.117614+00:00",
+        "last_updated": "2025-08-29T03:33:10.117614+00:00",
+        "context": {
+            "id": "01K3SY5SB5AJ23GAAAAF8XZRGM",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.octoprint_reboot_system",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "device_class": "restart",
+            "friendly_name": "OctoPrint Reboot System",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117640+00:00",
+        "last_reported": "2025-08-29T03:33:10.117640+00:00",
+        "last_updated": "2025-08-29T03:33:10.117640+00:00",
+        "context": {
+            "id": "01K3SY5SB5MCP2E6M84JPVF16P",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "button.octoprint_restart_octoprint",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "device_class": "restart",
+            "friendly_name": "OctoPrint Restart Octoprint",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117665+00:00",
+        "last_reported": "2025-08-29T03:33:10.117665+00:00",
+        "last_updated": "2025-08-29T03:33:10.117665+00:00",
+        "context": {
+            "id": "01K3SY5SB5BV9ASP50TGP5KFY7",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_current_state",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "icon": "mdi:printer-3d",
+            "friendly_name": "OctoPrint Current State",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117691+00:00",
+        "last_reported": "2025-08-29T03:33:10.117691+00:00",
+        "last_updated": "2025-08-29T03:33:10.117691+00:00",
+        "context": {
+            "id": "01K3SY5SB5B2FWCGCP065BKMJF",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_job_percentage",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "icon": "mdi:file-percent",
+            "friendly_name": "OctoPrint Job Percentage",
+            "supported_features": 0,
+            "unit_of_measurement": "%"
+        },
+        "last_changed": "2025-08-29T03:33:10.117718+00:00",
+        "last_reported": "2025-08-29T03:33:10.117718+00:00",
+        "last_updated": "2025-08-29T03:33:10.117718+00:00",
+        "context": {
+            "id": "01K3SY5SB55JABM15XN4AD1H0Z",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_estimated_finish_time",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "device_class": "timestamp",
+            "friendly_name": "OctoPrint Estimated Finish Time",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117744+00:00",
+        "last_reported": "2025-08-29T03:33:10.117744+00:00",
+        "last_updated": "2025-08-29T03:33:10.117744+00:00",
+        "context": {
+            "id": "01K3SY5SB5DG9XYQHMGM8XV4EJ",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_start_time",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "device_class": "timestamp",
+            "friendly_name": "OctoPrint Start Time",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117769+00:00",
+        "last_reported": "2025-08-29T03:33:10.117769+00:00",
+        "last_updated": "2025-08-29T03:33:10.117769+00:00",
+        "context": {
+            "id": "01K3SY5SB58C8GR7YPB08M2CPM",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "camera.octoprint_camera",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "friendly_name": "OctoPrint Camera",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117793+00:00",
+        "last_reported": "2025-08-29T03:33:10.117793+00:00",
+        "last_updated": "2025-08-29T03:33:10.117793+00:00",
+        "context": {
+            "id": "01K3SY5SB5F5AW7PJE5B3AJ73R",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_current_file",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "friendly_name": "OctoPrint Current File",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-29T03:33:10.117821+00:00",
+        "last_reported": "2025-08-29T03:33:10.117821+00:00",
+        "last_updated": "2025-08-29T03:33:10.117821+00:00",
+        "context": {
+            "id": "01K3SY5SB51TD20N2Q4Y2JASMK",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_current_file_size",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "device_class": "data_size",
+            "friendly_name": "OctoPrint Current File Size",
+            "supported_features": 0,
+            "unit_of_measurement": "MB"
+        },
+        "last_changed": "2025-08-29T03:33:10.117848+00:00",
+        "last_reported": "2025-08-29T03:33:10.117848+00:00",
+        "last_updated": "2025-08-29T03:33:10.117848+00:00",
+        "context": {
+            "id": "01K3SY5SB5K676FMC2V80YAMP1",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_actual_bed_temp",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "temperature",
+            "friendly_name": "OctoPrint actual bed temp",
+            "supported_features": 0,
+            "unit_of_measurement": "\u00b0C"
+        },
+        "last_changed": "2025-08-29T03:33:10.117877+00:00",
+        "last_reported": "2025-08-29T03:33:10.117877+00:00",
+        "last_updated": "2025-08-29T03:33:10.117877+00:00",
+        "context": {
+            "id": "01K3SY5SB554PFHZG0VE4XES3G",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_target_bed_temp",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "temperature",
+            "friendly_name": "OctoPrint target bed temp",
+            "supported_features": 0,
+            "unit_of_measurement": "\u00b0C"
+        },
+        "last_changed": "2025-08-29T03:33:10.117906+00:00",
+        "last_reported": "2025-08-29T03:33:10.117906+00:00",
+        "last_updated": "2025-08-29T03:33:10.117906+00:00",
+        "context": {
+            "id": "01K3SY5SB5M82T714114317SNH",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_actual_tool0_temp",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "temperature",
+            "friendly_name": "OctoPrint actual tool0 temp",
+            "supported_features": 0,
+            "unit_of_measurement": "\u00b0C"
+        },
+        "last_changed": "2025-08-29T03:33:10.117932+00:00",
+        "last_reported": "2025-08-29T03:33:10.117932+00:00",
+        "last_updated": "2025-08-29T03:33:10.117932+00:00",
+        "context": {
+            "id": "01K3SY5SB55PSXVGNG40GXV7DG",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_target_tool0_temp",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "temperature",
+            "friendly_name": "OctoPrint target tool0 temp",
+            "supported_features": 0,
+            "unit_of_measurement": "\u00b0C"
+        },
+        "last_changed": "2025-08-29T03:33:10.117959+00:00",
+        "last_reported": "2025-08-29T03:33:10.117959+00:00",
+        "last_updated": "2025-08-29T03:33:10.117959+00:00",
+        "context": {
+            "id": "01K3SY5SB578EWVNTJHX4V1HFW",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_actual_tool1_temp",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "temperature",
+            "friendly_name": "OctoPrint actual tool1 temp",
+            "supported_features": 0,
+            "unit_of_measurement": "\u00b0C"
+        },
+        "last_changed": "2025-08-29T03:33:10.117987+00:00",
+        "last_reported": "2025-08-29T03:33:10.117987+00:00",
+        "last_updated": "2025-08-29T03:33:10.117987+00:00",
+        "context": {
+            "id": "01K3SY5SB5WSYCK75TYM6CHF1C",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_target_tool1_temp",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "temperature",
+            "friendly_name": "OctoPrint target tool1 temp",
+            "supported_features": 0,
+            "unit_of_measurement": "\u00b0C"
+        },
+        "last_changed": "2025-08-29T03:33:10.118014+00:00",
+        "last_reported": "2025-08-29T03:33:10.118014+00:00",
+        "last_updated": "2025-08-29T03:33:10.118014+00:00",
+        "context": {
+            "id": "01K3SY5SB6C1AD3XXJTQNGS0X3",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_actual_w_temp",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "temperature",
+            "friendly_name": "OctoPrint actual W temp",
+            "supported_features": 0,
+            "unit_of_measurement": "\u00b0C"
+        },
+        "last_changed": "2025-08-29T03:33:10.118040+00:00",
+        "last_reported": "2025-08-29T03:33:10.118040+00:00",
+        "last_updated": "2025-08-29T03:33:10.118040+00:00",
+        "context": {
+            "id": "01K3SY5SB698JCDK3C0YP63CP2",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "sensor.octoprint_target_w_temp",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "temperature",
+            "friendly_name": "OctoPrint target W temp",
+            "supported_features": 0,
+            "unit_of_measurement": "\u00b0C"
+        },
+        "last_changed": "2025-08-29T03:33:10.118065+00:00",
+        "last_reported": "2025-08-29T03:33:10.118065+00:00",
+        "last_updated": "2025-08-29T03:33:10.118065+00:00",
+        "context": {
+            "id": "01K3SY5SB65VWS8PRMCBZR7H69",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    {
+        "entity_id": "weather.yandex_pogoda",
+        "state": "unavailable",
+        "attributes": {
+            "restored": true,
+            "friendly_name": "Yandex Pogoda",
+            "supported_features": 6
+        },
+        "last_changed": "2025-08-29T03:33:10.118097+00:00",
+        "last_reported": "2025-08-29T03:33:10.118097+00:00",
+        "last_updated": "2025-08-29T03:33:10.118097+00:00",
+        "context": {
+            "id": "01K3SY5SB6V9SZQF288Y97EC5N",
+            "parent_id": null,
+            "user_id": null
+        }
+    }
+]

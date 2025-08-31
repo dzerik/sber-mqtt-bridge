@@ -5,9 +5,10 @@ import os
 import logging
 from typing import Dict
 
-from devices.base import BaseDevice
+from devices.device_data import DeviceData
+from devices.base_entity import BaseEntity
 from devices.climate import ClimateDevice
-from devices.light import LightDevice
+from devices.light import LightEntity
 
 logger = logging.getLogger(__name__)
 VERSION = "0.0.1"
@@ -25,23 +26,28 @@ def json_write(f, d):
         json.dump(d, file, indent=4)
 
 class DevicesStore:
-    _store: Dict[str, BaseDevice] = {}
+    _store: Dict[str, BaseEntity] = {}
+    _device_data_store = {}
     _deviceConstructorsMap = {
-        "light":    lambda ha_state: LightDevice(ha_state),
+        "light":    lambda ha_state: LightEntity(ha_state),
         "climate":  lambda ha_state: ClimateDevice(ha_state)
     }
 
     def __init__(self, logger):
         self.logger = logger
 
-    def upsert(self, device: BaseDevice):
+    def upsert_device_data(self, data: DeviceData):
+        id = data.get("id", None)
+        self._device_data_store[id] = data
+
+    def upsert(self, device: BaseEntity):
         if device.id in self._store:
             self.logger.info(f"Обновление устройства: {device.id}")
         else:
             self.logger.info(f"Добавление устройства: {device.id}")
         self._store[device.id] = device
 
-    def get(self, id: str) -> BaseDevice:
+    def get(self, id: str) -> BaseEntity:
         if id in self._store:
             return self._store[id]
         else:
@@ -210,7 +216,8 @@ class CDevicesDB:
         device_list['devices'].append({"id": "root", "name": "Вумный контроллер", 'hw_version':VERSION, 'sw_version':VERSION })
         device_list['devices'][0]['model']={'id': 'ID_root_hub', 'manufacturer': 'Janch', 'model': 'VHub', 'description': "HA MQTT SberGate HUB", 'category': 'hub', 'features': ['online']}
         for k,v in self.DB.items():
-            device = self.deviceStore.get(k)
+            device = None
+            # device = self.deviceStore.get(k)
             if device is None:
                 if not v.get('enabled',False):
                     continue
@@ -235,19 +242,24 @@ class CDevicesDB:
                 d['model']={'id': 'ID_'+dev_cat, 'manufacturer': 'Janch', 'model': 'Model_'+dev_cat, 'category': dev_cat, 'features': f}
             #            logger.info(d['model'])
                 d['model_id']=''
-            else:
-                d = device.to_ha_state()
+
+            device = self.deviceStore.get(k)
+            if device is not None:
+            # else:
+                dd = device.to_sber_state()
             device_list['devices'].append(d)
 
         self.mqtt_json_devices_list=json.dumps(device_list)
-        logger.debug('New Devices List for MQTT: '+self.mqtt_json_devices_list)
+#        logger.debug('New Devices List for MQTT ')
+        json_write("new_devices_list.json", self.mqtt_json_devices_list)
+        logger.debug('Sent new Devices List for MQTT ') #+self.mqtt_json_devices_list)
         return self.mqtt_json_devices_list
 
 
     def do_mqtt_json_states_list(self, dl):
         DStat={}
         DStat['devices']={}
-        if (len(dl) == 0):
+        if len(dl) == 0:
             dl=self.DB.keys()
         for id in dl:
             device=self.DB.get(id,None)
@@ -282,7 +294,8 @@ class CDevicesDB:
         if (len(DStat['devices']) == 0):
             DStat['devices']={"root": {"states": [{"key": "online", "value": {"type": "BOOL", "bool_value": True}}]}}
         self.mqtt_json_states_list=json.dumps(DStat)
-        self.logger.debug(f"Отправка состояний в Sber: {self.mqtt_json_states_list}")
+        json_write("new_states_list.json", self.mqtt_json_states_list)
+        self.logger.debug("Отправка состояний в Sber 'new_states_list.json'")
         return self.mqtt_json_states_list
 
     def do_http_json_devices_list(self):
@@ -305,6 +318,8 @@ class CDevicesDB:
             x.append(r)
             Dev['devices'].append(r)
         self.http_json_devices_list=json.dumps({'devices':x})
+        json_write("http_devices_list.json", self.http_json_devices_list)
+        self.logger.debug("Sent http device list ('http_devices_list.json')")
         return self.http_json_devices_list
 
     # Остальные методы и логика класса
@@ -341,4 +356,6 @@ class CDevicesDB:
             r={'key':feature['name'],'value':{'type': 'ENUM', 'enum_value': State}}
         logger.debug(id+': '+str(r))
         return r
-
+    
+    def upsert_device_data(self, device_data):
+        self._deviceStore.upsert_device_data(device_data)

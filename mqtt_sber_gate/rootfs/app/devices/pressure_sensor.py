@@ -1,7 +1,7 @@
 # devices/pressure_sensor.py
-from .base import BaseDevice
+from .base_entity import BaseEntity
 
-class PressureSensorDevice(BaseDevice):
+class PressureSensorDevice(BaseEntity):
     category = "pressure"
     
     def __init__(self, device_id, name=""):
