@@ -68,6 +68,9 @@ class BaseEntity:
             self.translation_key = entity_data.get("translation_key")
             self.unique_id = entity_data.get("unique_id")
 
+            if self.name is None or len(self.name) == 0:
+                self.name = self.entity_id
+
     def fill_by_ha_state(self, ha_entity_state):
         self.state = ha_entity_state.get("state")
         self.attributes = copy.deepcopy(ha_entity_state.get("attributes", {}))
@@ -84,17 +87,25 @@ class BaseEntity:
         Возвращает состояние устройства в формате Home Assistant
         """
         return {
+            "area_id": self.area_id,
+            "categories": self.categories,
+            "config_entry_id": self.config_entry_id,
+            "config_subentry_id": self.config_subentry_id,
+            "device_id": self.device_id,
+            "disabled_by": self.disabled_by,
+            "entity_category": self.entity_category,
             "entity_id": self.entity_id,
-            "attributes": copy.deepcopy(self.attributes),
-            "context": {
-                "id": self._context["id"],
-                "parent_id": self._context["parent_id"],
-                "user_id": self._context["user_id"]
-            },
-            "state": "on" if self.state == "on" else "off",
-            "last_changed": self._last_changed,
-            "last_reported": self._last_reported,
-            "last_updated": self._last_updated
+            "has_entity_name": self.has_entity_name,
+            "hidden_by": self.hidden_by,
+            "icon": self.icon,
+            "id": self.id,
+            "labels": self.labels,
+            "name": self.name,
+            "options": self.options,
+            "original_name": self.original_name,
+            "platform": self.platform,
+            "translation_key": self.translation_key,
+            "unique_id": self.unique_id
         }
 
     def create_features_list(self):
@@ -104,27 +115,47 @@ class BaseEntity:
         return features
 
     def link_device(self, device_data: DeviceData):
-        assert self.device_id == device_data.id
+        assert self.device_id == device_data.get("id")
         self.linked_device = device_data
 
     def to_sber_state(self):
-        assert self.is_filled_by_state, True
+        assert self.is_filled_by_state
+
+        if self.device_id is None: # Possibly it's a group
+            return {
+            "id": self.entity_id,
+            "name": self.name,
+            "default_name": self.original_name,
+            "model": {
+                "manufacturer": "Unknown",
+                "model": "Unknown",
+                "hw_version": "Unknown",
+                "sw_version": "Unknown",
+                "description": self.name,
+                "category": self.category,
+                "allowed_values": {},
+                "features": self.create_features_list(),
+            },
+            "model_id": None,
+
+            }
+
         assert self.linked_device is not None, True
         return {
             "id": self.entity_id,
-            "name": self.linked_device.name,
-            "default_name": self.linked_device.original_name,
+            "name": self.linked_device.get("name", self.name),
+            "default_name": self.original_name,
             "model": {
-                "manufacturer": self.linked_device.manufacturer,
-                "model": self.linked_device.model,
-                "hw_version": self.linked_device.hw_version,
-                "sw_version": self.linked_device.sw_version,
-                "description": self.linked_device.name,
+                "manufacturer": self.linked_device["manufacturer"],
+                "model": self.linked_device["model"],
+                "hw_version": self.linked_device["hw_version"],
+                "sw_version": self.linked_device["sw_version"],
+                "description": self.linked_device["name"],
                 "category": self.category,
-                "allowed_values": []
+                "allowed_values": {},
+                "features": self.create_features_list(),
             },
-            "features": self.create_features_list(),
-            "model_id": self.linked_device.model_id,
+            "model_id": self.linked_device["model_id"],
         }
 
     @classmethod

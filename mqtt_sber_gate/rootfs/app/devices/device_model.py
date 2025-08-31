@@ -50,6 +50,6 @@ class DeviceModel:
                         "description": self.linked_device.name,
                         "category": self.category,
                         "features": self.features,
-                        "allowed_values": []
+                        "allowed_values": {}
                     }           
                 }

@@ -2,6 +2,7 @@
 WebSocket handler module for SberGate integration
 """
 
+from devices.light import LightEntity
 from devices_db import json_write
 import websocket
 import json
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 class WebSocketHandler:
     """Class for handling WebSocket communication with Home Assistant"""
     
-    def __init__(self, devices_db, mqttc, options):
+    def __init__(self, devices_db, devices_converter, mqttc, options):
         """
         Initialize WebSocket handler
         
@@ -27,6 +28,7 @@ class WebSocketHandler:
         ha_api_url = options['ha-api_url']
         self.ws_url = ha_api_url.replace('http', 'ws', 1) + '/api/websocket'
         self.devices_db = devices_db
+        self.devices_converter = devices_converter
         # self.options = options
 
         self.sber_api_endpoint = options['sber-http_api_endpoint']
@@ -89,6 +91,7 @@ class WebSocketHandler:
         self.ws.send(json.dumps({'id': 2, 'type': 'config/area_registry/list'}))
         self.ws.send(json.dumps({'id': 3, 'type': 'config/device_registry/list'}))
         self.ws.send(json.dumps({'id': 4, 'type': 'config/entity_registry/list'}))
+        self.ws.send(json.dumps({'id': 5, 'type': 'get_states'}))
 
     def handle_auth_invalid(self, data):
         """Handle authentication failure"""
@@ -111,18 +114,42 @@ class WebSocketHandler:
 
         elif data.get('id') == 4:
             logger.info(f"WebSocket: Получен список сущностей.")
-            # logger.debug(f"Данные: {data}")
+            # По идее, тут надо заполнять deviceStore, но мы умеем заполнять только lights пока.
             json_write("entity_registry.json", data)
             entities = data.get('result', [])
             for entity in entities:
+                if not entity.get('entity_id', "").startswith('light'):
+                    logger.info(f"WebSocket: Пропускаю сущность {entity['entity_id']}")
+                    continue
+
                 entity_id = entity['entity_id']
-                dev = self.devices_db.DB.get(entity_id)
-                if dev and dev.get('enabled'):
-                    room = self.HA_AREA.get(entity.get('area_id'), '')
-                    db_room = dev.get('room', '')
-                    if room != db_room:
-                        logger.info(f"Изменилось расположение сущности {entity_id} с {db_room} на {room}")
-                        self.devices_db.update_only(entity_id, {'entity_ha': True, 'room': room})
+                light_entity = LightEntity(entity)
+                self.devices_db.entitiesStore.upsert(light_entity)
+            
+                # dev = self.devices_db.DB.get(entity_id)
+                # if dev and dev.get('enabled'):
+                #     room = self.HA_AREA.get(entity.get('area_id'), '')
+                #     db_room = dev.get('room', '')
+                #     if room != db_room:
+                #         logger.info(f"Изменилось расположение сущности {entity_id} с {db_room} на {room}")
+                #         self.devices_db.update_only(entity_id, {'entity_ha': True, 'room': room})
+                        
+        elif data.get('id') == 5:
+            logger.info(f"WebSocket: Получены состояния сущностей.")
+            states = data.get("result", [])
+            self.devices_converter.update_entities(states)
+            for state in states:
+                entity_id = state.get('entity_id')
+                if entity_id:
+                    entity = self.devices_db.entitiesStore.get(entity_id)
+                    if entity:
+                        entity.fill_by_ha_state(state)
+            self.devices_db.setReady()
+            # logger.info("Device database is ready. Publishing devices...")
+            # json_devices_list = self.devices_db.do_mqtt_json_devices_list()
+            # sber_root_topic = self.sber_root_topic # self.options.get('sber_root_topic', 'home')
+            # self.mqttc.publish(sber_root_topic+'/up/config', json_devices_list, qos=0)
+
 
     def handle_event(self, data):
         """Handle state change events"""
@@ -181,7 +208,7 @@ class WebSocketHandler:
                 )
                 self.ws.run_forever(ping_interval=30)
                 logger.info("WebSocket disconnected. Reconnecting in 5 seconds...")
-                time.sleep(5)
+                time.sleep(1)
             except Exception as e:
                 logger.error(f"WebSocket error: {e}. Reconnecting in 5 seconds...")
                 time.sleep(5)

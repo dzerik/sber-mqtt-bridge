@@ -3,6 +3,8 @@ import copy
 import json
 import os
 import logging
+from threading import Lock
+import threading
 from typing import Dict
 
 from devices.device_data import DeviceData
@@ -25,7 +27,7 @@ def json_write(f, d):
     with open(f, "w", encoding='utf-8') as file:
         json.dump(d, file, indent=4)
 
-class DevicesStore:
+class EntitiesStore:
     _store: Dict[str, BaseEntity] = {}
     _device_data_store = {}
     _deviceConstructorsMap = {
@@ -40,12 +42,15 @@ class DevicesStore:
         id = data.get("id", None)
         self._device_data_store[id] = data
 
-    def upsert(self, device: BaseEntity):
-        if device.id in self._store:
-            self.logger.info(f"Обновление устройства: {device.id}")
+    def upsert(self, entity: BaseEntity):
+        if entity.entity_id in self._store:
+            self.logger.info(f"Обновление устройства: {entity.entity_id}")
         else:
-            self.logger.info(f"Добавление устройства: {device.id}")
-        self._store[device.id] = device
+            self.logger.info(f"Добавление устройства: {entity.entity_id}")
+        self._store[entity.entity_id] = entity
+        if entity.linked_device is None:
+            if entity.device_id in self._device_data_store:
+                entity.link_device(self._device_data_store[entity.device_id])
 
     def get(self, id: str) -> BaseEntity:
         if id in self._store:
@@ -58,11 +63,15 @@ class DevicesStore:
         return "attributes" in state.keys() and "category" in state.keys()
 
     def create(self, ha_state: dict):
-        if DevicesStore._is_ha_state(ha_state) and ha_state.get('category') in self._deviceConstructorsMap:
+        if EntitiesStore._is_ha_state(ha_state) and ha_state.get('category') in self._deviceConstructorsMap:
             return self._deviceConstructorsMap[ha_state['category']](ha_state)
         else:
             return None
         
+    def update_by_ha_state(self, ha_state: dict):
+        entity = self._store.get(ha_state['entity_id'], None)
+        if entity is not None:
+            entity.fill_by_ha_state(ha_state)
    
     def save(self, f):
         saving_objects = {}
@@ -86,14 +95,17 @@ class DevicesStore:
 
 class CDevicesDB:
     """Управление базой данных устройств"""
-    _deviceStore: DevicesStore = None
+    _entitiesStore: EntitiesStore = None
+    lock: Lock = Lock()
+    _dbReadyEvent = threading.Event()
+    _db_is_ready = False
     
     def __init__(self, fDB, logger, version):
         self.fDB = fDB
         self.DB = json_read(fDB, {})
         self.logger = logger
-        self._deviceStore = DevicesStore(logger)
-        self._deviceStore.load(fDB)
+        self._entitiesStore = EntitiesStore(logger)
+        self._entitiesStore.load(fDB)
         self._categories = {}
         VERSION = version
         
@@ -103,17 +115,17 @@ class CDevicesDB:
         for id, device in self.DB.items():
             if self.DB[id].get('enabled', None) is None:
                 self.DB[id]['enabled'] = False    
-            device_instance = self._deviceStore.create(device)
+            device_instance = self._entitiesStore.create(device)
             if device_instance is not None:
-                self._deviceStore.upsert(device_instance)
+                self._entitiesStore.upsert(device_instance)
 
         self.mqtt_json_devices_list = '{}'
         self.mqtt_json_states_list = '{}'
         self.http_json_devices_list = '{}'
 
     @property
-    def deviceStore(self):
-        return self._deviceStore
+    def entitiesStore(self):
+        return self._entitiesStore
 
     @property
     def resCategories(self):
@@ -126,6 +138,14 @@ class CDevicesDB:
     def categories(self):
         return self._categories
     
+    def setReady(self):
+        self._db_is_ready = True
+        self._dbReadyEvent.set()
+
+    def waitReady(self):
+        if not self._db_is_ready:
+            self._dbReadyEvent.wait()
+
     def setCategories(self, categories):
         self._categories = categories.copy()
 
@@ -136,17 +156,18 @@ class CDevicesDB:
                 return r
 
     def save_DB(self):
-        json_write(self.fDB, self.DB)
-        self._deviceStore.save(self.fDB)
+        logger.debug("Сохранение базы устройств - fake")
+        # json_write(self.fDB, self.DB)
+        # self._deviceStore.save(self.fDB)
 
     def clear(self):
         self.DB = {}
-        self.save_DB()
+        # self.save_DB()
         logger.info("База устройств очищена!")
 
     def dev_del(self, id):
         self.DB.pop(id, None)
-        self.save_DB()
+        # self.save_DB()
         logger.info(f"Устройство удалено: {id}")
 
     def dev_inBase(self, id):
@@ -170,10 +191,11 @@ class CDevicesDB:
         return self.get_states(id).get(key, None)
 
     def update_only(self, id, d):
-        if id in self.DB:
-            for k, v in d.items():
-                self.DB[id][k] = v
-            self.save_DB()
+        with self.lock:
+            if id in self.DB:
+                for k, v in d.items():
+                    self.DB[id][k] = v
+                self.save_DB()
 
     def upsert(self, id, d):
         defaults = {
@@ -201,53 +223,69 @@ class CDevicesDB:
 
 
     def update(self, id, d):
-        self.upsert(id, d)
-        self.save_DB()
+        with self.lock:
+            self.upsert(id, d)
+        # self.save_DB()
 
-    def save_DB(self):
-        json_write(self.fDB, self.DB)
-        self._deviceStore.save(self.fDB)
+    # def save_DB(self):
+    #     json_write(self.fDB, self.DB)
+    #     self._deviceStore.save(self.fDB)
 
 
     def do_mqtt_json_devices_list(self):
+        if not self._db_is_ready:
+            return None
+        
         # Реализация как в оригинале...
         device_list = {}
         device_list['devices']=[]
-        device_list['devices'].append({"id": "root", "name": "Вумный контроллер", 'hw_version':VERSION, 'sw_version':VERSION })
-        device_list['devices'][0]['model']={'id': 'ID_root_hub', 'manufacturer': 'Janch', 'model': 'VHub', 'description': "HA MQTT SberGate HUB", 'category': 'hub', 'features': ['online']}
-        for k,v in self.DB.items():
-            device = None
-            # device = self.deviceStore.get(k)
-            if device is None:
-                if not v.get('enabled',False):
-                    continue
+        device_list['devices'].append(
+            {
+                "id": "root", 
+                "name": "Вумный контроллер", 
+                'hw_version':VERSION, 
+                'sw_version':VERSION,
+                'model': {
+                    'id': 'ID_root_hub', 
+                    'manufacturer': 'Janch', 
+                    'model': 'VHub', 
+                    'description': "HA MQTT SberGate HUB", 
+                    'category': 'hub', 
+                    'features': ['online']
+                }
+             })
+        
+        with self.lock:
+            for k,v in self.DB.items():
+                device = None
+                device = self.entitiesStore.get(k)
+                if device is None:
+                    if not v.get('enabled',False):
+                        continue
 
-                d={'id': k, 'name': v.get('name',''), 'default_name': v.get('default_name','')}
+                    d={'id': k, 'name': v.get('name',''), 'default_name': v.get('default_name','')}
 
-                d['room']=v.get('room','')
-            #            d['groups']=['Спальня']
-                d['hw_version']=v.get('hw_version','')
-                d['sw_version']=v.get('sw_version','')
-                dev_cat=v.get('category','relay')
-                c=self.categories.get(dev_cat)
-                f=[]
-                for ft in c:
-                    if ft.get('required',False):
-                        f.append(ft['name'])
-                    else:
-                        for st in self.get_states(k):
-                            if ft['name'] == st:
-                                f.append(ft['name'])
+                    d['room']=v.get('room','')
+                    d['hw_version']=v.get('hw_version','')
+                    d['sw_version']=v.get('sw_version','')
+                    dev_cat=v.get('category','relay')
+                    c=self.categories.get(dev_cat)
+                    f=[]
+                    for ft in c:
+                        if ft.get('required',False):
+                            f.append(ft['name'])
+                        else:
+                            for st in self.get_states(k):
+                                if ft['name'] == st:
+                                    f.append(ft['name'])
 
-                d['model']={'id': 'ID_'+dev_cat, 'manufacturer': 'Janch', 'model': 'Model_'+dev_cat, 'category': dev_cat, 'features': f}
-            #            logger.info(d['model'])
-                d['model_id']=''
+                    d['model']={'id': 'ID_'+dev_cat, 'manufacturer': 'Janch', 'model': 'Model_'+dev_cat, 'category': dev_cat, 'features': f}
+                    d['model_id']=''
+                else:
+                    d = device.to_sber_state()
 
-            device = self.deviceStore.get(k)
-            if device is not None:
-            # else:
-                dd = device.to_sber_state()
-            device_list['devices'].append(d)
+                if d is not None:
+                    device_list['devices'].append(d)
 
         self.mqtt_json_devices_list=json.dumps(device_list)
 #        logger.debug('New Devices List for MQTT ')
@@ -257,39 +295,42 @@ class CDevicesDB:
 
 
     def do_mqtt_json_states_list(self, dl):
+        if not self._db_is_ready:
+            return None
         DStat={}
         DStat['devices']={}
         if len(dl) == 0:
             dl=self.DB.keys()
-        for id in dl:
-            device=self.DB.get(id,None)
-            if not (device is None):
-                if device['enabled']:
-                    device_category=device.get('category',None)
-                    if device_category is None:
-                        device_category='relay'
-                        self.DB[id]['category']=device_category
-                    DStat['devices'][id]={}
-                    features=self.categories.get(device_category)
-                    if self.DB[id].get('States',None) is None:
-                        self.DB[id]['States']={}
-                    r=[]
-                    for ft in features:
-                        state_value = self.DB[id]['States'].get(ft['name'],None)
-                        if state_value is None:
-                            if ft.get('required',False):
-                                self.logger.info('отсутствует обязательное состояние сущности: ' + ft['name'])
-                                self.DB[id]['States'][ft['name']]=self.DefaultValue(ft)
-                        if not (self.DB[id]['States'].get(ft['name'], None) is None):
-                            r.append(self.StateValue(id,ft))
-                            if ft['name'] == 'button_event':
-                                self.DB[id]['States']['button_event']=''
-                    DStat['devices'][id]['states']=r
-    #               if (s is None):
-    #                  logger.info('У объекта: '+id+'отсутствует информация о состояниях')
-    #                  self.DB[id]['States']={}
-    #                  self.DB[id]['States']['online']=True
-    #               DStat['devices'][id]['states']=self.DeviceStates_mqttSber(id)
+        with self.lock:
+            for id in dl:
+                device=self.DB.get(id,None)
+                if not (device is None):
+                    if device['enabled']:
+                        device_category=device.get('category',None)
+                        if device_category is None:
+                            device_category='relay'
+                            self.DB[id]['category']=device_category
+                        DStat['devices'][id]={}
+                        features=self.categories.get(device_category)
+                        if self.DB[id].get('States',None) is None:
+                            self.DB[id]['States']={}
+                        r=[]
+                        for ft in features:
+                            state_value = self.DB[id]['States'].get(ft['name'],None)
+                            if state_value is None:
+                                if ft.get('required',False):
+                                    self.logger.info('отсутствует обязательное состояние сущности: ' + ft['name'])
+                                    self.DB[id]['States'][ft['name']]=self.DefaultValue(ft)
+                            if not (self.DB[id]['States'].get(ft['name'], None) is None):
+                                r.append(self.StateValue(id,ft))
+                                if ft['name'] == 'button_event':
+                                    self.DB[id]['States']['button_event']=''
+                        DStat['devices'][id]['states']=r
+        #               if (s is None):
+        #                  logger.info('У объекта: '+id+'отсутствует информация о состояниях')
+        #                  self.DB[id]['States']={}
+        #                  self.DB[id]['States']['online']=True
+        #               DStat['devices'][id]['states']=self.DeviceStates_mqttSber(id)
 
         if (len(DStat['devices']) == 0):
             DStat['devices']={"root": {"states": [{"key": "online", "value": {"type": "BOOL", "bool_value": True}}]}}
@@ -299,24 +340,28 @@ class CDevicesDB:
         return self.mqtt_json_states_list
 
     def do_http_json_devices_list(self):
+        if not self._db_is_ready:
+            logger.info("DB is not ready")
+            return None
         Dev={}
         Dev['devices']=[]
         x=[]
-        for k,v in self.DB.items():
-            r={}
-            r['id']=k
-            r['name']=v.get('name','')
-            r['default_name']=v.get('default_name','')
-            r['nicknames']=v.get('nicknames',[])
-            r['home']=v.get('home','')
-            r['room']=v.get('room','')
-            r['groups']=v.get('groops',[])
-            r['model_id']=v['model_id']
-            r['category']=v.get('category','')
-            r['hw_version']=v.get('hw_version','')
-            r['sw_version']=v.get('sw_version','')
-            x.append(r)
-            Dev['devices'].append(r)
+        with self.lock:
+            for k,v in self.DB.items():
+                r={}
+                r['id']=k
+                r['name']=v.get('name','')
+                r['default_name']=v.get('default_name','')
+                r['nicknames']=v.get('nicknames',[])
+                r['home']=v.get('home','')
+                r['room']=v.get('room','')
+                r['groups']=v.get('groops',[])
+                r['model_id']=v['model_id']
+                r['category']=v.get('category','')
+                r['hw_version']=v.get('hw_version','')
+                r['sw_version']=v.get('sw_version','')
+                x.append(r)
+                Dev['devices'].append(r)
         self.http_json_devices_list=json.dumps({'devices':x})
         json_write("http_devices_list.json", self.http_json_devices_list)
         self.logger.debug("Sent http device list ('http_devices_list.json')")
@@ -358,4 +403,5 @@ class CDevicesDB:
         return r
     
     def upsert_device_data(self, device_data):
-        self._deviceStore.upsert_device_data(device_data)
+        with self.lock:
+            self._entitiesStore.upsert_device_data(device_data)

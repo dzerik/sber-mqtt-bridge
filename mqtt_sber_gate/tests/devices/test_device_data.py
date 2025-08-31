@@ -16,3 +16,4 @@ class TestDeviceData(TestDevicesBase):
             assert device_inst.original_name is not None, f"Device {device_inst.id} has no original_name"
             i = i + 1
         assert i > 0
+
