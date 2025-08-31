@@ -1,7 +1,7 @@
 # devices/sensor_temp.py
-from .base import BaseDevice
+from .base_entity import BaseEntity
 
-class SensorTempDevice(BaseDevice):
+class SensorTempDevice(BaseEntity):
     category = "sensor_temp"
     
     def __init__(self, device_id, name=""):

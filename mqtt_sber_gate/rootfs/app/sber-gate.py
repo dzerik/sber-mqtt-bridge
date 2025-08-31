@@ -8,12 +8,13 @@ import ssl
 import time
 import json
 import logging
-from devices.light import LightDevice
+from devices.light import LightEntity
 from devices_db import CDevicesDB, json_read, json_write
 from http_server import MyServer
 import paho
 import random
 import requests
+from web_socket_handler import WebSocketHandler
 import websocket
 import threading
 # deprecated import pkg_resources
@@ -255,7 +256,7 @@ def ha_script(id,OnOff):
             d['hw_version']=v.get('hw_version','')
             d['sw_version']=v.get('sw_version','')
             dev_cat=v.get('category','relay')
-            c=Categories.get(dev_cat)
+            c=categories.get(dev_cat)
             f=[]
             for ft in c:
                if ft.get('required',False):
@@ -270,7 +271,8 @@ def ha_script(id,OnOff):
             d['model_id']=''
             Dev['devices'].append(d)
       self.mqtt_json_devices_list=json.dumps(Dev)
-      logger.debug('New Devices List for MQTT: '+self.mqtt_json_devices_list)
+      # logger.debug('New Devices List for MQTT: '+self.mqtt_json_devices_list)
+      logger.debug('New Devices List for MQTT-2')
       return self.mqtt_json_devices_list
 
    def DefaultValue(self,feature):
@@ -318,7 +320,7 @@ def ha_script(id,OnOff):
                   device_category='relay'
                   self.DB[id]['category']=device_category
                DStat['devices'][id]={}
-               features=Categories.get(device_category)
+               features=categories.get(device_category)
                if self.DB[id].get('States',None) is None:
                   self.DB[id]['States']={}
                r=[]
@@ -454,7 +456,8 @@ def on_message_stat(mqttc, obj, msg):
    logger.info("Answer: "+DevicesDB.mqtt_json_states_list)
 
 def on_errors(mqttc, obj, msg):
-   logger.info("Sber MQTT Errors: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+   error_message = str(msg.payload)
+   logger.info("Sber MQTT Errors: " + msg.topic + " " + str(msg.qos) + " " + error_message)
 
 def on_message_conf(mqttc, obj, msg):
    logger.info("Config: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
@@ -465,105 +468,6 @@ def on_message_conf(mqttc, obj, msg):
 def on_global_conf(mqttc, obj, msg):
    data=json.loads(msg.payload)
    options_change('sber-http_api_endpoint',data.get('http_api_endpoint',''))
-
-#vvvvvvv WebSocket vvvvvvv
-
-def ws_on_open(ws):
-   logger.info("WebSocket: opened")
-
-def ws_on_close(ws,a,b):
-   logger.info("WebSocket: Connection closed")
-def ws_on_message(ws, message):
-   logger.debug(f"WebSocket: Received message: {message}")
-   mdata=json.loads(message)
-   ws_dict={
-      'auth_required': ws_auth_required,
-      'auth_ok': ws_auth_ok,
-      'auth_invalid': ws_auth_invalid,
-      'result': ws_result,
-      'event': ws_event,
-      'None': ws_default
-   }
-   ws_dict.get(mdata.get('type', 'None'), ws_default )(ws,mdata)
-
-def ws_auth_required(ws,mdata):
-   logger.info("WebSocket: auth_required")
-   ws.send(json.dumps({"type": "auth", "access_token": Options['ha-api_token']}))
-def ws_auth_ok(ws,mdata):
-   logger.info("WebSocket: auth_ok")
-   ws.send(json.dumps({'id': 1, 'type': 'subscribe_events', 'event_type': 'state_changed'}))
-   ws.send(json.dumps({'id': 2, 'type': 'config/area_registry/list'}))
-#   ws.send(json.dumps({'id': 3, 'type': 'config/device_registry/list'}))
-   ws.send(json.dumps({'id': 4, 'type': 'config/entity_registry/list'}))
-
-def ws_auth_invalid(ws,mdata):
-   logger.critical("WebSocket: auth_invalid",7)
-def ws_result(ws,mdata):
-   global HA_AREA
-   logger.debug(f"WebSocket: result: {len(mdata)} bytes")
-   if mdata.get('id', 'None') == 2:
-      logger.debug(f"WebSocket: Получен список зон: {mdata}")
-      HA_AREA = {}
-      for a in mdata.get('result',[]):
-         HA_AREA[a['area_id']]=a['name']
-      logger.info(f"HA_AREA: {HA_AREA}")
-         
-   if mdata.get('id', 'None') == 4:
-      logger.info(f"WebSocket: Получен список сущностей.")
-      logger.debug(f"Данные: {len(mdata)}")
-      res=mdata.get('result',[])
-      for a in res:
-         entity_id = a['entity_id']
-         device = DevicesDB.deviceStore.get(entity_id)
-         if device is None:
-            entity=DevicesDB.DB.get(entity_id, False)
-   #         logger.info(f"entity list: {a['entity_id']}")
-            if entity:
-               room=HA_AREA.get(a['area_id'],'')
-               room_db=DevicesDB.DB[a['entity_id']].get('room',False)
-               if room_db != room:
-                  logger.info(f"Изменилось расположение сущности {a['entity_id']} с {room_db} на {room}")
-                  DevicesDB.update_only(a['entity_id'],{'entity_ha': True,'room': room})
-            # find for area_id 
-         else:
-            logger.debug(f"Entity found in store")
-
-def ws_event(ws,mdata):
-#   logger.info("vvv WebSocket: event vvv",0)
-   id=mdata['event']['data']['new_state']['entity_id']
-   old_state=mdata['event']['data']['old_state']['state']
-   new_state=mdata['event']['data']['new_state']['state']
-   dev=DevicesDB.DB.get(id,None)
-   if not (dev is None):
-      if dev['enabled']:
-         logger.info('HA Event: ' + id + ': ' + old_state + ' -> ' + new_state)
-         if dev['category'] == 'sensor_temp':
-            DevicesDB.change_state(id,'temperature',float(new_state))
-         if new_state == 'on':
-            DevicesDB.change_state(id,'on_off',True)
-            if not (DevicesDB.DB[id]['States'].get('button_event',None) is None):
-               DevicesDB.DB[id]['States']['button_event']='click'
-         else:
-            if dev['entity_type'] == 'climate':
-               if new_state == 'off':
-                  DevicesDB.change_state(id,'on_off',False)
-               else:
-                  DevicesDB.change_state(id,'on_off',True)
-            else:
-               DevicesDB.change_state(id,'on_off',False)
-            if not (DevicesDB.DB[id]['States'].get('button_event',None) is None):
-               DevicesDB.DB[id]['States']['button_event']='double_click'
-         send_status(mqttc,DevicesDB.do_mqtt_json_states_list([id]))
-      else:
-         logger.info('!HA Event: ' + id + ': ' + old_state + ' -> ' + new_state)
-#   else:
-#      print(id+' нет в базе')
-#   logger.info("^^^ WebSocket: event ^^^",0)
-
-def ws_default(ws,mdata):
-   logger.info("WebSocket: default")
-
-#^^^^^^^ WebSocket ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 #********** Start **********************************
 
@@ -642,7 +546,7 @@ while cx<10:
 if res.status_code == 200:
    logger.info('Запрос устройств из Home Assistant выполнен штатно.')
    ha_dev=res.json()
-   json_write("ha_dev.json", ha_dev)
+   json_write("ha_entity_states.json", ha_dev)
    logger.debug(ha_dev)
 else:
    logger.info('ОШИБКА! Запрос устройств из Home Assistant выполнен некоректно.')
@@ -661,7 +565,7 @@ def upd_light(id,s):
    attr=s['attributes'].get('friendly_name','')
    logger.debug('light: ' + s['entity_id'] + ' '+attr)
    DevicesDB.upsert(s['entity_id'],{'entity_ha': True,'entity_type': 'light','friendly_name':attr,'category': 'light'})
-   light_device = LightDevice(s)
+   light_device = LightEntity(s)
    DevicesDB.deviceStore.upsert(light_device)
 
 def upd_scr(id,s):
@@ -780,7 +684,7 @@ if not os.path.exists('models.json'):
    else:
       logger.info('ОШИБКА! Запрос models завершился с ошибкой: '+str(SD_Models.status_code))
    
-def GetCategory():
+def GetCategories():
    if not os.path.exists(fCategories):
       logger.info('Файл категорий отсутствует. Получаем...')
       Categories={}
@@ -796,13 +700,13 @@ def GetCategory():
       Categories=json_read(fCategories, {})
    return Categories
 
-categories=GetCategory()
+categories=GetCategories()
 
 if categories.get('categories',False):
    logger.info('Старая версия файла категорий, удаляем.')
    os.remove(fCategories)
    logger.info('Повторное получения категорий.')
-   categories=GetCategory()
+   categories=GetCategories()
 
 #Получаем список категорий в формате Сбер API для возврата по запросу
 # resCategories={'categories':[]}
@@ -858,27 +762,17 @@ def stop_webserver(webServer, tsrv):
         logger.error(f"Error stopping HTTP server: {e}")
 ws_url=Options['ha-api_url'].replace('http','ws',1) + '/api/websocket'
 logger.info('Start WebSocket Client URL: ' + ws_url)
-#websocket.enableTrace(True)
-ws = websocket.WebSocketApp(ws_url,
-                            on_open=ws_on_open,
-                            on_message=ws_on_message,
-                            on_close=ws_on_close)
-
-webServer = start_webserver();
-
-socketRun=True
-while socketRun:
-   ws.run_forever()
-   logger.info('Socket disconect')
-   time.sleep(1)
-   logger.info('Connecting')
+## websocket.enableTrace(True)
 
 
+web_server = start_webserver();
 
-#tsrv.join()
+ws_server = WebSocketHandler(DevicesDB, mqttc, Options)
+ws_server.start()
 
-# webServer.server_close()
-stop_webserver(webServer["servrer"], webServer["thread"])
+ws_server.join()
+
+stop_webserver(web_server["server"], web_server["thread"])
 
 logger.info("Server stopped.")
 

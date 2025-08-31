@@ -1,7 +1,7 @@
 # devices/humidity_sensor.py
-from .base import BaseDevice
+from .base_entity import BaseEntity
 
-class HumiditySensorDevice(BaseDevice):
+class HumiditySensorDevice(BaseEntity):
     category = "humidity"
     
     def __init__(self, device_id, name=""):

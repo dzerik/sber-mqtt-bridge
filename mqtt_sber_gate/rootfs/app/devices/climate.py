@@ -1,8 +1,8 @@
 # devices/climate.py
-from .base import BaseDevice
+from .base_entity import BaseEntity
 
 
-class ClimateDevice(BaseDevice):
+class ClimateDevice(BaseEntity):
     category = "hvac_ac"
     _temperature: float = None
     _hvac_temp_set: float = None

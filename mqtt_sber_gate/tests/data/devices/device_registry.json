@@ -1,0 +1,2858 @@
+[
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PKZE5SE2219V34WYCYZ4C0"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZE5SE2219V34WYCYZ4C0": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753105807.548121,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "92960fdb67997d8d9cf984fab7817047",
+        "identifiers": [
+            [
+                "sun",
+                "01K0PKZE5SE2219V34WYCYZ4C0"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": null,
+        "model": null,
+        "model_id": null,
+        "modified_at": 1753105807.548173,
+        "name_by_user": null,
+        "name": "Sun",
+        "primary_config_entry": "01K0PKZE5SE2219V34WYCYZ4C0",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PKZEK4RN0D4VZ59PS2PRHC"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK4RN0D4VZ59PS2PRHC": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "bluetooth",
+                "2C:CF:67:DD:37:AC"
+            ]
+        ],
+        "created_at": 1753105807.993813,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": "usb:v1D6Bp0246d054F",
+        "id": "214fb5269b611cb421f9e2aab9c21a03",
+        "identifiers": [],
+        "labels": [],
+        "manufacturer": "Raspberry Pi (Trading) Ltd",
+        "model": "bcm43438-bt",
+        "model_id": null,
+        "modified_at": 1753105807.993863,
+        "name_by_user": null,
+        "name": "hci0 (2C:CF:67:DD:37:AC)",
+        "primary_config_entry": "01K0PKZEK4RN0D4VZ59PS2PRHC",
+        "serial_number": null,
+        "sw_version": "homeassistant",
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753105807.99576,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "9cb9867dc5c37e846d940313cf7126ce",
+        "identifiers": [
+            [
+                "hassio",
+                "core"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Home Assistant",
+        "model": "Home Assistant Core",
+        "model_id": null,
+        "modified_at": 1755852115.283163,
+        "name_by_user": null,
+        "name": "Home Assistant Core",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": "2025.8.3",
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753105807.995876,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "d89f74b4d04e3c69e1d0551b1c0ba631",
+        "identifiers": [
+            [
+                "hassio",
+                "supervisor"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Home Assistant",
+        "model": "Home Assistant Supervisor",
+        "model_id": null,
+        "modified_at": 1755080920.994543,
+        "name_by_user": null,
+        "name": "Home Assistant Supervisor",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": "2025.08.1",
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753105807.995939,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "6c46b713afeb8571476b14ecc8287460",
+        "identifiers": [
+            [
+                "hassio",
+                "host"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Home Assistant",
+        "model": "Home Assistant Host",
+        "model_id": null,
+        "modified_at": 1753105807.995955,
+        "name_by_user": null,
+        "name": "Home Assistant Host",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753105807.995997,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "dfda38b244ee7a834ab4b32b989604a2",
+        "identifiers": [
+            [
+                "hassio",
+                "OS"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Home Assistant",
+        "model": "Home Assistant Operating System",
+        "model_id": null,
+        "modified_at": 1755266780.693142,
+        "name_by_user": null,
+        "name": "Home Assistant Operating System",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": "16.1",
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://config/backup",
+        "config_entries": [
+            "01K0PKZEKF7J07AG768CERAEBH"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEKF7J07AG768CERAEBH": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753105808.033396,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "5dc532814a94dfeed34ef2dfb0a510cd",
+        "identifiers": [
+            [
+                "backup",
+                "backup_manager"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Home Assistant",
+        "model": "Home Assistant Backup",
+        "model_id": null,
+        "modified_at": 1755852116.408325,
+        "name_by_user": null,
+        "name": "Backup",
+        "primary_config_entry": "01K0PKZEKF7J07AG768CERAEBH",
+        "serial_number": null,
+        "sw_version": "2025.8.3",
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "https://www.met.no/en",
+        "config_entries": [
+            "01K0PM08KR2X16HKHKJQXDAFRX"
+        ],
+        "config_entries_subentries": {
+            "01K0PM08KR2X16HKHKJQXDAFRX": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753105835.861984,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "1ef930846d5eceb86ae235998e93d95d",
+        "identifiers": [
+            [
+                "met",
+                "01K0PM08KR2X16HKHKJQXDAFRX"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Met.no",
+        "model": "Forecast",
+        "model_id": null,
+        "modified_at": 1753105835.862043,
+        "name_by_user": null,
+        "name": "Forecast",
+        "primary_config_entry": "01K0PM08KR2X16HKHKJQXDAFRX",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "90:39:5e:ff:fe:35:0a:bf"
+            ]
+        ],
+        "created_at": 1753106025.849044,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "427bfac1442aa601a814eb2130c91ef0",
+        "identifiers": [
+            [
+                "zha",
+                "90:39:5e:ff:fe:35:0a:bf"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "",
+        "model": "Generic Zigbee Coordinator (EZSP)",
+        "model_id": null,
+        "modified_at": 1755856589.42071,
+        "name_by_user": null,
+        "name": " Generic Zigbee Coordinator (EZSP)",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "gostevoi_sanuzel",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:36:d0:12:7b:b9"
+            ]
+        ],
+        "created_at": 1753106063.641951,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "ddf8f5d26a1c37766c3353057c45c919",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:36:d0:12:7b:b9"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "_TZ3000_rr1cqjwu",
+        "model": "TS0207",
+        "model_id": null,
+        "modified_at": 1754558870.703771,
+        "name_by_user": "\u041f\u0440\u043e\u0442\u0435\u0447\u043a\u0430",
+        "name": "_TZ3000_rr1cqjwu TS0207",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x10023607",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hassio/addon/5c53de3b_esphome",
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753106107.873403,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "e1a01437b4094c32d10903ceaffc0d99",
+        "identifiers": [
+            [
+                "hassio",
+                "5c53de3b_esphome"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "ESPHome",
+        "model": "Home Assistant Add-on",
+        "model_id": null,
+        "modified_at": 1755852115.282627,
+        "name_by_user": null,
+        "name": "ESPHome Device Builder",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": "2025.8.0",
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hassio/addon/core_mosquitto",
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753106107.873755,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "b28c58f09b26ffd0b5b927fbc976ede8",
+        "identifiers": [
+            [
+                "hassio",
+                "core_mosquitto"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Official add-ons",
+        "model": "Home Assistant Add-on",
+        "model_id": null,
+        "modified_at": 1753106107.87379,
+        "name_by_user": null,
+        "name": "Mosquitto broker",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": "6.5.1",
+        "via_device_id": null
+    },
+    {
+        "area_id": "gostinaia",
+        "configuration_url": "https://192.168.0.210:631/printers/HP_LaserJet_1018",
+        "config_entries": [
+            "01K0R7ATQ0ADTQ713PJJH5XEZF"
+        ],
+        "config_entries_subentries": {
+            "01K0R7ATQ0ADTQ713PJJH5XEZF": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753159658.275702,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "462c8b105ffe31a22d5e3cea3ff0ca15",
+        "identifiers": [
+            [
+                "ipp",
+                "a073008f-3530-3924-4f8c-6cf47977a919"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Hewlett-Packard",
+        "model": "HP LaserJet 1018",
+        "model_id": null,
+        "modified_at": 1753159674.857863,
+        "name_by_user": "HP LaserJet 1018",
+        "name": "HP LaserJet 1018 Foomatic/foo2zjs-z1 (recommended)",
+        "primary_config_entry": "01K0R7ATQ0ADTQ713PJJH5XEZF",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "gostinaia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PN8JKKTEYD6TAXGEW0AXSY"
+        ],
+        "config_entries_subentries": {
+            "01K0PN8JKKTEYD6TAXGEW0AXSY": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753160332.455039,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "c755d631d14bcc875fb4a4aaea29f451",
+        "identifiers": [
+            [
+                "mqtt",
+                "my_sharp_client"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Sharp",
+        "model": "MQTT Client",
+        "model_id": null,
+        "modified_at": 1753163165.360725,
+        "name_by_user": null,
+        "name": "My Sharp Client",
+        "primary_config_entry": "01K0PN8JKKTEYD6TAXGEW0AXSY",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hassio/addon/a0d7b954_ssh",
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753160707.605463,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "e8e54fa7b19e9b0cbddbec4d7bb257ab",
+        "identifiers": [
+            [
+                "hassio",
+                "a0d7b954_ssh"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Home Assistant Community Add-ons",
+        "model": "Home Assistant Add-on",
+        "model_id": null,
+        "modified_at": 1753160707.605512,
+        "name_by_user": null,
+        "name": "Advanced SSH & Web Terminal",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": "21.0.2",
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K0RDYP4DZX29WBSKFT8C38FZ"
+        ],
+        "config_entries_subentries": {
+            "01K0RDYP4DZX29WBSKFT8C38FZ": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753166600.334149,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "3352ecdc22cb912c93095e5835fdca47",
+        "identifiers": [
+            [
+                "mobile_app",
+                "185e7f3d72973425"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "HUAWEI",
+        "model": "VOG-L29",
+        "model_id": null,
+        "modified_at": 1753721426.130421,
+        "name_by_user": null,
+        "name": "\u0414\u043e\u043c",
+        "primary_config_entry": "01K0RDYP4DZX29WBSKFT8C38FZ",
+        "serial_number": null,
+        "sw_version": "29",
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753174095.303274,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "74e5a2296c0cc9cc39940305455f69ab",
+        "identifiers": [
+            [
+                "hacs",
+                "0717a0cd-745c-48fd-9b16-c8534c9704f9-bc944b0f-fd42-4a58-a072-ade38d1444cd"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "hacs.xyz",
+        "model": "",
+        "model_id": null,
+        "modified_at": 1753174095.303343,
+        "name_by_user": null,
+        "name": "HACS",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": "2.0.5",
+        "via_device_id": null
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": "homeassistant://hacs/repository/658597458",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753174146.683807,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "70a9bf16dd9e282a8df43e579e93afc1",
+        "identifiers": [
+            [
+                "hacs",
+                "658597458"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Anti-Sh",
+        "model": "integration",
+        "model_id": null,
+        "modified_at": 1753174862.924883,
+        "name_by_user": null,
+        "name": "Vakio Base Smart",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "gostinaia",
+        "configuration_url": "homeassistant://hacs/repository/193372044",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753177135.429583,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "28797f1dab9ed132d2edfc665f52c1e0",
+        "identifiers": [
+            [
+                "hacs",
+                "193372044"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "PiotrMachowski",
+        "model": "plugin",
+        "model_id": null,
+        "modified_at": 1753177204.641209,
+        "name_by_user": null,
+        "name": "Xiaomi Vacuum Map Card",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "gostinaia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0RRTYGRSMHVJKJXBNKDPW2P"
+        ],
+        "config_entries_subentries": {
+            "01K0RRTYGRSMHVJKJXBNKDPW2P": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753178014.380853,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "44af797818209a2b321da55ee85da555",
+        "identifiers": [
+            [
+                "ecovacs",
+                "9ed31799-9d8f-405c-91cd-aab83fe492ef"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Ecovacs",
+        "model": "DEEBOT OZMO 900 Series",
+        "model_id": "y79a7u",
+        "modified_at": 1753178021.155605,
+        "name_by_user": null,
+        "name": "\u0415\u0432\u0430",
+        "primary_config_entry": "01K0RRTYGRSMHVJKJXBNKDPW2P",
+        "serial_number": "E07H12062B09HDXD0069",
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/509260172",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753191107.102024,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "54218a2ce6adff9a8f8e08be8994f35a",
+        "identifiers": [
+            [
+                "hacs",
+                "509260172"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "georgezhao2010",
+        "model": "plugin",
+        "model_id": null,
+        "modified_at": 1753191107.102073,
+        "name_by_user": null,
+        "name": "Curtain Card",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "gostinaia",
+        "configuration_url": "homeassistant://hacs/repository/772764009",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753266557.445736,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "8c9f9322aff998a8cfd4130f639b73f2",
+        "identifiers": [
+            [
+                "hacs",
+                "772764009"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "maeek",
+        "model": "integration",
+        "model_id": null,
+        "modified_at": 1753266835.412184,
+        "name_by_user": null,
+        "name": "AUX Cloud",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K0VD9K0CENKHB3NXMVMV7BP9"
+        ],
+        "config_entries_subentries": {
+            "01K0VD9K0CENKHB3NXMVMV7BP9": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "mac",
+                "20:23:51:12:08:9c"
+            ],
+            [
+                "upnp",
+                "uuid:59cb1776-3da3-498b-b8d4-52b93113372f"
+            ]
+        ],
+        "created_at": 1753266572.331178,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "5799a0f984789d9cbeb977a96cec6806",
+        "identifiers": [
+            [
+                "upnp",
+                "uuid:f882cc98-703a-4b1c-aea1-4217e0fcfebf::urn:schemas-upnp-org:device:InternetGatewayDevice:1"
+            ],
+            [
+                "upnp_serial_number",
+                "00000000"
+            ],
+            [
+                "upnp_host",
+                "192.168.0.1"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "TP-Link",
+        "model": "Archer AX58",
+        "model_id": null,
+        "modified_at": 1755856584.223806,
+        "name_by_user": null,
+        "name": "Archer AX58",
+        "primary_config_entry": "01K0VD9K0CENKHB3NXMVMV7BP9",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0VDM6MJPZPDNQSS18CJD9DK"
+        ],
+        "config_entries_subentries": {
+            "01K0VDM6MJPZPDNQSS18CJD9DK": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "mac",
+                "e8:70:72:94:5e:65"
+            ]
+        ],
+        "created_at": 1753266922.546662,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "d77b7db689bc2dc8716142e6ec3ee043",
+        "identifiers": [
+            [
+                "aux_cloud",
+                "00000000000000000000e87072945e65"
+            ]
+        ],
+        "labels": [
+            "temperature"
+        ],
+        "manufacturer": "AUX",
+        "model": "AUX Air Conditioner",
+        "model_id": null,
+        "modified_at": 1753267180.493187,
+        "name_by_user": null,
+        "name": "air conditioner",
+        "primary_config_entry": "01K0VDM6MJPZPDNQSS18CJD9DK",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "gostinaia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0VDM6MJPZPDNQSS18CJD9DK"
+        ],
+        "config_entries_subentries": {
+            "01K0VDM6MJPZPDNQSS18CJD9DK": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "mac",
+                "e8:70:72:94:56:5f"
+            ]
+        ],
+        "created_at": 1753266922.548502,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "3b96c050f5167fee62915c65a013fce2",
+        "identifiers": [
+            [
+                "aux_cloud",
+                "00000000000000000000e8707294565f"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "AUX",
+        "model": "AUX Air Conditioner",
+        "model_id": null,
+        "modified_at": 1753266933.891849,
+        "name_by_user": null,
+        "name": "air conditioner",
+        "primary_config_entry": "01K0VDM6MJPZPDNQSS18CJD9DK",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/413798425",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753337033.015217,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "27c941bb21b91bf73bb80907ece27289",
+        "identifiers": [
+            [
+                "hacs",
+                "413798425"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "stokkie90",
+        "model": "integration",
+        "model_id": null,
+        "modified_at": 1753337033.01528,
+        "name_by_user": null,
+        "name": "UI Lovelace Minimalist",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/236318024",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753337062.637456,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "25ee46fbb133a32c17ecf57df2bca1a4",
+        "identifiers": [
+            [
+                "hacs",
+                "236318024"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "basnijholt",
+        "model": "theme",
+        "model_id": null,
+        "modified_at": 1753337062.637507,
+        "name_by_user": null,
+        "name": "iOS Themes - Dark Mode and Light Mode",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/188698828",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753339616.230073,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "a361e1b8923d6c78bc7d03334c41a982",
+        "identifiers": [
+            [
+                "hacs",
+                "188698828"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "dext0r",
+        "model": "integration",
+        "model_id": null,
+        "modified_at": 1753339616.230127,
+        "name_by_user": null,
+        "name": "Yandex Smart Home",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/447878635",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753341876.441918,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "147ff6a6d147177113592808b5e92bc6",
+        "identifiers": [
+            [
+                "hacs",
+                "447878635"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "IATkachenko",
+        "model": "integration",
+        "model_id": null,
+        "modified_at": 1753341876.441969,
+        "name_by_user": null,
+        "name": "Yandex weather",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": "https://yandex.com/weather/?lat=54.965505170483816&lon=82.95474350452423",
+        "config_entries": [
+            "01K0XN83D4XBEY1PZAY1AP5565"
+        ],
+        "config_entries_subentries": {
+            "01K0XN83D4XBEY1PZAY1AP5565": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753342021.04045,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "f5255a6d41b0b5a113eed20a3f3d0bda",
+        "identifiers": [
+            [
+                "yandex_weather",
+                "54.965505170483816-82.95474350452423"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Yandex",
+        "model": null,
+        "model_id": null,
+        "modified_at": 1753342031.372843,
+        "name_by_user": null,
+        "name": "Yandex Weather",
+        "primary_config_entry": "01K0XN83D4XBEY1PZAY1AP5565",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hassio/addon/47701997_rhasspy",
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753346404.258109,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "9014eed466344ddfeb486f9da50b29d0",
+        "identifiers": [
+            [
+                "hassio",
+                "47701997_rhasspy"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Rhasspy Hass.IO Add-Ons",
+        "model": "Home Assistant Add-on",
+        "model_id": null,
+        "modified_at": 1753346404.258165,
+        "name_by_user": null,
+        "name": "Rhasspy Assistant",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": "2.5.11",
+        "via_device_id": null
+    },
+    {
+        "area_id": "chulan",
+        "configuration_url": "http://192.168.0.199/",
+        "config_entries": [
+            "01K1FWJYVAHX71KR82Z7X6NZWM"
+        ],
+        "config_entries_subentries": {
+            "01K1FWJYVAHX71KR82Z7X6NZWM": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753953696.695127,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "4ce6ce4de144a635ed1e4a195b549880",
+        "identifiers": [
+            [
+                "octoprint",
+                "d32a5ceb-0cc6-4b5e-a7aa-c4b5d018dcba"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "OctoPrint",
+        "model": null,
+        "model_id": null,
+        "modified_at": 1753953743.062904,
+        "name_by_user": null,
+        "name": "OctoPrint",
+        "primary_config_entry": "01K1FWJYVAHX71KR82Z7X6NZWM",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K1GRMSNBRCHM1FX54FYCDA0Z"
+        ],
+        "config_entries_subentries": {
+            "01K1GRMSNBRCHM1FX54FYCDA0Z": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1753983116.971933,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "af87455d263d1cd2bebfd4c14d80ab62",
+        "identifiers": [
+            [
+                "mobile_app",
+                "F28AE53D-F2E5-4269-B61F-B12466D58448"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Apple",
+        "model": "iPhone12,1",
+        "model_id": null,
+        "modified_at": 1755620924.413472,
+        "name_by_user": null,
+        "name": "iPhone \u041e\u043b\u044f",
+        "primary_config_entry": "01K1GRMSNBRCHM1FX54FYCDA0Z",
+        "serial_number": null,
+        "sw_version": "18.6.1",
+        "via_device_id": null
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:7b:12:8f:99:7d"
+            ]
+        ],
+        "created_at": 1754890786.130872,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "9c201b6e3989c750d675fa60753da97e",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:7b:12:8f:99:7d"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "_TZE200_yvx5lh6k",
+        "model": "TS0601",
+        "model_id": null,
+        "modified_at": 1754895831.014077,
+        "name_by_user": "\u0414\u0430\u0442\u0447\u0438\u043a \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0430 \u0432\u043e\u0437\u0434\u0443\u0445\u0430",
+        "name": "_TZE200_yvx5lh6k TS0601",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000046",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hassio/addon/1f3d020e_hassos_serial_configurator_addon",
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1754909385.145129,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "d7d01ce9b4fcdb3e0aefdf20a6a05dc8",
+        "identifiers": [
+            [
+                "hassio",
+                "1f3d020e_hassos_serial_configurator_addon"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "HassOS Configurator",
+        "model": "Home Assistant Add-on",
+        "model_id": null,
+        "modified_at": 1754909385.145187,
+        "name_by_user": null,
+        "name": "HassOS Serial Configurator",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": "0.5a",
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/413812496",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755080770.518869,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "2d553429af772a16171612dfe1dcebee",
+        "identifiers": [
+            [
+                "hacs",
+                "413812496"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "dbuezas",
+        "model": "plugin",
+        "model_id": null,
+        "modified_at": 1755080770.518922,
+        "name_by_user": null,
+        "name": "Plotly Graph Card",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/852348573",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755080874.408865,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "a54715267fcc2d49493c193f4faf3a45",
+        "identifiers": [
+            [
+                "hacs",
+                "852348573"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "yandex",
+        "model": "integration",
+        "model_id": null,
+        "modified_at": 1755080874.408919,
+        "name_by_user": null,
+        "name": "Yandex Pogoda",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": "https://yandex.ru/weather/?lat=54.965505170483816&lon=82.95474350452423",
+        "config_entries": [
+            "01K2HFP9JSS3BWBV0PYM28SD8W"
+        ],
+        "config_entries_subentries": {
+            "01K2HFP9JSS3BWBV0PYM28SD8W": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755081025.132481,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "6264bb2c860c1363b8e478b52116dffd",
+        "identifiers": [
+            [
+                "yandex_pogoda",
+                "e54d0e0a-e145-4952-bab1-afc4d7947d43"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Yandex",
+        "model": null,
+        "model_id": null,
+        "modified_at": 1755081031.531637,
+        "name_by_user": null,
+        "name": "Yandex Pogoda",
+        "primary_config_entry": "01K2HFP9JSS3BWBV0PYM28SD8W",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/522634019",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755081538.26466,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "8389b043a45d83ff0d64cd0eb106571d",
+        "identifiers": [
+            [
+                "hacs",
+                "522634019"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "pkissling",
+        "model": "plugin",
+        "model_id": null,
+        "modified_at": 1755081538.264714,
+        "name_by_user": null,
+        "name": "Clock Weather Card",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/971870393",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755082093.805464,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "90dcb38866f9c6d1899c2581f612adb7",
+        "identifiers": [
+            [
+                "hacs",
+                "971870393"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "microteq",
+        "model": "plugin",
+        "model_id": null,
+        "modified_at": 1755082093.805526,
+        "name_by_user": null,
+        "name": "Extended Gauge Card",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/963750120",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755082146.234323,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "cc7f9de8c6804887b824bac3f71e9102",
+        "identifiers": [
+            [
+                "hacs",
+                "963750120"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "benjamin-dcs",
+        "model": "plugin",
+        "model_id": null,
+        "modified_at": 1755082146.234372,
+        "name_by_user": null,
+        "name": "Gauge Card Pro",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/871730343",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755082220.812275,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "517f3ac4d461ef43b787042efa704daa",
+        "identifiers": [
+            [
+                "hacs",
+                "871730343"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "selvalt7",
+        "model": "plugin",
+        "model_id": null,
+        "modified_at": 1755082220.812327,
+        "name_by_user": null,
+        "name": "Modern Circular Gauge",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/207292725",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755082366.65525,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "1bac2ff97683c93a8c1a5b0abf089d84",
+        "identifiers": [
+            [
+                "hacs",
+                "207292725"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "AmoebeLabs",
+        "model": "plugin",
+        "model_id": null,
+        "modified_at": 1755082366.655306,
+        "name_by_user": null,
+        "name": "Flexible Horseshoe Card for Lovelace",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/151280062",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755082653.630571,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "399d824990e1ffcb0711cf405c848b9f",
+        "identifiers": [
+            [
+                "hacs",
+                "151280062"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "kalkih",
+        "model": "plugin",
+        "model_id": null,
+        "modified_at": 1755082653.630622,
+        "name_by_user": null,
+        "name": "mini-graph-card",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/488086721",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755082800.34892,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "fa4547ccaf84f7bfc9ad12f02aaaf58a",
+        "identifiers": [
+            [
+                "hacs",
+                "488086721"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Makin-Things",
+        "model": "plugin",
+        "model_id": null,
+        "modified_at": 1755082800.348972,
+        "name_by_user": null,
+        "name": "Platinum Weather Card",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/246549747",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755084812.999186,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "0186802a7b369cdfbea64126e575652a",
+        "identifiers": [
+            [
+                "hacs",
+                "246549747"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "totaldebug",
+        "model": "plugin",
+        "model_id": null,
+        "modified_at": 1755084812.999239,
+        "name_by_user": null,
+        "name": "Atomic Calendar Revive",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hassio/addon/core_configurator",
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755086020.7453,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "945cf05b37afae85628d220ca4b02d85",
+        "identifiers": [
+            [
+                "hassio",
+                "core_configurator"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Official add-ons",
+        "model": "Home Assistant Add-on",
+        "model_id": null,
+        "modified_at": 1755086020.745355,
+        "name_by_user": null,
+        "name": "File editor",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": "5.8.0",
+        "via_device_id": null
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:c1:51:5e:d8:20"
+            ]
+        ],
+        "created_at": 1755098967.01762,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "76452007c5960bd4864e5514704bef0f",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:c1:51:5e:d8:20"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "_TZ3210_zck1cpsj",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755099043.954773,
+        "name_by_user": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 4",
+        "name": "_TZ3210_zck1cpsj TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:a9:08:6c:3f:88"
+            ]
+        ],
+        "created_at": 1755098970.23755,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "2c4316989f4db8d7a96d7a1ffc32e775",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:a9:08:6c:3f:88"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "_TZ3210_zck1cpsj",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755099011.072127,
+        "name_by_user": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 1",
+        "name": "_TZ3210_zck1cpsj TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:f5:b7:99:bf:9d"
+            ]
+        ],
+        "created_at": 1755098973.718649,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "054ada0765ada80e002cd3868bc9e723",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:f5:b7:99:bf:9d"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "_TZ3210_zck1cpsj",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755099062.428736,
+        "name_by_user": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 6",
+        "name": "_TZ3210_zck1cpsj TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:02:42:f4:e1:e0"
+            ]
+        ],
+        "created_at": 1755098974.188179,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "c9bf713a53d8731b9016693fab8a7019",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:02:42:f4:e1:e0"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "_TZ3210_zck1cpsj",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755099053.824337,
+        "name_by_user": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 5",
+        "name": "_TZ3210_zck1cpsj TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:70:b9:45:0d:9a"
+            ]
+        ],
+        "created_at": 1755098982.264942,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "cb369d4417ff40a1c84c976faf962a90",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:70:b9:45:0d:9a"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "_TZ3210_zck1cpsj",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755099023.086348,
+        "name_by_user": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 2",
+        "name": "_TZ3210_zck1cpsj TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:d4:d3:99:95:7f"
+            ]
+        ],
+        "created_at": 1755098982.443294,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "3a5006290624e62c9b76f69cc1d4bb9d",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:d4:d3:99:95:7f"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "_TZ3210_zck1cpsj",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755099033.241425,
+        "name_by_user": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 3",
+        "name": "_TZ3210_zck1cpsj TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hassio/addon/core_samba",
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755242020.838749,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "23c710a8a10ba747ac3c534a2e5bff00",
+        "identifiers": [
+            [
+                "hassio",
+                "core_samba"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Official add-ons",
+        "model": "Home Assistant Add-on",
+        "model_id": null,
+        "modified_at": 1755242020.838787,
+        "name_by_user": null,
+        "name": "Samba share",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": "12.5.2",
+        "via_device_id": null
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:cc:ee:d7:cf:eb"
+            ]
+        ],
+        "created_at": 1755251402.637109,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "693fab18e91019a10e2c5f0c8b7f2272",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:cc:ee:d7:cf:eb"
+            ]
+        ],
+        "labels": [
+            "sleep"
+        ],
+        "manufacturer": "_TZ3210_mz2q6zlu",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755251838.916178,
+        "name_by_user": "\u0421\u043f\u043e\u04422 \u043b\u0435\u0432 \u0441\u043f",
+        "name": "_TZ3210_mz2q6zlu TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:bc:8d:97:28:3c"
+            ]
+        ],
+        "created_at": 1755251405.597515,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "58f8057098131509324c35c10e9e19fc",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:bc:8d:97:28:3c"
+            ]
+        ],
+        "labels": [
+            "sleep"
+        ],
+        "manufacturer": "_TZ3210_mz2q6zlu",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755251861.10927,
+        "name_by_user": "\u0421\u043f\u043e\u04421 \u043f\u0440 \u0441\u043f",
+        "name": "_TZ3210_mz2q6zlu TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:30:31:fd:04:43"
+            ]
+        ],
+        "created_at": 1755251407.635891,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "e5882d9a984b945bc5c0ec50d728915d",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:30:31:fd:04:43"
+            ]
+        ],
+        "labels": [
+            "sleep"
+        ],
+        "manufacturer": "_TZ3210_mz2q6zlu",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755251887.824237,
+        "name_by_user": "\u0421\u043f\u043e\u04422 \u043f\u0440 \u0441\u043f",
+        "name": "_TZ3210_mz2q6zlu TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:39:ab:5e:02:31"
+            ]
+        ],
+        "created_at": 1755251411.485742,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "9d992a4e406e1cc822611ca42d058205",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:39:ab:5e:02:31"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "_TZ3210_mz2q6zlu",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755251909.638613,
+        "name_by_user": "\u0421\u043f\u043e\u04423 \u043f\u0440 \u0441\u043f",
+        "name": "_TZ3210_mz2q6zlu TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:d8:41:7f:66:bc"
+            ]
+        ],
+        "created_at": 1755251412.951801,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "928d46b3917c33edfdd629ef7982cee1",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:d8:41:7f:66:bc"
+            ]
+        ],
+        "labels": [
+            "sleep"
+        ],
+        "manufacturer": "_TZ3210_mz2q6zlu",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755251944.986219,
+        "name_by_user": "\u0421\u043f\u043e\u04421 \u043b\u0435\u0432 \u0441\u043f",
+        "name": "_TZ3210_mz2q6zlu TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:44:8c:f3:39:2d"
+            ]
+        ],
+        "created_at": 1755251413.189388,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "1a487e05845e983850b0a53cb493f139",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:44:8c:f3:39:2d"
+            ]
+        ],
+        "labels": [
+            "sleep"
+        ],
+        "manufacturer": "_TZ3210_mz2q6zlu",
+        "model": "TS0505B",
+        "model_id": null,
+        "modified_at": 1755251971.146842,
+        "name_by_user": "\u0421\u043f\u043e\u04423 \u043b\u0435\u0432 \u0441\u043f",
+        "name": "_TZ3210_mz2q6zlu TS0505B",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000065",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hassio/addon/fdff691d_mqtt-sber-gate-oop",
+        "config_entries": [
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN"
+        ],
+        "config_entries_subentries": {
+            "01K0PKZEK3Y8NRTK6WMGEFJVPN": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755270980.599097,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "d55e7c7d8f2e4e50c3a522d99985708c",
+        "identifiers": [
+            [
+                "hassio",
+                "fdff691d_mqtt-sber-gate-oop"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "MQTT-SberGate.OOP",
+        "model": "Home Assistant Add-on",
+        "model_id": null,
+        "modified_at": 1755852115.283065,
+        "name_by_user": null,
+        "name": "MQTT SberGate.OOP",
+        "primary_config_entry": "01K0PKZEK3Y8NRTK6WMGEFJVPN",
+        "serial_number": null,
+        "sw_version": "0.0.2.9",
+        "via_device_id": null
+    },
+    {
+        "area_id": "kukhnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "8c:f6:81:ff:fe:f6:ce:a7"
+            ]
+        ],
+        "created_at": 1755322588.216301,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "643abfaef7e4cbbcf13245a9e20ddbb3",
+        "identifiers": [
+            [
+                "zha",
+                "8c:f6:81:ff:fe:f6:ce:a7"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "_TYZB01_ub7urdza",
+        "model": "TS0041A",
+        "model_id": null,
+        "modified_at": 1755686728.083648,
+        "name_by_user": "\u0423\u043c\u043d\u0430\u044f \u043a\u043d\u043e\u043f\u043a\u0430",
+        "name": "_TYZB01_ub7urdza TS0041A",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": "0x00000046",
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": "koridor",
+        "configuration_url": null,
+        "config_entries": [
+            "01K0PM5YEV5FHB1856R4362QP7"
+        ],
+        "config_entries_subentries": {
+            "01K0PM5YEV5FHB1856R4362QP7": [
+                null
+            ]
+        },
+        "connections": [
+            [
+                "zigbee",
+                "a4:c1:38:60:52:c9:d1:c8"
+            ]
+        ],
+        "created_at": 1755524097.453616,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "7d17ae872f4795c18e67839d530cd83e",
+        "identifiers": [
+            [
+                "zha",
+                "a4:c1:38:60:52:c9:d1:c8"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "_TZE200_ttcovulf",
+        "model": "TS0601",
+        "model_id": null,
+        "modified_at": 1755524219.054585,
+        "name_by_user": "\u0414\u0430\u0442\u0447\u0438\u043a \u043e\u0441\u0432\u0435\u0449\u0435\u043d\u043d\u043e\u0441\u0442\u0438 \u0438 \u043f\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044f",
+        "name": "_TZE200_ttcovulf TS0601",
+        "primary_config_entry": "01K0PM5YEV5FHB1856R4362QP7",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": "427bfac1442aa601a814eb2130c91ef0"
+    },
+    {
+        "area_id": null,
+        "configuration_url": "homeassistant://hacs/repository/249381778",
+        "config_entries": [
+            "01K0RN3A66BEQR81X9EDB9YWJ3"
+        ],
+        "config_entries_subentries": {
+            "01K0RN3A66BEQR81X9EDB9YWJ3": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755856551.020015,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "a51beb99d8a8d2e6feba8440c3f2529d",
+        "identifiers": [
+            [
+                "hacs",
+                "249381778"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "rospogrigio, postlund",
+        "model": "integration",
+        "model_id": null,
+        "modified_at": 1755856551.020068,
+        "name_by_user": null,
+        "name": "Local Tuya",
+        "primary_config_entry": "01K0RN3A66BEQR81X9EDB9YWJ3",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858821.950001,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "11efd39fd2c9d8e418398b9698603323",
+        "identifiers": [
+            [
+                "tuya",
+                "bf62610893b2367042ovbi"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Tuya",
+        "model": "Zigbee Smart Gateway (unsupported)",
+        "model_id": "lieerjyy6l4ykjor",
+        "modified_at": 1755858911.385579,
+        "name_by_user": null,
+        "name": "\u0428\u043b\u044e\u0437 Zigbee",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858821.950342,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "e30529cbd760cc2581b38ec358ec1cfb",
+        "identifiers": [
+            [
+                "tuya",
+                "bff30389ea603d713arngz"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Tuya",
+        "model": "Water leak sensor",
+        "model_id": "kstbkt6a",
+        "modified_at": 1755858821.951584,
+        "name_by_user": null,
+        "name": "Water leak sensor",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858821.950476,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "1de4b4725d456d06411a64666a8067b0",
+        "identifiers": [
+            [
+                "tuya",
+                "bfd97707b96d691c16v2hu"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Tuya",
+        "model": "Smart Bulb Zigbee E14 ",
+        "model_id": "cxxhdfmg",
+        "modified_at": 1755858821.959452,
+        "name_by_user": null,
+        "name": "Smart Bulb Zigbee E14 ",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858821.950587,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "2fa047caee56020af4a9ea2069102997",
+        "identifiers": [
+            [
+                "tuya",
+                "bfc080115daa4cae7enp5i"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Tuya",
+        "model": "Smart valve controller",
+        "model_id": "iedbgyxt",
+        "modified_at": 1755858821.960861,
+        "name_by_user": null,
+        "name": "right tank water switch",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858821.950689,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "4251680bf7b20508ecf162c447992ebe",
+        "identifiers": [
+            [
+                "tuya",
+                "bfaf4121caba291943m9f1"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Tuya",
+        "model": "Zigebee Smart Meter Pro",
+        "model_id": "303avxxt",
+        "modified_at": 1755858821.962724,
+        "name_by_user": null,
+        "name": "Zigebee Smart Meter Pro",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858821.950786,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "c39f0378c7ebeae88ae22b5883ce85af",
+        "identifiers": [
+            [
+                "tuya",
+                "bf6c61fb4716f34c86d1hl"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "Tuya",
+        "model": "Wireless Smart Multimode Gateway-Mini (unsupported)",
+        "model_id": "6te8da15daqwzbi1",
+        "modified_at": 1755858911.386424,
+        "name_by_user": null,
+        "name": "Wireless Smart Multimode Gateway-Mini",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": "spalnia",
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858821.95088,
+        "disabled_by": null,
+        "entry_type": null,
+        "hw_version": null,
+        "id": "ee5409ad28d1827d9bb5f9e0c773570c",
+        "identifiers": [
+            [
+                "tuya",
+                "bff2d1fpddnqyosd"
+            ]
+        ],
+        "labels": [
+            "curtain"
+        ],
+        "manufacturer": "Tuya",
+        "model": "Smart curtain robot",
+        "model_id": "kcy0x4pi",
+        "modified_at": 1755858942.680253,
+        "name_by_user": null,
+        "name": "\u0423\u043c\u043d\u044b\u0439 \u0440\u043e\u0431\u043e\u0442-\u0437\u0430\u043d\u0430\u0432\u0435\u0441",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858822.206029,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "691e620424777924f60bdfba48dff84f",
+        "identifiers": [
+            [
+                "tuya",
+                "tyshAiPdip7QAxc3Bxw"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "tuya",
+        "model": "Tuya Scene",
+        "model_id": null,
+        "modified_at": 1755858822.206089,
+        "name_by_user": null,
+        "name": "\u0438\u043d\u0434\u0438\u043a\u0430\u0446\u0438\u044f \u0437\u0430\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u044f",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858822.207024,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "0162127a4536f92a0d1f2381cedccca5",
+        "identifiers": [
+            [
+                "tuya",
+                "tysxXAhPoDz2vbPB3bK"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "tuya",
+        "model": "Tuya Scene",
+        "model_id": null,
+        "modified_at": 1755858822.207057,
+        "name_by_user": null,
+        "name": "drying",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858822.207665,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "50f00b069fb5ddc7f960e019f8489352",
+        "identifiers": [
+            [
+                "tuya",
+                "tyscFNpnRT5p5bugWXB"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "tuya",
+        "model": "Tuya Scene",
+        "model_id": null,
+        "modified_at": 1755858822.207696,
+        "name_by_user": null,
+        "name": "flooding",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858822.208236,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "32bf2854a3b884c7a0ba645c8dbbdbcb",
+        "identifiers": [
+            [
+                "tuya",
+                "tysPpkNFfAsEP2mYB9o"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "tuya",
+        "model": "Tuya Scene",
+        "model_id": null,
+        "modified_at": 1755858822.208267,
+        "name_by_user": null,
+        "name": "\u0432\u044b\u043a\u043b \u0431\u0430\u043a1",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858822.20881,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "ab0a4deea8d84a9d030633b7eb17a215",
+        "identifiers": [
+            [
+                "tuya",
+                "tysQiqBaAD14klwmTPk"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "tuya",
+        "model": "Tuya Scene",
+        "model_id": null,
+        "modified_at": 1755858822.20884,
+        "name_by_user": null,
+        "name": "\u0431\u0430\u043a 1",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858822.209363,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "c93d4b3e7b7b4d9bd3b09a3b433dc044",
+        "identifiers": [
+            [
+                "tuya",
+                "tyslYOY0Lng9nhXa1bk"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "tuya",
+        "model": "Tuya Scene",
+        "model_id": null,
+        "modified_at": 1755858822.209393,
+        "name_by_user": null,
+        "name": "\u0432\u043a\u043b/ \u0432\u044b\u043a\u043b \u043d\u0430\u0441\u043e\u0441",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    },
+    {
+        "area_id": null,
+        "configuration_url": null,
+        "config_entries": [
+            "01K38NEPC5NB17JPPZVMJR7QZ8"
+        ],
+        "config_entries_subentries": {
+            "01K38NEPC5NB17JPPZVMJR7QZ8": [
+                null
+            ]
+        },
+        "connections": [],
+        "created_at": 1755858822.209914,
+        "disabled_by": null,
+        "entry_type": "service",
+        "hw_version": null,
+        "id": "a51ceec3382a5c2d074c767cb322a404",
+        "identifiers": [
+            [
+                "tuya",
+                "tysvzyQF0DTBzbdilu1"
+            ]
+        ],
+        "labels": [],
+        "manufacturer": "tuya",
+        "model": "Tuya Scene",
+        "model_id": null,
+        "modified_at": 1755858822.209943,
+        "name_by_user": null,
+        "name": "\u0432\u043a\u043b \u043d\u0430\u0441\u043e\u0441",
+        "primary_config_entry": "01K38NEPC5NB17JPPZVMJR7QZ8",
+        "serial_number": null,
+        "sw_version": null,
+        "via_device_id": null
+    }
+]

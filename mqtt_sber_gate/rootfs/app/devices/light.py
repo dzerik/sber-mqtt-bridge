@@ -1,43 +1,61 @@
 # devices/light.py
-from .base import BaseDevice
+from .base_entity import BaseEntity
 
+# class LightEntityFeature(IntFlag):
+#     """Supported features of the light entity."""
 
-class LightDevice(BaseDevice):
-    category = "light"
-    _brightness: int = None
-    _color: str = None
-    _color_temperature: int = None
-    _supported_features: int = 0
-    _max_mireds: int = 500
-    _min_mireds: int = 153
-    _is_on: bool = False
+#     EFFECT = 4
+#     FLASH = 8
+#     TRANSITION = 32
 
-    def __init__(self, ha_state):
-        super().__init__(ha_state)
-        self._is_on = ha_state["state"] == "on"
-        self._supported_features = ha_state["attributes"].get("supported_features", 0)
+# supported_features sber
+# light_brightness		Яркость устройства
+# light_colour		Цвет устройства
+# light_colour_temp		Температура цвета устройства
+# light_mode		Режим работы устройства: цветной или белый цвет
+# on_off	✔︎	Удаленное включение и выключение устройства
+# online	✔︎	Доступность устройства: офлайн или онлайн
+
+LIGHT_ENTITY_CATEGORY = "light"
+
+class LightEntity(BaseEntity):
+    brightness: int = None
+    color: str = None
+    color_temperature: int = None
+    supported_features: int = 0
+    max_mireds: int = 500
+    min_mireds: int = 153
+    supported_color_modes: list[str] = []
+
+    def __init__(self, ha_entity_data: dict):
+        super().__init__(LIGHT_ENTITY_CATEGORY, ha_entity_data)
+
+    def fill_by_ha_state(self, ha_state):
+        super().fill_by_ha_state(ha_state)
+        self.supported_features = ha_state["attributes"].get("supported_features", 0)
+        self.supported_color_modes = ha_state["attributes"].get("supported_color_modes", [])
 
         # Яркость
-        if self._supported_features & 1:
-            self._brightness = ha_state["attributes"].get("brightness", 255)
+        if self.supported_features & 1:
+            self.brightness = ha_state["attributes"].get("brightness", 255)
         else:
-            self._brightness = None
+            self.brightness = None
 
         # Цвет
-        if self._supported_features & 2:
-            self._color = self._convert_color(ha_state["attributes"])
+        if self.supported_features & 2:
+            self.color = self.convert_color(ha_state["attributes"])
         else:
-            self._color = None
+            self.color = None
 
         # Температура цвета
-        if self._supported_features & 4:
-            self._color_temperature = ha_state["attributes"].get("color_temp", 300)
+        if self.supported_features & 4:
+            self.color_temperature = ha_state["attributes"].get("color_temp", 300)
         else:
-            self._color_temperature = None
+            self.color_temperature = None
 
         # Дополнительные параметры
-        self._max_mireds = ha_state["attributes"].get("max_mireds", 500)
-        self._min_mireds = ha_state["attributes"].get("min_mireds", 153)
+        self.max_mireds = ha_state["attributes"].get("max_mireds", 500)
+        self.min_mireds = ha_state["attributes"].get("min_mireds", 153)
 
     def _convert_color(self, attrs):
         """Конвертирует цвет из формата HA в HEX (Sber).
@@ -74,48 +92,48 @@ class LightDevice(BaseDevice):
         res = super().to_ha_state()
         attrs = {
             "friendly_name": self.description,
-            "supported_features": self._supported_features,
+            "supported_features": self.supported_features,
             "max_mireds": self.max_mireds,
             "min_mireds": self.min_mireds
         }
 
-        if self._supported_features & 1:
-            attrs["brightness"] = self._brightness
-        if self._supported_features & 2:
+        if self.supported_features & 1:
+            attrs["brightness"] = self.brightness
+        if self.supported_features & 2:
             attrs["color"] = self.color
-        if self._supported_features & 4:
+        if self.supported_features & 4:
             attrs["color_temp"] = self.color_temperature
 
         return res | {"attributes": attrs}
 
-    def _create_features_list(self):
+    def create_features_list(self):
         """Формирует список возможных функций"""
-        features = super()._create_features_list()
+        features = super().create_features_list()
 
-        if self._supported_features & 1:
+        if self.supported_features & 1:
             features += ["brightness"]
-        if self._supported_features & 2:
+        if self.supported_features & 2 or "xy" in self.supported_color_modes:
             features += ["color"]
-        if self._supported_features & 4:
+        if self.supported_features & 4 or "color_temp" in self.supported_color_modes:
             features += ["color_temperature"]
 
         return features
 
-    def _create_allowed_values_list(self):
+    def create_allowed_values_list(self):
         """Формирует список допустимых значений"""
         allowed_values = {}
 
-        if self._supported_features & 1:
+        if self.supported_features & 1:
             allowed_values["brightness"] = {
                 "type": "RANGE",
                 "range_values": {"min": 0, "max": 100}
             }
-        if self._supported_features & 2:
+        if self.supported_features & 2:
             allowed_values["color"] = {
                 "type": "STRING",
                 "string_values": {"format": "hex"}
             }
-        if self._supported_features & 4:
+        if self.supported_features & 4:
             allowed_values["color_temperature"] = {
                 "type": "RANGE",
                 "range_values": {
@@ -130,71 +148,9 @@ class LightDevice(BaseDevice):
         """Формирует состояние для Сбер"""
         res = super().to_sber_state()
         return res | {
-            "features": self._create_features_list(),
-            "allowed_values": self._create_allowed_values_list()
+            "features": self.create_features_list(),
+            "allowed_values": self.create_allowed_values_list()
         }
-
-    # --- Аксессоры ---
-    @property
-    def is_on(self) -> bool:
-        return self._is_on
-
-    @is_on.setter
-    def is_on(self, value: bool):
-        self._is_on = value
-
-    @property
-    def brightness(self) -> int:
-        """Яркость (0-100% для Сбер)"""
-        if not self._supported_features & 1:
-            return 0
-        return int(self._brightness * 100 / 255)
-
-    @brightness.setter
-    def brightness(self, value: int):
-        if not self._supported_features & 1:
-            raise ValueError("This device does not support brightness")
-        if not 0 <= value <= 100:
-            raise ValueError("Brightness must be between 0 and 100")
-        self._brightness = int(value * 255 / 100)
-
-    @property
-    def color(self) -> str:
-        """Цвет в формате HEX (#RRGGBB)"""
-        if not self._supported_features & 2:
-            return None
-        return self._color
-
-    @color.setter
-    def color(self, value: str):
-        if not self._supported_features & 2:
-            raise ValueError("This device does not support color")
-        if not value.startswith("#") or len(value) != 7:
-            raise ValueError("Color must be a valid HEX string (e.g., #RRGGBB)")
-        self._color = value
-
-    @property
-    def color_temperature(self) -> int:
-        """Температура цвета (mireds)"""
-        if not self._supported_features & 4:
-            return None
-        return self._color_temperature
-
-    @color_temperature.setter
-    def color_temperature(self, value: int):
-        if not self._supported_features & 4:
-            raise ValueError("This device does not support color temperature")
-        if not self.min_mireds <= value <= self.max_mireds:
-            raise ValueError(f"Color temperature must be between {self.min_mireds} and {self.max_mireds}")
-        self._color_temperature = value
-
-    @property
-    def max_mireds(self) -> int:
-        return self._max_mireds
-
-    @property
-    def min_mireds(self) -> int:
-        return self._min_mireds
 
     # --- Методы ---
     def process_cmd(self, source, cmd_data):
@@ -208,7 +164,7 @@ class LightDevice(BaseDevice):
                 "data": {"entity_id": self.id}
             }
 
-        if self._supported_features & 1 and "brightness" in cmd_data:
+        if self.supported_features & 1 and "brightness" in cmd_data:
             return {
                 "url": "/api/services/light/set_brightness",
                 "data": {
@@ -217,16 +173,16 @@ class LightDevice(BaseDevice):
                 }
             }
 
-        if self._supported_features & 2 and "color" in cmd_data:
+        if self.supported_features & 2 and "color" in cmd_data:
             return {
                 "url": "/api/services/light/turn_on",
                 "data": {
                     "entity_id": self.id,
-                    "rgb_color": self._hex_to_rgb(cmd_data["color"])
+                    "rgb_color": self.hex_to_rgb(cmd_data["color"])
                 }
             }
 
-        if self._supported_features & 4 and "color_temperature" in cmd_data:
+        if self.supported_features & 4 and "color_temperature" in cmd_data:
             return {
                 "url": "/api/services/light/turn_on",
                 "data": {

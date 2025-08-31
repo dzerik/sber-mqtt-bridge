@@ -1,7 +1,7 @@
 # devices/relay.py
-from .base import BaseDevice
+from .base_entity import BaseEntity
 
-class RelayDevice(BaseDevice):
+class RelayDevice(BaseEntity):
     category = "relay"
     
     def __init__(self, device_id, name=""):

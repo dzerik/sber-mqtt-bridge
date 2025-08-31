@@ -2,6 +2,7 @@
 WebSocket handler module for SberGate integration
 """
 
+from devices_db import json_write
 import websocket
 import json
 import logging
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 class WebSocketHandler:
     """Class for handling WebSocket communication with Home Assistant"""
     
-    def __init__(self, ha_api_url, ha_api_token, devices_db, options):
+    def __init__(self, devices_db, mqttc, options):
         """
         Initialize WebSocket handler
         
@@ -23,13 +24,33 @@ class WebSocketHandler:
             devices_db (CDevicesDB): Devices database instance
             options (dict): Configuration options
         """
+        ha_api_url = options['ha-api_url']
         self.ws_url = ha_api_url.replace('http', 'ws', 1) + '/api/websocket'
-        self.ha_api_token = ha_api_token
         self.devices_db = devices_db
-        self.options = options
+        # self.options = options
+
+        self.sber_api_endpoint = options['sber-http_api_endpoint']
+        self.ha_api_token = options['ha-api_token']
+        self.sber_user = options["sber-mqtt_login"],
+        self.sber_pass = options["sber-mqtt_password"],
+        self.sber_broker = options["sber-mqtt_broker"],
+        self.sber_root_topic='sberdevices/v1/'+options['sber-mqtt_login']
+
+        self.mqttc = mqttc
         self.HA_AREA = {}
         self.running = True
         self.ws = None
+        self.thread = None
+
+        self.handler_map = {
+            'auth_required': self.handle_auth_required,
+            'auth_ok': self.handle_auth_ok,
+            'auth_invalid': self.handle_auth_invalid,
+            'result': self.handle_result,
+            'event': self.handle_event,
+            'None': self.handle_default
+        }
+
 
     def on_open(self, ws):
         """Handle WebSocket open event"""
@@ -42,18 +63,16 @@ class WebSocketHandler:
 
     def on_message(self, ws, message):
         """Handle incoming WebSocket messages"""
-        logger.debug(f"WebSocket: Received message: {message}")
+        # logger.debug(f"WebSocket: Received message: {message}")
         try:
+            json_write("ws_received_message.json", message)
+            logger.debug(f"WebSocket: Received message (ws_received_message.json) '{message[0:150]}...'")
             mdata = json.loads(message)
-            handler_map = {
-                'auth_required': self.handle_auth_required,
-                'auth_ok': self.handle_auth_ok,
-                'auth_invalid': self.handle_auth_invalid,
-                'result': self.handle_result,
-                'event': self.handle_event,
-                'None': self.handle_default
-            }
-            handler = handler_map.get(mdata.get('type', 'None'), self.handle_default)
+            # if "event" in mdata.keys():
+            #     logger.debug(f"WebSocket: Received message {mdata["event"]["event_type"]} for {mdata["data"]["entity_id"]}")
+            # else:
+            #     logger.debug(f"WebSocket: Received message type: {mdata["type"]}")
+            handler = self.handler_map.get(mdata.get('type', 'None'), self.handle_default)
             handler(mdata)
         except Exception as e:
             logger.error(f"Error processing WebSocket message: {e}")
@@ -68,6 +87,7 @@ class WebSocketHandler:
         logger.info("WebSocket: auth_ok")
         self.ws.send(json.dumps({'id': 1, 'type': 'subscribe_events', 'event_type': 'state_changed'}))
         self.ws.send(json.dumps({'id': 2, 'type': 'config/area_registry/list'}))
+        self.ws.send(json.dumps({'id': 3, 'type': 'config/device_registry/list'}))
         self.ws.send(json.dumps({'id': 4, 'type': 'config/entity_registry/list'}))
 
     def handle_auth_invalid(self, data):
@@ -79,12 +99,20 @@ class WebSocketHandler:
         """Handle result messages"""
         if data.get('id') == 2:
             logger.info(f"WebSocket: Получен список зон: {data}")
+            json_write("ha_area.json", data)
             self.HA_AREA = {a['area_id']: a['name'] for a in data.get('result', [])}
             logger.info(f"HA_AREA: {self.HA_AREA}")
             
+        elif data.get('id') == 3:
+            json_write("device_registry.json", data)
+            device_data = data.get('result', [])
+            for device_data_item in device_data:
+                self.devices_db.upsert_device_data(device_data_item)
+
         elif data.get('id') == 4:
             logger.info(f"WebSocket: Получен список сущностей.")
-            logger.debug(f"Данные: {data}")
+            # logger.debug(f"Данные: {data}")
+            json_write("entity_registry.json", data)
             entities = data.get('result', [])
             for entity in entities:
                 entity_id = entity['entity_id']
@@ -131,34 +159,58 @@ class WebSocketHandler:
                     self.devices_db.change_state(entity_id, 'button_event', 'double_click')
                     
         # Send updated states
-        from sber_gate import mqttc  # Assuming this is the main MQTT client
-        mqttc.publish(sber_root_topic+'/up/status', 
-                     DevicesDB.do_mqtt_json_states_list([entity_id]), 
+        # from sber_gate import mqttc  # Assuming this is the main MQTT client
+        sber_root_topic = self.sber_root_topic # self.options.get('sber_root_topic', 'home')
+        self.mqttc.publish(sber_root_topic+'/up/status', 
+                     self.devices_db.do_mqtt_json_states_list([entity_id]), 
                      qos=0)
 
     def handle_default(self, data):
         """Default message handler"""
         logger.info(f"WebSocket: default message: {data}")
 
+    def _run(self):
+        while self.running:
+            try:
+                logger.info(f"Connecting to WebSocket URL: {self.ws_url}")
+                self.ws = websocket.WebSocketApp(
+                    self.ws_url,
+                    on_open=self.on_open,
+                    on_message=self.on_message,
+                    on_close=self.on_close
+                )
+                self.ws.run_forever(ping_interval=30)
+                logger.info("WebSocket disconnected. Reconnecting in 5 seconds...")
+                time.sleep(5)
+            except Exception as e:
+                logger.error(f"WebSocket error: {e}. Reconnecting in 5 seconds...")
+                time.sleep(5)
+
+    def _send_ping(self):
+        import time
+        while self.running:
+            if self.ws:
+                try:
+                    self.ws.send(json.dumps({"type": "ping"}))
+                except Exception as e:
+                    logger.warning(f"Failed to send ping: {e}")
+            time.sleep(30)  # Отправлять пинг каждые 30 секунд
+
     def start(self):
         """Start WebSocket connection in background thread"""
-        def run():
-            while self.running:
-                try:
-                    logger.info(f"Connecting to WebSocket URL: {self.ws_url}")
-                    self.ws = websocket.WebSocketApp(
-                        self.ws_url,
-                        on_open=self.on_open,
-                        on_message=self.on_message,
-                        on_close=self.on_close
-                    )
-                    self.ws.run_forever()
-                    logger.info("WebSocket disconnected. Reconnecting in 5 seconds...")
-                    time.sleep(5)
-                except Exception as e:
-                    logger.error(f"WebSocket error: {e}. Reconnecting in 5 seconds...")
-                    time.sleep(5)
+        self.thread = Thread(target=self._run)
+        self.ping_thread = Thread(target=self._send_ping)
+        self.thread.daemon = True
+        self.ping_thread.daemon = True
+        self.thread.start()
+        self.ping_thread.start()
 
-        thread = Thread(target=run)
-        thread.daemon = True
-        thread.start()
+    def stop(self):
+        if self.thread != None and self.thread.is_alive():
+            self.ws.close()
+            self.thread.join()
+        self.thread = None
+
+    def join(self):
+        if self.thread != None:
+            self.thread.join()
