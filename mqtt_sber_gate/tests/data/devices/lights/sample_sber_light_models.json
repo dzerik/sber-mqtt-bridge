@@ -16,7 +16,7 @@
             ],
             "dependencies": {
             },
-            "allowed_values": []
+            "allowed_values": {}
         },
         {
             "id": "Smart Bulb Zigbee E14 ",
@@ -33,7 +33,7 @@
             ],
             "dependencies": {
             },
-            "allowed_values": []
+            "allowed_values": {}
         }
     ]
 }

@@ -30,7 +30,7 @@ class ModelRegistry:
                         "category": model.category,
                         "features": model.features,
                         "dependencies": {},
-                        "allowed_values": [],
+                        "allowed_values": {},
                     }
                 )
         return {"models": res}
