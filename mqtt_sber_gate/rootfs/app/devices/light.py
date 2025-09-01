@@ -89,32 +89,6 @@ class LightEntity(BaseEntity):
 
     def to_ha_state(self):
         """Формирует состояние для Home Assistant"""
-
-        # self.supported_features = ha_state["attributes"].get("supported_features", 0)
-        # self.supported_color_modes = ha_state["attributes"].get("supported_color_modes", [])
-
-        # # Яркость
-        # if self.supported_features & 1:
-        #     self.brightness = ha_state["attributes"].get("brightness", 255)
-        # else:
-        #     self.brightness = None
-
-        # # Цвет
-        # if self.supported_features & 2:
-        #     self.color = self.convert_color(ha_state["attributes"])
-        # else:
-        #     self.color = None
-
-        # # Температура цвета
-        # if self.supported_features & 4:
-        #     self.color_temperature = ha_state["attributes"].get("color_temp", 300)
-        # else:
-        #     self.color_temperature = None
-
-        # # Дополнительные параметры
-        # self.max_mireds = ha_state["attributes"].get("max_mireds", 500)
-        # self.min_mireds = ha_state["attributes"].get("min_mireds", 153)
-
         res = super().to_ha_state()
         attrs = {
             "supported_features": self.supported_features,
@@ -124,46 +98,35 @@ class LightEntity(BaseEntity):
             "brightness": self.brightness,
         }
 
-        # if self.supported_features & 1:
-        #     attrs["brightness"] = self.brightness
-        # if self.supported_features & 2:
-        #     attrs["color"] = self.color
-        # if self.supported_features & 4:
-        #     attrs["color_temp"] = self.color_temperature
-
         return res | {"attributes": attrs}
 
     def create_features_list(self):
         """Формирует список возможных функций"""
         features = super().create_features_list()
 
-        if self.supported_features & 1:
-            features += ["brightness"]
-        if self.supported_features & 2 or "xy" in self.supported_color_modes:
-            features += ["color"]
-        if self.supported_features & 4 or "color_temp" in self.supported_color_modes:
-            features += ["color_temperature"]
+        if "xy" in self.supported_color_modes:
+            features += ["light_colour", "light_mode", "light_brightness"]
+        if "color_temp" in self.supported_color_modes:
+            features += ["light_colour_temp"]
 
         return features
 
     def create_allowed_values_list(self):
         """Формирует список допустимых значений"""
         allowed_values = {}
-
-        if self.supported_features & 1:
-            allowed_values["brightness"] = {
-                "type": "RANGE",
-                "range_values": {"min": 0, "max": 100}
-            }
-        if self.supported_features & 2:
-            allowed_values["color"] = {
-                "type": "STRING",
-                "string_values": {"format": "hex"}
-            }
-        if self.supported_features & 4:
-            allowed_values["color_temperature"] = {
-                "type": "RANGE",
-                "range_values": {
+# Тут надо понять, почему не принимает такие ограничения
+        # if "xy" in self.supported_color_modes:
+        #     allowed_values["light_brightness"] = {
+        #         "type": "INTEGER",
+        #         "integer_values": {"min": 0, "max": 100}
+        #     }
+        #     # allowed_values["light_colour"] = {
+        #     #     "type": "COLOUR",
+        #     # }
+        if "color_temp" in self.supported_color_modes:
+            allowed_values["light_colour_temp"] = {
+                "type": "INTEGER",
+                "integer_values": {
                     "min": self.min_mireds,
                     "max": self.max_mireds
                 }

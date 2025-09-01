@@ -27,9 +27,22 @@ def json_write(f, d):
     with open(f, "w", encoding='utf-8') as file:
         json.dump(d, file, indent=4)
 
+class EntityPlacement_Sber:
+    entity_id: str
+    home: str = None
+    room: str = None
+    def __init__(self, entity_id: str, home, room):
+        self.entity_id = entity_id
+        self.home = home
+        self.room = room
+        
+
 class EntitiesStore:
     _store: Dict[str, BaseEntity] = {}
     _device_data_store = {}
+    _entity_placement_redirection: dict[str, EntityPlacement_Sber] = {} # Тут лежит информация о месте, в котором размещается устройство с т.з. сбера. 
+    # Сбер может прислать команду OnMESSAGE: sberdevices/v1/d2ebe7l94jevif0sq1eg/down/change_group_device_request 0 b'{"device_id":"light.spot5_sp","home":"\xd0\x9e\xd0\xb1\xd0\xbe\xd0\xb3\xd0\xb0\xd1\x82\xd0\xb8\xd1\x82\xd0\xb5\xd0\xbb\xd1\x8c\xd0\xbd\xd0\xb0\xd1\x8f","room":"\xd0\xa1\xd0\xbf\xd0\xb0\xd0\xbb\xd1\x8c\xd0\xbd\xd1\x8f"}'
+    # и по ней надо поменять атрибуты home и room для устройства. И запомнить их, чтобы в следующий раз уже его размещать в этом месте.
     _deviceConstructorsMap = {
         "light":    lambda ha_state: LightEntity(ha_state),
         "climate":  lambda ha_state: ClimateDevice(ha_state)
@@ -78,6 +91,7 @@ class EntitiesStore:
         for id, device in self._store.items():
             saving_objects[id] = device.to_ha_state()
         json_write("store_"+f, saving_objects)
+        json_write("store_placements.json", self._entity_placement_redirection)
 
     # def _restore_from_dict(self, data_dict):
     #     """Восстанавливает состояние объекта из словаря"""
@@ -92,6 +106,17 @@ class EntitiesStore:
             device = self.create(ha_state)
             if device is not None:
                 self.upsert(device)
+        
+        self._entity_placement_redirection = json_read("store_placements.json", {})
+        
+    def get_placment(self, entity_id: str, default_home: str, default_room: str) -> EntityPlacement_Sber:
+        if entity_id in self._entity_placement_redirection:
+            return self._entity_placement_redirection[entity_id]
+        else:
+            return EntityPlacement_Sber(entity_id=entity_id, home=default_home, room=default_room)
+    
+    def redefine_placement(self, entity_id: str, home: str, room: str):
+        self._entity_placement_redirection[entity_id] = EntityPlacement_Sber(entity_id=entity_id, home=home, room=room)
 
 class CDevicesDB:
     """Управление базой данных устройств"""
@@ -232,7 +257,7 @@ class CDevicesDB:
     #     self._deviceStore.save(self.fDB)
 
 
-    def do_mqtt_json_devices_list(self):
+    def do_mqtt_json_devices_list(self, entitiesList = None):
         if not self._db_is_ready:
             return None
         
@@ -257,9 +282,15 @@ class CDevicesDB:
         
         with self.lock:
             for k,v in self.DB.items():
-                device = None
-                device = self.entitiesStore.get(k)
-                if device is None:
+                if entitiesList is not None and k not in entitiesList:
+                    continue
+
+                entity = None
+                default_home = v.get("home", None)
+                default_room = v.get("room", None)
+
+                entity = self.entitiesStore.get(k)
+                if entity is None:
                     if not v.get('enabled',False):
                         continue
 
@@ -282,10 +313,22 @@ class CDevicesDB:
                     d['model']={'id': 'ID_'+dev_cat, 'manufacturer': 'Janch', 'model': 'Model_'+dev_cat, 'category': dev_cat, 'features': f}
                     d['model_id']=''
                 else:
-                    d = device.to_sber_state()
+                    d = entity.to_sber_state()
+                    if 'room' in d:
+                        default_room = d["room"]
+                    if 'home' in d:
+                        default_home = d["home"]
+
+                device_placement = self.entitiesStore.get_placment(k, default_home, default_room)
+                if device_placement is not None:
+                    if device_placement.home is not None:
+                        d['home'] = device_placement.home
+                    if device_placement.room is not None:
+                        d['room'] = device_placement.room
 
                 if d is not None:
-                    device_list['devices'].append(d)
+                    filtered = {k: v for k, v in d.items() if v}
+                    device_list['devices'].append(filtered)
 
         self.mqtt_json_devices_list=json.dumps(device_list)
 #        logger.debug('New Devices List for MQTT ')
