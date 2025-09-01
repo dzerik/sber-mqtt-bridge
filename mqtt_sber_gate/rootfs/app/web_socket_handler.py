@@ -44,6 +44,8 @@ class WebSocketHandler:
         self.ws = None
         self.thread = None
 
+        self.command_counter = 0
+
         self.handler_map = {
             'auth_required': self.handle_auth_required,
             'auth_ok': self.handle_auth_ok,
@@ -92,6 +94,12 @@ class WebSocketHandler:
         self.ws.send(json.dumps({'id': 3, 'type': 'config/device_registry/list'}))
         self.ws.send(json.dumps({'id': 4, 'type': 'config/entity_registry/list'}))
         self.ws.send(json.dumps({'id': 5, 'type': 'get_states'}))
+        self.command_counter = 6
+
+    def send_command(self, command):
+        command["id"] = self.command_counter
+        self.command_counter += 1
+        self.ws.send(json.dumps(command))
 
     def handle_auth_invalid(self, data):
         """Handle authentication failure"""
@@ -149,6 +157,8 @@ class WebSocketHandler:
             # json_devices_list = self.devices_db.do_mqtt_json_devices_list()
             # sber_root_topic = self.sber_root_topic # self.options.get('sber_root_topic', 'home')
             # self.mqttc.publish(sber_root_topic+'/up/config', json_devices_list, qos=0)
+        else: 
+            logger.info(f"WebSocket: result: {data}")
 
 
     def handle_event(self, data):
