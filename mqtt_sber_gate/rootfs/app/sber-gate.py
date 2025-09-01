@@ -123,11 +123,22 @@ def options_change(k,v):
       logger.info('В настройках изменился параметр: '+k+' с '+str(t)+' на '+str(v)+' (обновляю и сохраняю).')
       json_write(fOptions,Options)
 
+def post_command_to_ha(entity_id, url, payload):
+   logger.info('HA REST API REQUEST: '+ url)
+   hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
+   logger.debug("Headers: '"+str(hds)+"'")
+   logger.debug("Payload: "+str(payload))
+   full_url = Options['ha-api_url']+url
+   logger.debug("Url: "+full_url)
+   return requests.post(full_url, json=payload, headers=hds)
+
+
 def ha_OnOff(id):
    OnOff = DevicesDB.get_state(id,'on_off')
    entity_domain,entity_name=id.split('.',1)
    logger.info('Отправляем команду в HA для '+id+' ON: '+str(OnOff))
-   url=Options['ha-api_url']+'/api/services/'+entity_domain+'/'
+   # url=Options['ha-api_url']+'/api/services/'+entity_domain+'/'
+   url='/api/services/'+entity_domain+'/'
    if entity_domain == 'button':
       url += 'press'
    else:
@@ -136,8 +147,9 @@ def ha_OnOff(id):
       else:
          url += 'turn_off'
    logger.info('HA REST API REQUEST: '+ url)
-   hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
-   response=requests.post(url, json={"entity_id": id}, headers=hds)
+   post_command_to_ha(id, url, {"entity_id": id})
+   # hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
+   # response=requests.post(url, json={"entity_id": id}, headers=hds)
 #   print(response)
 
 def ha_climate(id,changes):
@@ -426,32 +438,40 @@ def send_status(mqttc, s):
 def on_message_cmd(mqttc, obj, msg):
    data=json.loads(msg.payload)
    logger.info("Sber MQTT Command: " + str(data))
-   for id,v in data['devices'].items():
-      changes={}
-      for k in v['states']:
-         type=k['value'].get('type','')
-         val=''
-         if type == 'BOOL':
-            val=k['value'].get('bool_value',False)
-         if type == 'INTEGER':
-            val=k['value'].get('integer_value',0)
-         if type == 'ENUM':
-            val=k['value'].get('enum_value','')
+   for id,cmd_data in data['devices'].items():
+      entity = DevicesDB.entitiesStore.get(id)
+      if (entity is None):
+         changes={}
+         for k in cmd_data['states']:
+            type=k['value'].get('type','')
+            val=''
+            if type == 'BOOL':
+               val=k['value'].get('bool_value',False)
+            if type == 'INTEGER':
+               val=k['value'].get('integer_value',0)
+            if type == 'ENUM':
+               val=k['value'].get('enum_value','')
 
-         if DevicesDB.DB[id].get(k['key'],None) == val:
-            changes[k['key']] = False
+            if DevicesDB.DB[id].get(k['key'],None) == val:
+               changes[k['key']] = False
+            else:
+               changes[k['key']] = True
+
+            DevicesDB.change_state(id,k['key'],val)
+
+         if DevicesDB.DB[id].get('entity_type',None) == 'climate':
+            ha_climate(id,changes)
          else:
-            changes[k['key']] = True
-
-         DevicesDB.change_state(id,k['key'],val)
-
-      if DevicesDB.DB[id].get('entity_type',None) == 'climate':
-         ha_climate(id,changes)
+            if DevicesDB.DB[id].get('entity_ha',False):
+               ha_OnOff(id)
+            else:
+               logger.info('Объект отсутствует в HA: ' + id)
       else:
-         if DevicesDB.DB[id].get('entity_ha',False):
-            ha_OnOff(id)
-         else:
-            logger.info('Объект отсутствует в HA: ' + id)
+         logger.info("Изменяем состояние объекта: " + id)
+         processing_result = entity.process_cmd(cmd_data)
+         for payload in processing_result:
+            ws_server.send_command( payload.get("url"))
+
    send_status(mqttc,DevicesDB.do_mqtt_json_states_list([id]))
 
 #   logger.info(DevicesDB.mqtt_json_states_list)

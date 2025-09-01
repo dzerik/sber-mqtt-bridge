@@ -26,9 +26,11 @@ class LightEntity(BaseEntity):
     max_mireds: int = 500
     min_mireds: int = 153
     supported_color_modes: list[str] = []
+    current_state: bool = False
 
     def __init__(self, ha_entity_data: dict):
         super().__init__(LIGHT_ENTITY_CATEGORY, ha_entity_data)
+        current_state = ha_entity_data.get("state", "off") == "on"
 
     def fill_by_ha_state(self, ha_state):
         super().fill_by_ha_state(ha_state)
@@ -148,45 +150,70 @@ class LightEntity(BaseEntity):
         return res
 
     # --- Методы ---
-    def process_cmd(self, source, cmd_data):
+    def process_cmd(self, cmd_data):
         """Обрабатывает команду от Sber или HA"""
+        #{'states': [{'key': 'on_off', 'value': {'type': 'BOOL', 'bool_value': True}}]}}}
+        processing_result = []
+
         if cmd_data is None:
             return None
 
-        if "on_off" in cmd_data:
-            return {
-                "url": "/api/services/light/turn_{}".format("on" if cmd_data["on_off"] else "off"),
-                "data": {"entity_id": self.id}
-            }
+        for data_item in cmd_data.get("states", []):
+            cmd_key = data_item.get("key", "")
+            cmd_value = data_item.get("value", {})
 
-        if self.supported_features & 1 and "brightness" in cmd_data:
-            return {
-                "url": "/api/services/light/set_brightness",
-                "data": {
-                    "entity_id": self.id,
-                    "brightness": int(cmd_data["brightness"] * 255 / 100)
-                }
-            }
+            if (cmd_key == "on_off") and (cmd_value["type"] == "BOOL"):
+                new_state = cmd_value.get("bool_value", False)
+                if self.current_state == new_state:
+                    continue
 
-        if self.supported_features & 2 and "color" in cmd_data:
-            return {
-                "url": "/api/services/light/turn_on",
-                "data": {
-                    "entity_id": self.id,
-                    "rgb_color": self.hex_to_rgb(cmd_data["color"])
-                }
-            }
+                self.current_state = new_state
+                # processing_result.append( {
+                #     "url": "/api/services/light/turn_on",
+                #     "data": {"entity_id": self.entity_id}
+                #     })
+                
+                processing_result.append({
+                    "url": {
+                        "id": 24,
+                        "type": "call_service",
+                        "domain": "light",
+                        "service": "turn_on" if new_state else "turn_off",
+                        "target": {
+                            "entity_id": self.entity_id
+                        }
+                    }
+                })
 
-        if self.supported_features & 4 and "color_temperature" in cmd_data:
-            return {
-                "url": "/api/services/light/turn_on",
-                "data": {
-                    "entity_id": self.id,
-                    "color_temp": cmd_data["color_temperature"]
-                }
-            }
+            if cmd_key == "brightness":
+                self.brightness = int(cmd_value.get("int_value", 0))
+                processing_result.append({
+                    "url": "/api/services/light/set_brightness",
+                    "data": {
+                        "entity_id": self.entity_id,
+                        "brightness": int(cmd_data["brightness"] * 255 / 100)
+                    }
+                })
 
-        return None
+            if cmd_key == "color":
+                processing_result.append({
+                    "url": "/api/services/light/turn_on",
+                    "data": {
+                        "entity_id": self.entity_id,
+                        "rgb_color": self.hex_to_rgb(cmd_data["color"])
+                    }
+                })
+
+            # if "color_temperature" in cmd_data:
+            #     processing_result.append({
+            #         "url": "/api/services/light/turn_on",
+            #         "data": {
+            #             "entity_id": self.entity_id,
+            #             "color_temp": cmd_data["color_temperature"]
+            #         }
+            #     })
+
+        return processing_result
 
     def _hex_to_rgb(self, hex_color: str):
         """Конвертирует HEX в RGB (для HA)"""
