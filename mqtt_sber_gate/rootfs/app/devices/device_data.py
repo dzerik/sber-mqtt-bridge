@@ -31,7 +31,7 @@ class DeviceData:
         self.id = device_data.get("id")
         self.labels = device_data.get("labels", [])
         self.manufacturer = device_data.get("manufacturer", "Unknown")
-        self.model_id = device_data.get("model_id", None)
+        self.model_id = device_data.get("model_id", "")
         self.model = device_data.get("model", "Unknown")
         self.name = device_data.get("name_by_user")
         self.options = device_data.get("options", {})

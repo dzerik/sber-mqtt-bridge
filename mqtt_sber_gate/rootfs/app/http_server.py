@@ -38,12 +38,11 @@ static_request = {
 }
 
 class MyServer(BaseHTTPRequestHandler):
-    def __init__(self, *args, devices_db, mqttc, sber_root_topic, ha_dev, options, **kwargs):
+    def __init__(self, *args, devices_db, mqttc, sber_root_topic, options, **kwargs):
         # Сохраняем зависимости как атрибуты
         self.devices_db = devices_db
         self.mqttc = mqttc
         self.sber_root_topic = sber_root_topic
-        self.ha_dev = ha_dev
          
         self.sber_api_endpoint = options['sber-http_api_endpoint']
         self.ha_api_token = options['ha-api_token']
@@ -200,7 +199,7 @@ class MyServer(BaseHTTPRequestHandler):
         d='<html><head><title>HA</title></head>'\
             '<p>Request: ' + self.path + '</p>'\
             '<body><p>This is an example web server.</p></body></html>'
-        self.send_data(self,d,"text/html")
+        self.send_data(d,"text/html")
         return self.path
 
     # def send_file(self,file,ct):
@@ -278,7 +277,7 @@ class MyServer(BaseHTTPRequestHandler):
         logger.info('Меняем данные для'+str(d['devices']))
         for i in d['devices']:
             for id,prop in i.items():
-                logger.info(id+':'+str(prop))
+                logger.info("hapi2: LOG1"+id+':'+str(prop))
                 self.devices_db.update(id, prop)
         infot = self.mqttc.publish(self.sber_root_topic+'/up/config', self.devices_db.do_mqtt_json_devices_list(), qos=0)
         self.devices_db.save_DB()

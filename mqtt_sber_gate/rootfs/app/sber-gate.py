@@ -399,7 +399,15 @@ def on_disconnect(client, userdata, rc):
         logger.info("Unexpected MQTT disconnection. Will auto-reconnect. rc: "+str(rc))
 
 def on_message(mqttc, obj, msg):
-    logger.info(msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+    logger.info("OnMESSAGE: "+msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+    if msg.topic.endswith('/down/change_group_device_request'):
+      data=json.loads(msg.payload)
+      DevicesDB.entitiesStore.redefine_placement(data.get("device_id"), data.get("home"), data.get("room"))
+      # send changed data to sber.
+      payload = DevicesDB.do_mqtt_json_devices_list()
+      if payload is not None and len(payload) > 0:
+         mqttc.publish(sber_root_topic+'/up/config', payload, qos=0)
+
 
 def on_publish(mqttc, obj, mid):
     logger.info("mid: " + str(mid))
@@ -408,7 +416,7 @@ def on_subscribe(mqttc, obj, mid, granted_qos):
     logger.info("SD Subscribed: " + str(mid) + " " + str(granted_qos))
 
 def on_log(mqttc, obj, level, string):
-    logger.info(string)
+    logger.info("OnLOG: "+string)
 
 def send_status(mqttc, s):
    infot = mqttc.publish(sber_root_topic+'/up/status', s, qos=0)
@@ -623,7 +631,6 @@ def start_webserver():
             devices_db=DevicesDB,
             mqttc=mqttc,
             sber_root_topic=sber_root_topic,
-            ha_dev=ha_dev,
             options = Options,
             **kwargs
         )

@@ -48,7 +48,7 @@ class BaseEntity:
     def __init__(self, category, entity_data: dict):
         self.category = category
         if entity_data:
-            self.area_id = entity_data.get("area_id")
+            self.area_id = entity_data.get("area_id", "")
             self.categories = entity_data.get("categories", [])
             self.config_entry_id = entity_data.get("config_entry_id")
             self.config_subentry_id = entity_data.get("config_subentry_id")
@@ -69,7 +69,13 @@ class BaseEntity:
             self.unique_id = entity_data.get("unique_id")
 
             if self.name is None or len(self.name) == 0:
-                self.name = self.entity_id
+                if self.original_name is not None and len(self.original_name) > 0:
+                    self.name = self.original_name
+                else:
+                    self.name = self.entity_id
+
+            if self.area_id is None:
+                self.area_id = ""
 
     def fill_by_ha_state(self, ha_entity_state):
         self.state = ha_entity_state.get("state")
@@ -125,36 +131,40 @@ class BaseEntity:
             return {
             "id": self.entity_id,
             "name": self.name,
-            "default_name": self.original_name,
+            "default_name": self.entity_id,
+            "room": self.area_id,
             "model": {
+                "id": "Mdl_"+self.category,
                 "manufacturer": "Unknown",
                 "model": "Unknown",
-                "hw_version": "Unknown",
-                "sw_version": "Unknown",
                 "description": self.name,
                 "category": self.category,
-                "allowed_values": {},
+                # "allowed_values": {},
                 "features": self.create_features_list(),
             },
-            "model_id": None,
+            "hw_version": "Unknown",
+            "sw_version": "Unknown",
+            "model_id": "",
 
             }
 
         assert self.linked_device is not None, True
         return {
-            "id": self.entity_id,
-            "name": self.linked_device.get("name", self.name),
+            "id": self.entity_id ,
+            "name": self.linked_device.get("name", self.original_name),
             "default_name": self.original_name,
+            "room": self.linked_device.get("area_id", self.area_id),
             "model": {
+                "id": "Mdl_"+self.linked_device["model"],
                 "manufacturer": self.linked_device["manufacturer"],
                 "model": self.linked_device["model"],
-                "hw_version": self.linked_device["hw_version"],
-                "sw_version": self.linked_device["sw_version"],
                 "description": self.linked_device["name"],
                 "category": self.category,
-                "allowed_values": {},
+                # "allowed_values": {},
                 "features": self.create_features_list(),
             },
+            "hw_version": self.linked_device["hw_version"],
+            "sw_version": self.linked_device["sw_version"],
             "model_id": self.linked_device["model_id"],
         }
 
