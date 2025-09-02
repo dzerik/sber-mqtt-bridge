@@ -346,34 +346,35 @@ class CDevicesDB:
             dl=self.DB.keys()
         with self.lock:
             for id in dl:
-                device=self.DB.get(id,None)
-                if not (device is None):
-                    if device['enabled']:
-                        device_category=device.get('category',None)
-                        if device_category is None:
-                            device_category='relay'
-                            self.DB[id]['category']=device_category
-                        DStat['devices'][id]={}
-                        features=self.categories.get(device_category)
-                        if self.DB[id].get('States',None) is None:
-                            self.DB[id]['States']={}
-                        r=[]
-                        for ft in features:
-                            state_value = self.DB[id]['States'].get(ft['name'],None)
-                            if state_value is None:
-                                if ft.get('required',False):
-                                    self.logger.info('отсутствует обязательное состояние сущности: ' + ft['name'])
-                                    self.DB[id]['States'][ft['name']]=self.DefaultValue(ft)
-                            if not (self.DB[id]['States'].get(ft['name'], None) is None):
-                                r.append(self.StateValue(id,ft))
-                                if ft['name'] == 'button_event':
-                                    self.DB[id]['States']['button_event']=''
-                        DStat['devices'][id]['states']=r
-        #               if (s is None):
-        #                  logger.info('У объекта: '+id+'отсутствует информация о состояниях')
-        #                  self.DB[id]['States']={}
-        #                  self.DB[id]['States']['online']=True
-        #               DStat['devices'][id]['states']=self.DeviceStates_mqttSber(id)
+                entity = self.entitiesStore.get(id)
+                if (entity is None):
+                    device=self.DB.get(id,None)
+                    if not (device is None):
+                        if device['enabled']:
+                            device_category=device.get('category',None)
+                            if device_category is None:
+                                device_category='relay'
+                                self.DB[id]['category']=device_category
+                            DStat['devices'][id]={}
+                            features=self.categories.get(device_category)
+                            if self.DB[id].get('States',None) is None:
+                                self.DB[id]['States']={}
+                            r=[]
+                            for ft in features:
+                                state_value = self.DB[id]['States'].get(ft['name'],None)
+                                if state_value is None:
+                                    if ft.get('required',False):
+                                        self.logger.info('отсутствует обязательное состояние сущности: ' + ft['name'])
+                                        self.DB[id]['States'][ft['name']]=self.DefaultValue(ft)
+                                if not (self.DB[id]['States'].get(ft['name'], None) is None):
+                                    r.append(self.StateValue(id,ft))
+                                    if ft['name'] == 'button_event':
+                                        self.DB[id]['States']['button_event']=''
+                            DStat['devices'][id]['states']=r
+                else:
+                    entityState = entity.to_sber_current_state()
+                    if entityState is not None:
+                        DStat['devices']  |= entityState
 
         if (len(DStat['devices']) == 0):
             DStat['devices']={"root": {"states": [{"key": "online", "value": {"type": "BOOL", "bool_value": True}}]}}

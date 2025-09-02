@@ -168,6 +168,9 @@ class BaseEntity:
             "model_id": self.linked_device["model_id"],
         }
 
+    def to_sber_current_state(self):
+        raise NotImplementedError("Implement in child classes")
+
     @classmethod
     def get_device_category(cls):
         """

@@ -19,14 +19,16 @@ from .base_entity import BaseEntity
 LIGHT_ENTITY_CATEGORY = "light"
 
 class LightEntity(BaseEntity):
-    brightness: int = None
-    color: str = None
-    color_temperature: int = None
     supported_features: int = 0
     max_mireds: int = 500
     min_mireds: int = 153
     supported_color_modes: list[str] = []
     current_state: bool = False
+    current_brightness: int = 0
+    current_color_temp: int = 0
+    current_color_mode: str = None
+    # current_color: list[int] = [0, 0, 0]
+
 
     def __init__(self, ha_entity_data: dict):
         super().__init__(LIGHT_ENTITY_CATEGORY, ha_entity_data)
@@ -34,26 +36,12 @@ class LightEntity(BaseEntity):
 
     def fill_by_ha_state(self, ha_state):
         super().fill_by_ha_state(ha_state)
+        self.current_state = ha_state.get("state", "off") == "on"
+        self.current_brightness = ha_state["attributes"].get("brightness", 0)
+        self.current_color_temp = ha_state["attributes"].get("color_temp", 0)
+        self.current_color_mode = ha_state["attributes"].get("color_mode", None)
         self.supported_features = ha_state["attributes"].get("supported_features", 0)
         self.supported_color_modes = ha_state["attributes"].get("supported_color_modes", [])
-
-        # Яркость
-        if self.supported_features & 1:
-            self.brightness = ha_state["attributes"].get("brightness", 255)
-        else:
-            self.brightness = None
-
-        # Цвет
-        if self.supported_features & 2:
-            self.color = self.convert_color(ha_state["attributes"])
-        else:
-            self.color = None
-
-        # Температура цвета
-        if self.supported_features & 4:
-            self.color_temperature = ha_state["attributes"].get("color_temp", 300)
-        else:
-            self.color_temperature = None
 
         # Дополнительные параметры
         self.max_mireds = ha_state["attributes"].get("max_mireds", 500)
@@ -96,8 +84,8 @@ class LightEntity(BaseEntity):
             "supported_features": self.supported_features,
             "max_mireds": self.max_mireds,
             "min_mireds": self.min_mireds,
-            "color_temp": self.color_temperature,
-            "brightness": self.brightness,
+            "color_temp": self.current_color_temp,
+            "brightness": self.current_brightness,
         }
 
         return res | {"attributes": attrs}
@@ -142,12 +130,38 @@ class LightEntity(BaseEntity):
         if res is None:
             return None
         
+
         res["model"] |= {
             "features": self.create_features_list(),
             "allowed_values": self.create_allowed_values_list()
         }
 
         return res
+
+    def to_sber_current_state(self):
+        states = [            {
+                "key": "on_off",
+                "value": {
+                    "type": "BOOL",
+                    "bool_value": self.current_state
+                }
+            }
+        ]
+
+        if (self.current_color_temp != 0):
+            states.append({
+                "key": "colour_temperature",
+                "value": {
+                    "type": "INTEGER",
+                    "integer_value": self.current_color_temp
+                }
+            })
+
+        return {
+            self.entity_id: {
+                "states": states
+            }
+        }
 
     # --- Методы ---
     def process_cmd(self, cmd_data):
@@ -175,7 +189,6 @@ class LightEntity(BaseEntity):
                 
                 processing_result.append({
                     "url": {
-                        "id": 24,
                         "type": "call_service",
                         "domain": "light",
                         "service": "turn_on" if new_state else "turn_off",
@@ -185,25 +198,43 @@ class LightEntity(BaseEntity):
                     }
                 })
 
-            if cmd_key == "brightness":
-                self.brightness = int(cmd_value.get("int_value", 0))
+            if cmd_key == "light_brightness":
+                self.brightness = int(cmd_value.get("integer_value", 0))
                 processing_result.append({
-                    "url": "/api/services/light/set_brightness",
-                    "data": {
-                        "entity_id": self.entity_id,
-                        "brightness": int(cmd_data["brightness"] * 255 / 100)
+                    "url": {
+                        "type": "call_service",
+                        "domain": "light",
+                        "service": "turn_on",
+                        "service_data": {
+                            "brightness": int(cmd_value.get("integer_value", 0)) * 255 / 100,
+                        },
+                        "target": {
+                            "entity_id": self.entity_id
+                        }
+                    }
+                })
+                # processing_result.append({
+                #     "url": "/api/services/light/set_brightness",
+                #     "data": {
+                #         "entity_id": self.entity_id,
+                #         "brightness": int(cmd_data["brightness"] * 255 / 100)
+                #     }
+                # })
+
+            if cmd_key == "light_color":
+                processing_result.append({
+                    "url": {
+                        "type": "call_service",
+                        "domain": "light",
+                        "set_color": cmd_data["light_color"],
+                        "target": {
+                            "entity_id": self.entity_id
+                        }
                     }
                 })
 
-            if cmd_key == "color":
-                processing_result.append({
-                    "url": "/api/services/light/turn_on",
-                    "data": {
-                        "entity_id": self.entity_id,
-                        "rgb_color": self.hex_to_rgb(cmd_data["color"])
-                    }
-                })
-
+            if cmd_key == "color_temperature":
+                self.logger.info("Setting color temperature - fake")
             # if "color_temperature" in cmd_data:
             #     processing_result.append({
             #         "url": "/api/services/light/turn_on",

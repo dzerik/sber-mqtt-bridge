@@ -497,6 +497,13 @@ def on_message_conf(mqttc, obj, msg):
    infot = mqttc.publish(sber_root_topic+'/up/config', device_list, qos=0)
    if (not infot.is_published()):
       print(infot)
+
+   status_data = DevicesDB.do_mqtt_json_states_list([])
+   if status_data is not None and len(status_data) > 0:
+      infot = mqttc.publish(sber_root_topic+'/up/status', status_data, qos=0)
+      if (not infot.is_published()):
+         print(infot)
+
 #!!!!!!!
 
 def on_global_conf(mqttc, obj, msg):

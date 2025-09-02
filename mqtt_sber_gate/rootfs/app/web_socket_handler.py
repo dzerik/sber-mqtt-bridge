@@ -2,6 +2,7 @@
 WebSocket handler module for SberGate integration
 """
 
+import threading
 from devices.light import LightEntity
 from devices_db import json_write
 import websocket
@@ -44,6 +45,8 @@ class WebSocketHandler:
         self.ws = None
         self.thread = None
 
+        self.command_lock = threading.Lock()
+
         self.command_counter = 0
 
         self.handler_map = {
@@ -69,13 +72,15 @@ class WebSocketHandler:
         """Handle incoming WebSocket messages"""
         # logger.debug(f"WebSocket: Received message: {message}")
         try:
-            json_write("ws_received_message.json", message)
-            logger.debug(f"WebSocket: Received message (ws_received_message.json) '{message[0:150]}...'")
+            # logger.debug(f"WebSocket: Received message (ws_received_message.json) '{message[0:150]}...'")
             mdata = json.loads(message)
-            # if "event" in mdata.keys():
-            #     logger.debug(f"WebSocket: Received message {mdata["event"]["event_type"]} for {mdata["data"]["entity_id"]}")
-            # else:
-            #     logger.debug(f"WebSocket: Received message type: {mdata["type"]}")
+            if "id" not in mdata.keys():
+                if "event" in mdata.keys():
+                    logger.debug(f"WebSocket: Received message {mdata['event']['event_type']} for {mdata['data']['entity_id']}")
+                else:
+                    logger.debug(f"WebSocket: Received message type: {mdata['type']}")
+                    json_write("ws_received_message.json", message)
+
             handler = self.handler_map.get(mdata.get('type', 'None'), self.handle_default)
             handler(mdata)
         except Exception as e:
@@ -84,22 +89,25 @@ class WebSocketHandler:
     def handle_auth_required(self, data):
         """Handle authentication required message"""
         logger.info("WebSocket: auth_required")
-        self.ws.send(json.dumps({"type": "auth", "access_token": self.ha_api_token}))
+        with self.command_lock:
+            self.ws.send(json.dumps({"type": "auth", "access_token": self.ha_api_token}))
 
     def handle_auth_ok(self, data):
         """Handle authentication success"""
         logger.info("WebSocket: auth_ok")
-        self.ws.send(json.dumps({'id': 1, 'type': 'subscribe_events', 'event_type': 'state_changed'}))
-        self.ws.send(json.dumps({'id': 2, 'type': 'config/area_registry/list'}))
-        self.ws.send(json.dumps({'id': 3, 'type': 'config/device_registry/list'}))
-        self.ws.send(json.dumps({'id': 4, 'type': 'config/entity_registry/list'}))
-        self.ws.send(json.dumps({'id': 5, 'type': 'get_states'}))
-        self.command_counter = 6
+        with self.command_lock:
+            self.ws.send(json.dumps({'id': 1, 'type': 'subscribe_events', 'event_type': 'state_changed'}))
+            self.ws.send(json.dumps({'id': 2, 'type': 'config/area_registry/list'}))
+            self.ws.send(json.dumps({'id': 3, 'type': 'config/device_registry/list'}))
+            self.ws.send(json.dumps({'id': 4, 'type': 'config/entity_registry/list'}))
+            self.ws.send(json.dumps({'id': 5, 'type': 'get_states'}))
+            self.command_counter = 6
 
     def send_command(self, command):
-        command["id"] = self.command_counter
-        self.command_counter += 1
-        self.ws.send(json.dumps(command))
+        with self.command_lock:
+            command["id"] = self.command_counter
+            self.command_counter += 1
+            self.ws.send(json.dumps(command))
 
     def handle_auth_invalid(self, data):
         """Handle authentication failure"""
@@ -228,7 +236,8 @@ class WebSocketHandler:
         while self.running:
             if self.ws:
                 try:
-                    self.ws.send(json.dumps({"type": "ping"}))
+                    self.send_command({"type": "ping"})
+                    # self.ws.send(json.dumps({"type": "ping"}))
                 except Exception as e:
                     logger.warning(f"Failed to send ping: {e}")
             time.sleep(30)  # Отправлять пинг каждые 30 секунд
