@@ -68,6 +68,10 @@ class WebSocketHandler:
         logger.info(f"WebSocket: Connection closed ({close_status_code}: {close_msg})")
 
     def _process_event(self, entity_id, old_state, new_state):
+        if entity_id is None or new_state is None:
+            logger.info(f"Either entity_id or new_state is None. entity_id: {entity_id}, new_state: {new_state}. Skipping.")
+            return
+        
         entity = self.devices_db.entitiesStore.get(entity_id)
         if entity:
             entity.process_state_change(old_state, new_state)
