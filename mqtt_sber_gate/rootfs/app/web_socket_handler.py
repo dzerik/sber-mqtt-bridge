@@ -77,6 +77,7 @@ class WebSocketHandler:
             entity.process_state_change(old_state, new_state)
             logger.info(f"Device database is ready. Publishing device {entity_id}")
             sber_root_topic = self.sber_root_topic 
+            assert self.mqttc is not None, "MQTT client is not initialized"
             self.mqttc.publish(sber_root_topic+'/up/status', self.devices_db.do_mqtt_json_states_list([entity_id]), qos=0)
         else:
             logger.debug(f"Process event: entity {entity_id} not found")
@@ -85,7 +86,7 @@ class WebSocketHandler:
         """Handle incoming WebSocket messages"""
         try:
             message_data = json.loads(message)
-            if "event" in message_data.keys():
+            if "event" in message_data:
                 logger.debug(f"WebSocket: Received message {message_data['event']['event_type']} for {message_data['event']['data']['entity_id']}")
                 event_data = message_data["event"]
                 event_type = event_data["event_type"]

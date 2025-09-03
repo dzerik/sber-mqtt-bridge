@@ -349,6 +349,7 @@ class CDevicesDB:
         DStat={}
         DStat['devices']={}
         if len(dl) == 0:
+            assert self.entitiesStore is not None
             dl=list(self.DB.keys()) +list(self.entitiesStore.get_keys())
 
         with self.lock:
