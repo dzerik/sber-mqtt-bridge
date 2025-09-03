@@ -472,10 +472,6 @@ def on_message_cmd(mqttc, obj, msg):
          for payload in processing_result:
             ws_server.send_command( payload.get("url"))
 
-   # send_status(mqttc,DevicesDB.do_mqtt_json_states_list([id]))
-
-#   logger.info(DevicesDB.mqtt_json_states_list)
-
 def on_message_stat(mqttc, obj, msg):
    try:
       data=json.loads(msg.payload).get('devices',[])

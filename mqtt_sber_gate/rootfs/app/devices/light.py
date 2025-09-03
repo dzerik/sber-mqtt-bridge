@@ -200,7 +200,7 @@ class LightEntity(BaseEntity):
                 })
 
             if cmd_key == "light_brightness":
-                brightness = int(cmd_value.get("integer_value", 0))
+                brightness = max(50, min(int(cmd_value.get("integer_value", 50)), 255))
                 processing_result.append({
                     "url": {
                         "type": "call_service",
