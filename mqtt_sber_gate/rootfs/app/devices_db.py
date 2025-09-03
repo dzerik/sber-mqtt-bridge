@@ -51,6 +51,12 @@ class EntitiesStore:
     def __init__(self, logger):
         self.logger = logger
 
+    def get_keys(self):
+        """
+        Возвращает набор идентификаторов сущностей, зарегистрированных в данном хранилище
+        """
+        return self._device_data_store.keys()
+
     def upsert_device_data(self, data: DeviceData):
         id = data.get("id", None)
         self._device_data_store[id] = data
@@ -343,7 +349,9 @@ class CDevicesDB:
         DStat={}
         DStat['devices']={}
         if len(dl) == 0:
-            dl=self.DB.keys()
+            assert self.entitiesStore is not None
+            dl=list(self.DB.keys()) +list(self.entitiesStore.get_keys())
+
         with self.lock:
             for id in dl:
                 entity = self.entitiesStore.get(id)
