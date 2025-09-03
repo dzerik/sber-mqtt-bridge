@@ -68,18 +68,34 @@ class WebSocketHandler:
         """Handle WebSocket close event"""
         logger.info(f"WebSocket: Connection closed ({close_status_code}: {close_msg})")
 
+    def __process_event(self, entity_id, old_state, new_state):
+        entity = self.devices_db.entitiesStore.get(entity_id)
+        if entity:
+            entity.process_state_change(old_state, new_state)
+            logger.info(f"Device database is ready. Publishing device {entity_id}")
+            sber_root_topic = self.sber_root_topic 
+            self.mqttc.publish(sber_root_topic+'/up/status', self.devices_db.do_mqtt_json_states_list([entity_id]), qos=0)
+        else:
+            logger.debug(f"Process event: entity {entity_id} not found")
+
     def on_message(self, ws, message):
         """Handle incoming WebSocket messages"""
-        # logger.debug(f"WebSocket: Received message: {message}")
         try:
-            # logger.debug(f"WebSocket: Received message (ws_received_message.json) '{message[0:150]}...'")
             mdata = json.loads(message)
-            if "id" not in mdata.keys():
-                if "event" in mdata.keys():
-                    logger.debug(f"WebSocket: Received message {mdata['event']['event_type']} for {mdata['data']['entity_id']}")
-                else:
-                    logger.debug(f"WebSocket: Received message type: {mdata['type']}")
-                    json_write("ws_received_message.json", message)
+            if "event" in mdata.keys():
+                logger.debug(f"WebSocket: Received message {mdata['event']['event_type']} for {mdata['event']['data']['entity_id']}")
+                event_data = mdata["event"]
+                event_type = event_data["event_type"]
+                if event_type == "state_changed":
+                    data = event_data["data"]
+                    entity_id = data["entity_id"]
+                    old_state = data["old_state"]
+                    new_state = data["new_state"]
+                    self.__process_event(entity_id, old_state, new_state)
+
+            else:
+                logger.debug(f"WebSocket: Received message type: {mdata['type']}")
+                json_write("ws_received_message.json", message)
 
             handler = self.handler_map.get(mdata.get('type', 'None'), self.handle_default)
             handler(mdata)
@@ -135,7 +151,7 @@ class WebSocketHandler:
             entities = data.get('result', [])
             for entity in entities:
                 if not entity.get('entity_id', "").startswith('light'):
-                    logger.info(f"WebSocket: Пропускаю сущность {entity['entity_id']}")
+#                    logger.info(f"WebSocket: Пропускаю сущность {entity['entity_id']}")
                     continue
 
                 entity_id = entity['entity_id']

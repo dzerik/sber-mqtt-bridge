@@ -1,15 +1,8 @@
 # devices/light.py
 from .base_entity import BaseEntity
 
-# class LightEntityFeature(IntFlag):
-#     """Supported features of the light entity."""
-
-#     EFFECT = 4
-#     FLASH = 8
-#     TRANSITION = 32
-
 # supported_features sber
-# light_brightness		Яркость устройства
+# light_brightness		Яркость устройства - на HA он задается в интервале от 0 до 255  В сбере принимает значения от 50 до 1000 с шагом 1, но можно переопределить в модели
 # light_colour		Цвет устройства
 # light_colour_temp		Температура цвета устройства
 # light_mode		Режим работы устройства: цветной или белый цвет
@@ -95,7 +88,10 @@ class LightEntity(BaseEntity):
         features = super().create_features_list()
 
         if "xy" in self.supported_color_modes:
-            features += ["light_colour", "light_mode", "light_brightness"]
+            features += [
+                "light_colour", 
+                #"light_mode", 
+                "light_brightness"]
         if "color_temp" in self.supported_color_modes:
             features += ["light_colour_temp"]
 
@@ -105,11 +101,11 @@ class LightEntity(BaseEntity):
         """Формирует список допустимых значений"""
         allowed_values = {}
 # Тут надо понять, почему не принимает такие ограничения
-        # if "xy" in self.supported_color_modes:
-        #     allowed_values["light_brightness"] = {
-        #         "type": "INTEGER",
-        #         "integer_values": {"min": 0, "max": 100}
-        #     }
+        if "xy" in self.supported_color_modes:
+            allowed_values["light_brightness"] = {
+                "type": "INTEGER",
+                "integer_values": {"min": 50, "max": 255}
+            }
         #     # allowed_values["light_colour"] = {
         #     #     "type": "COLOUR",
         #     # }
@@ -124,7 +120,7 @@ class LightEntity(BaseEntity):
 
         return allowed_values
 
-    def to_sber_state(self):
+    def to_sber_state(self):  # Really it is to_sber_entity
         """Формирует состояние для Сбер"""
         res = super().to_sber_state()
         if res is None:
@@ -157,6 +153,15 @@ class LightEntity(BaseEntity):
                 }
             })
 
+        if (self.current_brightness != 0):
+            states.append({
+                "key": "light_brightness",
+                "value": {
+                    "type": "INTEGER",
+                    "integer_value": self.current_brightness
+                }
+            })
+
         return {
             self.entity_id: {
                 "states": states
@@ -182,11 +187,6 @@ class LightEntity(BaseEntity):
                     continue
 
                 self.current_state = new_state
-                # processing_result.append( {
-                #     "url": "/api/services/light/turn_on",
-                #     "data": {"entity_id": self.entity_id}
-                #     })
-                
                 processing_result.append({
                     "url": {
                         "type": "call_service",
@@ -199,27 +199,20 @@ class LightEntity(BaseEntity):
                 })
 
             if cmd_key == "light_brightness":
-                self.brightness = int(cmd_value.get("integer_value", 0))
+                brightness = int(cmd_value.get("integer_value", 0))
                 processing_result.append({
                     "url": {
                         "type": "call_service",
                         "domain": "light",
                         "service": "turn_on",
                         "service_data": {
-                            "brightness": int(cmd_value.get("integer_value", 0)) * 255 / 100,
+                            "brightness": brightness,
                         },
                         "target": {
                             "entity_id": self.entity_id
                         }
                     }
                 })
-                # processing_result.append({
-                #     "url": "/api/services/light/set_brightness",
-                #     "data": {
-                #         "entity_id": self.entity_id,
-                #         "brightness": int(cmd_data["brightness"] * 255 / 100)
-                #     }
-                # })
 
             if cmd_key == "light_color":
                 processing_result.append({
@@ -250,3 +243,9 @@ class LightEntity(BaseEntity):
         """Конвертирует HEX в RGB (для HA)"""
         hex_color = hex_color.lstrip("#")
         return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+    def process_state_change(self, old_state, new_state):
+        self.fill_by_ha_state(new_state)
+                
+
+

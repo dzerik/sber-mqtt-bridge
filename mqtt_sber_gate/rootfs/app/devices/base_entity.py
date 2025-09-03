@@ -196,3 +196,9 @@ class BaseEntity:
         Возвращает True, если состояние было изменено
         """
         raise NotImplementedError("Метод process_cmd должен быть переопределен")
+
+    def process_state_change(self, old_state, new_state):
+        """
+        Обрабатывает изменение состояния устройства, приходящее от Home Assistant
+        """
+        raise NotImplementedError("Method must be redefined in child classes")
