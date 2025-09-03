@@ -472,13 +472,11 @@ def on_message_cmd(mqttc, obj, msg):
          for payload in processing_result:
             ws_server.send_command( payload.get("url"))
 
-   send_status(mqttc,DevicesDB.do_mqtt_json_states_list([id]))
-
-#   logger.info(DevicesDB.mqtt_json_states_list)
-
 def on_message_stat(mqttc, obj, msg):
    try:
       data=json.loads(msg.payload).get('devices',[])
+      if (len(data) == 1) and data[0] == "": # Это какой-то непонятный приход от сбера - пустой идентификатор сущности.
+         data = [] 
    except:
       data=[]
    logger.info("GetStatus: "  +  str(msg.payload))
@@ -494,15 +492,7 @@ def on_message_conf(mqttc, obj, msg):
    DevicesDB.waitReady()
    logger.info("Config: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
    device_list = DevicesDB.do_mqtt_json_devices_list()
-   infot = mqttc.publish(sber_root_topic+'/up/config', device_list, qos=0)
-   if (not infot.is_published()):
-      print(infot)
-
-   status_data = DevicesDB.do_mqtt_json_states_list([])
-   if status_data is not None and len(status_data) > 0:
-      infot = mqttc.publish(sber_root_topic+'/up/status', status_data, qos=0)
-      if (not infot.is_published()):
-         print(infot)
+   mqttc.publish(sber_root_topic+'/up/config', device_list, qos=0)
 
 #!!!!!!!
 

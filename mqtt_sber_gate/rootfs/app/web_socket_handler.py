@@ -30,13 +30,12 @@ class WebSocketHandler:
         self.ws_url = ha_api_url.replace('http', 'ws', 1) + '/api/websocket'
         self.devices_db = devices_db
         self.devices_converter = devices_converter
-        # self.options = options
 
         self.sber_api_endpoint = options['sber-http_api_endpoint']
         self.ha_api_token = options['ha-api_token']
-        self.sber_user = options["sber-mqtt_login"],
-        self.sber_pass = options["sber-mqtt_password"],
-        self.sber_broker = options["sber-mqtt_broker"],
+        self.sber_user = options["sber-mqtt_login"]
+        self.sber_pass = options["sber-mqtt_password"]
+        self.sber_broker = options["sber-mqtt_broker"]
         self.sber_root_topic='sberdevices/v1/'+options['sber-mqtt_login']
 
         self.mqttc = mqttc
@@ -68,21 +67,42 @@ class WebSocketHandler:
         """Handle WebSocket close event"""
         logger.info(f"WebSocket: Connection closed ({close_status_code}: {close_msg})")
 
+    def _process_event(self, entity_id, old_state, new_state):
+        if entity_id is None or new_state is None:
+            logger.info(f"Either entity_id or new_state is None. entity_id: {entity_id}, new_state: {new_state}. Skipping.")
+            return
+        
+        entity = self.devices_db.entitiesStore.get(entity_id)
+        if entity:
+            entity.process_state_change(old_state, new_state)
+            logger.info(f"Device database is ready. Publishing device {entity_id}")
+            sber_root_topic = self.sber_root_topic 
+            assert self.mqttc is not None, "MQTT client is not initialized"
+            self.mqttc.publish(sber_root_topic+'/up/status', self.devices_db.do_mqtt_json_states_list([entity_id]), qos=0)
+        else:
+            logger.debug(f"Process event: entity {entity_id} not found")
+
     def on_message(self, ws, message):
         """Handle incoming WebSocket messages"""
-        # logger.debug(f"WebSocket: Received message: {message}")
         try:
-            # logger.debug(f"WebSocket: Received message (ws_received_message.json) '{message[0:150]}...'")
-            mdata = json.loads(message)
-            if "id" not in mdata.keys():
-                if "event" in mdata.keys():
-                    logger.debug(f"WebSocket: Received message {mdata['event']['event_type']} for {mdata['data']['entity_id']}")
-                else:
-                    logger.debug(f"WebSocket: Received message type: {mdata['type']}")
-                    json_write("ws_received_message.json", message)
+            message_data = json.loads(message)
+            if "event" in message_data:
+                logger.debug(f"WebSocket: Received message {message_data['event']['event_type']} for {message_data['event']['data']['entity_id']}")
+                event_data = message_data["event"]
+                event_type = event_data["event_type"]
+                if event_type == "state_changed":
+                    data = event_data["data"]
+                    entity_id = data["entity_id"]
+                    old_state = data["old_state"]
+                    new_state = data["new_state"]
+                    self._process_event(entity_id, old_state, new_state)
 
-            handler = self.handler_map.get(mdata.get('type', 'None'), self.handle_default)
-            handler(mdata)
+            else:
+                logger.debug(f"WebSocket: Received message type: {message_data['type']}")
+                json_write("ws_received_message.json", message)
+
+            handler = self.handler_map.get(message_data.get('type', 'None'), self.handle_default)
+            handler(message_data)
         except Exception as e:
             logger.error(f"Error processing WebSocket message: {e}")
 
@@ -135,7 +155,7 @@ class WebSocketHandler:
             entities = data.get('result', [])
             for entity in entities:
                 if not entity.get('entity_id', "").startswith('light'):
-                    logger.info(f"WebSocket: Пропускаю сущность {entity['entity_id']}")
+#                    logger.info(f"WebSocket: Пропускаю сущность {entity['entity_id']}")
                     continue
 
                 entity_id = entity['entity_id']
