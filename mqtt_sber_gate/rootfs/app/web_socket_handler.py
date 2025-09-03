@@ -30,13 +30,12 @@ class WebSocketHandler:
         self.ws_url = ha_api_url.replace('http', 'ws', 1) + '/api/websocket'
         self.devices_db = devices_db
         self.devices_converter = devices_converter
-        # self.options = options
 
         self.sber_api_endpoint = options['sber-http_api_endpoint']
         self.ha_api_token = options['ha-api_token']
-        self.sber_user = options["sber-mqtt_login"],
-        self.sber_pass = options["sber-mqtt_password"],
-        self.sber_broker = options["sber-mqtt_broker"],
+        self.sber_user = options["sber-mqtt_login"]
+        self.sber_pass = options["sber-mqtt_password"]
+        self.sber_broker = options["sber-mqtt_broker"]
         self.sber_root_topic='sberdevices/v1/'+options['sber-mqtt_login']
 
         self.mqttc = mqttc
@@ -68,7 +67,7 @@ class WebSocketHandler:
         """Handle WebSocket close event"""
         logger.info(f"WebSocket: Connection closed ({close_status_code}: {close_msg})")
 
-    def __process_event(self, entity_id, old_state, new_state):
+    def _process_event(self, entity_id, old_state, new_state):
         entity = self.devices_db.entitiesStore.get(entity_id)
         if entity:
             entity.process_state_change(old_state, new_state)
@@ -81,24 +80,24 @@ class WebSocketHandler:
     def on_message(self, ws, message):
         """Handle incoming WebSocket messages"""
         try:
-            mdata = json.loads(message)
-            if "event" in mdata.keys():
-                logger.debug(f"WebSocket: Received message {mdata['event']['event_type']} for {mdata['event']['data']['entity_id']}")
-                event_data = mdata["event"]
+            message_data = json.loads(message)
+            if "event" in message_data.keys():
+                logger.debug(f"WebSocket: Received message {message_data['event']['event_type']} for {message_data['event']['data']['entity_id']}")
+                event_data = message_data["event"]
                 event_type = event_data["event_type"]
                 if event_type == "state_changed":
                     data = event_data["data"]
                     entity_id = data["entity_id"]
                     old_state = data["old_state"]
                     new_state = data["new_state"]
-                    self.__process_event(entity_id, old_state, new_state)
+                    self._process_event(entity_id, old_state, new_state)
 
             else:
-                logger.debug(f"WebSocket: Received message type: {mdata['type']}")
+                logger.debug(f"WebSocket: Received message type: {message_data['type']}")
                 json_write("ws_received_message.json", message)
 
-            handler = self.handler_map.get(mdata.get('type', 'None'), self.handle_default)
-            handler(mdata)
+            handler = self.handler_map.get(message_data.get('type', 'None'), self.handle_default)
+            handler(message_data)
         except Exception as e:
             logger.error(f"Error processing WebSocket message: {e}")
 

@@ -52,6 +52,9 @@ class EntitiesStore:
         self.logger = logger
 
     def get_keys(self):
+        """
+        Возвращает набор идентификаторов сущностей, зарегистрированных в данном хранилище
+        """
         return self._device_data_store.keys()
 
     def upsert_device_data(self, data: DeviceData):
@@ -127,7 +130,6 @@ class CDevicesDB:
     lock: Lock = Lock()
     _dbReadyEvent = threading.Event()
     _db_is_ready = False
-    _counter = 0
     
     def __init__(self, fDB, logger, version):
         self.fDB = fDB
@@ -384,8 +386,7 @@ class CDevicesDB:
         if (len(DStat['devices']) == 0):
             DStat['devices']={"root": {"states": [{"key": "online", "value": {"type": "BOOL", "bool_value": True}}]}}
         self.mqtt_json_states_list=json.dumps(DStat)
-        self._counter += 1
-        json_write("new_states_list_"+str(self._counter)+".json", self.mqtt_json_states_list)
+        json_write("new_states_list.json", self.mqtt_json_states_list)
         self.logger.debug("Отправка состояний в Sber 'new_states_list.json'")
         return self.mqtt_json_states_list
 
