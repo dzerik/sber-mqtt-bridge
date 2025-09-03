@@ -25,7 +25,7 @@ class LightEntity(BaseEntity):
 
     def __init__(self, ha_entity_data: dict):
         super().__init__(LIGHT_ENTITY_CATEGORY, ha_entity_data)
-        current_state = ha_entity_data.get("state", "off") == "on"
+        self.current_state = ha_entity_data.get("state", "off") == "on"
 
     def fill_by_ha_state(self, ha_state):
         super().fill_by_ha_state(ha_state)
@@ -81,7 +81,8 @@ class LightEntity(BaseEntity):
             "brightness": self.current_brightness,
         }
 
-        return res | {"attributes": attrs}
+        res.update({"attributes": attrs})
+        return res
 
     def create_features_list(self):
         """Формирует список возможных функций"""
@@ -215,11 +216,12 @@ class LightEntity(BaseEntity):
                 })
 
             if cmd_key == "light_color":
+                color = cmd_value.get("light_color", "")
                 processing_result.append({
                     "url": {
                         "type": "call_service",
                         "domain": "light",
-                        "set_color": cmd_data["light_color"],
+                        "set_color": color,
                         "target": {
                             "entity_id": self.entity_id
                         }
