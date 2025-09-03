@@ -101,7 +101,7 @@ class LightEntity(BaseEntity):
     def create_allowed_values_list(self):
         """Формирует список допустимых значений"""
         allowed_values = {}
-# Тут надо понять, почему не принимает такие ограничения
+
         if "xy" in self.supported_color_modes:
             allowed_values["light_brightness"] = {
                 "type": "INTEGER",
