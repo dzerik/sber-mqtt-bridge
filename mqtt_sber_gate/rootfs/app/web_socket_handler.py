@@ -57,6 +57,8 @@ class WebSocketHandler:
             'None': self.handle_default
         }
 
+        self.dont_log_messages_for = ["sensor.archer_ax58", "sensor.datchik_kachestva_vozdukha", "sensor.yandex_pogoda"]
+
 
     def on_open(self, ws):
         """Handle WebSocket open event"""
@@ -87,7 +89,10 @@ class WebSocketHandler:
         try:
             message_data = json.loads(message)
             if "event" in message_data:
-                logger.debug(f"WebSocket: Received message {message_data['event']['event_type']} for {message_data['event']['data']['entity_id']}")
+                for dont_log in self.dont_log_messages_for:
+                    if message_data['event']['data']['entity_id'].startswith(dont_log):
+                        return
+                
                 event_data = message_data["event"]
                 event_type = event_data["event_type"]
                 if event_type == "state_changed":
@@ -95,8 +100,10 @@ class WebSocketHandler:
                     entity_id = data["entity_id"]
                     old_state = data["old_state"]
                     new_state = data["new_state"]
+                    logger.debug(f"WebSocket: Received message {event_type} for {entity_id}: {new_state}")
                     self._process_event(entity_id, old_state, new_state)
-
+                else:
+                    logger.debug(f"Unknown event type is got: {event_type}")
             else:
                 logger.debug(f"WebSocket: Received message type: {message_data['type']}")
                 json_write("ws_received_message.json", message)

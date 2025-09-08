@@ -1,4 +1,5 @@
 # devices/light.py
+import logging
 from .base_entity import BaseEntity
 
 # supported_features sber
@@ -10,6 +11,7 @@ from .base_entity import BaseEntity
 # online	✔︎	Доступность устройства: офлайн или онлайн
 
 LIGHT_ENTITY_CATEGORY = "light"
+logger = logging.getLogger(__name__)
 
 class LightEntity(BaseEntity):
     supported_features: int = 0
@@ -40,32 +42,9 @@ class LightEntity(BaseEntity):
         self.max_mireds = ha_state["attributes"].get("max_mireds", 500)
         self.min_mireds = ha_state["attributes"].get("min_mireds", 153)
 
-    def _convert_color(self, attrs):
-        """Конвертирует цвет из формата HA в HEX (Sber).
-        
-        Приоритет:
-        1. 'color' — если указан, используется напрямую.
-        2. 'rgb_color' — преобразуется в HEX.
-        3. 'hs_color' — преобразуется в RGB, затем в HEX.
-        """
-        if "color" in attrs:
-            color = attrs["color"]
-            if isinstance(color, str) and color.startswith("#") and len(color) == 7:
-                return color.lower()  # Убедимся, что HEX в нижнем регистре
-            # Если 'color' указан, но в неверном формате — игнорируем
-            return None
-
-        if "rgb_color" in attrs:
-            r, g, b = attrs["rgb_color"]
-            return f"#{r:02x}{g:02x}{b:02x}"
-
-        if "hs_color" in attrs:
-            h, s = attrs["hs_color"]
-            import colorsys
-            r, g, b = [int(c * 255) for c in colorsys.hsv_to_rgb(h / 360, s / 100, 1)]
-            return f"#{r:02x}{g:02x}{b:02x}"
-
-        return None
+        self.hs_color = ha_state["attributes"].get("hs_color", None)    # [26.767, 32.827]
+        self.rgb_color = ha_state["attributes"].get("rgb_color", None)  # [255, 209, 171]
+        self.xy_color = ha_state["attributes"].get("xy_color", None)    # [0.413, 0.364]
 
     def get_device_category(self):
         return self.category
@@ -91,7 +70,7 @@ class LightEntity(BaseEntity):
         if "xy" in self.supported_color_modes:
             features += [
                 "light_colour", 
-                #"light_mode", 
+                "light_mode", 
                 "light_brightness"]
         if "color_temp" in self.supported_color_modes:
             features += ["light_colour_temp"]
@@ -107,9 +86,19 @@ class LightEntity(BaseEntity):
                 "type": "INTEGER",
                 "integer_values": {"min": 50, "max": 255}
             }
-        #     # allowed_values["light_colour"] = {
-        #     #     "type": "COLOUR",
-        #     # }
+            allowed_values["light_colour"] = {
+                "type": "COLOUR",
+            }
+            allowed_values["light_mode"] = {
+                "type": "ENUM",
+                "enum_values": {
+                    "values": [
+                        "white",
+                        "colour"
+                    ]
+                }
+            }
+
         if "color_temp" in self.supported_color_modes:
             allowed_values["light_colour_temp"] = {
                 "type": "INTEGER",
@@ -142,17 +131,8 @@ class LightEntity(BaseEntity):
                     "type": "BOOL",
                     "bool_value": self.current_state
                 }
-            }
-        ]
+            }]
 
-        if (self.current_color_temp != 0):
-            states.append({
-                "key": "colour_temperature",
-                "value": {
-                    "type": "INTEGER",
-                    "integer_value": self.current_color_temp
-                }
-            })
 
         if (self.current_brightness != 0):
             states.append({
@@ -163,6 +143,40 @@ class LightEntity(BaseEntity):
                 }
             })
 
+        if self.current_state: # on/off == on
+            if self.current_color_mode is None or self.current_color_mode == "xy":
+                current_color_sber = self.ha_to_sber_hsv(self.hs_color[0], self.hs_color[1], self.current_brightness)
+                states.append({
+                    "key": "light_colour",
+                    "value": {
+                        "type": "COLOUR",
+                        "colour_value": { "h": current_color_sber[0], "s": current_color_sber[1], "v": current_color_sber[2] }
+                        # "light_color": self.current_color
+                    }}
+                )
+                states.append({
+                    "key": "light_mode",
+                    "value": {
+                        "type": "ENUM",
+                        "enum_value": "colour"
+                    }
+                })
+            else:   # mode == color_temp
+                states.append({
+                    "key": "colour_temperature",
+                    "value": {
+                        "type": "INTEGER",
+                        "integer_value": self.current_color_temp
+                    }
+                })
+                states.append({
+                    "key": "light_mode",
+                    "value": {
+                        "type": "ENUM",
+                        "enum_value": "color_temp"
+                    }
+                })
+
         return {
             self.entity_id: {
                 "states": states
@@ -171,8 +185,8 @@ class LightEntity(BaseEntity):
 
     # --- Методы ---
     def process_cmd(self, cmd_data):
-        """Обрабатывает команду от Sber или HA"""
-        #{'states': [{'key': 'on_off', 'value': {'type': 'BOOL', 'bool_value': True}}]}}}
+        """Обрабатывает команду от Sber на HA"""
+
         processing_result = []
 
         if cmd_data is None:
@@ -200,14 +214,42 @@ class LightEntity(BaseEntity):
                 })
 
             if cmd_key == "light_brightness":
-                brightness = max(50, min(int(cmd_value.get("integer_value", 50)), 255))
+                # Changes in [50, 1000]
+                sber_br_value = int(cmd_value.get("integer_value", 50))
+                # Changes in [0, 255]
+                ha_br_value = sber_br_value*255/1000
+
+                brightness = max(50, min(int(ha_br_value), 255))
                 processing_result.append({
                     "url": {
                         "type": "call_service",
                         "domain": "light",
                         "service": "turn_on",
-                        "service_data": {
-                            "brightness": brightness,
+                        "service_data": { "brightness": brightness,},
+                        "target": {
+                            "entity_id": self.entity_id
+                        }
+                    }
+                })
+
+            if cmd_key == "light_colour":
+                hsv_color = cmd_value.get("colour_value", None)
+                if hsv_color is not None:
+                    color = self.sber_to_ha_hsv(
+                        hsv_color.get("h", 0), 
+                        hsv_color.get("s", 0), 
+                        hsv_color.get("v", 0))
+                else:
+                    color = self.ha_to_sber_hsv(0, 0, 0)
+
+                processing_result.append({
+                    "url": {
+                        "type": "call_service",
+                        "domain": "light",
+                        "service": "turn_on",
+                        "service_data": { 
+                            "hs_color": [color[0], color[1]],
+                            "brightness": color[2],
                         },
                         "target": {
                             "entity_id": self.entity_id
@@ -215,39 +257,81 @@ class LightEntity(BaseEntity):
                     }
                 })
 
-            if cmd_key == "light_color":
-                color = cmd_value.get("light_color", "")
+# Sber MQTT Command: {'devices': {'light.spoty_lev_sp': {'states': [{'key': 'light_mode', 'value': {'type': 'ENUM', 'enum_value': 'colour'}}, {'key': 'light_colour', 'value': {'type': 'COLOUR', 'colour_value': {'v': 100}}}]}}}
+# Тут пока странно. Похоже, в HA нет команды прямого перехода в режим color_temp. Видимо, надо работать через локальное состояние или по содержимому color_temp и цветов.
+            if cmd_key == "light_mode": 
+                mode_value = cmd_value.get("enum_value", None)
+                logger.info("Setting color mode to %s", mode_value)
                 processing_result.append({
                     "url": {
                         "type": "call_service",
                         "domain": "light",
-                        "set_color": color,
+                        "service": "turn_on",
+                        "service_data": { 'white' : True },
+#                        "service_data": { "color_mode": "xy" if mode_value == "colour" else "color_temp", },
                         "target": {
                             "entity_id": self.entity_id
                         }
                     }
                 })
 
-            if cmd_key == "color_temperature":
-                self.logger.info("Setting color temperature - fake")
-            # if "color_temperature" in cmd_data:
+            # if cmd_key == "color_temperature":
+            #     self.logger.info("Setting color temperature mode")
             #     processing_result.append({
-            #         "url": "/api/services/light/turn_on",
-            #         "data": {
-            #             "entity_id": self.entity_id,
-            #             "color_temp": cmd_data["color_temperature"]
+            #         "url": {
+            #             "type": "call_service",
+            #             "domain": "light",
+            #             "service": "turn_on",
+            #             "service_data": { "color_mode": "color_temp" if mode_value == "colour" else "color_temp", },
+            #             "target": {
+            #                 "entity_id": self.entity_id
+            #             }
             #         }
             #     })
 
+        logger.debug(f"Command: {cmd_key}, processing res: {processing_result}")
         return processing_result
-
-    def _hex_to_rgb(self, hex_color: str):
-        """Конвертирует HEX в RGB (для HA)"""
-        hex_color = hex_color.lstrip("#")
-        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
     def process_state_change(self, old_state, new_state):
         self.fill_by_ha_state(new_state)
                 
+    def ha_to_sber_hsv(self, ha_hue, ha_saturation, ha_brightness):
+        """
+        Конвертирует цвет из HA (HS/RGB) в HSV для Sber:
+        - H: 0–360 → 0–360
+        - S: 0–100% → 0–1000
+        - V: 0–255 → 100–1000
+        """
+        # Нормализация значений HA
+        ha_hue = max(0, min(360, ha_hue))         # H: 0–360
+        ha_saturation = max(0, min(100, ha_saturation))  # S: 0–100%
+        ha_brightness = max(0, min(255, ha_brightness))  # V: 0–255
+
+        # Конвертация в Sber HSV
+        sber_hue = ha_hue
+        sber_saturation = ha_saturation * 10      # 0–100% → 0–1000
+        sber_value = (ha_brightness / 255) * 900 + 100  # 0–255 → 100–1000
+
+        return int(sber_hue), int(sber_saturation), int(sber_value)
+
+
+    def sber_to_ha_hsv(self, sber_hue, sber_saturation, sber_value):
+        """
+        Конвертирует HSV от Sber (0–360, 0–1000, 100–1000) в HA (HS/RGB):
+        - H: 0–360 → 0–360
+        - S: 0–1000 → 0–100%
+        - V: 100–1000 → 0–255
+        """
+        # Нормализация значений Sber
+        sber_hue = max(0, min(360, sber_hue))          # H: 0–360
+        sber_saturation = max(0, min(1000, sber_saturation))  # S: 0–1000
+        sber_value = max(100, min(1000, sber_value))     # V: 100–1000
+
+        # Конвертация в HA HSV
+        ha_hue = sber_hue
+        ha_saturation = sber_saturation / 10       # 0–1000 → 0–100%
+        ha_brightness = ((sber_value - 100) / 900) * 255  # 100–1000 → 0–255
+
+        return int(ha_hue), int(ha_saturation), int(ha_brightness)
 
 
