@@ -173,7 +173,7 @@ class LightEntity(BaseEntity):
                     "key": "light_mode",
                     "value": {
                         "type": "ENUM",
-                        "enum_value": "color_temp"
+                        "enum_value": "white"
                     }
                 })
 
@@ -214,10 +214,10 @@ class LightEntity(BaseEntity):
                 })
 
             if cmd_key == "light_brightness":
-                # Changes in [50, 1000]
+                # Changes in [50, 1000], реально, похоже, что 255
                 sber_br_value = int(cmd_value.get("integer_value", 50))
                 # Changes in [0, 255]
-                ha_br_value = sber_br_value*255/1000
+                ha_br_value = sber_br_value
 
                 brightness = max(50, min(int(ha_br_value), 255))
                 processing_result.append({
@@ -259,35 +259,28 @@ class LightEntity(BaseEntity):
 
 # Sber MQTT Command: {'devices': {'light.spoty_lev_sp': {'states': [{'key': 'light_mode', 'value': {'type': 'ENUM', 'enum_value': 'colour'}}, {'key': 'light_colour', 'value': {'type': 'COLOUR', 'colour_value': {'v': 100}}}]}}}
 # Тут пока странно. Похоже, в HA нет команды прямого перехода в режим color_temp. Видимо, надо работать через локальное состояние или по содержимому color_temp и цветов.
+# После ряда исследований оказалось, что в ha вообще нет заморочки за режим - прислали ему color_temp - он установит температуру, прислали цвет - выставит цвет.
+# Возможно нам нужно отслеживать этот режим у нас внутри. И в зависимости от этого режима уже выставлять температуру или цвет на ha.
             if cmd_key == "light_mode": 
                 mode_value = cmd_value.get("enum_value", None)
-                logger.info("Setting color mode to %s", mode_value)
+                self.current_color_mode = "xy" if mode_value == "colour" else "white"
+                processing_result.append({"update_state": True})
+
+            if cmd_key == "light_colour_temp":
+                sber_color_temp = int(cmd_value.get("integer_value", 0)) #[0, 1000]
+                ha_color_temp = (1000 - sber_color_temp)*(self.max_mireds - self.min_mireds)/1000 + self.min_mireds
+
                 processing_result.append({
                     "url": {
                         "type": "call_service",
                         "domain": "light",
                         "service": "turn_on",
-                        "service_data": { 'white' : True },
-#                        "service_data": { "color_mode": "xy" if mode_value == "colour" else "color_temp", },
+                        "service_data": { "color_temp": ha_color_temp, },
                         "target": {
                             "entity_id": self.entity_id
                         }
                     }
                 })
-
-            # if cmd_key == "color_temperature":
-            #     self.logger.info("Setting color temperature mode")
-            #     processing_result.append({
-            #         "url": {
-            #             "type": "call_service",
-            #             "domain": "light",
-            #             "service": "turn_on",
-            #             "service_data": { "color_mode": "color_temp" if mode_value == "colour" else "color_temp", },
-            #             "target": {
-            #                 "entity_id": self.entity_id
-            #             }
-            #         }
-            #     })
 
         logger.debug(f"Command: {cmd_key}, processing res: {processing_result}")
         return processing_result
