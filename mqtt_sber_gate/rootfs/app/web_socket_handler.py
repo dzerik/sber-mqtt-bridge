@@ -131,6 +131,7 @@ class WebSocketHandler:
             self.command_counter = 6
 
     def send_command(self, command):
+        logger.debug(f"WebSocket: sending command [{self.command_counter}]: {command}")
         with self.command_lock:
             command["id"] = self.command_counter
             self.command_counter += 1
