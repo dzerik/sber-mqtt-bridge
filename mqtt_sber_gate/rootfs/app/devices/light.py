@@ -134,6 +134,11 @@ class LightEntity(BaseEntity):
         return res
 
     def to_sber_current_state(self):
+        """
+        Метод выполняет трансляцию текущего состояния светового прибора, записанное в данном объекте в состояние sber.
+        Состояние sber содержит массив пар "Ключ" - "Значение", которые описывают ряд параметров прибора.
+        Часть параметров доступны не всегда.
+        """
         states = [            {
                 "key": "on_off",
                 "value": {
@@ -170,8 +175,7 @@ class LightEntity(BaseEntity):
                         "enum_value": "colour"
                     }
                 })
-            else:   # mode == color_temp
-                #                 ha_color_temp = (1000 - sber_color_temp)*(self.max_mireds - self.min_mireds)/1000 + self.min_mireds
+            else:
                 if self.current_color_temp is not None:
                     states.append({
                         "key": "colour_temperature",
@@ -196,7 +200,12 @@ class LightEntity(BaseEntity):
 
     # --- Методы ---
     def process_cmd(self, cmd_data):
-        """Обрабатывает команду от Sber на HA"""
+        """Обрабатывает команду от Sber на HA
+        Команда поступает как набор пар "Ключ" - "Значение", которые описывают параметры, которые sber хочет выставить в HA.
+        Один из параметров (light_mode) напрямую в HA не выставляется, а выставляется только локально. И относительно него дальше идет передача состояния обратно в sber.
+        На выходе метода получаем массив словарей, которые или описывают команду для HA, или запрашивают обновление состояния sber для текущего устройства. Если словарь имеет ключ url, он отправляется в виде json-объекта
+        на HA, если update_state, то на сбер просто передается измененное состояние объекта.
+        """
 
         processing_result = []
 
@@ -279,6 +288,8 @@ class LightEntity(BaseEntity):
 
             if cmd_key == "light_colour_temp":
                 sber_color_temp = int(cmd_value.get("integer_value", 0)) #[0, 1000]
+                if sber_color_temp is None:
+                    sber_color_temp = 0
                 ha_color_temp = (1000 - sber_color_temp)*(self.max_mireds - self.min_mireds)/1000 + self.min_mireds
 
                 processing_result.append({
