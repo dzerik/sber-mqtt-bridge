@@ -31,16 +31,25 @@ class LightEntity(BaseEntity):
 
     def fill_by_ha_state(self, ha_state):
         super().fill_by_ha_state(ha_state)
+
+        self.max_mireds = ha_state["attributes"].get("max_mireds", 500)
+        self.min_mireds = ha_state["attributes"].get("min_mireds", 153)
+
         self.current_state = ha_state.get("state", "off") == "on"
         self.current_brightness = ha_state["attributes"].get("brightness", 0)
-        self.current_color_temp = ha_state["attributes"].get("color_temp", 0)
+
+        ha_color_temp = ha_state["attributes"].get("color_temp", 0)
+        if ha_color_temp is not None:
+            sber_color_temp = (ha_color_temp - self.min_mireds)*1000/(self.max_mireds - self.min_mireds)
+            self.current_color_temp = int(sber_color_temp)
+        else:
+            self.current_color_temp = None
+
         self.current_color_mode = ha_state["attributes"].get("color_mode", None)
         self.supported_features = ha_state["attributes"].get("supported_features", 0)
         self.supported_color_modes = ha_state["attributes"].get("supported_color_modes", [])
 
         # Дополнительные параметры
-        self.max_mireds = ha_state["attributes"].get("max_mireds", 500)
-        self.min_mireds = ha_state["attributes"].get("min_mireds", 153)
 
         self.hs_color = ha_state["attributes"].get("hs_color", None)    # [26.767, 32.827]
         self.rgb_color = ha_state["attributes"].get("rgb_color", None)  # [255, 209, 171]
@@ -162,13 +171,15 @@ class LightEntity(BaseEntity):
                     }
                 })
             else:   # mode == color_temp
-                states.append({
-                    "key": "colour_temperature",
-                    "value": {
-                        "type": "INTEGER",
-                        "integer_value": self.current_color_temp
-                    }
-                })
+                #                 ha_color_temp = (1000 - sber_color_temp)*(self.max_mireds - self.min_mireds)/1000 + self.min_mireds
+                if self.current_color_temp is not None:
+                    states.append({
+                        "key": "colour_temperature",
+                        "value": {
+                            "type": "INTEGER",
+                            "integer_value": self.current_color_temp
+                        }
+                    })
                 states.append({
                     "key": "light_mode",
                     "value": {
@@ -196,7 +207,7 @@ class LightEntity(BaseEntity):
             cmd_key = data_item.get("key", "")
             cmd_value = data_item.get("value", {})
 
-            if (cmd_key == "on_off") and (cmd_value["type"] == "BOOL"):
+            if cmd_key == "on_off" and cmd_value.get("type", "") == "BOOL":
                 new_state = cmd_value.get("bool_value", False)
                 if self.current_state == new_state:
                     continue
@@ -236,9 +247,9 @@ class LightEntity(BaseEntity):
                 hsv_color = cmd_value.get("colour_value", None)
                 if hsv_color is not None:
                     color = self.sber_to_ha_hsv(
-                        hsv_color.get("h", 0), 
-                        hsv_color.get("s", 0), 
-                        hsv_color.get("v", 0))
+                        min(hsv_color.get("h", 0), 255), 
+                        min(hsv_color.get("s", 0), 255), 
+                        min(hsv_color.get("v", 0), 255))
                 else:
                     color = self.ha_to_sber_hsv(0, 0, 0)
 
