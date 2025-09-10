@@ -415,6 +415,7 @@ def on_message(mqttc, obj, msg):
     if msg.topic.endswith('/down/change_group_device_request'):
       data=json.loads(msg.payload)
       DevicesDB.entitiesStore.redefine_placement(data.get("device_id"), data.get("home"), data.get("room"))
+      DevicesDB.entitiesStore.save()
       # send changed data to sber.
       payload = DevicesDB.do_mqtt_json_devices_list()
       if payload is not None and len(payload) > 0:
