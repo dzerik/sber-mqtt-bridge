@@ -53,10 +53,7 @@ class LightEntity(BaseEntity):
 
         self.current_state = ha_state.get("state", "off") == "on"
         ha_brightness = ha_state["attributes"].get("brightness", 0)
-        if ha_brightness is None:
-            ha_brightness = 0
-        else:
-            ha_brightness = int(ha_brightness)
+        ha_brightness = int(ha_brightness) if ha_brightness is not None else 0
 
         self.current_sber_brightness = self.brightness_converter.ha_to_sber(ha_brightness)
 
@@ -167,7 +164,7 @@ class LightEntity(BaseEntity):
             })
 
         if self.current_state: # on/off == on
-            if self.hs_color is not None and len(self.hs_color) >= 2:
+            if isinstance(self.hs_color, list) and len(self.hs_color) >= 2:
                 current_color_sber = ColorConverter.ha_to_sber_hsv(self.hs_color[0], self.hs_color[1], self.current_sber_brightness)
                 states.append({
                     "key": "light_colour",
