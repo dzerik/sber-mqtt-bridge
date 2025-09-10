@@ -4,10 +4,15 @@ class LinearConverter:
     ha_side_min: int = 0
     ha_side_max: int = 255
 
+    is_reversed: bool = False # Нужна ли инверсия интервала sber относительно интервала ha
+
     @classmethod
     def create(cls):
         return LinearConverter()
-    
+
+    def set_reversed(self, is_reversed):
+        self.is_reversed = is_reversed
+   
     def set_sber_limits(self, sber_side_min, sber_side_max):
         if sber_side_min < sber_side_max:
             self.sber_side_min = sber_side_min
@@ -28,7 +33,8 @@ class LinearConverter:
         elif sber_value > self.sber_side_max:
             return self.ha_side_max
         else:
-            return int((sber_value - self.sber_side_min) * (self.ha_side_max - self.ha_side_min) / (self.sber_side_max - self.sber_side_min) + self.ha_side_min)
+            sber_delta = (sber_value - self.sber_side_min) if not self.is_reversed else (self.sber_side_max - sber_value)
+            return round(sber_delta * (self.ha_side_max - self.ha_side_min) / (self.sber_side_max - self.sber_side_min) + self.ha_side_min)
         
     def ha_to_sber(self, ha_value):
         if ha_value < self.ha_side_min:
@@ -36,4 +42,5 @@ class LinearConverter:
         elif ha_value > self.ha_side_max:
             return self.sber_side_max
         else:
-            return int((ha_value - self.ha_side_min) * (self.sber_side_max - self.sber_side_min) / (self.ha_side_max - self.ha_side_min) + self.sber_side_min)
+            ha_delta = (ha_value - self.ha_side_min) if not self.is_reversed else (self.ha_side_max - ha_value)
+            return round(ha_delta * (self.sber_side_max - self.sber_side_min) / (self.ha_side_max - self.ha_side_min) + self.sber_side_min)
