@@ -36,11 +36,16 @@ class LightEntity(BaseEntity):
         self.min_mireds = ha_state["attributes"].get("min_mireds", 153)
 
         self.current_state = ha_state.get("state", "off") == "on"
-        self.current_brightness = ha_state["attributes"].get("brightness", 0)
+        ha_brightness = ha_state["attributes"].get("brightness", 0)
+        if ha_brightness is None:
+            ha_brightness = 0
+
+        self.current_brightness = int(ha_brightness/255*1000)
 
         ha_color_temp = ha_state["attributes"].get("color_temp", 0)
         if ha_color_temp is not None:
-            sber_color_temp = (ha_color_temp - self.min_mireds)*1000/(self.max_mireds - self.min_mireds)
+            # sber_color_temp = (ha_color_temp - self.min_mireds)*1000/(self.max_mireds - self.min_mireds)
+            sber_color_temp = self.max_mireds - ha_color_temp
             self.current_color_temp = int(sber_color_temp)
         else:
             self.current_color_temp = None
@@ -93,7 +98,7 @@ class LightEntity(BaseEntity):
         if "xy" in self.supported_color_modes:
             allowed_values["light_brightness"] = {
                 "type": "INTEGER",
-                "integer_values": {"min": 50, "max": 255}
+                "integer_values": {"min": 50, "max": 1000}
             }
             allowed_values["light_colour"] = {
                 "type": "COLOUR",
@@ -256,9 +261,9 @@ class LightEntity(BaseEntity):
                 hsv_color = cmd_value.get("colour_value", None)
                 if hsv_color is not None:
                     color = self.sber_to_ha_hsv(
-                        min(hsv_color.get("h", 0), 255), 
-                        min(hsv_color.get("s", 0), 255), 
-                        min(hsv_color.get("v", 0), 255))
+                        min(hsv_color.get("h", 0), 360), 
+                        min(hsv_color.get("s", 0), 1000), 
+                        min(hsv_color.get("v", 0), 1000))
                 else:
                     color = self.ha_to_sber_hsv(0, 0, 0)
 
@@ -287,11 +292,15 @@ class LightEntity(BaseEntity):
                 processing_result.append({"update_state": True})
 
             if cmd_key == "light_colour_temp":
-                sber_color_temp = int(cmd_value.get("integer_value", 0)) #[0, 1000]
+                sber_color_temp = int(cmd_value.get("integer_value", 0))  #[0, 1000] - нет. У нас стоит явное ограничение и сбер его выдерживает. Масштабировать не нужно.
                 if sber_color_temp is None:
                     sber_color_temp = 0
-                ha_color_temp = (1000 - sber_color_temp)*(self.max_mireds - self.min_mireds)/1000 + self.min_mireds
+                # ha_color_temp = sber_color_temp*(self.max_mireds - self.min_mireds)/1000 + self.min_mireds #[153, 500]
+#                ha_color_temp = (1000 - sber_color_temp)*(self.max_mireds - self.min_mireds)/1000 + self.min_mireds #[153, 500]
+                ha_color_temp = self.max_mireds - sber_color_temp
 
+
+                # logger.debug(f"######.   sber_color_temp = {sber_color_temp}, ha_color_temp = {ha_color_temp}")
                 processing_result.append({
                     "url": {
                         "type": "call_service",
@@ -320,7 +329,7 @@ class LightEntity(BaseEntity):
         # Нормализация значений HA
         ha_hue = max(0, min(360, ha_hue))         # H: 0–360
         ha_saturation = max(0, min(100, ha_saturation))  # S: 0–100%
-        ha_brightness = max(0, min(255, ha_brightness))  # V: 0–255
+        ha_brightness = int(max(0, min(255, ha_brightness))/255*1000) # V: 0–255
 
         # Конвертация в Sber HSV
         sber_hue = ha_hue
