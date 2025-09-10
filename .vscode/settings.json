@@ -12,6 +12,7 @@
         "mqtt_sber_gate"
     ],
     "python.analysis.extraPaths": [
-        "./mqtt_sber_gate/rootfs/app"
+        "./mqtt_sber_gate/rootfs/app",
+        "./mqtt_sber_gate/tests/Utils/test_"
     ]
 }
