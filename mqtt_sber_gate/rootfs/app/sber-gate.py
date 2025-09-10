@@ -415,6 +415,7 @@ def on_message(mqttc, obj, msg):
     if msg.topic.endswith('/down/change_group_device_request'):
       data=json.loads(msg.payload)
       DevicesDB.entitiesStore.redefine_placement(data.get("device_id"), data.get("home"), data.get("room"))
+      DevicesDB.entitiesStore.save()
       # send changed data to sber.
       payload = DevicesDB.do_mqtt_json_devices_list()
       if payload is not None and len(payload) > 0:
@@ -470,7 +471,14 @@ def on_message_cmd(mqttc, obj, msg):
          logger.info("Изменяем состояние объекта: " + id)
          processing_result = entity.process_cmd(cmd_data)
          for payload in processing_result:
-            ws_server.send_command( payload.get("url"))
+            command_to_send = payload.get("url", None)
+            if command_to_send is not None:
+               ws_server.send_command(command_to_send)
+            update_state = payload.get("update_state", None)
+            if update_state is not None:
+               new_status = DevicesDB.do_mqtt_json_states_list([id])
+               logger.debug(f"Updating status by command request: {id} = {new_status}")
+               send_status(mqttc, new_status)
 
 def on_message_stat(mqttc, obj, msg):
    try:

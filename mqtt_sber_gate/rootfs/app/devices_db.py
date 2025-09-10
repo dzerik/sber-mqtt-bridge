@@ -35,7 +35,22 @@ class EntityPlacement_Sber:
         self.entity_id = entity_id
         self.home = home
         self.room = room
-        
+
+    def to_json(self):
+        return {
+            "id": self.entity_id,
+            "home": self.home,
+            "room": self.room
+        }
+    
+    @classmethod
+    def from_json(cls, json_data):
+        if "id" in json_data:
+            entity_id = json_data["id"]
+            home = json_data.get("home", None)
+            room = json_data.get("room", None)
+            return EntityPlacement_Sber(entity_id, home, room)
+        return None
 
 class EntitiesStore:
     _store: Dict[str, BaseEntity] = {}
@@ -92,28 +107,23 @@ class EntitiesStore:
         if entity is not None:
             entity.fill_by_ha_state(ha_state)
    
-    def save(self, f):
-        saving_objects = {}
-        for id, device in self._store.items():
-            saving_objects[id] = device.to_ha_state()
-        json_write("store_"+f, saving_objects)
-        json_write("store_placements.json", self._entity_placement_redirection)
+    def save(self):
+        redirections = {}
+        for (entity_id, entity) in self._entity_placement_redirection.items():
+            if entity is not None:
+                redirections[entity_id] = entity.to_json()
 
-    # def _restore_from_dict(self, data_dict):
-    #     """Восстанавливает состояние объекта из словаря"""
-    #     for key, value in data_dict.items():
-    #         if hasattr(self, key):
-    #             setattr(self, key, value)
-    #     return self
+        json_write("store_placements.json", redirections)
 
     def load(self, f):
-        loaded_objects = json_read("store_"+f, {})
-        for id, ha_state in loaded_objects.items():
-            device = self.create(ha_state)
-            if device is not None:
-                self.upsert(device)
-        
-        self._entity_placement_redirection = json_read("store_placements.json", {})
+        loaded_redirections = json_read("store_placements.json", {})
+        self._entity_placement_redirection = {}
+        for redirection in loaded_redirections:
+            if isinstance(redirection, dict):
+                entity_placement = EntityPlacement_Sber.from_json(redirection)
+                if entity_placement is not None:
+                    self._entity_placement_redirection[entity_placement.entity_id] = entity_placement
+
         
     def get_placment(self, entity_id: str, default_home: str, default_room: str) -> EntityPlacement_Sber:
         if entity_id in self._entity_placement_redirection:
