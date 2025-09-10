@@ -4,7 +4,7 @@ class LinearConverter:
     ha_side_min: int = 0
     ha_side_max: int = 255
 
-    is_reversed: bool = False
+    is_reversed: bool = False # Нужна ли инверсия интервала sber относительно интервала ha
 
     @classmethod
     def create(cls):
