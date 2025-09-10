@@ -1,5 +1,8 @@
 # devices/light.py
 import logging
+
+from devices.utils.color_converter import ColorConverter
+from devices.utils.linear_converter import LinearConverter
 from .base_entity import BaseEntity
 
 # supported_features sber
@@ -19,9 +22,14 @@ class LightEntity(BaseEntity):
     min_mireds: int = 153
     supported_color_modes: list[str] = []
     current_state: bool = False
-    current_brightness: int = 0
-    current_color_temp: int = 0
+    current_sber_brightness: int = 0
+    current_sber_color_temp: int = 0
     current_color_mode: str = None
+
+    brightness_converter: LinearConverter = LinearConverter()
+    color_temp_converter: LinearConverter = LinearConverter()
+    color_temp_converter.set_reversed(True)
+
     # current_color: list[int] = [0, 0, 0]
 
 
@@ -29,26 +37,34 @@ class LightEntity(BaseEntity):
         super().__init__(LIGHT_ENTITY_CATEGORY, ha_entity_data)
         self.current_state = ha_entity_data.get("state", "off") == "on"
 
+        self.brightness_converter.set_ha_limits(0, 255)
+        self.brightness_converter.set_sber_limits(50, 1000)
+
+        self.color_temp_converter.set_ha_limits(153, 500)
+        self.color_temp_converter.set_sber_limits(0, 1000)
+
     def fill_by_ha_state(self, ha_state):
         super().fill_by_ha_state(ha_state)
 
         self.max_mireds = ha_state["attributes"].get("max_mireds", 500)
         self.min_mireds = ha_state["attributes"].get("min_mireds", 153)
+        if self.max_mireds is not None and self.min_mireds is not None:
+            self.color_temp_converter.set_ha_limits(self.min_mireds, self.max_mireds)
 
         self.current_state = ha_state.get("state", "off") == "on"
         ha_brightness = ha_state["attributes"].get("brightness", 0)
         if ha_brightness is None:
             ha_brightness = 0
 
-        self.current_brightness = int(ha_brightness/255*1000)
+        self.current_sber_brightness = self.brightness_converter.ha_to_sber(ha_brightness)
 
         ha_color_temp = ha_state["attributes"].get("color_temp", 0)
         if ha_color_temp is not None:
-            # sber_color_temp = (ha_color_temp - self.min_mireds)*1000/(self.max_mireds - self.min_mireds)
-            sber_color_temp = self.max_mireds - ha_color_temp
-            self.current_color_temp = int(sber_color_temp)
+            # # sber_color_temp = (ha_color_temp - self.min_mireds)*1000/(self.max_mireds - self.min_mireds)
+            # sber_color_temp = self.max_mireds - ha_color_temp
+             self.current_sber_color_temp = self.color_temp_converter.ha_to_sber(ha_color_temp)
         else:
-            self.current_color_temp = None
+            self.current_sber_color_temp = None
 
         self.current_color_mode = ha_state["attributes"].get("color_mode", None)
         self.supported_features = ha_state["attributes"].get("supported_features", 0)
@@ -62,20 +78,6 @@ class LightEntity(BaseEntity):
 
     def get_device_category(self):
         return self.category
-
-    def to_ha_state(self):
-        """Формирует состояние для Home Assistant"""
-        res = super().to_ha_state()
-        attrs = {
-            "supported_features": self.supported_features,
-            "max_mireds": self.max_mireds,
-            "min_mireds": self.min_mireds,
-            "color_temp": self.current_color_temp,
-            "brightness": self.current_brightness,
-        }
-
-        res.update({"attributes": attrs})
-        return res
 
     def create_features_list(self):
         """Формирует список возможных функций"""
@@ -117,8 +119,8 @@ class LightEntity(BaseEntity):
             allowed_values["light_colour_temp"] = {
                 "type": "INTEGER",
                 "integer_values": {
-                    "min": self.min_mireds,
-                    "max": self.max_mireds
+                    "min": 0,
+                    "max": 1000
                 }
             }
 
@@ -153,24 +155,23 @@ class LightEntity(BaseEntity):
             }]
 
 
-        if (self.current_brightness != 0):
+        if (self.current_sber_brightness != 0):
             states.append({
                 "key": "light_brightness",
                 "value": {
                     "type": "INTEGER",
-                    "integer_value": self.current_brightness
+                    "integer_value": self.current_sber_brightness
                 }
             })
 
         if self.current_state: # on/off == on
             if self.current_color_mode is None or self.current_color_mode == "xy":
-                current_color_sber = self.ha_to_sber_hsv(self.hs_color[0], self.hs_color[1], self.current_brightness)
+                current_color_sber = ColorConverter.ha_to_sber_hsv(self.hs_color[0], self.hs_color[1], self.current_sber_brightness)
                 states.append({
                     "key": "light_colour",
                     "value": {
                         "type": "COLOUR",
                         "colour_value": { "h": current_color_sber[0], "s": current_color_sber[1], "v": current_color_sber[2] }
-                        # "light_color": self.current_color
                     }}
                 )
                 states.append({
@@ -181,12 +182,12 @@ class LightEntity(BaseEntity):
                     }
                 })
             else:
-                if self.current_color_temp is not None:
+                if self.current_sber_color_temp is not None:
                     states.append({
                         "key": "colour_temperature",
                         "value": {
                             "type": "INTEGER",
-                            "integer_value": self.current_color_temp
+                            "integer_value": self.current_sber_color_temp
                         }
                     })
                 states.append({
@@ -242,7 +243,7 @@ class LightEntity(BaseEntity):
                 # Changes in [50, 1000], реально, похоже, что 255
                 sber_br_value = int(cmd_value.get("integer_value", 50))
                 # Changes in [0, 255]
-                ha_br_value = sber_br_value
+                ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
 
                 brightness = max(50, min(int(ha_br_value), 255))
                 processing_result.append({
@@ -260,12 +261,12 @@ class LightEntity(BaseEntity):
             if cmd_key == "light_colour":
                 hsv_color = cmd_value.get("colour_value", None)
                 if hsv_color is not None:
-                    color = self.sber_to_ha_hsv(
+                    color = ColorConverter.sber_to_ha_hsv(
                         min(hsv_color.get("h", 0), 360), 
                         min(hsv_color.get("s", 0), 1000), 
                         min(hsv_color.get("v", 0), 1000))
                 else:
-                    color = self.ha_to_sber_hsv(0, 0, 0)
+                    color = ColorConverter.ha_to_sber_hsv(0, 0, 0)
 
                 processing_result.append({
                     "url": {
@@ -295,9 +296,8 @@ class LightEntity(BaseEntity):
                 sber_color_temp = int(cmd_value.get("integer_value", 0))  #[0, 1000] - нет. У нас стоит явное ограничение и сбер его выдерживает. Масштабировать не нужно.
                 if sber_color_temp is None:
                     sber_color_temp = 0
-                # ha_color_temp = sber_color_temp*(self.max_mireds - self.min_mireds)/1000 + self.min_mireds #[153, 500]
-#                ha_color_temp = (1000 - sber_color_temp)*(self.max_mireds - self.min_mireds)/1000 + self.min_mireds #[153, 500]
-                ha_color_temp = self.max_mireds - sber_color_temp
+                
+                ha_color_temp = self.color_temp_converter.sber_to_ha(sber_color_temp)
 
 
                 # logger.debug(f"######.   sber_color_temp = {sber_color_temp}, ha_color_temp = {ha_color_temp}")
@@ -319,43 +319,3 @@ class LightEntity(BaseEntity):
     def process_state_change(self, old_state, new_state):
         self.fill_by_ha_state(new_state)
                 
-    def ha_to_sber_hsv(self, ha_hue, ha_saturation, ha_brightness):
-        """
-        Конвертирует цвет из HA (HS/RGB) в HSV для Sber:
-        - H: 0–360 → 0–360
-        - S: 0–100% → 0–1000
-        - V: 0–255 → 100–1000
-        """
-        # Нормализация значений HA
-        ha_hue = max(0, min(360, ha_hue))         # H: 0–360
-        ha_saturation = max(0, min(100, ha_saturation))  # S: 0–100%
-        ha_brightness = int(max(0, min(255, ha_brightness))/255*1000) # V: 0–255
-
-        # Конвертация в Sber HSV
-        sber_hue = ha_hue
-        sber_saturation = ha_saturation * 10      # 0–100% → 0–1000
-        sber_value = (ha_brightness / 255) * 900 + 100  # 0–255 → 100–1000
-
-        return int(sber_hue), int(sber_saturation), int(sber_value)
-
-
-    def sber_to_ha_hsv(self, sber_hue, sber_saturation, sber_value):
-        """
-        Конвертирует HSV от Sber (0–360, 0–1000, 100–1000) в HA (HS/RGB):
-        - H: 0–360 → 0–360
-        - S: 0–1000 → 0–100%
-        - V: 100–1000 → 0–255
-        """
-        # Нормализация значений Sber
-        sber_hue = max(0, min(360, sber_hue))          # H: 0–360
-        sber_saturation = max(0, min(1000, sber_saturation))  # S: 0–1000
-        sber_value = max(100, min(1000, sber_value))     # V: 100–1000
-
-        # Конвертация в HA HSV
-        ha_hue = sber_hue
-        ha_saturation = sber_saturation / 10       # 0–1000 → 0–100%
-        ha_brightness = ((sber_value - 100) / 900) * 255  # 100–1000 → 0–255
-
-        return int(ha_hue), int(ha_saturation), int(ha_brightness)
-
-
