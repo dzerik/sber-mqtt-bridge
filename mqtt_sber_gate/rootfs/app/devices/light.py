@@ -139,6 +139,9 @@ class LightEntity(BaseEntity):
 
         return res
 
+    def _is_current_color_mode_colored(self):
+        return self.current_color_mode not in ["white", "color_temp"]
+
     def to_sber_current_state(self):
         """
         Метод выполняет трансляцию текущего состояния светового прибора, записанное в данном объекте в состояние sber.
@@ -164,7 +167,7 @@ class LightEntity(BaseEntity):
             })
 
         if self.current_state: # on/off == on
-            if isinstance(self.hs_color, list) and len(self.hs_color) >= 2:
+            if self._is_current_color_mode_colored() and isinstance(self.hs_color, list) and len(self.hs_color) >= 2:
                 current_color_sber = ColorConverter.ha_to_sber_hsv(self.hs_color[0], self.hs_color[1], self.current_sber_brightness)
                 states.append({
                     "key": "light_colour",
@@ -245,17 +248,18 @@ class LightEntity(BaseEntity):
                 ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
 
                 brightness = max(50, min(int(ha_br_value), 255))
-                processing_result.append({
-                    "url": {
-                        "type": "call_service",
-                        "domain": "light",
-                        "service": "turn_on",
-                        "service_data": { "brightness": brightness,},
-                        "target": {
-                            "entity_id": self.entity_id
+                if self.current_state:
+                    processing_result.append({
+                        "url": {
+                            "type": "call_service",
+                            "domain": "light",
+                            "service": "turn_on",
+                            "service_data": { "brightness": brightness,},
+                            "target": {
+                                "entity_id": self.entity_id
+                            }
                         }
-                    }
-                })
+                    })
 
             if cmd_key == "light_colour":
                 hsv_color = cmd_value.get("colour_value", None)
@@ -267,20 +271,21 @@ class LightEntity(BaseEntity):
                 else:
                     color = ColorConverter.ha_to_sber_hsv(0, 0, 0)
 
-                processing_result.append({
-                    "url": {
-                        "type": "call_service",
-                        "domain": "light",
-                        "service": "turn_on",
-                        "service_data": { 
-                            "hs_color": [color[0], color[1]],
-                            "brightness": color[2],
-                        },
-                        "target": {
-                            "entity_id": self.entity_id
+                if self.current_state:
+                    processing_result.append({
+                        "url": {
+                            "type": "call_service",
+                            "domain": "light",
+                            "service": "turn_on",
+                            "service_data": { 
+                                "hs_color": [color[0], color[1]],
+                                "brightness": color[2],
+                            },
+                            "target": {
+                                "entity_id": self.entity_id
+                            }
                         }
-                    }
-                })
+                    })
 
 # Sber MQTT Command: {'devices': {'light.spoty_lev_sp': {'states': [{'key': 'light_mode', 'value': {'type': 'ENUM', 'enum_value': 'colour'}}, {'key': 'light_colour', 'value': {'type': 'COLOUR', 'colour_value': {'v': 100}}}]}}}
 # Тут пока странно. Похоже, в HA нет команды прямого перехода в режим color_temp. Видимо, надо работать через локальное состояние или по содержимому color_temp и цветов.
@@ -300,19 +305,20 @@ class LightEntity(BaseEntity):
 
 
                 # logger.debug(f"######.   sber_color_temp = {sber_color_temp}, ha_color_temp = {ha_color_temp}")
-                processing_result.append({
-                    "url": {
-                        "type": "call_service",
-                        "domain": "light",
-                        "service": "turn_on",
-                        "service_data": { "color_temp": ha_color_temp, },
-                        "target": {
-                            "entity_id": self.entity_id
+                if self.current_state:
+                    processing_result.append({
+                        "url": {
+                            "type": "call_service",
+                            "domain": "light",
+                            "service": "turn_on",
+                            "service_data": { "color_temp": ha_color_temp, },
+                            "target": {
+                                "entity_id": self.entity_id
+                            }
                         }
-                    }
-                })
+                    })
 
-        logger.debug(f"Command: {cmd_key}, processing res: {processing_result}")
+        logger.debug(f"(LightEntity.process_cmd) Command: {cmd_key}, processing res: {processing_result}")
         return processing_result
 
     def process_state_change(self, old_state, new_state):
