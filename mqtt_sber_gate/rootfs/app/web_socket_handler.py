@@ -2,6 +2,7 @@
 WebSocket handler module for SberGate integration
 """
 
+import asyncio
 import threading
 from devices.light import LightEntity
 from devices_db import json_write
@@ -12,6 +13,11 @@ import time
 from threading import Thread
 
 logger = logging.getLogger(__name__)
+
+async def async_publish(mqttc, topic, payload, qos=0):
+   """Асинхронная обертка для mqttc.publish"""
+   await asyncio.to_thread(mqttc.publish, topic, payload, qos)
+
 
 class WebSocketHandler:
     """Class for handling WebSocket communication with Home Assistant"""
@@ -54,10 +60,12 @@ class WebSocketHandler:
             'auth_invalid': self.handle_auth_invalid,
             'result': self.handle_result,
             'event': self.handle_event,
+            'pong' : self.handle_pong,
             'None': self.handle_default
         }
 
-        self.dont_log_messages_for = ["sensor.archer_ax58", "sensor.datchik_kachestva_vozdukha", "sensor.yandex_pogoda"]
+        self.dont_log_messages_for = ["sensor.archer_ax58", "sensor.datchik_kachestva_vozdukha", "sensor.yandex_pogoda", "sensor.datchik_osveshchennosti_i_prisutstviia_osveshchennost", "sun.sun"]
+#        self.dont_log_messages_for = []
 
 
     def on_open(self, ws):
@@ -69,22 +77,9 @@ class WebSocketHandler:
         """Handle WebSocket close event"""
         logger.info(f"WebSocket: Connection closed ({close_status_code}: {close_msg})")
 
-    def _process_event(self, entity_id, old_state, new_state):
-        if entity_id is None or new_state is None:
-            logger.info(f"Either entity_id or new_state is None. entity_id: {entity_id}, new_state: {new_state}. Skipping.")
-            return
-        
-        entity = self.devices_db.entitiesStore.get(entity_id)
-        if entity:
-            entity.process_state_change(old_state, new_state)
-            logger.info(f"Device database is ready. Publishing device {entity_id}")
-            sber_root_topic = self.sber_root_topic 
-            assert self.mqttc is not None, "MQTT client is not initialized"
-            self.mqttc.publish(sber_root_topic+'/up/status', self.devices_db.do_mqtt_json_states_list([entity_id]), qos=0)
-        else:
-            logger.debug(f"Process event: entity {entity_id} not found")
-
+    # async def _process_event(self, entity_id, old_state, new_state):
     def on_message(self, ws, message):
+    # async def on_message_async(self, ws, message):
         """Handle incoming WebSocket messages"""
         try:
             message_data = json.loads(message)
@@ -102,14 +97,15 @@ class WebSocketHandler:
                     new_state = data["new_state"]
                     logger.debug(f"WebSocket: Received message {event_type} for {entity_id}: {new_state}")
                     self._process_event(entity_id, old_state, new_state)
+                    # await self._process_event(entity_id, old_state, new_state)
                 else:
                     logger.debug(f"Unknown event type is got: {event_type}")
             else:
                 logger.debug(f"WebSocket: Received message type: {message_data['type']}")
                 json_write("ws_received_message.json", message)
 
-            handler = self.handler_map.get(message_data.get('type', 'None'), self.handle_default)
-            handler(message_data)
+                handler = self.handler_map.get(message_data.get('type', 'None'), self.handle_default)
+                handler(message_data)
         except Exception as e:
             logger.error(f"Error processing WebSocket message: {e}")
 
@@ -131,7 +127,7 @@ class WebSocketHandler:
             self.command_counter = 6
 
     def send_command(self, command):
-        logger.debug(f"WebSocket: sending command [{self.command_counter}]: {command}")
+        logger.debug(f"(WebSocketHandler.send_command) WebSocket: sending command [{self.command_counter}]: {command}")
         with self.command_lock:
             command["id"] = self.command_counter
             self.command_counter += 1
@@ -181,6 +177,7 @@ class WebSocketHandler:
         elif data.get('id') == 5:
             logger.info(f"WebSocket: Получены состояния сущностей.")
             states = data.get("result", [])
+            json_write("states_registry.json", states)
             self.devices_converter.update_entities(states)
             for state in states:
                 entity_id = state.get('entity_id')
@@ -196,7 +193,24 @@ class WebSocketHandler:
         else: 
             logger.info(f"WebSocket: result: {data}")
 
+    def _process_event(self, entity_id, old_state, new_state):
+        if entity_id is None or new_state is None:
+            logger.info(f"Either entity_id or new_state is None. entity_id: {entity_id}, new_state: {new_state}. Skipping.")
+            return
+        
+        entity = self.devices_db.entitiesStore.get(entity_id)
+        if entity:
+            entity.process_state_change(old_state, new_state)
+            logger.info(f"(_process_event) Publishing device {entity_id}")
+            sber_root_topic = self.sber_root_topic 
+            assert self.mqttc is not None, "MQTT client is not initialized"
+#            await async_publish(self.mqttc, sber_root_topic+'/up/status', self.devices_db.do_mqtt_json_states_list([entity_id]), qos=0)
+            self.mqttc.publish(sber_root_topic+'/up/status', self.devices_db.do_mqtt_json_states_list([entity_id]), qos=0)
+        else:
+            self.handle_event_new(entity_id, old_state, new_state)
+            # logger.debug(f"Process event: entity {entity_id} not found")
 
+#    async def handle_event(self, data):
     def handle_event(self, data):
         """Handle state change events"""
         event_data = data['event']['data']
@@ -207,6 +221,9 @@ class WebSocketHandler:
             return
             
         entity_id = new_state['entity_id']
+        self.handle_event_new(entity_id, old_state, new_state)
+
+    def handle_event_new(self, entity_id, old_state, new_state):
         dev = self.devices_db.DB.get(entity_id)
         
         if not dev or not dev.get('enabled'):
@@ -234,9 +251,14 @@ class WebSocketHandler:
         # Send updated states
         # from sber_gate import mqttc  # Assuming this is the main MQTT client
         sber_root_topic = self.sber_root_topic # self.options.get('sber_root_topic', 'home')
+        # Async publishing here leads to hang all processes. So remain sync publishing here.
         self.mqttc.publish(sber_root_topic+'/up/status', 
                      self.devices_db.do_mqtt_json_states_list([entity_id]), 
                      qos=0)
+
+    def handle_pong(self, data):
+        """Handle ping message response. Just ignoring"""
+        return
 
     def handle_default(self, data):
         """Default message handler"""
@@ -265,7 +287,6 @@ class WebSocketHandler:
             if self.ws:
                 try:
                     self.send_command({"type": "ping"})
-                    # self.ws.send(json.dumps({"type": "ping"}))
                 except Exception as e:
                     logger.warning(f"Failed to send ping: {e}")
             time.sleep(30)  # Отправлять пинг каждые 30 секунд
