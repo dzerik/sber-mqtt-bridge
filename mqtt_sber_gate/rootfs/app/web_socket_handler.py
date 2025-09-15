@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 async def async_publish(mqttc, topic, payload, qos=0):
    """Асинхронная обертка для mqttc.publish"""
-   await asyncio.to_thread(mqttc.publish, topic, payload, qos)
+   if (mqttc.is_connected()):
+    await asyncio.to_thread(mqttc.publish, topic, payload, qos)
 
 
 class WebSocketHandler:
@@ -274,31 +275,32 @@ class WebSocketHandler:
                     on_message=self.on_message,
                     on_close=self.on_close
                 )
-                self.ws.run_forever(ping_interval=30)
-                logger.info("WebSocket disconnected. Reconnecting in 5 seconds...")
+                self.ws.run_forever(ping_interval=60, ping_timeout=30)
+                logger.info("WebSocket disconnected. Reconnecting in 1 second...")
                 time.sleep(1)
             except Exception as e:
                 logger.error(f"WebSocket error: {e}. Reconnecting in 5 seconds...")
+            finally:
                 time.sleep(5)
 
-    def _send_ping(self):
-        import time
-        while self.running:
-            if self.ws:
-                try:
-                    self.send_command({"type": "ping"})
-                except Exception as e:
-                    logger.warning(f"Failed to send ping: {e}")
-            time.sleep(30)  # Отправлять пинг каждые 30 секунд
+    # def _send_ping(self):
+    #     import time
+    #     while self.running:
+    #         if self.ws:
+    #             try:
+    #                 self.send_command({"type": "ping"})
+    #             except Exception as e:
+    #                 logger.warning(f"Failed to send ping: {e}")
+    #         time.sleep(30)  # Отправлять пинг каждые 30 секунд
 
     def start(self):
         """Start WebSocket connection in background thread"""
         self.thread = Thread(target=self._run)
-        self.ping_thread = Thread(target=self._send_ping)
+        # self.ping_thread = Thread(target=self._send_ping)
         self.thread.daemon = True
-        self.ping_thread.daemon = True
+        # self.ping_thread.daemon = True
         self.thread.start()
-        self.ping_thread.start()
+        # self.ping_thread.start()
 
     def stop(self):
         if self.thread != None and self.thread.is_alive():

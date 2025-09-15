@@ -1,8 +1,8 @@
 ﻿#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import os
 import asyncio
+import os
 import sys
 import ssl
 import time
@@ -50,7 +50,7 @@ LOG_FILE_MAX_SIZE = 1024*1024*7
 # log_level = 3
 HA_AREA = {}
 
-# Настройка логгирования (файл + консоль)
+# Настройка логирования (файл + консоль)
 # logging.basicConfig(
 #     level=logging.DEBUG,
 #     format='%(asctime)s %(levelname)s: %(message)s',
@@ -409,6 +409,9 @@ def on_disconnect(client, userdata, rc):
     if rc != 0:
         logger.info("Unexpected MQTT disconnection. Will auto-reconnect. rc: "+str(rc))
 
+def on_message(mqtts, ws, message):
+    asyncio.to_thread(on_message_async, mqtts, ws, message)
+
 async def on_message_async(mqttc, obj, msg):
    logger.info("OnMESSAGE: "+msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
    if msg.topic.endswith('/down/change_group_device_request'):
@@ -574,7 +577,7 @@ mqttc = mqtt.Client()
 mqttc.on_connect = on_connect
 mqttc.on_subscribe = on_subscribe
 #mqttc.on_publish = on_publish
-mqttc.on_message = on_message_async
+mqttc.on_message = on_message
 mqttc.on_disconnect = on_disconnect
 # Uncomment to enable debug messages
 #mqttc.on_log = on_log

@@ -1,7 +1,6 @@
 # devices_db.py
 import copy
 import json
-import os
 import logging
 from threading import Lock
 import threading
@@ -147,28 +146,28 @@ class EntitiesStore:
                     self._entity_redefinition_info[entity_placement.entity_id] = entity_placement
 
         
-    def get_placment(self, entity_id: str, default_home: str, default_room: str) -> EntityRedefinitions_Sber:
+    def get_redefinition_data(self, entity_id: str, default_home: str, default_room: str) -> EntityRedefinitions_Sber:
         if entity_id in self._entity_redefinition_info:
             return self._entity_redefinition_info[entity_id]
         else:
             return EntityRedefinitions_Sber(entity_id=entity_id)
     
     def _get_entity(self, entity_id: str) -> EntityRedefinitions_Sber:
-        entity_redifinition = self._entity_redefinition_info.get(entity_id, None)
-        if entity_redifinition is None:
-            entity_redifinition = EntityRedefinitions_Sber(entity_id=entity_id)
-            self._entity_redefinition_info[entity_id] = entity_redifinition
-        return entity_redifinition
+        entity_redefinition = self._entity_redefinition_info.get(entity_id, None)
+        if entity_redefinition is None:
+            entity_redefinition = EntityRedefinitions_Sber(entity_id=entity_id)
+            self._entity_redefinition_info[entity_id] = entity_redefinition
+        return entity_redefinition
 
 
     def redefine_placement(self, entity_id: str, home: str, room: str):
-        entity_redifinition = self._get_entity(entity_id)
-        entity_redifinition.home = home
-        entity_redifinition.room = room
+        entity_redefinition = self._get_entity(entity_id)
+        entity_redefinition.home = home
+        entity_redefinition.room = room
     
     def rename_entity(self, entity_id: str, new_name: str):
-        entity_redifinition = self._get_entity(entity_id)
-        entity_redifinition.entity_name = new_name
+        entity_redefinition = self._get_entity(entity_id)
+        entity_redefinition.entity_name = new_name
 
 class CDevicesDB:
     """Управление базой данных устройств"""
@@ -371,7 +370,7 @@ class CDevicesDB:
                     if 'home' in d:
                         default_home = d["home"]
 
-                entity_redefinition = self.entitiesStore.get_placment(k, default_home, default_room)
+                entity_redefinition = self.entitiesStore.get_redefinition_data(k, default_home, default_room)
                 if d is not None:
                     if entity_redefinition is not None:
                         if entity_redefinition.home is not None:
