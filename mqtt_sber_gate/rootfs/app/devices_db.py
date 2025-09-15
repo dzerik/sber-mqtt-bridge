@@ -1,7 +1,6 @@
 # devices_db.py
 import copy
 import json
-import os
 import logging
 from threading import Lock
 import threading
@@ -27,18 +26,18 @@ def json_write(f, d):
     with open(f, "w", encoding='utf-8') as file:
         json.dump(d, file, indent=4)
 
-class EntityPlacement_Sber:
+class EntityRedefinitions_Sber:
     entity_id: str
+    entity_name: str = None
     home: str = None
     room: str = None
-    def __init__(self, entity_id: str, home, room):
+    def __init__(self, entity_id: str):
         self.entity_id = entity_id
-        self.home = home
-        self.room = room
 
     def to_json(self):
         return {
             "id": self.entity_id,
+            "name": self.entity_name,
             "home": self.home,
             "room": self.room
         }
@@ -47,15 +46,22 @@ class EntityPlacement_Sber:
     def from_json(cls, json_data):
         if "id" in json_data:
             entity_id = json_data["id"]
+            name = json_data.get("name", None)
             home = json_data.get("home", None)
             room = json_data.get("room", None)
-            return EntityPlacement_Sber(entity_id, home, room)
+            entity_redefinition = EntityRedefinitions_Sber(entity_id)
+            entity_redefinition.entity_name = name
+            entity_redefinition.home = home
+            entity_redefinition.room = room
+            return entity_redefinition
         return None
+    
 
 class EntitiesStore:
     _store: Dict[str, BaseEntity] = {}
+    _entity_to_group_root_map : Dict[str, list[str]] = {} # Отображение сущности в список ее групп
     _device_data_store = {}
-    _entity_placement_redirection: dict[str, EntityPlacement_Sber] = {} # Тут лежит информация о месте, в котором размещается устройство с т.з. сбера. 
+    _entity_redefinition_info: dict[str, EntityRedefinitions_Sber] = {} # Тут лежит информация о месте, в котором размещается устройство с т.з. сбера. 
     # Сбер может прислать команду OnMESSAGE: sberdevices/v1/d2ebe7l94jevif0sq1eg/down/change_group_device_request 0 b'{"device_id":"light.spot5_sp","home":"\xd0\x9e\xd0\xb1\xd0\xbe\xd0\xb3\xd0\xb0\xd1\x82\xd0\xb8\xd1\x82\xd0\xb5\xd0\xbb\xd1\x8c\xd0\xbd\xd0\xb0\xd1\x8f","room":"\xd0\xa1\xd0\xbf\xd0\xb0\xd0\xbb\xd1\x8c\xd0\xbd\xd1\x8f"}'
     # и по ней надо поменять атрибуты home и room для устройства. И запомнить их, чтобы в следующий раз уже его размещать в этом месте.
     _deviceConstructorsMap = {
@@ -65,6 +71,20 @@ class EntitiesStore:
 
     def __init__(self, logger):
         self.logger = logger
+
+    def _get_entity_groups(self, entity_id: str):
+        if entity_id not in self._entity_to_group_root_map:
+            self._entity_to_group_root_map[entity_id] = []
+        return self._entity_to_group_root_map[entity_id]
+
+
+    def _try_to_register_entity_groups(self, entity_id: str, ha_state: dict):
+        attributes = ha_state.get("attributes", {})
+        entity_id_list = attributes.get("entity_id", [])
+        for sub_entity_id in entity_id_list:
+            sub_entity_groups = self._get_entity_groups(sub_entity_id)
+            if entity_id not in sub_entity_groups:
+                sub_entity_groups.append(entity_id)
 
     def get_keys(self):
         """
@@ -105,11 +125,12 @@ class EntitiesStore:
     def update_by_ha_state(self, ha_state: dict):
         entity = self._store.get(ha_state['entity_id'], None)
         if entity is not None:
+            self._try_to_register_entity_groups(entity.entity_id, ha_state)
             entity.fill_by_ha_state(ha_state)
    
     def save(self):
         redirections = {}
-        for (entity_id, entity) in self._entity_placement_redirection.items():
+        for (entity_id, entity) in self._entity_redefinition_info.items():
             if entity is not None:
                 redirections[entity_id] = entity.to_json()
 
@@ -117,22 +138,36 @@ class EntitiesStore:
 
     def load(self, f):
         loaded_redirections = json_read("store_placements.json", {})
-        self._entity_placement_redirection = {}
-        for redirection in loaded_redirections:
+        self._entity_redefinition_info = {}
+        for redirection in loaded_redirections.values():
             if isinstance(redirection, dict):
-                entity_placement = EntityPlacement_Sber.from_json(redirection)
+                entity_placement = EntityRedefinitions_Sber.from_json(redirection)
                 if entity_placement is not None:
-                    self._entity_placement_redirection[entity_placement.entity_id] = entity_placement
+                    self._entity_redefinition_info[entity_placement.entity_id] = entity_placement
 
         
-    def get_placment(self, entity_id: str, default_home: str, default_room: str) -> EntityPlacement_Sber:
-        if entity_id in self._entity_placement_redirection:
-            return self._entity_placement_redirection[entity_id]
+    def get_redefinition_data(self, entity_id: str, default_home: str, default_room: str) -> EntityRedefinitions_Sber:
+        if entity_id in self._entity_redefinition_info:
+            return self._entity_redefinition_info[entity_id]
         else:
-            return EntityPlacement_Sber(entity_id=entity_id, home=default_home, room=default_room)
+            return EntityRedefinitions_Sber(entity_id=entity_id)
     
+    def _get_entity(self, entity_id: str) -> EntityRedefinitions_Sber:
+        entity_redefinition = self._entity_redefinition_info.get(entity_id, None)
+        if entity_redefinition is None:
+            entity_redefinition = EntityRedefinitions_Sber(entity_id=entity_id)
+            self._entity_redefinition_info[entity_id] = entity_redefinition
+        return entity_redefinition
+
+
     def redefine_placement(self, entity_id: str, home: str, room: str):
-        self._entity_placement_redirection[entity_id] = EntityPlacement_Sber(entity_id=entity_id, home=home, room=room)
+        entity_redefinition = self._get_entity(entity_id)
+        entity_redefinition.home = home
+        entity_redefinition.room = room
+    
+    def rename_entity(self, entity_id: str, new_name: str):
+        entity_redefinition = self._get_entity(entity_id)
+        entity_redefinition.entity_name = new_name
 
 class CDevicesDB:
     """Управление базой данных устройств"""
@@ -335,14 +370,19 @@ class CDevicesDB:
                     if 'home' in d:
                         default_home = d["home"]
 
-                device_placement = self.entitiesStore.get_placment(k, default_home, default_room)
-                if device_placement is not None:
-                    if device_placement.home is not None:
-                        d['home'] = device_placement.home
-                    if device_placement.room is not None:
-                        d['room'] = device_placement.room
-
+                entity_redefinition = self.entitiesStore.get_redefinition_data(k, default_home, default_room)
                 if d is not None:
+                    if entity_redefinition is not None:
+                        if entity_redefinition.home is not None:
+                            d['home'] = entity_redefinition.home
+                        if entity_redefinition.room is not None:
+                            d['room'] = entity_redefinition.room
+                        if entity_redefinition.entity_name is not None:
+                            d['name'] = entity_redefinition.entity_name
+
+                    # device_groups = self._entitiesStore._entity_to_group_root_map.get(k, None)
+                    # if device_groups is not None:
+                    #     d["groups"] = device_groups
                     filtered = {k: v for k, v in d.items() if v}
                     device_list['devices'].append(filtered)
 
@@ -398,7 +438,10 @@ class CDevicesDB:
             DStat['devices']={"root": {"states": [{"key": "online", "value": {"type": "BOOL", "bool_value": True}}]}}
         self.mqtt_json_states_list=json.dumps(DStat)
         json_write("new_states_list.json", self.mqtt_json_states_list)
-        self.logger.debug("Отправка состояний в Sber 'new_states_list.json'")
+        if len(dl) == 1:
+            self.logger.debug(f"(do_mqtt_json_states_list) Отправка состояний для {dl} в Sber {self.mqtt_json_states_list}")
+        else:
+            self.logger.debug(f"(do_mqtt_json_states_list) Отправка состояний для {dl} в Sber 'new_states_list.json'")
         return self.mqtt_json_states_list
 
     def do_http_json_devices_list(self):
@@ -417,7 +460,7 @@ class CDevicesDB:
                 r['nicknames']=v.get('nicknames',[])
                 r['home']=v.get('home','')
                 r['room']=v.get('room','')
-                r['groups']=v.get('groops',[])
+                r['groups']=v.get('groups',[])
                 r['model_id']=v['model_id']
                 r['category']=v.get('category','')
                 r['hw_version']=v.get('hw_version','')

@@ -1,14 +1,13 @@
 ﻿#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import re
+import asyncio
 import os
 import sys
 import ssl
 import time
 import json
 import logging
-from devices.light import LightEntity
 
 from devices.devices_converter import DevicesConverter
 from devices_db import CDevicesDB, json_read, json_write
@@ -16,7 +15,7 @@ from http_server import MyServer
 import paho
 import random
 import requests
-from web_socket_handler import WebSocketHandler
+from web_socket_handler import WebSocketHandler, async_publish
 import websocket
 import threading
 # deprecated import pkg_resources
@@ -51,7 +50,7 @@ LOG_FILE_MAX_SIZE = 1024*1024*7
 # log_level = 3
 HA_AREA = {}
 
-# Настройка логгирования (файл + консоль)
+# Настройка логирования (файл + консоль)
 # logging.basicConfig(
 #     level=logging.DEBUG,
 #     format='%(asctime)s %(levelname)s: %(message)s',
@@ -410,17 +409,36 @@ def on_disconnect(client, userdata, rc):
     if rc != 0:
         logger.info("Unexpected MQTT disconnection. Will auto-reconnect. rc: "+str(rc))
 
-def on_message(mqttc, obj, msg):
-    logger.info("OnMESSAGE: "+msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
-    if msg.topic.endswith('/down/change_group_device_request'):
-      data=json.loads(msg.payload)
-      DevicesDB.entitiesStore.redefine_placement(data.get("device_id"), data.get("home"), data.get("room"))
-      DevicesDB.entitiesStore.save()
-      # send changed data to sber.
-      payload = DevicesDB.do_mqtt_json_devices_list()
-      if payload is not None and len(payload) > 0:
-         mqttc.publish(sber_root_topic+'/up/config', payload, qos=0)
+def on_message(mqtts, ws, message):
+    asyncio.to_thread(on_message_async, mqtts, ws, message)
 
+async def on_message_async(mqttc, obj, msg):
+   logger.info("OnMESSAGE: "+msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+   if msg.topic and msg.topic.endswith('/down/change_group_device_request'):
+      try:
+         data = json.loads(msg.payload)
+      except json.JSONDecodeError as e:
+         logger.error(f"Ошибка декодирования JSON: {e}")      
+         return
+      device_id = data.get("device_id")
+      if device_id is not None:
+         DevicesDB.entitiesStore.redefine_placement(device_id, data.get("home", None), data.get("room", None))
+         DevicesDB.entitiesStore.save()
+         # send changed data to sber.
+         payload = DevicesDB.do_mqtt_json_devices_list([device_id])
+         if payload is not None and len(payload) > 0:
+            await async_publish(mqttc, sber_root_topic+'/up/config', payload, qos=0)
+#            mqttc.publish(sber_root_topic+'/up/config', payload, qos=0)
+   if msg.topic.endswith('/down/rename_device_request'):
+      data = json.loads(msg.payload)
+      device_id = data.get("device_id", None)
+      new_name = data.get("new_name", None)
+      if device_id is not None and new_name is not None:
+         DevicesDB.entitiesStore.rename_entity(device_id, new_name)
+         DevicesDB.entitiesStore.save()
+         payload = DevicesDB.do_mqtt_json_devices_list([device_id])
+         if payload is not None and len(payload) > 0:
+            await async_publish(mqttc, sber_root_topic+'/up/config', payload, qos=0)
 
 def on_publish(mqttc, obj, mid):
     logger.info("mid: " + str(mid))
@@ -432,13 +450,13 @@ def on_log(mqttc, obj, level, string):
     logger.info("OnLOG: "+string)
 
 def send_status(mqttc, s):
-   infot = mqttc.publish(sber_root_topic+'/up/status', s, qos=0)
+    infot = mqttc.publish(sber_root_topic+'/up/status', s, qos=0)
 
 #********************************************
 
 def on_message_cmd(mqttc, obj, msg):
    data=json.loads(msg.payload)
-   logger.info("Sber MQTT Command: " + str(data))
+   logger.info("(on_message_cmd) Sber MQTT Command: " + str(data))
    for id,cmd_data in data['devices'].items():
       entity = DevicesDB.entitiesStore.get(id)
       if (entity is None):
@@ -468,17 +486,12 @@ def on_message_cmd(mqttc, obj, msg):
             else:
                logger.info('Объект отсутствует в HA: ' + id)
       else:
-         logger.info("Изменяем состояние объекта: " + id)
+         logger.info("(on_message_cmd)Изменяем состояние объекта: " + id)
          processing_result = entity.process_cmd(cmd_data)
          for payload in processing_result:
             command_to_send = payload.get("url", None)
             if command_to_send is not None:
                ws_server.send_command(command_to_send)
-            update_state = payload.get("update_state", None)
-            if update_state is not None:
-               new_status = DevicesDB.do_mqtt_json_states_list([id])
-               logger.debug(f"Updating status by command request: {id} = {new_status}")
-               send_status(mqttc, new_status)
 
 def on_message_stat(mqttc, obj, msg):
    try:
@@ -586,8 +599,6 @@ mqttc.tls_set(certfile=None, keyfile=None, cert_reqs=ssl.CERT_NONE, tls_version=
 mqttc.tls_insecure_set(True)
 mqttc.connect(Options['sber-mqtt_broker'], Options['sber-mqtt_broker_port'], 60)
 
-#infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
-
 #*********************************
 mqttc.loop_start()
 #mqttHA.loop_start()
@@ -616,7 +627,7 @@ def GetCategories():
       Categories={}
       SD_Categories = requests.get(Options['sber-http_api_endpoint']+'/v1/mqtt-gate/categories', headers=hds,auth=(Options['sber-mqtt_login'], Options['sber-mqtt_password'])).json()
       for id in SD_Categories['categories']:
-         logger.info('Получаем опции для котегории: '+id)
+         logger.info('Получаем опции для категории: '+id)
          SD_Features = requests.get(Options['sber-http_api_endpoint']+'/v1/mqtt-gate/categories/'+id+'/features', headers=hds,auth=(Options['sber-mqtt_login'], Options['sber-mqtt_password'])).json()
          Categories[id]=SD_Features['features']
    #   logger.info(Categories)
@@ -639,10 +650,6 @@ if categories.get('categories',False):
 # for id in Categories:
 #    resCategories['categories'].append(id)
 DevicesDB.setCategories(categories)
-
-# ~~~~ DEBUG - disable this publishing
-# infot = mqttc.publish(sber_root_topic+'/up/config', DevicesDB.do_mqtt_json_devices_list(), qos=0)
-# logger.debug("INFO: "+str(infot))
 
 def start_webserver():
     hostName = ''
