@@ -414,8 +414,12 @@ def on_message(mqtts, ws, message):
 
 async def on_message_async(mqttc, obj, msg):
    logger.info("OnMESSAGE: "+msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
-   if msg.topic.endswith('/down/change_group_device_request'):
-      data=json.loads(msg.payload)
+   if msg.topic and msg.topic.endswith('/down/change_group_device_request'):
+      try:
+         data = json.loads(msg.payload)
+      except json.JSONDecodeError as e:
+         logger.error(f"Ошибка декодирования JSON: {e}")      
+         return
       device_id = data.get("device_id")
       if device_id is not None:
          DevicesDB.entitiesStore.redefine_placement(device_id, data.get("home", None), data.get("room", None))

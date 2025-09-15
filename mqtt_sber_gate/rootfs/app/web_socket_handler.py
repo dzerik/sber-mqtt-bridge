@@ -105,7 +105,11 @@ class WebSocketHandler:
                 logger.debug(f"WebSocket: Received message type: {message_data['type']}")
                 json_write("ws_received_message.json", message)
 
-                handler = self.handler_map.get(message_data.get('type', 'None'), self.handle_default)
+                msg_type = message_data.get('type')
+                if msg_type is None:
+                    logger.warning("Received message with unknown type or missing 'type' field.")
+                    return
+                handler = self.handler_map.get(msg_type, self.handle_default)
                 handler(message_data)
         except Exception as e:
             logger.error(f"Error processing WebSocket message: {e}")
@@ -166,15 +170,7 @@ class WebSocketHandler:
                 entity_id = entity['entity_id']
                 light_entity = LightEntity(entity)
                 self.devices_db.entitiesStore.upsert(light_entity)
-            
-                # dev = self.devices_db.DB.get(entity_id)
-                # if dev and dev.get('enabled'):
-                #     room = self.HA_AREA.get(entity.get('area_id'), '')
-                #     db_room = dev.get('room', '')
-                #     if room != db_room:
-                #         logger.info(f"Изменилось расположение сущности {entity_id} с {db_room} на {room}")
-                #         self.devices_db.update_only(entity_id, {'entity_ha': True, 'room': room})
-                        
+                                   
         elif data.get('id') == 5:
             logger.info(f"WebSocket: Получены состояния сущностей.")
             states = data.get("result", [])
@@ -187,10 +183,7 @@ class WebSocketHandler:
                     if entity:
                         entity.fill_by_ha_state(state)
             self.devices_db.setReady()
-            # logger.info("Device database is ready. Publishing devices...")
-            # json_devices_list = self.devices_db.do_mqtt_json_devices_list()
-            # sber_root_topic = self.sber_root_topic # self.options.get('sber_root_topic', 'home')
-            # self.mqttc.publish(sber_root_topic+'/up/config', json_devices_list, qos=0)
+
         else: 
             logger.info(f"WebSocket: result: {data}")
 
@@ -283,24 +276,11 @@ class WebSocketHandler:
             finally:
                 time.sleep(5)
 
-    # def _send_ping(self):
-    #     import time
-    #     while self.running:
-    #         if self.ws:
-    #             try:
-    #                 self.send_command({"type": "ping"})
-    #             except Exception as e:
-    #                 logger.warning(f"Failed to send ping: {e}")
-    #         time.sleep(30)  # Отправлять пинг каждые 30 секунд
-
     def start(self):
         """Start WebSocket connection in background thread"""
         self.thread = Thread(target=self._run)
-        # self.ping_thread = Thread(target=self._send_ping)
         self.thread.daemon = True
-        # self.ping_thread.daemon = True
         self.thread.start()
-        # self.ping_thread.start()
 
     def stop(self):
         if self.thread != None and self.thread.is_alive():
