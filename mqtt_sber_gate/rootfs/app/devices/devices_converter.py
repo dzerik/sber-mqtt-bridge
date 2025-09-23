@@ -1,6 +1,4 @@
-# from devices.light import LightEntity
 from devices_db import CDevicesDB
-
 
 class DevicesConverter:
     """ 
