@@ -286,8 +286,9 @@ class MyServer(BaseHTTPRequestHandler):
                 else:
                     self.devices_db.update(id, prop)
         devices_list = self.devices_db.do_mqtt_json_devices_list()
-        infot = self.mqttc.publish(self.sber_root_topic+'/up/config', devices_list, qos=0)
-        logger.debug(f"(handle_api2_devices_post) Published: {devices_list}")
+        if devices_list and len(devices_list) > 0:
+            infot = self.mqttc.publish(self.sber_root_topic+'/up/config', devices_list, qos=0)
+            logger.debug(f"(handle_api2_devices_post) Published: {devices_list}")
         self.devices_db.save_DB()
 
     def handle_api2_command_post(self,d):
