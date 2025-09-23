@@ -1,0 +1,33 @@
+    {
+        "entity_id": "light.liustra_sp_1",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 3,
+            "friendly_name": "Люстра сп 1",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-18T02:00:05.350154+00:00",
+        "last_reported": "2025-08-18T02:00:05.350154+00:00",
+        "last_updated": "2025-08-18T02:00:05.350154+00:00",
+        "context": {
+            "id": "01K2XEFE8ZHSAAW109GZHEEDS2",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    }

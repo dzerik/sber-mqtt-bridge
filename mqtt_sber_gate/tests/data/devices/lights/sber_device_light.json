@@ -1,0 +1,33 @@
+[
+{
+    "id": "light.liustra_sp_1",
+    "name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 1",
+    "default_name": "_TZ3210_zck1cpsj TS0505B",
+    "room": "\u0421\u043f\u0430\u043b\u044c\u043d\u044f",
+    "hw_version": "Unknown",
+    "sw_version": "0x00000065",
+    "model": {
+        "id": "TS0505B",
+        "manufacturer": "_TZ3210_zck1cpsj",
+        "model": "TS0505B",
+        "category": "light",
+        "features": [
+            "online",
+            "on_off",
+            "color",
+            "color_temp"
+        ],
+        "allowed_values": {
+            "light_color_temp":
+            {
+                "type": "INTEGER",
+                "integer_values": {
+                    "min": "153",
+                    "max": "500"
+                }
+            }
+        }
+    },
+    "model_id": null
+}
+]

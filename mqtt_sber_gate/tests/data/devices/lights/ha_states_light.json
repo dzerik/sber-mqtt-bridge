@@ -1,0 +1,572 @@
+[
+    {
+        "entity_id": "light.liustra_sp",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "entity_id": [
+                "light.liustra_sp_1",
+                "light.liustra_sp_2",
+                "light.liustra_sp_3",
+                "light.liustra_sp_4",
+                "light.liustra_sp_5",
+                "light.liustra_sp_6"
+            ],
+            "icon": "mdi:lightbulb-group",
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:21.521846+00:00",
+        "last_reported": "2025-08-25T16:20:21.521846+00:00",
+        "last_updated": "2025-08-25T16:20:21.521846+00:00",
+        "context": {
+            "id": "01K3H0FNP9311BMSSVQY39R2E5",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.spoty_pr_sp",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "entity_id": [
+                "light.spot1_sp",
+                "light.spot3_sp",
+                "light.spot4_sp"
+            ],
+            "icon": "mdi:lightbulb-group",
+            "friendly_name": "\u0421\u043f\u043e\u0442\u044b \u043f\u0440 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:33.823669+00:00",
+        "last_reported": "2025-08-25T16:20:33.823669+00:00",
+        "last_updated": "2025-08-25T16:20:33.823669+00:00",
+        "context": {
+            "id": "01K3H0G1S98ADFEE87G6RQQ4N2",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.spoty_lev_sp",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "entity_id": [
+                "light.spot5_sp",
+                "light.spot2_sp",
+                "light.spot6_sp"
+            ],
+            "icon": "mdi:lightbulb-group",
+            "friendly_name": "\u0421\u043f\u043e\u0442\u044b \u043b\u0435\u0432 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:33.925583+00:00",
+        "last_reported": "2025-08-25T16:20:33.925583+00:00",
+        "last_updated": "2025-08-25T16:20:33.925583+00:00",
+        "context": {
+            "id": "01K3H0G1S98ADFEE87G6RQQ4N2",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.spoty_sp",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "entity_id": [
+                "light.spoty_lev_sp",
+                "light.spoty_pr_sp"
+            ],
+            "icon": "mdi:lightbulb-group",
+            "friendly_name": "\u0421\u043f\u043e\u0442\u044b \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:33.925840+00:00",
+        "last_reported": "2025-08-25T16:20:33.925840+00:00",
+        "last_updated": "2025-08-25T16:20:33.925840+00:00",
+        "context": {
+            "id": "01K3H0G1S98ADFEE87G6RQQ4N2",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_1",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 250,
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 1",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:21.461575+00:00",
+        "last_reported": "2025-08-25T16:20:21.461814+00:00",
+        "last_updated": "2025-08-25T16:20:21.461575+00:00",
+        "context": {
+            "id": "01K3H0FNP9311BMSSVQY39R2E5",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_4",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 250,
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 4",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:21.521401+00:00",
+        "last_reported": "2025-08-25T16:20:21.521631+00:00",
+        "last_updated": "2025-08-25T16:20:21.521401+00:00",
+        "context": {
+            "id": "01K3H0FNP9311BMSSVQY39R2E5",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_5",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 250,
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 5",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:21.376545+00:00",
+        "last_reported": "2025-08-25T16:20:21.376804+00:00",
+        "last_updated": "2025-08-25T16:20:21.376545+00:00",
+        "context": {
+            "id": "01K3H0FNP9311BMSSVQY39R2E5",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_6",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 250,
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 6",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:21.478484+00:00",
+        "last_reported": "2025-08-25T16:20:21.478719+00:00",
+        "last_updated": "2025-08-25T16:20:21.478484+00:00",
+        "context": {
+            "id": "01K3H0FNP9311BMSSVQY39R2E5",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_2",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 250,
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 2",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:21.422468+00:00",
+        "last_reported": "2025-08-25T16:20:21.422718+00:00",
+        "last_updated": "2025-08-25T16:20:21.422468+00:00",
+        "context": {
+            "id": "01K3H0FNP9311BMSSVQY39R2E5",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.liustra_sp_3",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 250,
+            "friendly_name": "\u041b\u044e\u0441\u0442\u0440\u0430 \u0441\u043f 3",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:21.504344+00:00",
+        "last_reported": "2025-08-25T16:20:21.504586+00:00",
+        "last_updated": "2025-08-25T16:20:21.504344+00:00",
+        "context": {
+            "id": "01K3H0FNP9311BMSSVQY39R2E5",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.spot1_sp",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 38,
+            "friendly_name": "\u0421\u043f\u043e\u04421 \u043f\u0440 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:33.797246+00:00",
+        "last_reported": "2025-08-25T16:20:33.797488+00:00",
+        "last_updated": "2025-08-25T16:20:33.797246+00:00",
+        "context": {
+            "id": "01K3H0G1S98ADFEE87G6RQQ4N2",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.spot2_sp",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 38,
+            "friendly_name": "\u0421\u043f\u043e\u04422 \u043b\u0435\u0432 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:33.880318+00:00",
+        "last_reported": "2025-08-25T16:20:33.880562+00:00",
+        "last_updated": "2025-08-25T16:20:33.880318+00:00",
+        "context": {
+            "id": "01K3H0G1S98ADFEE87G6RQQ4N2",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.spot3_sp",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 38,
+            "friendly_name": "\u0421\u043f\u043e\u04422 \u043f\u0440 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:33.773275+00:00",
+        "last_reported": "2025-08-25T16:20:33.773533+00:00",
+        "last_updated": "2025-08-25T16:20:33.773275+00:00",
+        "context": {
+            "id": "01K3H0G1S98ADFEE87G6RQQ4N2",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.spot4_sp",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 38,
+            "friendly_name": "\u0421\u043f\u043e\u04423 \u043f\u0440 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:33.823196+00:00",
+        "last_reported": "2025-08-25T16:20:33.823461+00:00",
+        "last_updated": "2025-08-25T16:20:33.823196+00:00",
+        "context": {
+            "id": "01K3H0G1S98ADFEE87G6RQQ4N2",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.spot5_sp",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 38,
+            "friendly_name": "\u0421\u043f\u043e\u04421 \u043b\u0435\u0432 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:33.925154+00:00",
+        "last_reported": "2025-08-25T16:20:33.925385+00:00",
+        "last_updated": "2025-08-25T16:20:33.925154+00:00",
+        "context": {
+            "id": "01K3H0G1S98ADFEE87G6RQQ4N2",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.spot6_sp",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6535,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "color_temp": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "off_with_transition": false,
+            "off_brightness": 38,
+            "friendly_name": "\u0421\u043f\u043e\u04423 \u043b\u0435\u0432 \u0441\u043f",
+            "supported_features": 40
+        },
+        "last_changed": "2025-08-25T16:20:33.855251+00:00",
+        "last_reported": "2025-08-25T16:20:33.855516+00:00",
+        "last_updated": "2025-08-25T16:20:33.855251+00:00",
+        "context": {
+            "id": "01K3H0G1S98ADFEE87G6RQQ4N2",
+            "parent_id": null,
+            "user_id": "1056ceca4bb04cab9885845a35d1d696"
+        }
+    },
+    {
+        "entity_id": "light.smart_bulb_zigbee_e14",
+        "state": "unavailable",
+        "attributes": {
+            "min_color_temp_kelvin": 2000,
+            "max_color_temp_kelvin": 6500,
+            "min_mireds": 153,
+            "max_mireds": 500,
+            "supported_color_modes": [
+                "color_temp",
+                "hs"
+            ],
+            "friendly_name": "Smart Bulb Zigbee E14 ",
+            "supported_features": 0
+        },
+        "last_changed": "2025-08-24T08:50:50.305571+00:00",
+        "last_reported": "2025-08-24T08:50:50.305571+00:00",
+        "last_updated": "2025-08-24T08:50:50.305571+00:00",
+        "context": {
+            "id": "01K3DMBVT1SN2BNMDVPA81HHBC",
+            "parent_id": null,
+            "user_id": null
+        }
+    }
+]
