@@ -5,14 +5,6 @@ from devices.utils.color_converter import ColorConverter
 from devices.utils.linear_converter import LinearConverter
 from .base_entity import BaseEntity
 
-# supported_features sber
-# light_brightness		Яркость устройства - на HA он задается в интервале от 0 до 255  В сбере принимает значения от 50 до 1000 с шагом 1, но можно переопределить в модели
-# light_colour		Цвет устройства
-# light_colour_temp		Температура цвета устройства
-# light_mode		Режим работы устройства: цветной или белый цвет
-# on_off	✔︎	Удаленное включение и выключение устройства
-# online	✔︎	Доступность устройства: офлайн или онлайн
-
 LIGHT_ENTITY_CATEGORY = "light"
 logger = logging.getLogger(__name__)
 
@@ -29,9 +21,6 @@ class LightEntity(BaseEntity):
     brightness_converter: LinearConverter = LinearConverter()
     color_temp_converter: LinearConverter = LinearConverter()
     color_temp_converter.set_reversed(True)
-
-    # current_color: list[int] = [0, 0, 0]
-
 
     def __init__(self, ha_entity_data: dict):
         super().__init__(LIGHT_ENTITY_CATEGORY, ha_entity_data)
@@ -59,8 +48,6 @@ class LightEntity(BaseEntity):
 
         ha_color_temp = ha_state["attributes"].get("color_temp", 0)
         if ha_color_temp is not None:
-            # # sber_color_temp = (ha_color_temp - self.min_mireds)*1000/(self.max_mireds - self.min_mireds)
-            # sber_color_temp = self.max_mireds - ha_color_temp
              self.current_sber_color_temp = self.color_temp_converter.ha_to_sber(ha_color_temp)
         else:
             self.current_sber_color_temp = None
@@ -69,18 +56,12 @@ class LightEntity(BaseEntity):
         self.supported_features = ha_state["attributes"].get("supported_features", 0)
         self.supported_color_modes = ha_state["attributes"].get("supported_color_modes", [])
 
-        # Дополнительные параметры
-
         self.hs_color = ha_state["attributes"].get("hs_color", None)    # [26.767, 32.827]
         self.rgb_color = ha_state["attributes"].get("rgb_color", None)  # [255, 209, 171]
         self.xy_color = ha_state["attributes"].get("xy_color", None)    # [0.413, 0.364]
 
-    def get_device_category(self):
-        """ Ну;ен ли 'тот метод? """
-        return self.category
-
     def create_features_list(self):
-        """Формирует список возможных функций"""
+        """Формирует список фич, которые поддерживает данный класс"""
         features = super().create_features_list() # Когда вызывается 'тот метод?'
         features += ["on_off"]
 

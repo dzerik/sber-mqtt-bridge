@@ -142,14 +142,6 @@ class BaseEntity:
     def to_sber_current_state(self):
         raise NotImplementedError("Implement in child classes")
 
-    @classmethod
-    def get_device_category(cls):
-        """
-        Возвращает категорию устройства
-        """
-        raise NotImplementedError("Метод get_device_category должен быть переопределен")
-
-
     def get_entity_domain(self) -> str:
         """
         Извлекает домен из entity_id (например, 'climate' из 'climate.living_room')
@@ -169,10 +161,5 @@ class BaseEntity:
         raise NotImplementedError("Метод process_cmd должен быть переопределен")
 
     def process_state_change(self, old_state, new_state):
-        """
-        Обрабатывает изменение состояния устройства, приходящее от Home Assistant
-        """
         raise NotImplementedError("Method must be redefined in child classes")
     
-    def process_state_change(self, old_state, new_state):
-        self.fill_by_ha_state(new_state)
