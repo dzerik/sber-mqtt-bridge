@@ -120,7 +120,6 @@ class EntitiesStore:
     def create(self, entity_id, ha_state: dict):
 
         entity_category = entity_id.split(".")[0]
-
         if EntitiesStore._is_ha_state(ha_state) and entity_category in self._deviceConstructorsMap:
             return self._deviceConstructorsMap[entity_category](ha_state)
         else:
@@ -189,6 +188,9 @@ class EntitiesStore:
     
     def to_web_entity(self, entity_id: str) -> dict:
         """ Преобразование сущности в формат для отображения в веб-интерфейсе """
+        if entity_id is None:
+            return None
+        
         entity = self.get(entity_id)
         if entity is None:
             return 
