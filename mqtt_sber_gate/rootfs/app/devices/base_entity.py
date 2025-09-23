@@ -88,32 +88,6 @@ class BaseEntity:
             return False
         return True
 
-    # def to_ha_state(self):
-    #     """
-    #     Возвращает состояние устройства в формате Home Assistant
-    #     """
-    #     return {
-    #         "area_id": self.area_id,
-    #         "categories": self.categories,
-    #         "config_entry_id": self.config_entry_id,
-    #         "config_subentry_id": self.config_subentry_id,
-    #         "device_id": self.device_id,
-    #         "disabled_by": self.disabled_by,
-    #         "entity_category": self.entity_category,
-    #         "entity_id": self.entity_id,
-    #         "has_entity_name": self.has_entity_name,
-    #         "hidden_by": self.hidden_by,
-    #         "icon": self.icon,
-    #         "id": self.id,
-    #         "labels": self.labels,
-    #         "name": self.name,
-    #         "options": self.options,
-    #         "original_name": self.original_name,
-    #         "platform": self.platform,
-    #         "translation_key": self.translation_key,
-    #         "unique_id": self.unique_id
-    #     }
-
     def create_features_list(self):
         return ["online"]
 

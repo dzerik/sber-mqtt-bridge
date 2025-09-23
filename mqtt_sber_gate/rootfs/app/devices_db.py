@@ -6,13 +6,10 @@ from threading import Lock
 import threading
 from typing import Dict
 
-# from devices.curtain import CurtainEntity
 from devices.curtain import CurtainEntity
 from devices.device_data import DeviceData
 from devices.base_entity import BaseEntity
 from devices.light import LightEntity
-# from devices.climate import ClimateDevice
-# from devices.light import LightEntity
 
 logger = logging.getLogger(__name__)
 VERSION = "0.0.1"
@@ -69,7 +66,6 @@ class EntitiesStore:
     _deviceConstructorsMap = {
         "light":    lambda ha_state: LightEntity(ha_state),
         "cover":    lambda ha_state: CurtainEntity(ha_state),
-        # "climate":  lambda ha_state: ClimateDevice(ha_state)
     }
     _enabled_entities: list = []
 
@@ -190,6 +186,31 @@ class EntitiesStore:
 
     def is_entity_enabled(self, entity_id: str) -> bool:
         return entity_id in self._enabled_entities
+    
+    def to_web_entity(self, entity_id: str) -> dict:
+        """ Преобразование сущности в формат для отображения в веб-интерфейсе """
+        if entity_id not in self._store:
+            return None
+        
+        entity = self._store[entity_id]
+        web_object = {}
+        web_object["enabled"] = self.is_entity_enabled(entity_id)
+        web_object["id"] = entity_id
+        web_object["name"] = entity.name
+        web_object["default_name"] = entity.original_name
+        web_object["nicknames"] = []
+        web_object["home"] = ""
+        web_object["room"] = entity.linked_device.get("area_id", "") if entity.linked_device is not None else ""
+        web_object["groups"] = []
+        web_object["model_id"] = ""
+        web_object["category"] = entity.category
+        web_object["hw_version"] = entity.linked_device.get("hw_version", "") if entity.linked_device is not None else ""
+        web_object["sw_version"] = entity.linked_device.get("sw_version", "") if entity.linked_device is not None else ""
+        web_object["entity_ha"] = True
+        web_object["entity_type"] = entity.entity_category
+        web_object["friendly_name"] = entity.attributes.get("friendly_name", entity.original_name)
+        return web_object
+        
 
 class CDevicesDB:
     """Управление базой данных устройств"""
@@ -510,27 +531,10 @@ class CDevicesDB:
     # Остальные методы и логика класса
     def do_http_json_devices_list_2(self):
         current_db = copy.deepcopy(self.DB)
-        for k, v in self.entities_store._store.items():
-            device_object = {}
-            device_object["enabled"] = self._entities_store.is_entity_enabled(k)
-            if device_object["enabled"] is None:
-                print("HELLO!")
-            device_object["id"] = k
-            device_object["name"] = v.name
-            device_object["default_name"] = v.original_name
-            device_object["nicknames"] = []
-            device_object["home"] = ""
-            device_object["room"] = v.linked_device.get("area_id", "") if v.linked_device is not None else ""
-            device_object["groups"] = []
-            device_object["model_id"] = ""
-            device_object["category"] = v.category
-            device_object["hw_version"] = v.linked_device.get("hw_version", "") if v.linked_device is not None else ""
-            device_object["sw_version"] = v.linked_device.get("sw_version", "") if v.linked_device is not None else ""
-            device_object["entity_ha"] = True
-            device_object["entity_type"] = v.entity_category
-            device_object["friendly_name"] = v.attributes.get("friendly_name", v.original_name)
-
-            current_db |= {k: device_object}
+        for k in self.entities_store.get_keys():
+            web_entity = self.entities_store.to_web_entity(k)
+            if web_entity is not None:
+                current_db |= {k: web_entity}
 
         return json.dumps({'devices':current_db})
     
