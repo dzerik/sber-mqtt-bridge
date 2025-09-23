@@ -46,9 +46,9 @@ class MyServer(BaseHTTPRequestHandler):
          
         self.sber_api_endpoint = options['sber-http_api_endpoint']
         self.ha_api_token = options['ha-api_token']
-        self.sber_user = options["sber-mqtt_login"],
-        self.sber_pass = options["sber-mqtt_password"],
-        self.sber_broker = options["sber-mqtt_broker"],
+        self.sber_user = options["sber-mqtt_login"]
+        self.sber_pass = options["sber-mqtt_password"]
+        self.sber_broker = options["sber-mqtt_broker"]
 
         self.AgentStatus={
             "online": True, 
@@ -138,9 +138,14 @@ class MyServer(BaseHTTPRequestHandler):
         self.send_data(self,d,"application/json")
 
     def handle_api_transformations(self):
-        f =open('../app/data/transformations.json' ,'r', encoding='utf-8')
-        d=f.read()
-        f.close()
+        file_path = '../app/data/transformations.json'
+        if os.path.exists(file_path):
+            f =open( file_path,'r', encoding='utf-8')
+            d=f.read()
+            f.close()
+        else:
+            d = {}
+
         self.send_data(self,d,"application/json")
 
     def handle_api_aggregations(self):
@@ -296,7 +301,8 @@ class MyServer(BaseHTTPRequestHandler):
             'DB_delete': self.devices_db.clear,
             'exit': self._command_exit
         }
-        dict.get(d.get('command','unknow'), self._command_default)(d)
+        command_func = dict.get(d.get('command', 'unknown'), self._command_default)
+        command_func(d)
 
     def _command_exit(self, d):
         logger.info('Выход. '+str(d))
