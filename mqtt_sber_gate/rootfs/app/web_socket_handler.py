@@ -4,7 +4,7 @@ WebSocket handler module for SberGate integration
 
 import asyncio
 import threading
-from devices.light import LightEntity
+# from devices.light import LightEntity
 from devices_db import json_write
 import websocket
 import json
@@ -65,7 +65,7 @@ class WebSocketHandler:
             'None': self.handle_default
         }
 
-        self.dont_log_messages_for = ["sensor.archer_ax58", "sensor.datchik_kachestva_vozdukha", "sensor.yandex_pogoda", "sensor.datchik_osveshchennosti_i_prisutstviia_osveshchennost", "sun.sun"]
+        self.dont_log_messages_for = ["sensor.archer_ax58", "sensor.datchik_kachestva_vozdukha", "sensor.yandex_pogoda", "sensor.datchik_osveshchennosti_i_prisutstviia_osveshchennost", "sun.sun", "device_tracker", "person"]
 #        self.dont_log_messages_for = []
 
 
@@ -162,14 +162,16 @@ class WebSocketHandler:
             # По идее, тут надо заполнять deviceStore, но мы умеем заполнять только lights пока.
             json_write("entity_registry.json", data)
             entities = data.get('result', [])
-            for entity in entities:
-                if not entity.get('entity_id', "").startswith('light'):
-#                    logger.info(f"WebSocket: Пропускаю сущность {entity['entity_id']}")
-                    continue
+            for ha_entity in entities:
+#                 if not entity.get('entity_id', "").startswith('light'):
+# #                    logger.info(f"WebSocket: Пропускаю сущность {entity['entity_id']}")
+#                     continue
 
-                entity_id = entity['entity_id']
-                light_entity = LightEntity(entity)
-                self.devices_db.entitiesStore.upsert(light_entity)
+                entity_id = ha_entity['entity_id']
+                # Если entitiesStore не знает категорию сущности, то вернет None
+                entity = self.devices_db.entities_store.create(entity_id, ha_entity)
+                if entity:
+                    self.devices_db.entities_store.upsert(entity)
                                    
         elif data.get('id') == 5:
             logger.info(f"WebSocket: Получены состояния сущностей.")
@@ -179,7 +181,7 @@ class WebSocketHandler:
             for state in states:
                 entity_id = state.get('entity_id')
                 if entity_id:
-                    entity = self.devices_db.entitiesStore.get(entity_id)
+                    entity = self.devices_db.entities_store.get(entity_id)
                     if entity:
                         entity.fill_by_ha_state(state)
             self.devices_db.setReady()
@@ -192,7 +194,7 @@ class WebSocketHandler:
             logger.info(f"Either entity_id or new_state is None. entity_id: {entity_id}, new_state: {new_state}. Skipping.")
             return
         
-        entity = self.devices_db.entitiesStore.get(entity_id)
+        entity = self.devices_db.entities_store.get(entity_id)
         if entity:
             entity.process_state_change(old_state, new_state)
             logger.info(f"(_process_event) Publishing device {entity_id}")
@@ -253,6 +255,9 @@ class WebSocketHandler:
     def handle_pong(self, data):
         """Handle ping message response. Just ignoring"""
         return
+    
+    def on_data(self, app, data, ivalue, bvalue):
+        logger.debug(f"Hello, onData: {data}, {ivalue}, {bvalue}")
 
     def handle_default(self, data):
         """Default message handler"""
@@ -266,7 +271,9 @@ class WebSocketHandler:
                     self.ws_url,
                     on_open=self.on_open,
                     on_message=self.on_message,
-                    on_close=self.on_close
+                    on_close=self.on_close,
+                    # on_data=self.on_data
+
                 )
                 self.ws.run_forever(ping_interval=60, ping_timeout=30)
                 logger.info("WebSocket disconnected. Reconnecting in 1 second...")

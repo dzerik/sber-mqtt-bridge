@@ -6,10 +6,13 @@ from threading import Lock
 import threading
 from typing import Dict
 
+# from devices.curtain import CurtainEntity
+from devices.curtain import CurtainEntity
 from devices.device_data import DeviceData
 from devices.base_entity import BaseEntity
-from devices.climate import ClimateDevice
 from devices.light import LightEntity
+# from devices.climate import ClimateDevice
+# from devices.light import LightEntity
 
 logger = logging.getLogger(__name__)
 VERSION = "0.0.1"
@@ -55,7 +58,6 @@ class EntityRedefinitions_Sber:
             entity_redefinition.room = room
             return entity_redefinition
         return None
-    
 
 class EntitiesStore:
     _store: Dict[str, BaseEntity] = {}
@@ -66,8 +68,10 @@ class EntitiesStore:
     # и по ней надо поменять атрибуты home и room для устройства. И запомнить их, чтобы в следующий раз уже его размещать в этом месте.
     _deviceConstructorsMap = {
         "light":    lambda ha_state: LightEntity(ha_state),
-        "climate":  lambda ha_state: ClimateDevice(ha_state)
+        "cover":    lambda ha_state: CurtainEntity(ha_state),
+        # "climate":  lambda ha_state: ClimateDevice(ha_state)
     }
+    _enabled_entities: list = []
 
     def __init__(self, logger):
         self.logger = logger
@@ -90,7 +94,7 @@ class EntitiesStore:
         """
         Возвращает набор идентификаторов сущностей, зарегистрированных в данном хранилище
         """
-        return self._device_data_store.keys()
+        return self._store.keys()
 
     def upsert_device_data(self, data: DeviceData):
         id = data.get("id", None)
@@ -114,11 +118,15 @@ class EntitiesStore:
     
     @staticmethod
     def _is_ha_state(state: dict) -> bool:
-        return "attributes" in state.keys() and "category" in state.keys()
+        return True
+#        return "attributes" in state.keys() and "category" in state.keys()
 
-    def create(self, ha_state: dict):
-        if EntitiesStore._is_ha_state(ha_state) and ha_state.get('category') in self._deviceConstructorsMap:
-            return self._deviceConstructorsMap[ha_state['category']](ha_state)
+    def create(self, entity_id, ha_state: dict):
+
+        entity_category = entity_id.split(".")[0]
+
+        if EntitiesStore._is_ha_state(ha_state) and entity_category in self._deviceConstructorsMap:
+            return self._deviceConstructorsMap[entity_category](ha_state)
         else:
             return None
         
@@ -127,6 +135,8 @@ class EntitiesStore:
         if entity is not None:
             self._try_to_register_entity_groups(entity.entity_id, ha_state)
             entity.fill_by_ha_state(ha_state)
+        else:
+            entity = self.create(ha_state['entity_id'], ha_state)
    
     def save(self):
         redirections = {}
@@ -135,6 +145,7 @@ class EntitiesStore:
                 redirections[entity_id] = entity.to_json()
 
         json_write("store_placements.json", redirections)
+        json_write("enabled_entities.json", self._enabled_entities)
 
     def load(self, f):
         loaded_redirections = json_read("store_placements.json", {})
@@ -144,8 +155,8 @@ class EntitiesStore:
                 entity_placement = EntityRedefinitions_Sber.from_json(redirection)
                 if entity_placement is not None:
                     self._entity_redefinition_info[entity_placement.entity_id] = entity_placement
+        self._enabled_entities = json_read("enabled_entities.json", [])
 
-        
     def get_redefinition_data(self, entity_id: str, default_home: str, default_room: str) -> EntityRedefinitions_Sber:
         if entity_id in self._entity_redefinition_info:
             return self._entity_redefinition_info[entity_id]
@@ -169,9 +180,20 @@ class EntitiesStore:
         entity_redefinition = self._get_entity(entity_id)
         entity_redefinition.entity_name = new_name
 
+    def enable_entity(self, entity_id: str):
+        if entity_id not in self._enabled_entities:
+            self._enabled_entities.append(entity_id)
+
+    def disable_entity(self, entity_id: str):
+        if entity_id in self._enabled_entities:
+            self._enabled_entities.remove(entity_id)
+
+    def is_entity_enabled(self, entity_id: str) -> bool:
+        return entity_id in self._enabled_entities
+
 class CDevicesDB:
     """Управление базой данных устройств"""
-    _entitiesStore: EntitiesStore = None
+    _entities_store: EntitiesStore = None
     lock: Lock = Lock()
     _dbReadyEvent = threading.Event()
     _db_is_ready = False
@@ -180,8 +202,8 @@ class CDevicesDB:
         self.fDB = fDB
         self.DB = json_read(fDB, {})
         self.logger = logger
-        self._entitiesStore = EntitiesStore(logger)
-        self._entitiesStore.load(fDB)
+        self._entities_store = EntitiesStore(logger)
+        self._entities_store.load(fDB)
         self._categories = {}
         VERSION = version
         
@@ -191,17 +213,17 @@ class CDevicesDB:
         for id, device in self.DB.items():
             if self.DB[id].get('enabled', None) is None:
                 self.DB[id]['enabled'] = False    
-            device_instance = self._entitiesStore.create(device)
+            device_instance = self._entities_store.create(device)
             if device_instance is not None:
-                self._entitiesStore.upsert(device_instance)
+                self._entities_store.upsert(device_instance)
 
         self.mqtt_json_devices_list = '{}'
         self.mqtt_json_states_list = '{}'
         self.http_json_devices_list = '{}'
 
     @property
-    def entitiesStore(self):
-        return self._entitiesStore
+    def entities_store(self):
+        return self._entities_store
 
     @property
     def resCategories(self):
@@ -232,9 +254,9 @@ class CDevicesDB:
                 return r
 
     def save_DB(self):
-        logger.debug("Сохранение базы устройств - fake")
+        logger.debug("Сохранение базы устройств")
         # json_write(self.fDB, self.DB)
-        # self._deviceStore.save(self.fDB)
+        self._entities_store.save()
 
     def clear(self):
         self.DB = {}
@@ -331,7 +353,11 @@ class CDevicesDB:
                 }
              })
         
+        known_entities_dict = {}
+
         with self.lock:
+            default_home = None
+            default_room = None
             for k,v in self.DB.items():
                 if entitiesList is not None and k not in entitiesList:
                     continue
@@ -340,37 +366,44 @@ class CDevicesDB:
                 default_home = v.get("home", None)
                 default_room = v.get("room", None)
 
-                entity = self.entitiesStore.get(k)
-                if entity is None:
-                    if not v.get('enabled',False):
-                        continue
+#                entity = self.entities_store.get(k)
+#                if entity is None:
+                if not v.get('enabled',False):
+                    continue
 
-                    d={'id': k, 'name': v.get('name',''), 'default_name': v.get('default_name','')}
+                d={'id': k, 'name': v.get('name',''), 'default_name': v.get('default_name','')}
 
-                    d['room']=v.get('room','')
-                    d['hw_version']=v.get('hw_version','')
-                    d['sw_version']=v.get('sw_version','')
-                    dev_cat=v.get('category','relay')
-                    c=self.categories.get(dev_cat)
-                    f=[]
-                    for ft in c:
-                        if ft.get('required',False):
-                            f.append(ft['name'])
-                        else:
-                            for st in self.get_states(k):
-                                if ft['name'] == st:
-                                    f.append(ft['name'])
+                d['room']=v.get('room','')
+                d['hw_version']=v.get('hw_version','')
+                d['sw_version']=v.get('sw_version','')
+                dev_cat=v.get('category','relay')
+                c=self.categories.get(dev_cat)
+                f=[]
+                for ft in c:
+                    if ft.get('required',False):
+                        f.append(ft['name'])
+                    else:
+                        for st in self.get_states(k):
+                            if ft['name'] == st:
+                                f.append(ft['name'])
 
-                    d['model']={'id': 'ID_'+dev_cat, 'manufacturer': 'Janch', 'model': 'Model_'+dev_cat, 'category': dev_cat, 'features': f}
-                    d['model_id']=''
-                else:
-                    d = entity.to_sber_state()
-                    if 'room' in d:
-                        default_room = d["room"]
-                    if 'home' in d:
-                        default_home = d["home"]
+                d['model']={'id': 'ID_'+dev_cat, 'manufacturer': 'Janch', 'model': 'Model_'+dev_cat, 'category': dev_cat, 'features': f}
+                d['model_id']=''
+                known_entities_dict[k] = d
+ 
+            for k, entity in self._entities_store._store.items():
+                d = entity.to_sber_state()
+                if self._entities_store.is_entity_enabled(k):
+                    known_entities_dict[k] = d
 
-                entity_redefinition = self.entitiesStore.get_redefinition_data(k, default_home, default_room)
+            for k, d in known_entities_dict.items():
+                if 'room' in d:
+                    default_room = d["room"]
+                if 'home' in d:
+                    default_home = d["home"]
+
+
+                entity_redefinition = self.entities_store.get_redefinition_data(k, default_home, default_room)
                 if d is not None:
                     if entity_redefinition is not None:
                         if entity_redefinition.home is not None:
@@ -380,7 +413,7 @@ class CDevicesDB:
                         if entity_redefinition.entity_name is not None:
                             d['name'] = entity_redefinition.entity_name
 
-                    # device_groups = self._entitiesStore._entity_to_group_root_map.get(k, None)
+                    # device_groups = self._entities_store._entity_to_group_root_map.get(k, None)
                     # if device_groups is not None:
                     #     d["groups"] = device_groups
                     filtered = {k: v for k, v in d.items() if v}
@@ -399,12 +432,14 @@ class CDevicesDB:
         DStat={}
         DStat['devices']={}
         if len(dl) == 0:
-            assert self.entitiesStore is not None
-            dl=list(self.DB.keys()) +list(self.entitiesStore.get_keys())
+            assert self.entities_store is not None
+            old_fashion_list = list(self.DB.keys())
+            new_fashion_list = list(self.entities_store.get_keys())
+            dl= old_fashion_list + new_fashion_list
 
         with self.lock:
             for id in dl:
-                entity = self.entitiesStore.get(id)
+                entity = self.entities_store.get(id)
                 if (entity is None):
                     device=self.DB.get(id,None)
                     if not (device is None):
@@ -431,7 +466,7 @@ class CDevicesDB:
                             DStat['devices'][id]['states']=r
                 else:
                     entityState = entity.to_sber_current_state()
-                    if entityState is not None:
+                    if entityState is not None and self._entities_store.is_entity_enabled(id):
                         DStat['devices']  |= entityState
 
         if (len(DStat['devices']) == 0):
@@ -474,7 +509,30 @@ class CDevicesDB:
 
     # Остальные методы и логика класса
     def do_http_json_devices_list_2(self):
-        return json.dumps({'devices':self.DB})
+        current_db = copy.deepcopy(self.DB)
+        for k, v in self.entities_store._store.items():
+            device_object = {}
+            device_object["enabled"] = self._entities_store.is_entity_enabled(k)
+            if device_object["enabled"] is None:
+                print("HELLO!")
+            device_object["id"] = k
+            device_object["name"] = v.name
+            device_object["default_name"] = v.original_name
+            device_object["nicknames"] = []
+            device_object["home"] = ""
+            device_object["room"] = v.linked_device.get("area_id", "") if v.linked_device is not None else ""
+            device_object["groups"] = []
+            device_object["model_id"] = ""
+            device_object["category"] = v.category
+            device_object["hw_version"] = v.linked_device.get("hw_version", "") if v.linked_device is not None else ""
+            device_object["sw_version"] = v.linked_device.get("sw_version", "") if v.linked_device is not None else ""
+            device_object["entity_ha"] = True
+            device_object["entity_type"] = v.entity_category
+            device_object["friendly_name"] = v.attributes.get("friendly_name", v.original_name)
+
+            current_db |= {k: device_object}
+
+        return json.dumps({'devices':current_db})
     
     def DefaultValue(self,feature):
         t=feature['data_type']
@@ -509,4 +567,4 @@ class CDevicesDB:
     
     def upsert_device_data(self, device_data):
         with self.lock:
-            self._entitiesStore.upsert_device_data(device_data)
+            self._entities_store.upsert_device_data(device_data)

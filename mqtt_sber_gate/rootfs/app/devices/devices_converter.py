@@ -1,8 +1,9 @@
-from devices.light import LightEntity
+# from devices.light import LightEntity
 from devices_db import CDevicesDB
 
 
 class DevicesConverter:
+    """ Класс предназначен для преобразования устройств из Home Assistant в внутренний формат и диспетчеризации их регистрации в deviceDB."""
     def __init__(self, deviceDB: CDevicesDB, logger):
         self._deviceDB = deviceDB
         self._logger = logger
@@ -14,8 +15,16 @@ class DevicesConverter:
         'button': self.upd_button,
         'input_boolean': self.upd_input_boolean,
         'climate': self.upd_climate,
-        'hvac_radiator': self.upd_hvac_radiator
+        'hvac_radiator': self.upd_hvac_radiator,
+        'cover': self.upd_cover
         }
+
+    def upd_cover(self, id, s):
+        attr=s['attributes'].get('friendly_name','')
+        self._logger.debug('curtain: ' + s['entity_id'] + ' '+attr)
+        # В старую базу мы это уже не регистрируем.
+        # self._deviceDB.upsert(s['entity_id'],{'entity_ha': True,'entity_type': 'cover','friendly_name':attr,'category': 'curtain'})
+        self._deviceDB.entities_store.update_by_ha_state(s)
 
     def upd_sw(self, id, s):
         attr=s['attributes'].get('friendly_name','')
@@ -25,8 +34,8 @@ class DevicesConverter:
     def upd_light(self, id, s):
         attr=s['attributes'].get('friendly_name','')
         self._logger.debug('light: ' + s['entity_id'] + ' '+attr)
-        self._deviceDB.upsert(s['entity_id'],{'entity_ha': True,'entity_type': 'light','friendly_name':attr,'category': 'light'})
-        self._deviceDB.entitiesStore.update_by_ha_state(s)
+        # self._deviceDB.upsert(s['entity_id'],{'entity_ha': True,'entity_type': 'light','friendly_name':attr,'category': 'light'})
+        self._deviceDB.entities_store.update_by_ha_state(s)
 
     def upd_scr(self, id, s):
         attr=s['attributes'].get('friendly_name','')
@@ -77,6 +86,8 @@ class DevicesConverter:
         for s in ha_dev:
             entity_id = s['entity_id']
             a,b=entity_id.split('.',1)
+            if len(b) <= 1:
+                print("Hello")
             self.ha_device_converters_dict.get(a, self.upd_default)(s['entity_id'],s)
 
         self._deviceDB.save_DB()

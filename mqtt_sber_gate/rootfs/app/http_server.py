@@ -278,8 +278,16 @@ class MyServer(BaseHTTPRequestHandler):
         for i in d['devices']:
             for id,prop in i.items():
                 logger.info("hapi2: LOG1"+id+':'+str(prop))
-                self.devices_db.update(id, prop)
-        infot = self.mqttc.publish(self.sber_root_topic+'/up/config', self.devices_db.do_mqtt_json_devices_list(), qos=0)
+                if self.devices_db.entities_store.get(id):
+                    if prop.get("enabled", False):
+                        self.devices_db.entities_store.enable_entity(id)
+                    else:
+                        self.devices_db.entities_store.disable_entity(id)
+                else:
+                    self.devices_db.update(id, prop)
+        devices_list = self.devices_db.do_mqtt_json_devices_list()
+        infot = self.mqttc.publish(self.sber_root_topic+'/up/config', devices_list, qos=0)
+        logger.debug(f"(handle_api2_devices_post) Published: {devices_list}")
         self.devices_db.save_DB()
 
     def handle_api2_command_post(self,d):
