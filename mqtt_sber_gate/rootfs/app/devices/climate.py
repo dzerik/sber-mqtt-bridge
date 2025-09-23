@@ -34,9 +34,6 @@ class ClimateDevice(BaseEntity):
         self._supported_features = ha_state["attributes"].get("supported_features", None)
         self._target_temp_step = ha_state["attributes"].get("target_temp_step", None)
 
-    def get_device_category(self):
-        return self.category
-    
     def to_ha_state(self):
         """Формирует состояние для Home Assistant"""
         res = super().to_ha_state()

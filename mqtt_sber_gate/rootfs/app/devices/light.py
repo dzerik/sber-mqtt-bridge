@@ -5,14 +5,6 @@ from devices.utils.color_converter import ColorConverter
 from devices.utils.linear_converter import LinearConverter
 from .base_entity import BaseEntity
 
-# supported_features sber
-# light_brightness		Яркость устройства - на HA он задается в интервале от 0 до 255  В сбере принимает значения от 50 до 1000 с шагом 1, но можно переопределить в модели
-# light_colour		Цвет устройства
-# light_colour_temp		Температура цвета устройства
-# light_mode		Режим работы устройства: цветной или белый цвет
-# on_off	✔︎	Удаленное включение и выключение устройства
-# online	✔︎	Доступность устройства: офлайн или онлайн
-
 LIGHT_ENTITY_CATEGORY = "light"
 logger = logging.getLogger(__name__)
 
@@ -29,9 +21,6 @@ class LightEntity(BaseEntity):
     brightness_converter: LinearConverter = LinearConverter()
     color_temp_converter: LinearConverter = LinearConverter()
     color_temp_converter.set_reversed(True)
-
-    # current_color: list[int] = [0, 0, 0]
-
 
     def __init__(self, ha_entity_data: dict):
         super().__init__(LIGHT_ENTITY_CATEGORY, ha_entity_data)
@@ -59,8 +48,6 @@ class LightEntity(BaseEntity):
 
         ha_color_temp = ha_state["attributes"].get("color_temp", 0)
         if ha_color_temp is not None:
-            # # sber_color_temp = (ha_color_temp - self.min_mireds)*1000/(self.max_mireds - self.min_mireds)
-            # sber_color_temp = self.max_mireds - ha_color_temp
              self.current_sber_color_temp = self.color_temp_converter.ha_to_sber(ha_color_temp)
         else:
             self.current_sber_color_temp = None
@@ -69,18 +56,14 @@ class LightEntity(BaseEntity):
         self.supported_features = ha_state["attributes"].get("supported_features", 0)
         self.supported_color_modes = ha_state["attributes"].get("supported_color_modes", [])
 
-        # Дополнительные параметры
-
         self.hs_color = ha_state["attributes"].get("hs_color", None)    # [26.767, 32.827]
         self.rgb_color = ha_state["attributes"].get("rgb_color", None)  # [255, 209, 171]
         self.xy_color = ha_state["attributes"].get("xy_color", None)    # [0.413, 0.364]
 
-    def get_device_category(self):
-        return self.category
-
     def create_features_list(self):
-        """Формирует список возможных функций"""
-        features = super().create_features_list()
+        """Формирует список фич, которые поддерживает данный класс"""
+        features = super().create_features_list() # Когда вызывается 'тот метод?'
+        features += ["on_off"]
 
         if "xy" in self.supported_color_modes:
             features += [
@@ -226,8 +209,6 @@ class LightEntity(BaseEntity):
 
             if cmd_key == "on_off" and cmd_value.get("type", "") == "BOOL":
                 new_state = cmd_value.get("bool_value", False)
-                if self.current_state == new_state:
-                    continue
 
                 self.current_state = new_state
                 processing_result.append({
@@ -242,9 +223,7 @@ class LightEntity(BaseEntity):
                 })
 
             if cmd_key == "light_brightness":
-                # Changes in [50, 1000], реально, похоже, что 255
                 sber_br_value = int(cmd_value.get("integer_value", 50))
-                # Changes in [0, 255]
                 ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
 
                 brightness = max(50, min(int(ha_br_value), 255))
@@ -304,7 +283,6 @@ class LightEntity(BaseEntity):
                 ha_color_temp = self.color_temp_converter.sber_to_ha(sber_color_temp)
 
 
-                # logger.debug(f"######.   sber_color_temp = {sber_color_temp}, ha_color_temp = {ha_color_temp}")
                 if self.current_state:
                     processing_result.append({
                         "url": {
