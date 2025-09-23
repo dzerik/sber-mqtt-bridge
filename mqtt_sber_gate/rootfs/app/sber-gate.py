@@ -26,7 +26,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import importlib.metadata
 
 try:
-    # Замените "sber-gate" на имя вашего пакета (как указано в setup.py/pyproject.toml)
     VERSION = importlib.metadata.version("mqtt-sber-gate-oop")
 except importlib.metadata.PackageNotFoundError:
     # Фallback-значение, если пакет не найден
@@ -49,24 +48,6 @@ LOG_FILE = 'SberGate.log'
 LOG_FILE_MAX_SIZE = 1024*1024*7
 # log_level = 3
 HA_AREA = {}
-
-# Настройка логирования (файл + консоль)
-# logging.basicConfig(
-#     level=logging.DEBUG,
-#     format='%(asctime)s %(levelname)s: %(message)s',
-#     datefmt='%Y-%m-%d %H:%M:%S',
-#     filename=LOG_FILE,
-#     filemode='w'
-# )
-
-# # Добавление логгирования в консоль
-# console_handler = logging.StreamHandler()
-# console_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-# console_handler.setFormatter(console_formatter)
-# root_logger = logging.getLogger()
-# root_logger.addHandler(console_handler)
-
-# logger = logging.getLogger(__name__)
 
 # Проверка размера файла логов
 if os.path.isfile(LOG_FILE):
@@ -94,25 +75,12 @@ root_logger.addHandler(console_handler)
 logger = logging.getLogger(__name__)
 
 
-fOptions=os.path.join(os.getcwd(), "data", "debug-data", "options.json")
+# fOptions=os.path.join(os.getcwd(), "data", "debug-data", "options.json")
+fOptions='options.json'
 fDevicesDB='devices.json'
 fCategories='categories.json'
 
 #*******************************
-# def json_read(f):
-#    try:
-#       d=open(f,'r', encoding='utf-8').read()
-#       r=json.loads(d)
-#    except:
-#       r={}
-#       logger.info('!!! Неверная конфигурация в файле: '+f)
-#    return r
-
-# def json_write(f,d):
-#    out_file = open(f, "w")
-#    json.dump(d, out_file)
-#    out_file.close()
-
 def options_change(k,v):
    t=Options.get(k,None)
    if (t is None):
@@ -163,18 +131,6 @@ def ha_climate(id,changes):
    else:
       payload = {"entity_id": id, "temperature": DevicesDB.get_state(id,'hvac_temp_set'), "hvac_mode": "off"}
    response=requests.post(url, json=payload, headers=hds)
-
-#   if changes.get('on_off',False):
-#      url=Options['ha-api_url']+'/api/services/'+entity_domain+'/'
-#      if DevicesDB.get_state(id,'on_off'):
-#         url += 'turn_on'
-#      else:
-#         url += 'turn_off'
-#      logger.info('HA REST API REQUEST: '+ url)
-#      response=requests.post(url, json={"entity_id": id}, headers=hds)
-#   print(response)
-
-
 
 def ha_switch(id,OnOff):
 #   if DevicesDB.DB[id].get('entity_ha',False):
@@ -255,136 +211,6 @@ def ha_script(id,OnOff):
 #         r.append(o)
       return r
 
-#    def do_mqtt_json_devices_list(self):
-#       Dev={}
-#       Dev['devices']=[]
-#       Dev['devices'].append({"id": "root", "name": "Вумный контроллер", 'hw_version':VERSION, 'sw_version':VERSION })
-#       Dev['devices'][0]['model']={'id': 'ID_root_hub', 'manufacturer': 'Janch', 'model': 'VHub', 'description': "HA MQTT SberGate HUB", 'category': 'hub', 'features': ['online']}
-#       for k,v in self.DB.items():
-#          if v.get('enabled',False):
-#             d={'id': k, 'name': v.get('name',''), 'default_name': v.get('default_name','')}
-#             d['home']=v.get('home','Мой дом')
-#             d['room']=v.get('room','')
-# #            d['groups']=['Спальня']
-#             d['hw_version']=v.get('hw_version','')
-#             d['sw_version']=v.get('sw_version','')
-#             dev_cat=v.get('category','relay')
-#             c=categories.get(dev_cat)
-#             f=[]
-#             for ft in c:
-#                if ft.get('required',False):
-#                   f.append(ft['name'])
-#                else:
-#                   for st in self.get_states(k):
-#                      if ft['name'] == st:
-#                         f.append(ft['name'])
-
-#             d['model']={'id': 'ID_'+dev_cat, 'manufacturer': 'Janch', 'model': 'Model_'+dev_cat, 'category': dev_cat, 'features': f}
-# #            logger.info(d['model'])
-#             d['model_id']=''
-#             Dev['devices'].append(d)
-#       self.mqtt_json_devices_list=json.dumps(Dev)
-#       # logger.debug('New Devices List for MQTT: '+self.mqtt_json_devices_list)
-#       logger.debug('New Devices List for MQTT-2')
-#       return self.mqtt_json_devices_list
-
-#    def DefaultValue(self,feature):
-#       t=feature['data_type']
-#       dv_dict={
-#          'BOOL': False,
-#          'INTEGER': 0,
-#          'ENUM': ''
-#       }
-#       v=dv_dict.get(t, None)
-#       if v is None:
-#          logger.info('Неизвестный тип даных: '+t)
-#          return False
-#       else:
-#          if feature['name'] == 'online':
-#             return True
-#          else:
-#             return v
-      
-#    def StateValue(self,id,feature):
-#       #{'key':'online','value':{"type": "BOOL", "bool_value": True}}
-#       State=self.DB[id]['States'][feature['name']]
-#       if feature['name'] == 'temperature':
-#          State=State*10
-#       if feature['data_type'] == 'BOOL':
-#          r={'key':feature['name'],'value':{'type': 'BOOL', 'bool_value': bool(State)}}
-#       if feature['data_type'] == 'INTEGER':
-#          r={'key':feature['name'],'value':{'type': 'INTEGER', 'integer_value': int(State)}}
-#       if feature['data_type'] == 'ENUM':
-#          r={'key':feature['name'],'value':{'type': 'ENUM', 'enum_value': State}}
-#       logger.debug(id+': '+str(r))
-#       return r
-
-#    def do_mqtt_json_states_list(self,dl):
-#       DStat={}
-#       DStat['devices']={}
-#       if (len(dl) == 0):
-#          dl=self.DB.keys()
-#       for id in dl:
-#          device=self.DB.get(id,None)
-#          if not (device is None):
-#             if device['enabled']:
-#                device_category=device.get('category',None)
-#                if device_category is None:
-#                   device_category='relay'
-#                   self.DB[id]['category']=device_category
-#                DStat['devices'][id]={}
-#                features=categories.get(device_category)
-#                if self.DB[id].get('States',None) is None:
-#                   self.DB[id]['States']={}
-#                r=[]
-#                for ft in features:
-#                   state_value = self.DB[id]['States'].get(ft['name'],None)
-#                   if state_value is None:
-#                      if ft.get('required',False):
-#                         logger.info('отсутствует обязательное состояние сущности: ' + ft['name'])
-#                         self.DB[id]['States'][ft['name']]=self.DefaultValue(ft)
-#                   if not (self.DB[id]['States'].get(ft['name'], None) is None):
-#                      r.append(self.StateValue(id,ft))
-#                      if ft['name'] == 'button_event':
-#                         self.DB[id]['States']['button_event']=''
-#                DStat['devices'][id]['states']=r
-# #               if (s is None):
-# #                  logger.info('У объекта: '+id+'отсутствует информация о состояниях')
-# #                  self.DB[id]['States']={}
-# #                  self.DB[id]['States']['online']=True
-# #               DStat['devices'][id]['states']=self.DeviceStates_mqttSber(id)
-
-#       if (len(DStat['devices']) == 0):
-#             DStat['devices']={"root": {"states": [{"key": "online", "value": {"type": "BOOL", "bool_value": True}}]}}
-#       self.mqtt_json_states_list=json.dumps(DStat)
-#       logger.debug(f"Отправка состояний в Sber: {self.mqtt_json_states_list}")
-#       return self.mqtt_json_states_list
-
-#    def do_http_json_devices_list(self):
-#       Dev={}
-#       Dev['devices']=[]
-#       x=[]
-#       for k,v in self.DB.items():
-#          r={}
-#          r['id']=k
-#          r['name']=v.get('name','')
-#          r['default_name']=v.get('default_name','')
-#          r['nicknames']=v.get('nicknames',[])
-#          r['home']=v.get('home','')
-#          r['room']=v.get('room','')
-#          r['groups']=v.get('groops',[])
-#          r['model_id']=v['model_id']
-#          r['category']=v.get('category','')
-#          r['hw_version']=v.get('hw_version','')
-#          r['sw_version']=v.get('sw_version','')
-#          x.append(r)
-#          Dev['devices'].append(r)
-#       self.http_json_devices_list=json.dumps({'devices':x})
-#       return self.http_json_devices_list
-
-#    def do_http_json_devices_list_2(self):
-#       return json.dumps({'devices':self.DB})
-
 #-------------------------------------------------
 def on_connect_local(mqttc, obj, flags, rc):
    logger.info("HA Connect Local Broker, rc: " + str(rc))
@@ -448,8 +274,7 @@ def on_log(mqttc, obj, level, string):
 def send_status(mqttc, s):
     infot = mqttc.publish(sber_root_topic+'/up/status', s, qos=0)
 
-#********************************************
-
+#*** sber MQTT client setup *****************************************
 def on_message_cmd(mqttc, obj, msg):
    data=json.loads(msg.payload)
    logger.info("(on_message_cmd) Sber MQTT Command: " + str(data))
@@ -511,8 +336,6 @@ def on_message_conf(mqttc, obj, msg):
    device_list = DevicesDB.do_mqtt_json_devices_list()
    mqttc.publish(sber_root_topic+'/up/config', device_list, qos=0)
 
-#!!!!!!!
-
 def on_global_conf(mqttc, obj, msg):
    data=json.loads(msg.payload)
    options_change('sber-http_api_endpoint',data.get('http_api_endpoint',''))
@@ -559,6 +382,7 @@ logger.info("Список файлов     : "+ str(os.listdir('.')))
 #sys.setdefaultencoding('utf8')
 #print(sys.stdout.encoding)
 
+# TODO remove fDevicesDB - it's not used
 if not os.path.exists(fDevicesDB):
    json_write(fDevicesDB,{})
 
@@ -626,7 +450,6 @@ def GetCategories():
          logger.info('Получаем опции для категории: '+id)
          SD_Features = requests.get(Options['sber-http_api_endpoint']+'/v1/mqtt-gate/categories/'+id+'/features', headers=hds,auth=(Options['sber-mqtt_login'], Options['sber-mqtt_password'])).json()
          Categories[id]=SD_Features['features']
-   #   logger.info(Categories)
       json_write('categories.json',Categories)
    else:
       logger.info('Список категорий получен из файла: ' + fCategories)
@@ -641,10 +464,6 @@ if categories.get('categories',False):
    logger.info('Повторное получения категорий.')
    categories=GetCategories()
 
-#Получаем список категорий в формате Сбер API для возврата по запросу
-# resCategories={'categories':[]}
-# for id in Categories:
-#    resCategories['categories'].append(id)
 DevicesDB.setCategories(categories)
 
 def start_webserver():
@@ -691,7 +510,6 @@ def stop_webserver(webServer, tsrv):
 ws_url=Options['ha-api_url'].replace('http','ws',1) + '/api/websocket'
 logger.info('Start WebSocket Client URL: ' + ws_url)
 ## websocket.enableTrace(True)
-
 
 web_server = start_webserver();
 
