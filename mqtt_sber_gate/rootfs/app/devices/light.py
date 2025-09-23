@@ -228,8 +228,6 @@ class LightEntity(BaseEntity):
 
             if cmd_key == "on_off" and cmd_value.get("type", "") == "BOOL":
                 new_state = cmd_value.get("bool_value", False)
-                # if self.current_state == new_state:
-                #     continue
 
                 self.current_state = new_state
                 processing_result.append({
@@ -244,9 +242,7 @@ class LightEntity(BaseEntity):
                 })
 
             if cmd_key == "light_brightness":
-                # Changes in [50, 1000], реально, похоже, что 255
                 sber_br_value = int(cmd_value.get("integer_value", 50))
-                # Changes in [0, 255]
                 ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
 
                 brightness = max(50, min(int(ha_br_value), 255))
@@ -306,7 +302,6 @@ class LightEntity(BaseEntity):
                 ha_color_temp = self.color_temp_converter.sber_to_ha(sber_color_temp)
 
 
-                # logger.debug(f"######.   sber_color_temp = {sber_color_temp}, ha_color_temp = {ha_color_temp}")
                 if self.current_state:
                     processing_result.append({
                         "url": {

@@ -410,9 +410,6 @@ def on_disconnect(client, userdata, rc):
         logger.info("Unexpected MQTT disconnection. Will auto-reconnect. rc: "+str(rc))
 
 def on_message(mqtts, ws, msg):
-   #  asyncio.to_thread(on_message_async, mqtts, ws, msg)
-
-# async def on_message_async(mqttc, obj, msg):
    logger.info("OnMESSAGE: "+msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
    if msg.topic and msg.topic.endswith('/down/change_group_device_request'):
       try:
@@ -424,10 +421,8 @@ def on_message(mqtts, ws, msg):
       if device_id is not None:
          DevicesDB.entities_store.redefine_placement(device_id, data.get("home", None), data.get("room", None))
          DevicesDB.entities_store.save()
-         # send changed data to sber.
          payload = DevicesDB.do_mqtt_json_devices_list([device_id])
          if payload is not None and len(payload) > 0:
-            # await async_publish(mqttc, sber_root_topic+'/up/config', payload, qos=0)
            mqttc.publish(sber_root_topic+'/up/config', payload, qos=0)
 
    if msg.topic.endswith('/down/rename_device_request'):
@@ -439,7 +434,6 @@ def on_message(mqtts, ws, msg):
          DevicesDB.entities_store.save()
          payload = DevicesDB.do_mqtt_json_devices_list([device_id])
          if payload is not None and len(payload) > 0:
-            # await async_publish(mqttc, sber_root_topic+'/up/config', payload, qos=0)
             mqttc.publish(sber_root_topic+'/up/config', payload, qos=0)
 
 def on_publish(mqttc, obj, mid):

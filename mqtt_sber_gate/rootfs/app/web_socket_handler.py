@@ -159,16 +159,10 @@ class WebSocketHandler:
 
         elif data.get('id') == 4:
             logger.info(f"WebSocket: Получен список сущностей.")
-            # По идее, тут надо заполнять deviceStore, но мы умеем заполнять только lights пока.
             json_write("entity_registry.json", data)
             entities = data.get('result', [])
             for ha_entity in entities:
-#                 if not entity.get('entity_id', "").startswith('light'):
-# #                    logger.info(f"WebSocket: Пропускаю сущность {entity['entity_id']}")
-#                     continue
-
                 entity_id = ha_entity['entity_id']
-                # Если entitiesStore не знает категорию сущности, то вернет None
                 entity = self.devices_db.entities_store.create(entity_id, ha_entity)
                 if entity:
                     self.devices_db.entities_store.upsert(entity)
@@ -200,7 +194,6 @@ class WebSocketHandler:
             logger.info(f"(_process_event) Publishing device {entity_id}")
             sber_root_topic = self.sber_root_topic 
             assert self.mqttc is not None, "MQTT client is not initialized"
-#            await async_publish(self.mqttc, sber_root_topic+'/up/status', self.devices_db.do_mqtt_json_states_list([entity_id]), qos=0)
             self.mqttc.publish(sber_root_topic+'/up/status', self.devices_db.do_mqtt_json_states_list([entity_id]), qos=0)
         else:
             self.handle_event_new(entity_id, old_state, new_state)
@@ -245,8 +238,7 @@ class WebSocketHandler:
                     self.devices_db.change_state(entity_id, 'button_event', 'double_click')
                     
         # Send updated states
-        # from sber_gate import mqttc  # Assuming this is the main MQTT client
-        sber_root_topic = self.sber_root_topic # self.options.get('sber_root_topic', 'home')
+        sber_root_topic = self.sber_root_topic 
         # Async publishing here leads to hang all processes. So remain sync publishing here.
         self.mqttc.publish(sber_root_topic+'/up/status', 
                      self.devices_db.do_mqtt_json_states_list([entity_id]), 
