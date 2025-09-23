@@ -7,12 +7,6 @@ from devices.base_entity import BaseEntity
 CURTAIN_ENTITY_CATEGORY = "curtain"
 logger = logging.getLogger(__name__)
 
-class CurtainState(Enum):
-    OPEN = "open"
-    CLOSE = "close"
-    INTERIM = "stop"
-    UNKNONN = "unknown"
-
 class CurtainEntity(BaseEntity):
     """Класс для управления шторами с поддержкой батареи и статуса открытия"""
     current_position : int = 0  # Текущая позиция (0-100%)
@@ -20,9 +14,7 @@ class CurtainEntity(BaseEntity):
     max_position: int = 100  # Максимальная позиция (0-100%)
     battery_level: int = 0  # Уровень заряда (0-100%)
     # _supported_features = []
-    current_state: CurtainState = CurtainState.UNKNONN
-    prev_state: CurtainState = CurtainState.UNKNONN
-    
+
     def __init__(self, entity_data: dict):
         super().__init__(CURTAIN_ENTITY_CATEGORY, entity_data)
         """
@@ -53,15 +45,6 @@ class CurtainEntity(BaseEntity):
             self.current_position = position
         else:
             self.current_position = 100 if self.state == "opened" else 0
-
-        self.prev_state = self.current_state
-
-        if self.current_position == 100 or self.state == "opened":
-            self.current_state = CurtainState.OPEN
-        elif self.current_position == 0 or self.state == "closed":
-            self.current_state = CurtainState.CLOSE
-        else: # 0 < current position < 100
-            self.current_state = CurtainState.INTERIM
 
         # # Обновление уровня батареи
         # battery = ha_state["attributes"].get("battery_level")
@@ -206,10 +189,6 @@ class CurtainEntity(BaseEntity):
                     }
                 }
             )
-        # states = [{
-        #     "key": "on_off",
-        #     "value": {"type": "BOOL", "bool_value": self.current_position > 0}
-        # }]
         
         # # Добавление позиции
         states.append({
@@ -217,48 +196,15 @@ class CurtainEntity(BaseEntity):
             "value": {"type": "INTEGER", "integer_value": self._convert_position(self.current_position)}
         })
 
-        if self.current_state == CurtainState.OPEN:
-            states.append({
-                "key": "open_state",
-                "value": {
-                    "type": "ENUM",
-                    "enum_value": "open"
-                }
-            })
-        elif self.current_state == CurtainState.CLOSE:
-            states.append({
-                "key": "open_state",
-                "value": {
-                    "type": "ENUM",
-                    "enum_value": "close"
-                }
-            })
-        else:
-            if self.prev_state == CurtainState.OPEN or self.prev_state == CurtainState.UNKNONN:
-                states.append({
-                    "key": "open_state",
-                    "value": {
-                        "type": "ENUM",
-                        "enum_value": "open"
-                    }
-                })
-            else:
-                states.append({
-                    "key": "open_state",
-                    "value": {
-                        "type": "ENUM",
-                        "enum_value": "opening"
-                    }
-                })
-        
-        # # Добавление уровня батареи
-        # states_list.append({
-        #     "key": "battery_level",
-        #     "value": {"type": "INTEGER", "integer_value": self._battery_level}
-        # })
+        states.append({
+            "key": "open_state",
+            "value": {
+                "type": "ENUM",
+                "enum_value": "open" if self.current_position > 0 else "close"
+            }
+        })
         
         return {self.entity_id: {"states": states}}
-        # return {}
 
     def process_state_change(self, old_state, new_state):
         self.fill_by_ha_state(new_state)
