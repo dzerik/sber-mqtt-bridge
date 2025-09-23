@@ -76,11 +76,13 @@ class LightEntity(BaseEntity):
         self.xy_color = ha_state["attributes"].get("xy_color", None)    # [0.413, 0.364]
 
     def get_device_category(self):
+        """ Ну;ен ли 'тот метод? """
         return self.category
 
     def create_features_list(self):
         """Формирует список возможных функций"""
-        features = super().create_features_list()
+        features = super().create_features_list() # Когда вызывается 'тот метод?'
+        features += ["on_off"]
 
         if "xy" in self.supported_color_modes:
             features += [
@@ -226,8 +228,8 @@ class LightEntity(BaseEntity):
 
             if cmd_key == "on_off" and cmd_value.get("type", "") == "BOOL":
                 new_state = cmd_value.get("bool_value", False)
-                if self.current_state == new_state:
-                    continue
+                # if self.current_state == new_state:
+                #     continue
 
                 self.current_state = new_state
                 processing_result.append({

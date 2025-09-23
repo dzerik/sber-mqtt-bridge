@@ -409,10 +409,10 @@ def on_disconnect(client, userdata, rc):
     if rc != 0:
         logger.info("Unexpected MQTT disconnection. Will auto-reconnect. rc: "+str(rc))
 
-def on_message(mqtts, ws, message):
-    asyncio.to_thread(on_message_async, mqtts, ws, message)
+def on_message(mqtts, ws, msg):
+   #  asyncio.to_thread(on_message_async, mqtts, ws, msg)
 
-async def on_message_async(mqttc, obj, msg):
+# async def on_message_async(mqttc, obj, msg):
    logger.info("OnMESSAGE: "+msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
    if msg.topic and msg.topic.endswith('/down/change_group_device_request'):
       try:
@@ -422,23 +422,25 @@ async def on_message_async(mqttc, obj, msg):
          return
       device_id = data.get("device_id")
       if device_id is not None:
-         DevicesDB.entitiesStore.redefine_placement(device_id, data.get("home", None), data.get("room", None))
-         DevicesDB.entitiesStore.save()
+         DevicesDB.entities_store.redefine_placement(device_id, data.get("home", None), data.get("room", None))
+         DevicesDB.entities_store.save()
          # send changed data to sber.
          payload = DevicesDB.do_mqtt_json_devices_list([device_id])
          if payload is not None and len(payload) > 0:
-            await async_publish(mqttc, sber_root_topic+'/up/config', payload, qos=0)
-#            mqttc.publish(sber_root_topic+'/up/config', payload, qos=0)
+            # await async_publish(mqttc, sber_root_topic+'/up/config', payload, qos=0)
+           mqttc.publish(sber_root_topic+'/up/config', payload, qos=0)
+
    if msg.topic.endswith('/down/rename_device_request'):
       data = json.loads(msg.payload)
       device_id = data.get("device_id", None)
       new_name = data.get("new_name", None)
       if device_id is not None and new_name is not None:
-         DevicesDB.entitiesStore.rename_entity(device_id, new_name)
-         DevicesDB.entitiesStore.save()
+         DevicesDB.entities_store.rename_entity(device_id, new_name)
+         DevicesDB.entities_store.save()
          payload = DevicesDB.do_mqtt_json_devices_list([device_id])
          if payload is not None and len(payload) > 0:
-            await async_publish(mqttc, sber_root_topic+'/up/config', payload, qos=0)
+            # await async_publish(mqttc, sber_root_topic+'/up/config', payload, qos=0)
+            mqttc.publish(sber_root_topic+'/up/config', payload, qos=0)
 
 def on_publish(mqttc, obj, mid):
     logger.info("mid: " + str(mid))
@@ -458,7 +460,7 @@ def on_message_cmd(mqttc, obj, msg):
    data=json.loads(msg.payload)
    logger.info("(on_message_cmd) Sber MQTT Command: " + str(data))
    for id,cmd_data in data['devices'].items():
-      entity = DevicesDB.entitiesStore.get(id)
+      entity = DevicesDB.entities_store.get(id)
       if (entity is None):
          changes={}
          for k in cmd_data['states']:

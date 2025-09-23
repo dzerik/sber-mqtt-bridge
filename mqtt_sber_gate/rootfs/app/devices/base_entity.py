@@ -115,10 +115,7 @@ class BaseEntity:
     #     }
 
     def create_features_list(self):
-        features = []
-        features += ["online"]
-        features += ["on_off"]
-        return features
+        return ["online"]
 
     def link_device(self, device_data: DeviceData):
         assert self.device_id == device_data.get("id")
@@ -155,7 +152,7 @@ class BaseEntity:
             "default_name": self.original_name,
             "room": self.linked_device.get("area_id", self.area_id),
             "model": {
-                "id": "Mdl_"+self.linked_device["model"],
+                "id": self.linked_device["model_id"],
                 "manufacturer": self.linked_device["manufacturer"],
                 "model": self.linked_device["model"],
                 "description": self.linked_device["name"],
@@ -165,7 +162,7 @@ class BaseEntity:
             },
             "hw_version": self.linked_device["hw_version"],
             "sw_version": self.linked_device["sw_version"],
-            "model_id": self.linked_device["model_id"],
+            # "model_id": self.linked_device["model_id"],
         }
 
     def to_sber_current_state(self):
@@ -202,3 +199,6 @@ class BaseEntity:
         Обрабатывает изменение состояния устройства, приходящее от Home Assistant
         """
         raise NotImplementedError("Method must be redefined in child classes")
+    
+    def process_state_change(self, old_state, new_state):
+        self.fill_by_ha_state(new_state)
