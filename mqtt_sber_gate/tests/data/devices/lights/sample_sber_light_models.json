@@ -1,0 +1,39 @@
+{
+    "models": [
+        {
+            "id": "TS0505B",
+            "manufacturer": "_TZ3210_zck1cpsj",
+            "model": "TS0505B",
+            "hw_version": null,
+            "sw_version": "0x00000065",
+            "description": "_TZ3210_zck1cpsj TS0505B",
+            "category": "light",
+            "features": [
+                "online",
+                "on_off",
+                "color", 
+                "color_temperature"
+            ],
+            "dependencies": {
+            },
+            "allowed_values": {}
+        },
+        {
+            "id": "Smart Bulb Zigbee E14 ",
+            "manufacturer": "Tuya",
+            "model": "Smart Bulb Zigbee E14 ",
+            "hw_version": null,
+            "sw_version": null,
+            "description": "Smart Bulb Zigbee E14 ",
+            "category": "light",
+            "features": [
+                "online",
+                "on_off",
+                "color_temperature"
+            ],
+            "dependencies": {
+            },
+            "allowed_values": {}
+        }
+    ]
+}

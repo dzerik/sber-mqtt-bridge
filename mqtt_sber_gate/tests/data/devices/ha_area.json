@@ -1,0 +1,88 @@
+[
+    {
+        "aliases": [],
+        "area_id": "gostinaia",
+        "floor_id": null,
+        "humidity_entity_id": null,
+        "icon": null,
+        "labels": [],
+        "name": "\u0413\u043e\u0441\u0442\u0438\u043d\u0430\u044f",
+        "picture": null,
+        "temperature_entity_id": null,
+        "created_at": 1753105823.311083,
+        "modified_at": 1753105823.311087
+    },
+    {
+        "aliases": [],
+        "area_id": "kukhnia",
+        "floor_id": null,
+        "humidity_entity_id": null,
+        "icon": "mdi:stove",
+        "labels": [
+            "food"
+        ],
+        "name": "\u041a\u0443\u0445\u043d\u044f",
+        "picture": null,
+        "temperature_entity_id": null,
+        "created_at": 1753105823.311194,
+        "modified_at": 1753267459.11816
+    },
+    {
+        "aliases": [
+            "\u0413\u043b\u0430\u0432\u043d\u0430\u044f \u0441\u043f\u0430\u043b\u044c\u043d\u044f"
+        ],
+        "area_id": "spalnia",
+        "floor_id": null,
+        "humidity_entity_id": null,
+        "icon": "mdi:bed-king",
+        "labels": [
+            "sleep"
+        ],
+        "name": "\u0421\u043f\u0430\u043b\u044c\u043d\u044f",
+        "picture": null,
+        "temperature_entity_id": "sensor.aux_cloud_e87072945e65_temp",
+        "created_at": 1753105823.311241,
+        "modified_at": 1753267357.980949
+    },
+    {
+        "aliases": [],
+        "area_id": "gostevoi_sanuzel",
+        "floor_id": null,
+        "humidity_entity_id": null,
+        "icon": "mdi:toilet",
+        "labels": [
+            "protechka"
+        ],
+        "name": "\u0413\u043e\u0441\u0442\u0435\u0432\u043e\u0439 \u0441\u0430\u043d\u0443\u0437\u0435\u043b",
+        "picture": null,
+        "temperature_entity_id": null,
+        "created_at": 1753106158.949979,
+        "modified_at": 1753106158.949985
+    },
+    {
+        "aliases": [],
+        "area_id": "chulan",
+        "floor_id": null,
+        "humidity_entity_id": null,
+        "icon": "mdi:tools",
+        "labels": [],
+        "name": "\u0427\u0443\u043b\u0430\u043d",
+        "picture": null,
+        "temperature_entity_id": null,
+        "created_at": 1753953739.611709,
+        "modified_at": 1753953739.611715
+    },
+    {
+        "aliases": [],
+        "area_id": "koridor",
+        "floor_id": null,
+        "humidity_entity_id": null,
+        "icon": "mdi:head-lightbulb-outline",
+        "labels": [],
+        "name": "\u041a\u043e\u0440\u0438\u0434\u043e\u0440",
+        "picture": null,
+        "temperature_entity_id": null,
+        "created_at": 1755524219.045085,
+        "modified_at": 1755524219.04509
+    }
+]
