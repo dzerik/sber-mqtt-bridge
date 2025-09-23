@@ -189,27 +189,27 @@ class EntitiesStore:
     
     def to_web_entity(self, entity_id: str) -> dict:
         """ Преобразование сущности в формат для отображения в веб-интерфейсе """
-        if entity_id not in self._store:
-            return None
+        entity = self.get(entity_id)
+        if entity is None:
+            return 
         
-        entity = self._store[entity_id]
-        web_object = {}
-        web_object["enabled"] = self.is_entity_enabled(entity_id)
-        web_object["id"] = entity_id
-        web_object["name"] = entity.name
-        web_object["default_name"] = entity.original_name
-        web_object["nicknames"] = []
-        web_object["home"] = ""
-        web_object["room"] = entity.linked_device.get("area_id", "") if entity.linked_device is not None else ""
-        web_object["groups"] = []
-        web_object["model_id"] = ""
-        web_object["category"] = entity.category
-        web_object["hw_version"] = entity.linked_device.get("hw_version", "") if entity.linked_device is not None else ""
-        web_object["sw_version"] = entity.linked_device.get("sw_version", "") if entity.linked_device is not None else ""
-        web_object["entity_ha"] = True
-        web_object["entity_type"] = entity.entity_category
-        web_object["friendly_name"] = entity.attributes.get("friendly_name", entity.original_name)
-        return web_object
+        return {
+            "enabled": self.is_entity_enabled(entity_id),
+            "id": entity_id,
+            "name": entity.name,
+            "default_name": entity.original_name,
+            "nicknames": [],
+            "home": "",
+            "room": entity.linked_device.get("area_id", "") if entity.linked_device is not None else "",
+            "groups": [],
+            "model_id": "",
+            "category": entity.category,
+            "hw_version": entity.linked_device.get("hw_version", "") if entity.linked_device is not None else "",
+            "sw_version": entity.linked_device.get("sw_version", "") if entity.linked_device is not None else "",
+            "entity_ha": True,
+            "entity_type": entity.entity_category,
+            "friendly_name": entity.attributes.get("friendly_name", entity.original_name)
+        }
         
 
 class CDevicesDB:

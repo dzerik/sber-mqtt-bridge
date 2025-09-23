@@ -4,7 +4,6 @@ import unittest
 from devices.device_data import DeviceData
 from devices.light import LightEntity
 from devices_db import json_read
-from model_registry import ModelRegistry
 
 
 class TestDevicesBase(unittest.TestCase):
@@ -13,7 +12,6 @@ class TestDevicesBase(unittest.TestCase):
     area_list: dict[str, dict[str, str]]
     entity_groups: dict[str, list[str]] = {}
     data_devices_path: str
-    model_registry = ModelRegistry()
 
     def setUp(self):
         self.maxDiff = None
@@ -60,9 +58,5 @@ class TestDevicesBase(unittest.TestCase):
                         self.entity_groups[child_entity_id] = []
                     self.entity_groups[child_entity_id].append(light_entity.entity_id)
         
-        for entity_item in self.entities_list.values():
-            if not entity_item.is_group_state():
-                self.model_registry.register(entity_item)
-
 
         
