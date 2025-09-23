@@ -88,37 +88,8 @@ class BaseEntity:
             return False
         return True
 
-    # def to_ha_state(self):
-    #     """
-    #     Возвращает состояние устройства в формате Home Assistant
-    #     """
-    #     return {
-    #         "area_id": self.area_id,
-    #         "categories": self.categories,
-    #         "config_entry_id": self.config_entry_id,
-    #         "config_subentry_id": self.config_subentry_id,
-    #         "device_id": self.device_id,
-    #         "disabled_by": self.disabled_by,
-    #         "entity_category": self.entity_category,
-    #         "entity_id": self.entity_id,
-    #         "has_entity_name": self.has_entity_name,
-    #         "hidden_by": self.hidden_by,
-    #         "icon": self.icon,
-    #         "id": self.id,
-    #         "labels": self.labels,
-    #         "name": self.name,
-    #         "options": self.options,
-    #         "original_name": self.original_name,
-    #         "platform": self.platform,
-    #         "translation_key": self.translation_key,
-    #         "unique_id": self.unique_id
-    #     }
-
     def create_features_list(self):
-        features = []
-        features += ["online"]
-        features += ["on_off"]
-        return features
+        return ["online"]
 
     def link_device(self, device_data: DeviceData):
         assert self.device_id == device_data.get("id")
@@ -155,7 +126,7 @@ class BaseEntity:
             "default_name": self.original_name,
             "room": self.linked_device.get("area_id", self.area_id),
             "model": {
-                "id": "Mdl_"+self.linked_device["model"],
+                "id": self.linked_device["model_id"],
                 "manufacturer": self.linked_device["manufacturer"],
                 "model": self.linked_device["model"],
                 "description": self.linked_device["name"],
@@ -165,19 +136,11 @@ class BaseEntity:
             },
             "hw_version": self.linked_device["hw_version"],
             "sw_version": self.linked_device["sw_version"],
-            "model_id": self.linked_device["model_id"],
+            # "model_id": self.linked_device["model_id"],
         }
 
     def to_sber_current_state(self):
         raise NotImplementedError("Implement in child classes")
-
-    @classmethod
-    def get_device_category(cls):
-        """
-        Возвращает категорию устройства
-        """
-        raise NotImplementedError("Метод get_device_category должен быть переопределен")
-
 
     def get_entity_domain(self) -> str:
         """
@@ -198,7 +161,5 @@ class BaseEntity:
         raise NotImplementedError("Метод process_cmd должен быть переопределен")
 
     def process_state_change(self, old_state, new_state):
-        """
-        Обрабатывает изменение состояния устройства, приходящее от Home Assistant
-        """
         raise NotImplementedError("Method must be redefined in child classes")
+    
