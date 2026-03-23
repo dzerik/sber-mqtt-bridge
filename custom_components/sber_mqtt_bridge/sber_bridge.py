@@ -530,39 +530,46 @@ class SberBridge:
             )
 
     async def _handle_change_group(self, payload: bytes) -> None:
-        """Handle device group/room change from Sber."""
+        """Handle device group/room change from Sber.
+
+        Only stores the redefinition locally. Does NOT re-publish config
+        to avoid an infinite loop: Sber sends change_group → we publish
+        config → Sber sends change_group again → loop forever.
+        The updated room/home will be included in the next config_request.
+        """
         try:
             data = json.loads(payload)
         except json.JSONDecodeError:
             return
 
         # NOTE: Sber's "device_id" is the value we published as "id" in to_sber_state,
-        # which is entity_id (e.g. "light.living_room"). The variable name is misleading
-        # but matches the Sber protocol field name.
+        # which is entity_id (e.g. "light.living_room").
         entity_id = data.get("device_id")
         if entity_id:
             self._redefinitions[entity_id] = {
                 "home": data.get("home"),
                 "room": data.get("room"),
             }
-            _LOGGER.info("Sber group change: %s → room=%s", entity_id, data.get("room"))
-            await self._publish_config(entity_ids=[entity_id])
+            _LOGGER.info("Sber group change stored: %s → room=%s", entity_id, data.get("room"))
 
     async def _handle_rename_device(self, payload: bytes) -> None:
-        """Handle device rename from Sber."""
+        """Handle device rename from Sber.
+
+        Only stores the redefinition locally. Does NOT re-publish config
+        to avoid potential loops. The updated name will be included in
+        the next config_request from Sber.
+        """
         try:
             data = json.loads(payload)
         except json.JSONDecodeError:
             return
 
-        # See _handle_change_group for device_id vs entity_id note.
         entity_id = data.get("device_id")
         new_name = data.get("new_name")
         if entity_id and new_name:
             redef = self._redefinitions.setdefault(entity_id, {})
             redef["name"] = new_name
-            _LOGGER.info("Sber rename: %s → %s", entity_id, new_name)
-            await self._publish_config(entity_ids=[entity_id])
+            _LOGGER.info("Sber rename stored: %s → %s", entity_id, new_name)
 
     def _handle_global_config(self, payload: bytes) -> None:
         """Handle global config from Sber (http_api_endpoint)."""

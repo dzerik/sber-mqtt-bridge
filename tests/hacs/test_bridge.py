@@ -181,7 +181,8 @@ class TestSberBridgeRedefinitions:
 
         assert bridge._redefinitions["light.room"]["home"] == "My House"
         assert bridge._redefinitions["light.room"]["room"] == "Bedroom"
-        bridge._publish_config.assert_called_once()
+        # No re-publish to avoid infinite loop with Sber
+        bridge._publish_config.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_rename_device(self, bridge):
@@ -192,7 +193,8 @@ class TestSberBridgeRedefinitions:
         await bridge._handle_rename_device(payload.encode())
 
         assert bridge._redefinitions["switch.lamp"]["name"] == "Night Lamp"
-        bridge._publish_config.assert_called_once()
+        # No re-publish to avoid infinite loop with Sber
+        bridge._publish_config.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_change_group_invalid_json(self, bridge):
