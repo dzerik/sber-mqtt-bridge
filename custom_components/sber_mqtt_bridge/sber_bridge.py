@@ -42,6 +42,7 @@ from .sber_protocol import (
 _LOGGER = logging.getLogger(__name__)
 
 RECONNECT_INTERVAL = 5
+"""Seconds to wait before reconnecting after an MQTT connection loss."""
 
 
 class SberBridge:

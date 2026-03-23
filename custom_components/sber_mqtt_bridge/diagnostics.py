@@ -11,6 +11,7 @@ from . import SberBridgeConfigEntry
 from .const import CONF_SBER_PASSWORD
 
 TO_REDACT = {CONF_SBER_PASSWORD}
+"""Set of config keys whose values should be redacted in diagnostics output."""
 
 
 async def async_get_config_entry_diagnostics(

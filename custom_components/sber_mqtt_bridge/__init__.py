@@ -17,18 +17,34 @@ _LOGGER = logging.getLogger(__name__)
 
 @dataclass
 class SberBridgeData:
-    """Runtime data for the Sber MQTT Bridge integration."""
+    """Runtime data for the Sber MQTT Bridge integration.
+
+    Attributes:
+        bridge: The active SberBridge instance managing MQTT communication.
+    """
 
     bridge: SberBridge
 
 
 type SberBridgeConfigEntry = ConfigEntry[SberBridgeData]
+"""Type alias for a ConfigEntry carrying SberBridgeData as runtime_data."""
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: SberBridgeConfigEntry
 ) -> bool:
-    """Set up Sber MQTT Bridge from a config entry."""
+    """Set up Sber MQTT Bridge from a config entry.
+
+    Args:
+        hass: Home Assistant core instance.
+        entry: Config entry with Sber broker credentials and options.
+
+    Returns:
+        True if setup succeeded.
+
+    Raises:
+        ConfigEntryNotReady: If the MQTT broker connection fails.
+    """
     bridge = SberBridge(hass, entry)
 
     try:
@@ -46,6 +62,14 @@ async def async_setup_entry(
 async def async_unload_entry(
     hass: HomeAssistant, entry: SberBridgeConfigEntry
 ) -> bool:
-    """Unload a config entry."""
+    """Unload a config entry and stop the Sber bridge.
+
+    Args:
+        hass: Home Assistant core instance.
+        entry: Config entry being unloaded.
+
+    Returns:
+        True if unload succeeded.
+    """
     await entry.runtime_data.bridge.async_stop()
     return True

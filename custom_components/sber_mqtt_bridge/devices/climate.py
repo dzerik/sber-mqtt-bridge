@@ -1,3 +1,7 @@
+"""Sber Climate (AC) entity -- maps HA climate entities to Sber hvac_ac category."""
+
+from __future__ import annotations
+
 import logging
 
 from .base_entity import BaseEntity
@@ -5,11 +9,25 @@ from .base_entity import BaseEntity
 logger = logging.getLogger(__name__)
 
 CLIMATE_CATEGORY = "hvac_ac"
+"""Sber device category for air conditioner / HVAC entities."""
 
 
 class ClimateEntity(BaseEntity):
+    """Sber climate entity for air conditioner control.
 
-    def __init__(self, entity_data: dict):
+    Maps HA climate entities to the Sber 'hvac_ac' category with support for:
+    - On/off control
+    - Temperature reading and target temperature setting
+    - Fan mode, swing mode, and HVAC work mode selection
+    - Allowed values for dynamic enum features
+    """
+
+    def __init__(self, entity_data: dict) -> None:
+        """Initialize climate entity.
+
+        Args:
+            entity_data: HA entity registry dict containing entity metadata.
+        """
         super().__init__(CLIMATE_CATEGORY, entity_data)
         self.current_state = False
         self.temperature = None
@@ -23,7 +41,14 @@ class ClimateEntity(BaseEntity):
         self.min_temp = 16.0
         self.max_temp = 32.0
 
-    def fill_by_ha_state(self, ha_state):
+    def fill_by_ha_state(self, ha_state: dict) -> None:
+        """Parse HA state and update all climate attributes.
+
+        Args:
+            ha_state: HA state dict with 'state' and 'attributes' keys.
+                Attributes may include current_temperature, temperature,
+                fan_modes, swing_modes, hvac_modes, etc.
+        """
         super().fill_by_ha_state(ha_state)
         self.current_state = ha_state.get("state", "off") != "off"
         attrs = ha_state.get("attributes", {})
@@ -38,7 +63,15 @@ class ClimateEntity(BaseEntity):
         self.min_temp = attrs.get("min_temp", 16.0)
         self.max_temp = attrs.get("max_temp", 32.0)
 
-    def create_features_list(self):
+    def create_features_list(self) -> list[str]:
+        """Return Sber feature list based on available climate capabilities.
+
+        Dynamically includes fan, swing, and HVAC mode features
+        only when the HA entity supports them.
+
+        Returns:
+            List of Sber feature strings supported by this entity.
+        """
         features = super().create_features_list() + ["on_off", "temperature", "hvac_temp_set"]
         if self.swing_modes:
             features.append("hvac_air_flow_direction")
@@ -48,7 +81,12 @@ class ClimateEntity(BaseEntity):
             features.append("hvac_work_mode")
         return features
 
-    def create_allowed_values_list(self):
+    def create_allowed_values_list(self) -> dict[str, dict]:
+        """Build allowed values map for enum-based features.
+
+        Returns:
+            Dict mapping feature key to its allowed ENUM values descriptor.
+        """
         allowed = {}
         if self.fan_modes:
             allowed["hvac_air_flow_power"] = {
@@ -67,13 +105,28 @@ class ClimateEntity(BaseEntity):
             }
         return allowed
 
-    def to_sber_state(self):
+    def to_sber_state(self) -> dict:
+        """Build full Sber device descriptor including allowed values.
+
+        Overrides base to inject features and allowed_values into the model.
+
+        Returns:
+            Sber device descriptor dict with model, features, and allowed_values.
+        """
         res = super().to_sber_state()
         res["model"]["features"] = self.create_features_list()
         res["model"]["allowed_values"] = self.create_allowed_values_list()
         return res
 
-    def to_sber_current_state(self):
+    def to_sber_current_state(self) -> dict[str, dict]:
+        """Build Sber current state payload with all climate attributes.
+
+        Includes online, on_off, temperature, target temperature, fan mode,
+        swing mode, and HVAC work mode when values are available.
+
+        Returns:
+            Dict mapping entity_id to its Sber state representation.
+        """
         is_online = self.state not in ("unavailable", "unknown", None)
         states = [
             {"key": "online", "value": {"type": "BOOL", "bool_value": is_online}},
@@ -91,7 +144,22 @@ class ClimateEntity(BaseEntity):
             states.append({"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": self.hvac_mode}})
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data):
+    def process_cmd(self, cmd_data: dict) -> list[dict]:
+        """Process Sber climate commands and produce HA service calls.
+
+        Handles the following Sber keys:
+        - ``on_off``: turn_on / turn_off
+        - ``hvac_temp_set``: set_temperature
+        - ``hvac_air_flow_power``: set_fan_mode
+        - ``hvac_air_flow_direction``: set_swing_mode
+        - ``hvac_work_mode``: set_hvac_mode
+
+        Args:
+            cmd_data: Sber command dict with 'states' list.
+
+        Returns:
+            List of HA service call dicts to execute.
+        """
         results = []
         for item in cmd_data.get("states", []):
             key = item.get("key")
@@ -148,5 +216,11 @@ class ClimateEntity(BaseEntity):
                 }})
         return results
 
-    def process_state_change(self, old_state, new_state):
+    def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
+        """Handle HA state change event by refreshing internal state.
+
+        Args:
+            old_state: Previous HA state dict (unused).
+            new_state: New HA state dict to apply.
+        """
         self.fill_by_ha_state(new_state)

@@ -1,4 +1,8 @@
-"""Mapping from HA entity domains to Sber device entity classes."""
+"""Mapping from HA entity domains to Sber device entity classes.
+
+Provides factory functions that create the appropriate Sber entity
+subclass based on the HA entity domain and device class.
+"""
 
 from __future__ import annotations
 
@@ -25,6 +29,15 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _create_sensor(entity_data: dict) -> BaseEntity | None:
+    """Create a Sber sensor entity based on device class.
+
+    Args:
+        entity_data: HA entity registry dict with 'original_device_class' key.
+
+    Returns:
+        SensorTempEntity for temperature, HumiditySensorEntity for humidity,
+        or None if the device class is not supported.
+    """
     dc = entity_data.get("original_device_class", "")
     if dc == "temperature":
         return SensorTempEntity(entity_data)
@@ -34,6 +47,15 @@ def _create_sensor(entity_data: dict) -> BaseEntity | None:
 
 
 def _create_binary_sensor(entity_data: dict) -> BaseEntity | None:
+    """Create a Sber binary sensor entity based on device class.
+
+    Args:
+        entity_data: HA entity registry dict with 'original_device_class' key.
+
+    Returns:
+        MotionSensorEntity for motion, DoorSensorEntity for door/window/garage,
+        WaterLeakSensorEntity for moisture, or None if unsupported.
+    """
     dc = entity_data.get("original_device_class", "")
     if dc == "motion":
         return MotionSensorEntity(entity_data)
@@ -45,6 +67,14 @@ def _create_binary_sensor(entity_data: dict) -> BaseEntity | None:
 
 
 def _create_switch(entity_data: dict) -> BaseEntity:
+    """Create a Sber switch entity based on device class.
+
+    Args:
+        entity_data: HA entity registry dict with 'original_device_class' key.
+
+    Returns:
+        SocketEntity for outlets, RelayEntity for all other switches.
+    """
     dc = entity_data.get("original_device_class", "")
     if dc == "outlet":
         return SocketEntity(entity_data)
@@ -52,6 +82,14 @@ def _create_switch(entity_data: dict) -> BaseEntity:
 
 
 def _create_cover(entity_data: dict) -> BaseEntity:
+    """Create a Sber cover entity based on device class.
+
+    Args:
+        entity_data: HA entity registry dict with 'original_device_class' key.
+
+    Returns:
+        WindowBlindEntity for blind/shade/shutter, CurtainEntity for others.
+    """
     dc = entity_data.get("original_device_class", "")
     if dc in ("blind", "shade", "shutter"):
         return WindowBlindEntity(entity_data)
@@ -59,6 +97,14 @@ def _create_cover(entity_data: dict) -> BaseEntity:
 
 
 def _create_climate(entity_data: dict) -> BaseEntity:
+    """Create a Sber climate entity based on device class.
+
+    Args:
+        entity_data: HA entity registry dict with 'original_device_class' key.
+
+    Returns:
+        HvacRadiatorEntity for radiators, ClimateEntity for others.
+    """
     dc = entity_data.get("original_device_class", "")
     if dc == "radiator":
         return HvacRadiatorEntity(entity_data)
@@ -78,13 +124,14 @@ ENTITY_CONSTRUCTORS: dict[str, callable] = {
     "valve": lambda data: ValveEntity(data),
     "humidifier": lambda data: HumidifierEntity(data),
 }
+"""Mapping of HA domain names to Sber entity constructor callables."""
 
 
 def create_sber_entity(entity_id: str, entity_data: dict) -> BaseEntity | None:
     """Create a Sber device entity from HA entity data.
 
     Args:
-        entity_id: HA entity ID (e.g., 'light.living_room')
+        entity_id: HA entity ID (e.g., 'light.living_room').
         entity_data: Dict with entity registry data (entity_id, device_id, area_id, etc.)
 
     Returns:
