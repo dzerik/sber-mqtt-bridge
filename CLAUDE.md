@@ -82,6 +82,18 @@ tests/hacs/            — Тесты HACS integration
 | valve | valve | ValveEntity |
 | humidifier | hvac_humidifier | HumidifierEntity |
 
+## Docstrings (ОБЯЗАТЕЛЬНО!)
+
+Все публичные элементы кода **ОБЯЗАНЫ** иметь docstrings:
+
+- **Модули**: Описание назначения модуля в первой строке файла
+- **Классы**: Описание назначения класса, Sber category, поддерживаемые features
+- **Методы**: Google-style docstrings с `Args:`, `Returns:`, `Raises:`
+- **Константы**: PEP 257 attribute docstrings (строка после присваивания)
+- **Свойства (properties)**: Описание возвращаемого значения
+
+Все файлы должны начинаться с `from __future__ import annotations`.
+
 ## Git Versioning
 
 ### Формат версии
