@@ -14,7 +14,7 @@ from .devices.base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 """Protocol version string included in the hub device descriptor."""
 
 
@@ -118,13 +118,7 @@ def build_states_list_json(
             _LOGGER.exception("Error building Sber current state for %s", entity_id)
 
     if not states["devices"]:
-        states["devices"] = {
-            "root": {
-                "states": [
-                    {"key": "online", "value": {"type": "BOOL", "bool_value": True}}
-                ]
-            }
-        }
+        states["devices"] = {"root": {"states": [{"key": "online", "value": {"type": "BOOL", "bool_value": True}}]}}
 
     return json.dumps(states)
 

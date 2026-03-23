@@ -60,7 +60,7 @@ class SensorTempEntity(BaseEntity):
         is_online = self.state not in ("unavailable", "unknown", None)
         states = [
             {"key": "online", "value": {"type": "BOOL", "bool_value": is_online}},
-            {"key": "temperature", "value": {"type": "INTEGER", "integer_value": int(self.temperature * 10)}}
+            {"key": "temperature", "value": {"type": "INTEGER", "integer_value": int(self.temperature * 10)}},
         ]
         return {self.entity_id: {"states": states}}
 

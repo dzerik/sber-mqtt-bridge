@@ -73,10 +73,7 @@ class HumidifierEntity(BaseEntity):
         """
         allowed = {}
         if self.available_modes:
-            allowed["hvac_work_mode"] = {
-                "type": "ENUM",
-                "enum_values": {"values": self.available_modes}
-            }
+            allowed["hvac_work_mode"] = {"type": "ENUM", "enum_values": {"values": self.available_modes}}
         return allowed
 
     def to_sber_state(self) -> dict:
@@ -107,7 +104,9 @@ class HumidifierEntity(BaseEntity):
             {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.current_state}},
         ]
         if self.target_humidity is not None:
-            states.append({"key": "humidity", "value": {"type": "INTEGER", "integer_value": int(self.target_humidity * 10)}})
+            states.append(
+                {"key": "humidity", "value": {"type": "INTEGER", "integer_value": int(self.target_humidity * 10)}}
+            )
         if self.mode:
             states.append({"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": self.mode}})
         return {self.entity_id: {"states": states}}
@@ -134,32 +133,44 @@ class HumidifierEntity(BaseEntity):
             if key == "on_off":
                 on = value.get("bool_value", False)
                 self.current_state = on
-                results.append({"url": {
-                    "type": "call_service",
-                    "domain": "humidifier",
-                    "service": "turn_on" if on else "turn_off",
-                    "target": {"entity_id": self.entity_id}
-                }})
+                results.append(
+                    {
+                        "url": {
+                            "type": "call_service",
+                            "domain": "humidifier",
+                            "service": "turn_on" if on else "turn_off",
+                            "target": {"entity_id": self.entity_id},
+                        }
+                    }
+                )
             elif key == "humidity":
                 humidity = value.get("integer_value", 500) / 10.0
                 self.target_humidity = humidity
-                results.append({"url": {
-                    "type": "call_service",
-                    "domain": "humidifier",
-                    "service": "set_humidity",
-                    "service_data": {"humidity": int(humidity)},
-                    "target": {"entity_id": self.entity_id}
-                }})
+                results.append(
+                    {
+                        "url": {
+                            "type": "call_service",
+                            "domain": "humidifier",
+                            "service": "set_humidity",
+                            "service_data": {"humidity": int(humidity)},
+                            "target": {"entity_id": self.entity_id},
+                        }
+                    }
+                )
             elif key == "hvac_work_mode":
                 mode = value.get("enum_value")
                 self.mode = mode
-                results.append({"url": {
-                    "type": "call_service",
-                    "domain": "humidifier",
-                    "service": "set_mode",
-                    "service_data": {"mode": mode},
-                    "target": {"entity_id": self.entity_id}
-                }})
+                results.append(
+                    {
+                        "url": {
+                            "type": "call_service",
+                            "domain": "humidifier",
+                            "service": "set_mode",
+                            "service_data": {"mode": mode},
+                            "target": {"entity_id": self.entity_id},
+                        }
+                    }
+                )
         return results
 
     def process_state_change(self, old_state: dict | None, new_state: dict) -> None:

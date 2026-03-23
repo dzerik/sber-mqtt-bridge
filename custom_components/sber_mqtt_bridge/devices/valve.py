@@ -78,12 +78,16 @@ class ValveEntity(BaseEntity):
             if key == "on_off" and value.get("type") == "BOOL":
                 on = value.get("bool_value", False)
                 self.current_state = on
-                results.append({"url": {
-                    "type": "call_service",
-                    "domain": "valve",
-                    "service": "open_valve" if on else "close_valve",
-                    "target": {"entity_id": self.entity_id}
-                }})
+                results.append(
+                    {
+                        "url": {
+                            "type": "call_service",
+                            "domain": "valve",
+                            "service": "open_valve" if on else "close_valve",
+                            "target": {"entity_id": self.entity_id},
+                        }
+                    }
+                )
         return results
 
     def process_state_change(self, old_state: dict | None, new_state: dict) -> None:

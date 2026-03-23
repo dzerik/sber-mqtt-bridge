@@ -82,12 +82,16 @@ class RelayEntity(BaseEntity):
 
                 service = "press" if domain == "button" else "turn_on" if on else "turn_off"
 
-                results.append({"url": {
-                    "type": "call_service",
-                    "domain": domain,
-                    "service": service,
-                    "target": {"entity_id": self.entity_id}
-                }})
+                results.append(
+                    {
+                        "url": {
+                            "type": "call_service",
+                            "domain": domain,
+                            "service": service,
+                            "target": {"entity_id": self.entity_id},
+                        }
+                    }
+                )
         return results
 
     def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
