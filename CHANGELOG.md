@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-03-23
+
+### Added
+- **Add Device Wizard** (`sber-wizard.js`): 3-step guided flow for adding devices (type selection with icon cards, entity picker with search, Salut name validation + auto-slug ID)
+- **Related sensors auto-detection**: new WS command `sber_mqtt_bridge/related_sensors` finds power, current, voltage, battery, temperature sensors by shared device_id
+- **Publish one device**: new WS command `sber_mqtt_bridge/publish_one_status` to sync a single entity to Sber cloud; sync button on each device row
+- **Export / Import**: new WS commands `sber_mqtt_bridge/export` and `sber_mqtt_bridge/import` for backing up and restoring device configuration as JSON
+- **Toast notifications** (`sber-toast.js`): lightweight popup for success/error/info feedback on all panel actions
+- **Slugify utility** (`utils.js`): Cyrillic-to-Latin transliteration for generating Sber device IDs
+- **Salut name validation**: regex check for 3-33 character Cyrillic device names
+- **Row coloring**: device table rows tinted green (online) or red (offline)
+- **Toolbar buttons**: Wizard, Export, Import added to the action bar
+
 ## [1.3.0] - 2026-03-23
 
 ### Added

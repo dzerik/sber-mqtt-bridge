@@ -2,7 +2,7 @@
  * Sber MQTT Bridge — Single entity row component.
  *
  * Renders one device row in the device table with inline actions
- * (delete, override category).
+ * (delete, override category, sync one device).
  */
 
 const LitElement = Object.getPrototypeOf(
@@ -58,6 +58,12 @@ class SberEntityRow extends LitElement {
       :host([offline]) td {
         opacity: 0.55;
       }
+      :host(.row-online) td {
+        background: color-mix(in srgb, var(--success-color, #4caf50) 5%, transparent);
+      }
+      :host(.row-offline) td {
+        background: color-mix(in srgb, var(--error-color, #f44336) 5%, transparent);
+      }
       td {
         padding: 8px;
         border-bottom: 1px solid var(--divider-color, #e0e0e0);
@@ -111,6 +117,9 @@ class SberEntityRow extends LitElement {
         background: var(--secondary-background-color, #eee);
         color: var(--error-color, #f44336);
       }
+      .icon-btn.sync:hover {
+        color: var(--primary-color, #03a9f4);
+      }
       select {
         font-size: 12px;
         padding: 2px 4px;
@@ -159,6 +168,28 @@ class SberEntityRow extends LitElement {
     );
   }
 
+  _onSync() {
+    this.dispatchEvent(
+      new CustomEvent("sync-entity", {
+        detail: { entityId: this.device.entity_id },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  updated() {
+    /* Apply row-level online/offline CSS class */
+    const d = this.device;
+    if (d?.is_online) {
+      this.classList.add("row-online");
+      this.classList.remove("row-offline");
+    } else {
+      this.classList.add("row-offline");
+      this.classList.remove("row-online");
+    }
+  }
+
   render() {
     const d = this.device;
     if (!d || !d.entity_id) return html``;
@@ -202,6 +233,9 @@ class SberEntityRow extends LitElement {
               `
             )}
           </select>
+          <button class="icon-btn sync" @click=${this._onSync} title="Sync to Sber">
+            \u{1F504}
+          </button>
           <button class="icon-btn" @click=${this._onDelete} title="Remove entity">
             \u{1F5D1}
           </button>

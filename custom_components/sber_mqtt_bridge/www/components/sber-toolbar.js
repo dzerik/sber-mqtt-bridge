@@ -173,6 +173,33 @@ class SberToolbar extends LitElement {
     }
   }
 
+  _triggerImport() {
+    this.shadowRoot.querySelector("input[type=file]")?.click();
+  }
+
+  _onImportFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const config = JSON.parse(reader.result);
+        this.dispatchEvent(
+          new CustomEvent("toolbar-import", {
+            detail: { config },
+            bubbles: true,
+            composed: true,
+          })
+        );
+      } catch {
+        alert("Invalid JSON file");
+      }
+    };
+    reader.readAsText(file);
+    /* Reset so the same file can be re-imported */
+    e.target.value = "";
+  }
+
   render() {
     return html`
       <button class="btn btn-secondary" @click=${() => this._dispatch("toolbar-refresh")}>
@@ -188,6 +215,21 @@ class SberToolbar extends LitElement {
       <button class="btn btn-success" @click=${() => this._dispatch("toolbar-add")}>
         \u{2795} Add Devices
       </button>
+      <button class="btn btn-success" @click=${() => this._dispatch("toolbar-wizard")}>
+        \u{1F9D9} Wizard
+      </button>
+      <button class="btn btn-secondary" @click=${() => this._dispatch("toolbar-export")}>
+        \u{1F4E5} Export
+      </button>
+      <button class="btn btn-secondary" @click=${this._triggerImport}>
+        \u{1F4E4} Import
+      </button>
+      <input
+        type="file"
+        accept=".json"
+        style="display:none"
+        @change=${this._onImportFile}
+      />
 
       <div class="dropdown">
         <button class="btn btn-secondary" @click=${this._toggleBulk}>

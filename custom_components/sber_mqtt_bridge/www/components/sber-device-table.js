@@ -259,6 +259,16 @@ class SberDeviceTable extends LitElement {
     );
   }
 
+  _onSyncEntity(e) {
+    this.dispatchEvent(
+      new CustomEvent("sync-entity", {
+        detail: { entityId: e.detail.entityId },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
   _onBulkDelete() {
     if (this._selected.size === 0) return;
     this.dispatchEvent(
@@ -380,6 +390,7 @@ class SberDeviceTable extends LitElement {
                             @selection-changed=${this._onSelectionChanged}
                             @delete-entity=${this._onDeleteEntity}
                             @override-changed=${this._onOverrideChanged}
+                            @sync-entity=${this._onSyncEntity}
                           ></sber-entity-row>
                         </tr>
                       `

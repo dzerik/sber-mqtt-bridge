@@ -66,6 +66,10 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_set_type_override)
     websocket_api.async_register_command(hass, ws_bulk_add)
     websocket_api.async_register_command(hass, ws_clear_all)
+    websocket_api.async_register_command(hass, ws_related_sensors)
+    websocket_api.async_register_command(hass, ws_publish_one_status)
+    websocket_api.async_register_command(hass, ws_export)
+    websocket_api.async_register_command(hass, ws_import)
     _LOGGER.debug("Sber MQTT Bridge WebSocket API registered")
 
 
@@ -468,3 +472,155 @@ async def ws_clear_all(
     await hass.config_entries.async_reload(entry.entry_id)
 
     connection.send_result(msg["id"], {"removed": previous_count})
+
+
+# ---------- Related sensors, publish one, export/import ----------
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/related_sensors",
+        vol.Required("entity_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_related_sensors(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Find sensors related to entity by shared device_id.
+
+    Searches the entity registry for other sensor entities that belong
+    to the same physical device.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message with ``entity_id``.
+    """
+    entity_reg = er.async_get(hass)
+    entry = entity_reg.async_get(msg["entity_id"])
+    if not entry or not entry.device_id:
+        connection.send_result(msg["id"], {"sensors": []})
+        return
+
+    sensors: list[dict[str, Any]] = []
+    for e in entity_reg.entities.values():
+        if e.device_id == entry.device_id and e.entity_id != msg["entity_id"]:
+            domain = e.entity_id.split(".")[0]
+            if domain == "sensor":
+                sensors.append(
+                    {
+                        "entity_id": e.entity_id,
+                        "device_class": e.original_device_class or "",
+                        "name": e.name or e.original_name or e.entity_id,
+                    }
+                )
+
+    connection.send_result(msg["id"], {"sensors": sensors})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/publish_one_status",
+        vol.Required("entity_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_publish_one_status(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Publish the current state of a single entity to Sber cloud.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message with ``entity_id``.
+    """
+    bridge = _get_bridge(hass)
+    if bridge is None:
+        connection.send_error(msg["id"], "bridge_not_found", "Sber bridge not available")
+        return
+
+    await bridge._publish_states([msg["entity_id"]])
+    connection.send_result(msg["id"], {"success": True})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/export",
+    }
+)
+@websocket_api.async_response
+async def ws_export(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Export the full device configuration as JSON.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None:
+        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
+        return
+
+    connection.send_result(
+        msg["id"],
+        {
+            "version": 1,
+            "exposed_entities": list(entry.options.get(CONF_EXPOSED_ENTITIES, [])),
+            "type_overrides": dict(entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})),
+            "redefinitions": dict(entry.options.get("redefinitions", {})),
+        },
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/import",
+        vol.Required("config"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_import(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Import a device configuration from a JSON payload.
+
+    Replaces the current exposed entities, type overrides, and
+    redefinitions with the values from the supplied config object.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message with ``config`` dict.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None:
+        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
+        return
+
+    config: dict[str, Any] = msg["config"]
+    new_options = dict(entry.options)
+
+    if "exposed_entities" in config:
+        new_options[CONF_EXPOSED_ENTITIES] = config["exposed_entities"]
+    if "type_overrides" in config:
+        new_options[CONF_ENTITY_TYPE_OVERRIDES] = config["type_overrides"]
+    if "redefinitions" in config:
+        new_options["redefinitions"] = config["redefinitions"]
+
+    hass.config_entries.async_update_entry(entry, options=new_options)
+    await hass.config_entries.async_reload(entry.entry_id)
+
+    connection.send_result(msg["id"], {"success": True})

@@ -13,6 +13,8 @@ import "./components/sber-status-card.js";
 import "./components/sber-stats-grid.js";
 import "./components/sber-add-dialog.js";
 import "./components/sber-toolbar.js";
+import "./components/sber-wizard.js";
+import "./components/sber-toast.js";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
@@ -211,6 +213,93 @@ class SberMqttPanel extends LitElement {
     this._setOverride(e.detail.entityId, e.detail.category);
   }
 
+  _onToolbarWizard() {
+    const wizard = this.shadowRoot.querySelector("sber-wizard");
+    if (wizard) wizard.show();
+  }
+
+  async _onToolbarExport() {
+    try {
+      const result = await this.hass.callWS({
+        type: "sber_mqtt_bridge/export",
+      });
+      const blob = new Blob([JSON.stringify(result, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "sber_mqtt_bridge_config.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      this._showToast("Config exported", "success");
+    } catch (e) {
+      this._showToast("Export failed: " + (e.message || e), "error");
+    }
+  }
+
+  async _onToolbarImport(e) {
+    const config = e.detail.config;
+    this._loading = true;
+    try {
+      await this.hass.callWS({
+        type: "sber_mqtt_bridge/import",
+        config,
+      });
+      await new Promise((r) => setTimeout(r, 1500));
+      await this._fetchAll();
+      this._showToast("Config imported successfully", "success");
+    } catch (e) {
+      this._showToast("Import failed: " + (e.message || e), "error");
+    } finally {
+      this._loading = false;
+    }
+  }
+
+  async _onSyncEntity(e) {
+    try {
+      await this.hass.callWS({
+        type: "sber_mqtt_bridge/publish_one_status",
+        entity_id: e.detail.entityId,
+      });
+      this._showToast("Synced: " + e.detail.entityId, "success");
+    } catch (err) {
+      this._showToast("Sync failed: " + (err.message || err), "error");
+    }
+  }
+
+  async _onWizardComplete(e) {
+    const d = e.detail;
+    this._loading = true;
+    try {
+      /* Add the main entity */
+      await this.hass.callWS({
+        type: "sber_mqtt_bridge/add_entities",
+        entity_ids: [d.entity_id],
+      });
+      /* Set category override */
+      await this.hass.callWS({
+        type: "sber_mqtt_bridge/set_override",
+        entity_id: d.entity_id,
+        category: d.category,
+      });
+      /* Re-publish config */
+      await this.hass.callWS({ type: "sber_mqtt_bridge/republish" });
+      await new Promise((r) => setTimeout(r, 1500));
+      await this._fetchAll();
+      this._showToast("Device added via wizard", "success");
+    } catch (err) {
+      this._showToast("Wizard failed: " + (err.message || err), "error");
+    } finally {
+      this._loading = false;
+    }
+  }
+
+  _showToast(message, type) {
+    const toast = this.shadowRoot.querySelector("sber-toast");
+    if (toast) toast.show(message, type);
+  }
+
   /* ---------- styles ---------- */
 
   static get styles() {
@@ -317,6 +406,9 @@ class SberMqttPanel extends LitElement {
           @toolbar-refresh=${this._onToolbarRefresh}
           @toolbar-republish=${this._onToolbarRepublish}
           @toolbar-add=${this._onToolbarAdd}
+          @toolbar-wizard=${this._onToolbarWizard}
+          @toolbar-export=${this._onToolbarExport}
+          @toolbar-import=${this._onToolbarImport}
           @toolbar-bulk-add=${this._onToolbarBulkAdd}
           @toolbar-clear-all=${this._onToolbarClearAll}
         ></sber-toolbar>
@@ -337,6 +429,13 @@ class SberMqttPanel extends LitElement {
         .hass=${this.hass}
         @add-entities=${this._onAddEntities}
       ></sber-add-dialog>
+
+      <sber-wizard
+        .hass=${this.hass}
+        @wizard-complete=${this._onWizardComplete}
+      ></sber-wizard>
+
+      <sber-toast></sber-toast>
     `;
   }
 
@@ -349,6 +448,7 @@ class SberMqttPanel extends LitElement {
         .devicesExtra=${this._devicesExtra}
         @remove-entities=${this._onRemoveEntities}
         @set-override=${this._onSetOverride}
+        @sync-entity=${this._onSyncEntity}
       ></sber-device-table>
     `;
   }
