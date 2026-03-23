@@ -236,7 +236,8 @@ class SberBridge:
         Uses swap-on-replace pattern: builds a new dict, then atomically
         replaces the reference to avoid race conditions with concurrent readers.
         """
-        new_enabled = list(self._entry.options.get(CONF_EXPOSED_ENTITIES, []))
+        # Deduplicate entity IDs while preserving order
+        new_enabled = list(dict.fromkeys(self._entry.options.get(CONF_EXPOSED_ENTITIES, [])))
         new_entities: dict[str, BaseEntity] = {}
 
         entity_reg = er.async_get(self._hass)

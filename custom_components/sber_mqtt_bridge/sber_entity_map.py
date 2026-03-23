@@ -145,5 +145,10 @@ def create_sber_entity(entity_id: str, entity_data: dict) -> BaseEntity | None:
         return None
     entity = constructor(entity_data)
     if entity is None:
-        _LOGGER.debug("No Sber mapping for entity %s", entity_id)
+        _LOGGER.debug("No Sber mapping for entity %s (device_class=%s)", entity_id, entity_data.get("original_device_class", ""))
+    else:
+        _LOGGER.debug(
+            "Entity %s → Sber %s (domain=%s, device_class=%s)",
+            entity_id, entity.category, domain, entity_data.get("original_device_class", ""),
+        )
     return entity
