@@ -1,239 +1,156 @@
 # Roadmap — Sber Smart Home MQTT Bridge
 
-Анализ на основе официальной документации Sber Smart Home (Context7, Playwright scraping).
-Дата: 2026-03-23, версия: 0.7.0
+Обновлено: 2026-03-23, версия: 0.9.0
 
 ---
 
-## 1. Нереализованные категории устройств (12 из 27)
+## Текущий статус
 
-| Категория Sber | Описание | Маппинг в HA | Сложность | Приоритет |
-|----------------|----------|-------------|-----------|-----------|
-| `led_strip` | LED лента | `light` (rgbw/rgb) | Низкая (= light) | **P1** |
-| `sensor_smoke` | Датчик дыма | `binary_sensor` (smoke) | Низкая | **P1** |
-| `sensor_gas` | Датчик газа | `binary_sensor` (gas) | Низкая | **P1** |
-| `hvac_fan` | Вентилятор | `fan` | Средняя | P2 |
-| `hvac_heater` | Обогреватель | `climate` (heater) | Средняя | P2 |
-| `hvac_boiler` | Котёл/бойлер | `climate`/`water_heater` | Средняя | P2 |
-| `hvac_underfloor_heating` | Тёплый пол | `climate` | Средняя | P2 |
-| `hvac_air_purifier` | Очиститель воздуха | `fan` (purifier) | Средняя | P3 |
-| `kettle` | Чайник | `switch`/`water_heater` | Высокая | P3 |
-| `tv` | Телевизор | `media_player` | Высокая | P3 |
-| `vacuum_cleaner` | Пылесос | `vacuum` | Высокая | P3 |
-| `intercom` | Домофон | Нет стандартного | Очень высокая | P4 |
+| Метрика | Значение |
+|---------|----------|
+| Версия | 0.9.0 |
+| Sber категории | **27/27 (100%)** |
+| HA домены | 15 |
+| Тесты | 396 |
+| Ruff errors | 0 |
 
----
+### Реализованные категории (27/27)
 
-## 2. Пропущенные features в существующих устройствах
-
-### relay — пропущено 3
-
-| Feature | Тип | Описание |
-|---------|-----|----------|
-| `current` | INTEGER | Сила тока (мА) |
-| `power` | INTEGER | Потребляемая мощность (Вт) |
-| `voltage` | INTEGER | Напряжение (В) |
-
-### socket — пропущено 4
-
-| Feature | Тип | Описание |
-|---------|-----|----------|
-| `child_lock` | BOOL | Блокировка от детей |
-| `current` | INTEGER | Сила тока |
-| `power` | INTEGER | Мощность |
-| `voltage` | INTEGER | Напряжение |
-
-### sensor_temp — пропущено 6
-
-| Feature | Тип | Описание |
-|---------|-----|----------|
-| `air_pressure` | INTEGER | Атмосферное давление |
-| `battery_low_power` | BOOL | Батарея разряжена |
-| `battery_percentage` | INTEGER | Уровень заряда % |
-| `sensor_sensitive` | ENUM (auto/high) | Чувствительность |
-| `signal_strength` | INTEGER | Сила сигнала |
-| `temp_unit_view` | ENUM (c/f) | Единицы измерения |
-
-### sensor_door — пропущено 5
-
-| Feature | Тип | Описание |
-|---------|-----|----------|
-| `battery_low_power` | BOOL | Батарея разряжена |
-| `battery_percentage` | INTEGER | Уровень заряда |
-| `sensor_sensitive` | ENUM | Чувствительность |
-| `signal_strength` | INTEGER | Сила сигнала |
-| `tamper_alarm` | BOOL | Вскрытие датчика |
-
-### sensor_water_leak — пропущено 3
-
-| Feature | Тип | Описание |
-|---------|-----|----------|
-| `battery_low_power` | BOOL | Батарея разряжена |
-| `battery_percentage` | INTEGER | Уровень заряда |
-| `signal_strength` | INTEGER | Сила сигнала |
-
-### sensor_pir — пропущено 4 (аналогично sensor_door без tamper_alarm)
-
-### curtain / window_blind / gate — пропущено 4+
-
-| Feature | Тип | Описание |
-|---------|-----|----------|
-| `battery_low_power` | BOOL | Батарея разряжена |
-| `battery_percentage` | INTEGER | Уровень заряда |
-| `open_rate` | ENUM (auto/low/high) | Скорость открытия |
-| `signal_strength` | INTEGER | Сила сигнала |
-| `open_left/right_*` | — | Двустворчатые шторы (6 features) |
-
-### hvac_ac — пропущено 2
-
-| Feature | Тип | Описание |
-|---------|-----|----------|
-| `hvac_humidity_set` | INTEGER | Целевая влажность |
-| `hvac_night_mode` | BOOL | Ночной режим |
-
-### hvac_humidifier — пропущено 6
-
-| Feature | Тип | Описание |
-|---------|-----|----------|
-| `hvac_air_flow_power` | ENUM | Скорость вентилятора |
-| `hvac_humidity_set` | INTEGER | Целевая влажность |
-| `hvac_ionization` | BOOL | Ионизация |
-| `hvac_night_mode` | BOOL | Ночной режим |
-| `hvac_water_low_level` | BOOL | Мало воды |
-| `hvac_water_percentage` | INTEGER | Уровень воды % |
-
-### valve — КРИТИЧНО: неверная реализация + пропущено 4
-
-Спецификация: valve использует `open_set`/`open_state` (ENUM: open/close/stop), НЕ `on_off`.
-Наш код: ValveEntity наследует OnOffEntity с on_off — **НЕВЕРНО**.
-
-| Feature | Тип | Описание |
-|---------|-----|----------|
-| `open_set` | ENUM | Открыть/закрыть/стоп (ВМЕСТО on_off) |
-| `open_state` | ENUM | Текущее состояние (open/close) |
-| `battery_low_power` | BOOL | Батарея |
-| `battery_percentage` | INTEGER | Заряд |
-| `signal_strength` | INTEGER | Сигнал |
+| Категория | Версия | HA Domain |
+|-----------|--------|-----------|
+| light | 0.2.0 | light |
+| led_strip | 0.8.0 | light |
+| relay | 0.2.0 | switch, script, button |
+| socket | 0.2.0 | switch (outlet) |
+| curtain | 0.2.0 | cover |
+| window_blind | 0.2.0 | cover (blind/shade/shutter) |
+| gate | 0.5.0 | cover (gate/garage_door) |
+| hvac_ac | 0.2.0 | climate |
+| hvac_radiator | 0.2.0 | climate (radiator) |
+| hvac_heater | 0.8.0 | climate (heater) |
+| hvac_boiler | 0.8.0 | water_heater |
+| hvac_underfloor_heating | 0.8.0 | climate |
+| hvac_humidifier | 0.2.0 | humidifier |
+| hvac_fan | 0.8.0 | fan |
+| hvac_air_purifier | 0.9.0 | fan (purifier) |
+| sensor_temp | 0.2.0 | sensor (temperature) |
+| sensor_humidity | 0.2.0 | sensor (humidity) |
+| sensor_pir | 0.2.0 | binary_sensor (motion) |
+| sensor_door | 0.2.0 | binary_sensor (door/window) |
+| sensor_water_leak | 0.2.0 | binary_sensor (moisture) |
+| sensor_smoke | 0.8.0 | binary_sensor (smoke) |
+| sensor_gas | 0.8.0 | binary_sensor (gas) |
+| valve | 0.8.0 (fix) | valve |
+| scenario_button | 0.2.0 | input_boolean |
+| kettle | 0.9.0 | water_heater |
+| tv | 0.9.0 | media_player |
+| vacuum_cleaner | 0.9.0 | vacuum |
+| intercom | 0.9.0 | (override only) |
+| hub | 0.2.0 | (auto, root device) |
 
 ---
 
-## 3. Структурные несоответствия протоколу
+## Что осталось реализовать
 
-| Проблема | Описание | Приоритет |
-|----------|----------|-----------|
-| **valve = on_off** | Спецификация: open_set/open_state. Наш: on_off. Неверно! | **P1** |
-| Нет `nicknames` | Sber поддерживает массив альтернативных имён | P3 |
-| Нет `groups` | Sber поддерживает группы устройств | P3 |
-| Нет `parent_id` | Sber поддерживает иерархию устройств (hub→device) | P3 |
-| Нет `partner_meta` | Sber хранит произвольные метаданные | P4 |
-| Нет `dependencies` | light_colour зависит от light_mode=colour | P2 |
-| Нет `allowed_values` для большинства | Только climate/humidifier/light | P2 |
-| HA `fan` не поддерживается | Нужен для hvac_fan, hvac_air_purifier | P2 |
-| HA `media_player` не поддерживается | Нужен для tv | P3 |
-| HA `vacuum` не поддерживается | Нужен для vacuum_cleaner | P3 |
-| HA `water_heater` не поддерживается | Нужен для kettle, hvac_boiler | P3 |
+### Приоритет 1 — Расширение features существующих устройств
 
----
+| # | Задача | Категории | Описание |
+|---|--------|-----------|----------|
+| 1 | `air_pressure` feature | sensor_temp | Атмосферное давление из HA sensor (device_class=pressure) |
+| 2 | `signal_strength` feature | все сенсоры, covers | RSSI/signal_strength из HA attributes |
+| 3 | `tamper_alarm` feature | sensor_door, sensor_pir | Вскрытие датчика (binary_sensor tamper attribute) |
+| 4 | `battery_low_power` feature | все сенсоры, covers | Разряжена ли батарея (bool, из battery_level < 20%) |
+| 5 | `child_lock` feature | socket, kettle | Блокировка от детей из HA attributes |
+| 6 | `sensor_sensitive` feature | sensor_temp, sensor_door, sensor_pir | Чувствительность датчика |
+| 7 | `hvac_humidity_set` feature | hvac_ac | Целевая влажность кондиционера |
+| 8 | `hvac_night_mode` feature | hvac_ac, hvac_humidifier | Ночной режим |
+| 9 | `open_rate` feature | curtain, window_blind, gate | Скорость открытия (auto/low/high) |
+| 10 | `open_left/right_*` features | curtain, gate | Двустворчатые шторы/ворота (6 features) |
 
-## 4. Полная спецификация features (из документации Sber)
+### Приоритет 2 — Структурные улучшения протокола
 
-### Типы данных по features
+| # | Задача | Описание |
+|---|--------|----------|
+| 11 | `dependencies` | light_colour зависит от light_mode=colour (JSON dependencies) |
+| 12 | `allowed_values` расширение | Добавить для valve, curtain, sensor_temp и др. |
+| 13 | `nicknames` | Массив альтернативных имён устройства |
+| 14 | `groups` | Группы устройств (Климат, Свет и т.д.) |
+| 15 | `parent_id` | Иерархия устройств (hub → device) |
 
-| Feature | Type | Значения/Диапазон |
-|---------|------|-------------------|
-| `online` | BOOL | true/false |
-| `on_off` | BOOL | true/false |
-| `temperature` | INTEGER | -400..2000 (x10, т.е. -40.0..200.0°C) |
-| `humidity` | INTEGER | 0..100 (%) |
-| `hvac_temp_set` | INTEGER | 5..50 (°C, БЕЗ x10!) |
-| `hvac_humidity_set` | INTEGER | 0..100 (%) |
-| `light_brightness` | INTEGER | 50..1000 (промилле) |
-| `light_colour_temp` | INTEGER | 0..1000 (промилле) |
-| `light_colour` | COLOUR | {h:0-360, s:0-1000, v:100-1000} |
-| `light_mode` | ENUM | white, colour |
-| `open_percentage` | INTEGER | 0..100 (%) |
-| `open_set` | ENUM | open, close, stop |
-| `open_state` | ENUM | open, close |
-| `pir` | ENUM | pir (event-based) |
-| `doorcontact_state` | BOOL | true=open, false=closed |
-| `water_leak_state` | BOOL | true=leak, false=no leak |
-| `smoke_state` | BOOL | true=smoke, false=no smoke |
-| `gas_leak_state` | BOOL | true=gas, false=no gas |
-| `button_event` | ENUM | click, double_click, long_press |
-| `battery_percentage` | INTEGER | 0..100 (%) |
-| `battery_low_power` | BOOL | true/false |
-| `signal_strength` | ENUM | high, medium, low |
-| `tamper_alarm` | BOOL | true/false |
-| `child_lock` | BOOL | true/false |
-| `current` | INTEGER | мА |
-| `power` | INTEGER | Вт |
-| `voltage` | INTEGER | В |
-| `air_pressure` | INTEGER | Па или мм рт.ст. |
-| `hvac_air_flow_power` | ENUM | auto, high, low, medium, quiet, turbo |
-| `hvac_air_flow_direction` | ENUM | auto, horizontal, no, rotation, swing, vertical |
-| `hvac_work_mode` | ENUM | (зависит от устройства) |
-| `hvac_thermostat_mode` | ENUM | cooling, drying, heating, ventilation |
-| `hvac_night_mode` | BOOL | true/false |
-| `hvac_ionization` | BOOL | true/false |
-| `hvac_decontaminate` | BOOL | true/false |
-| `hvac_aromatization` | BOOL | true/false |
-| `hvac_water_low_level` | BOOL | true/false |
-| `hvac_water_percentage` | INTEGER | 0..100 (%) |
-| `sensor_sensitive` | ENUM | auto, high |
-| `temp_unit_view` | ENUM | c, f |
+### Приоритет 3 — Архитектура и качество
 
-### Важно: integer_value всегда string!
+| # | Задача | Описание |
+|---|--------|----------|
+| 16 | Полная pydantic сериализация | Заменить все dict на pydantic models в device classes |
+| 17 | `partner_meta` | Произвольные метаданные устройства |
+| 18 | Подача в HACS Default | Попадание в каталог HACS (бОльшая видимость) |
+| 19 | CI/CD GitHub Actions | hassfest, HACS validate, pytest, ruff, mypy |
+| 20 | Мульти-версия HA тестирование | Тесты на 3-4 версиях HA (как у Yandex Smart Home) |
 
-По спецификации C2C API `integer_value` передаётся как строка:
-```json
-{"type": "INTEGER", "integer_value": "220"}
-```
+### Приоритет 4 — Расширение функционала
+
+| # | Задача | Описание |
+|---|--------|----------|
+| 21 | HA Repairs | Автоматические HA Issues при проблемах (unexposed entities и т.д.) |
+| 22 | Custom capabilities через YAML | Расширение custom_capabilities: custom modes, ranges, toggles |
+| 23 | Entity customization UI | Настройка features per entity через Options Flow |
+| 24 | Автоматический re-publish config | После получения state для entity без config |
+| 25 | Persist redefinitions | Сохранять rename/room из Sber app в entry.data |
 
 ---
 
-## 5. Приоритеты реализации
+## Выполненные задачи (для справки)
 
-### P1 — Быстрые фиксы (критичные, < 1 час каждый)
+### v0.3.0 — Deep Audit
+- 10 critical bugs fixed, deduplication, new base classes (OnOffEntity, SimpleReadOnlySensor)
+- MQTT lifecycle fixes, init chain, logger convention
+- Migration to GitHub, README, CHANGELOG
 
-1. **valve fix** — переписать на open_set/open_state вместо on_off
-2. **`led_strip`** — alias для light (одинаковый класс, другая category)
-3. **`sensor_smoke`** — SimpleReadOnlySensor с key=`smoke_state`, BOOL
-4. **`sensor_gas`** — SimpleReadOnlySensor с key=`gas_leak_state`, BOOL
-5. **battery features** — добавить battery_percentage/battery_low_power во все сенсоры
+### v0.4.0 — Bulk Selection
+- Bulk entity selection (all/by domain/by label/clear all)
+- Device deduplication by device_id
+- Infinite loop fix (change_group re-publish)
 
-### P2 — Средние (расширение, 2-4 часа каждый)
+### v0.5.0 — Type Overrides & Docs
+- Entity type overrides UI + YAML
+- Options Flow menu
+- Gate category, label filtering
+- mkdocs GitHub Pages site
+- Extended diagnostics per entity
 
-6. **hvac_fan** — новый класс + domain `fan` в SUPPORTED_DOMAINS
-7. **hvac_heater/hvac_boiler/hvac_underfloor_heating** — варианты ClimateEntity
-8. **power/voltage/current** — для relay и socket (из HA attributes)
-9. **dependencies** — light_colour зависит от light_mode=colour
-10. **allowed_values** — добавить для valve, curtain, sensor_temp
+### v0.5.1 — Migration & Testing
+- Config Entry migration v1→v2
+- Snapshot testing (syrupy)
+- Strict mypy config
 
-### P3 — Сложные (новые домены, день+)
+### v0.6.0 — Pydantic & YAML
+- Pydantic protocol schemas
+- Custom YAML capabilities (sber_type, sber_name, sber_room)
 
-11. **kettle** — domain water_heater, features kitchen_water_*
-12. **tv** — domain media_player, features channel, volume, source, mute
-13. **vacuum_cleaner** — domain vacuum, features program, command, status
-14. **hvac_air_purifier** — domain fan, features aromatization, ionization
-15. **nicknames, groups, parent_id** — расширение device descriptor
+### v0.7.0 — Protocol Compliance
+- pir: BOOL→ENUM, doorcontact_state: ENUM→BOOL
+- water_leak→water_leak_state, hvac_temp_set without /10
+- integer_value as string per spec
 
-### P4 — На перспективу
+### v0.8.0 — 7 New Devices
+- led_strip, sensor_smoke, sensor_gas, hvac_fan
+- hvac_heater, hvac_boiler, hvac_underfloor_heating
+- Valve fix (open_set/open_state)
+- Battery + power monitoring
 
-16. **intercom** — нет стандартного HA domain
-17. **partner_meta** — произвольные метаданные
-18. **Полная pydantic сериализация** — заменить все dict на pydantic models
+### v0.9.0 — All 27 Categories
+- hvac_air_purifier, kettle, tv, vacuum_cleaner, intercom
+- 27/27 Sber categories complete
+- 396 tests
 
 ---
 
-## 6. Источники документации
+## Источники документации
 
-- [Устройства](https://developers.sber.ru/docs/ru/smarthome/c2c/devices)
-- [Функции](https://developers.sber.ru/docs/ru/smarthome/c2c/functions)
-- [Структуры](https://developers.sber.ru/docs/ru/smarthome/c2c/structures)
-- [Value](https://developers.sber.ru/docs/ru/smarthome/c2c/value)
-- [State](https://developers.sber.ru/docs/ru/smarthome/c2c/state)
-- [Model](https://developers.sber.ru/docs/ru/smarthome/c2c/model)
-- [Device](https://developers.sber.ru/docs/ru/smarthome/c2c/device)
-- [MQTT Topics](https://developers.sber.ru/docs/ru/smarthome/reference/mqtt-topics)
-- [Context7 library: /websites/developers_sber_ru_ru](https://context7.com) (10723 сниппетов)
+- [Sber Smart Home Devices](https://developers.sber.ru/docs/ru/smarthome/c2c/devices)
+- [Sber Smart Home Functions](https://developers.sber.ru/docs/ru/smarthome/c2c/functions)
+- [Sber Smart Home Structures](https://developers.sber.ru/docs/ru/smarthome/c2c/structures)
+- [MQTT Topics Reference](https://developers.sber.ru/docs/ru/smarthome/reference/mqtt-topics)
+- [Context7: /websites/developers_sber_ru_ru](https://context7.com) (10723 сниппетов)
 - Сохранённый reference: `docs/sber-api-reference/`
+- [Yandex Smart Home (для сравнения)](https://github.com/dext0r/yandex_smart_home)
