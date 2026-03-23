@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sber Smart Home MQTT Bridge",
+        "description": "Введите данные MQTT интеграции Sber Smart Home.",
+        "data": {
+          "sber_login": "MQTT Логин",
+          "sber_password": "MQTT Пароль",
+          "sber_broker": "MQTT Брокер",
+          "sber_port": "MQTT Порт"
+        },
+        "data_description": {
+          "sber_login": "Логин из проекта интеграции Sber Studio",
+          "sber_password": "Пароль из проекта интеграции Sber Studio",
+          "sber_broker": "Адрес MQTT брокера Sber",
+          "sber_port": "Порт MQTT брокера Sber (по умолчанию: 8883)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Не удалось подключиться к MQTT брокеру Sber",
+      "invalid_auth": "Неверные учётные данные MQTT",
+      "unknown": "Непредвиденная ошибка"
+    },
+    "abort": {
+      "already_configured": "Этот аккаунт Sber уже настроен"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Настройки Sber Bridge",
+        "data": {
+          "exposed_entities": "Сущности для экспорта в Sber"
+        },
+        "data_description": {
+          "exposed_entities": "Выберите, какие сущности Home Assistant сделать доступными в Sber Smart Home"
+        }
+      }
+    }
+  }
+}
