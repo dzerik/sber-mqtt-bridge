@@ -114,35 +114,39 @@ class CurtainEntity(BaseEntity):
             if key == "open_percentage" and value.get("type") == "INTEGER":
                 ha_position = int(value.get("integer_value", 0))
                 ha_position = max(0, min(100, ha_position))
-                processing_result.append({
-                    "url": {
-                        "type": "call_service",
-                        "domain": "cover",
-                        "service": "set_cover_position",
-                        "service_data": {"position": ha_position},
-                        "target": {"entity_id": self.entity_id}
+                processing_result.append(
+                    {
+                        "url": {
+                            "type": "call_service",
+                            "domain": "cover",
+                            "service": "set_cover_position",
+                            "service_data": {"position": ha_position},
+                            "target": {"entity_id": self.entity_id},
+                        }
                     }
-                })
-                    # self.current_position = ha_position
+                )
+                # self.current_position = ha_position
 
             if key == "cover_position":
                 # Команда на установку позиции
                 sber_position = value.get("integer_value", 0)
-                ha_position = sber_position # 0-100 → 0-100
+                ha_position = sber_position  # 0-100 → 0-100
 
                 # Ограничение диапазона
                 ha_position = max(0, min(100, ha_position))
 
                 # Формирование команды
-                processing_result.append({
-                    "url": {
-                        "type": "call_service",
-                        "domain": "cover",
-                        "service": "set_cover_position",
-                        "service_data": {"position": ha_position},
-                        "target": {"entity_id": self.entity_id}
+                processing_result.append(
+                    {
+                        "url": {
+                            "type": "call_service",
+                            "domain": "cover",
+                            "service": "set_cover_position",
+                            "service_data": {"position": ha_position},
+                            "target": {"entity_id": self.entity_id},
+                        }
                     }
-                })
+                )
                 # self.current_position = ha_position
 
             elif key == "open_set":
@@ -152,34 +156,40 @@ class CurtainEntity(BaseEntity):
                     continue
 
                 if action == "open":
-                    processing_result.append({
-                        "url": {
-                            "type": "call_service",
-                            "domain": "cover",
-                            "service": "open_cover",
-                            "target": {"entity_id": self.entity_id}
+                    processing_result.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "cover",
+                                "service": "open_cover",
+                                "target": {"entity_id": self.entity_id},
+                            }
                         }
-                    })
+                    )
 
                 elif action == "close":
-                    processing_result.append({
-                        "url": {
-                            "type": "call_service",
-                            "domain": "cover",
-                            "service": "close_cover",
-                            "target": {"entity_id": self.entity_id}
+                    processing_result.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "cover",
+                                "service": "close_cover",
+                                "target": {"entity_id": self.entity_id},
+                            }
                         }
-                    })
+                    )
 
                 elif action == "stop":
-                    processing_result.append({
-                        "url": {
-                            "type": "call_service",
-                            "domain": "cover",
-                            "service": "stop_cover",
-                            "target": {"entity_id": self.entity_id}
+                    processing_result.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "cover",
+                                "service": "stop_cover",
+                                "target": {"entity_id": self.entity_id},
+                            }
                         }
-                    })
+                    )
 
         return processing_result
 
@@ -191,15 +201,14 @@ class CurtainEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = super().create_features_list() # Когда вызывается 'тот метод?'
+        features = super().create_features_list()  # Когда вызывается 'тот метод?'
         features += [
-            "open_percentage"
-            , "open_set"
-            , "open_state"
+            "open_percentage",
+            "open_set",
+            "open_state",
             # , "battary_percentage"
-            ]
+        ]
         return features
-
 
     def to_sber_state(self) -> dict:
         """Build full Sber device descriptor for curtain.
@@ -220,39 +229,24 @@ class CurtainEntity(BaseEntity):
         """
         states = []
         if self.state == "unavailable":
-            states.append(
-                {
-                    "key": "online",
-                    "value": {
-                        "type": "BOOL",
-                        "bool_value": False
-                    }
-                }
-            )
+            states.append({"key": "online", "value": {"type": "BOOL", "bool_value": False}})
             return None
+        states.append({"key": "online", "value": {"type": "BOOL", "bool_value": True}})
+
+        # # Добавление позиции
         states.append(
             {
-                "key": "online",
-                "value": {
-                    "type": "BOOL",
-                    "bool_value": True
-                }
+                "key": "open_percentage",
+                "value": {"type": "INTEGER", "integer_value": self._convert_position(self.current_position)},
             }
         )
 
-        # # Добавление позиции
-        states.append({
-            "key": "open_percentage",
-            "value": {"type": "INTEGER", "integer_value": self._convert_position(self.current_position)}
-        })
-
-        states.append({
-            "key": "open_state",
-            "value": {
-                "type": "ENUM",
-                "enum_value": "open" if self.current_position > 0 else "close"
+        states.append(
+            {
+                "key": "open_state",
+                "value": {"type": "ENUM", "enum_value": "open" if self.current_position > 0 else "close"},
             }
-        })
+        )
 
         return {self.entity_id: {"states": states}}
 

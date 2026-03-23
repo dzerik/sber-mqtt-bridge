@@ -14,9 +14,7 @@ TO_REDACT = {CONF_SBER_PASSWORD}
 """Set of config keys whose values should be redacted in diagnostics output."""
 
 
-async def async_get_config_entry_diagnostics(
-    hass: HomeAssistant, entry: SberBridgeConfigEntry
-) -> dict[str, Any]:
+async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
     bridge = entry.runtime_data.bridge
 

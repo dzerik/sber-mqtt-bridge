@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-23
+
+### Added
+- Reauthentication flow (`async_step_reauth`) for Silver quality scale
+- 153 new unit tests (219 total), achieving 82% code coverage
+- Exponential backoff for MQTT reconnection (5s → 300s max)
+- Enum validation for climate commands (fan_mode, swing_mode, hvac_mode)
+- Comprehensive docstrings for all public classes, methods, constants
+- `from __future__ import annotations` in all modules
+- README.md rewritten for HACS integration (installation, config, troubleshooting)
+- CHANGELOG.md in Keep a Changelog format
+
+### Fixed
+- TLS verify configurable via Config Flow (was hardcoded CERT_NONE)
+- JSON parse error handling in `parse_sber_command`
+- LightEntity shared class-level converters causing cross-instance bugs
+- BaseEntity mutable default `attributes: dict = {}` moved to `__init__`
+- Deprecated entity_registry API updated to `er.async_get(hass)`
+- LightEntity `process_cmd` returns `[]` instead of `None`
+- LightEntity `process_cmd` UnboundLocalError on empty states
+- Falsy value filter in `build_devices_list_json`
+- `assert` replaced with `raise RuntimeError/ValueError`
+- `callable` → `Callable` type hint
+- Typo `unuque_id` → `unique_id` in device_data.py
+- All 24 ruff lint issues resolved (0 remaining)
+- ruff format applied to all files
+- Swap-on-replace pattern for entity reload (race condition fix)
+- .gitignore extended with .env, *.pem, secrets.yaml
+
+### Changed
+- HA Quality Scale: Bronze → **Silver** (all 28 rules done/exempt)
+- aiomqtt dependency pinned to `>=2.0,<3.0`
+- Command payload logging moved from INFO to DEBUG
+- BaseEntity uses ABC with 3 `@abstractmethod`s
+
 ## [0.1.0] - 2026-03-23
 
 ### Added
@@ -76,7 +111,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - LightEntity and CurtainEntity with full OOP implementation
 
-[Unreleased]: https://github.com/mberezovsky/MQTT-SberGate/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/mberezovsky/MQTT-SberGate/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/mberezovsky/MQTT-SberGate/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/mberezovsky/MQTT-SberGate/releases/tag/v0.1.0
 [1.2.0]: https://github.com/mberezovsky/MQTT-SberGate/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/mberezovsky/MQTT-SberGate/releases/tag/v1.1.0

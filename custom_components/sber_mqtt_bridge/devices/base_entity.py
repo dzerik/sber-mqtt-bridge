@@ -138,9 +138,7 @@ class BaseEntity(ABC):
             ValueError: If device_id does not match.
         """
         if self.device_id != device_data.get("id"):
-            raise ValueError(
-                f"Device ID mismatch: {self.device_id} != {device_data.get('id')}"
-            )
+            raise ValueError(f"Device ID mismatch: {self.device_id} != {device_data.get('id')}")
         self.linked_device = device_data
 
     def to_sber_state(self) -> dict:
@@ -154,9 +152,7 @@ class BaseEntity(ABC):
             RuntimeError: If device has device_id but linked_device is not set.
         """
         if not self.is_filled_by_state:
-            raise RuntimeError(
-                f"Entity {self.entity_id}: fill_by_ha_state must be called before to_sber_state"
-            )
+            raise RuntimeError(f"Entity {self.entity_id}: fill_by_ha_state must be called before to_sber_state")
 
         if self.device_id is None:
             return {
@@ -178,9 +174,7 @@ class BaseEntity(ABC):
             }
 
         if self.linked_device is None:
-            raise RuntimeError(
-                f"Entity {self.entity_id}: linked_device required when device_id is set"
-            )
+            raise RuntimeError(f"Entity {self.entity_id}: linked_device required when device_id is set")
         return {
             "id": self.entity_id,
             "name": self.linked_device.get("name", self.original_name),

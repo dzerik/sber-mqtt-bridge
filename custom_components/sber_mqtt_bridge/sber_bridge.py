@@ -111,9 +111,7 @@ class SberBridge:
         Uses swap-on-replace pattern: builds a new dict, then atomically
         replaces the reference to avoid race conditions with concurrent readers.
         """
-        new_enabled = list(
-            self._entry.options.get(CONF_EXPOSED_ENTITIES, [])
-        )
+        new_enabled = list(self._entry.options.get(CONF_EXPOSED_ENTITIES, []))
         new_entities: dict[str, BaseEntity] = {}
 
         entity_reg = er.async_get(self._hass)
@@ -202,9 +200,7 @@ class SberBridge:
                     async for message in client.messages:
                         if not self._running:
                             break
-                        await self._handle_mqtt_message(
-                            str(message.topic), message.payload
-                        )
+                        await self._handle_mqtt_message(str(message.topic), message.payload)
 
             except aiomqtt.MqttError as err:
                 self._connected = False
@@ -216,9 +212,7 @@ class SberBridge:
                     self._reconnect_interval,
                 )
                 await asyncio.sleep(self._reconnect_interval)
-                self._reconnect_interval = min(
-                    self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX
-                )
+                self._reconnect_interval = min(self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX)
             except asyncio.CancelledError:
                 break
             except Exception:
@@ -230,9 +224,7 @@ class SberBridge:
                     self._reconnect_interval,
                 )
                 await asyncio.sleep(self._reconnect_interval)
-                self._reconnect_interval = min(
-                    self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX
-                )
+                self._reconnect_interval = min(self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX)
 
         self._mqtt_client = None
         self._connected = False
@@ -284,9 +276,7 @@ class SberBridge:
                         blocking=False,
                     )
                 except Exception:
-                    _LOGGER.exception(
-                        "Error calling HA service for %s", entity_id
-                    )
+                    _LOGGER.exception("Error calling HA service for %s", entity_id)
 
     async def _handle_sber_status_request(self, payload: bytes) -> None:
         """Handle status request from Sber cloud."""
@@ -355,9 +345,7 @@ class SberBridge:
         }
 
         try:
-            entity.process_state_change(
-                event.data.get("old_state"), ha_state_dict
-            )
+            entity.process_state_change(event.data.get("old_state"), ha_state_dict)
         except Exception:
             _LOGGER.exception("Error processing state change for %s", entity_id)
             return
@@ -369,31 +357,21 @@ class SberBridge:
         if not self._connected or self._mqtt_client is None:
             return
 
-        payload = build_states_list_json(
-            self._entities, entity_ids, self._enabled_entity_ids
-        )
+        payload = build_states_list_json(self._entities, entity_ids, self._enabled_entity_ids)
         try:
-            await self._mqtt_client.publish(
-                f"{self._root_topic}/up/status", payload
-            )
+            await self._mqtt_client.publish(f"{self._root_topic}/up/status", payload)
         except aiomqtt.MqttError:
             _LOGGER.exception("Error publishing states to Sber")
 
-    async def _publish_config(
-        self, entity_ids: list[str] | None = None
-    ) -> None:
+    async def _publish_config(self, entity_ids: list[str] | None = None) -> None:
         """Publish device config to Sber MQTT."""
         if not self._connected or self._mqtt_client is None:
             return
 
         ids_to_publish = entity_ids or self._enabled_entity_ids
-        payload = build_devices_list_json(
-            self._entities, ids_to_publish, self._redefinitions
-        )
+        payload = build_devices_list_json(self._entities, ids_to_publish, self._redefinitions)
         try:
-            await self._mqtt_client.publish(
-                f"{self._root_topic}/up/config", payload
-            )
+            await self._mqtt_client.publish(f"{self._root_topic}/up/config", payload)
             _LOGGER.info("Published device config to Sber (%d entities)", len(ids_to_publish))
         except aiomqtt.MqttError:
             _LOGGER.exception("Error publishing config to Sber")

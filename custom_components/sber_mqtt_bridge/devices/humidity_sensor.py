@@ -60,7 +60,7 @@ class HumiditySensorEntity(BaseEntity):
         is_online = self.state not in ("unavailable", "unknown", None)
         states = [
             {"key": "online", "value": {"type": "BOOL", "bool_value": is_online}},
-            {"key": "humidity", "value": {"type": "INTEGER", "integer_value": int(self.humidity * 10)}}
+            {"key": "humidity", "value": {"type": "INTEGER", "integer_value": int(self.humidity * 10)}},
         ]
         return {self.entity_id: {"states": states}}
 

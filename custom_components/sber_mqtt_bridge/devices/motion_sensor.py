@@ -54,7 +54,7 @@ class MotionSensorEntity(BaseEntity):
         is_online = self.state not in ("unavailable", "unknown", None)
         states = [
             {"key": "online", "value": {"type": "BOOL", "bool_value": is_online}},
-            {"key": "pir", "value": {"type": "BOOL", "bool_value": self.motion_detected}}
+            {"key": "pir", "value": {"type": "BOOL", "bool_value": self.motion_detected}},
         ]
         return {self.entity_id: {"states": states}}
 

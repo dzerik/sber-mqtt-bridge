@@ -30,9 +30,7 @@ type SberBridgeConfigEntry = ConfigEntry[SberBridgeData]
 """Type alias for a ConfigEntry carrying SberBridgeData as runtime_data."""
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: SberBridgeConfigEntry
-) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> bool:
     """Set up Sber MQTT Bridge from a config entry.
 
     Args:
@@ -51,17 +49,13 @@ async def async_setup_entry(
         await bridge.async_start()
     except Exception as err:
         await bridge.async_stop()
-        raise ConfigEntryNotReady(
-            f"Failed to connect to Sber MQTT broker: {err}"
-        ) from err
+        raise ConfigEntryNotReady(f"Failed to connect to Sber MQTT broker: {err}") from err
 
     entry.runtime_data = SberBridgeData(bridge=bridge)
     return True
 
 
-async def async_unload_entry(
-    hass: HomeAssistant, entry: SberBridgeConfigEntry
-) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> bool:
     """Unload a config entry and stop the Sber bridge.
 
     Args:

@@ -89,20 +89,11 @@ class ClimateEntity(BaseEntity):
         """
         allowed = {}
         if self.fan_modes:
-            allowed["hvac_air_flow_power"] = {
-                "type": "ENUM",
-                "enum_values": {"values": self.fan_modes}
-            }
+            allowed["hvac_air_flow_power"] = {"type": "ENUM", "enum_values": {"values": self.fan_modes}}
         if self.swing_modes:
-            allowed["hvac_air_flow_direction"] = {
-                "type": "ENUM",
-                "enum_values": {"values": self.swing_modes}
-            }
+            allowed["hvac_air_flow_direction"] = {"type": "ENUM", "enum_values": {"values": self.swing_modes}}
         if self.hvac_modes:
-            allowed["hvac_work_mode"] = {
-                "type": "ENUM",
-                "enum_values": {"values": self.hvac_modes}
-            }
+            allowed["hvac_work_mode"] = {"type": "ENUM", "enum_values": {"values": self.hvac_modes}}
         return allowed
 
     def to_sber_state(self) -> dict:
@@ -133,9 +124,16 @@ class ClimateEntity(BaseEntity):
             {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.current_state}},
         ]
         if self.temperature is not None:
-            states.append({"key": "temperature", "value": {"type": "INTEGER", "integer_value": int(self.temperature * 10)}})
+            states.append(
+                {"key": "temperature", "value": {"type": "INTEGER", "integer_value": int(self.temperature * 10)}}
+            )
         if self.target_temperature is not None:
-            states.append({"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": int(self.target_temperature * 10)}})
+            states.append(
+                {
+                    "key": "hvac_temp_set",
+                    "value": {"type": "INTEGER", "integer_value": int(self.target_temperature * 10)},
+                }
+            )
         if self.fan_mode:
             states.append({"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": self.fan_mode}})
         if self.swing_mode:
@@ -168,55 +166,75 @@ class ClimateEntity(BaseEntity):
             if key == "on_off":
                 on = value.get("bool_value", False)
                 self.current_state = on
-                results.append({"url": {
-                    "type": "call_service",
-                    "domain": "climate",
-                    "service": "turn_on" if on else "turn_off",
-                    "target": {"entity_id": self.entity_id}
-                }})
+                results.append(
+                    {
+                        "url": {
+                            "type": "call_service",
+                            "domain": "climate",
+                            "service": "turn_on" if on else "turn_off",
+                            "target": {"entity_id": self.entity_id},
+                        }
+                    }
+                )
             elif key == "hvac_temp_set":
                 temp = value.get("integer_value", 220) / 10.0
                 self.target_temperature = temp
-                results.append({"url": {
-                    "type": "call_service",
-                    "domain": "climate",
-                    "service": "set_temperature",
-                    "service_data": {"temperature": temp},
-                    "target": {"entity_id": self.entity_id}
-                }})
+                results.append(
+                    {
+                        "url": {
+                            "type": "call_service",
+                            "domain": "climate",
+                            "service": "set_temperature",
+                            "service_data": {"temperature": temp},
+                            "target": {"entity_id": self.entity_id},
+                        }
+                    }
+                )
             elif key == "hvac_air_flow_power":
                 mode = value.get("enum_value")
                 if mode and (not self.fan_modes or mode in self.fan_modes):
                     self.fan_mode = mode
-                    results.append({"url": {
-                        "type": "call_service",
-                        "domain": "climate",
-                        "service": "set_fan_mode",
-                        "service_data": {"fan_mode": mode},
-                        "target": {"entity_id": self.entity_id}
-                    }})
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "climate",
+                                "service": "set_fan_mode",
+                                "service_data": {"fan_mode": mode},
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
             elif key == "hvac_air_flow_direction":
                 mode = value.get("enum_value")
                 if mode and (not self.swing_modes or mode in self.swing_modes):
                     self.swing_mode = mode
-                    results.append({"url": {
-                        "type": "call_service",
-                        "domain": "climate",
-                        "service": "set_swing_mode",
-                        "service_data": {"swing_mode": mode},
-                        "target": {"entity_id": self.entity_id}
-                    }})
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "climate",
+                                "service": "set_swing_mode",
+                                "service_data": {"swing_mode": mode},
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
             elif key == "hvac_work_mode":
                 mode = value.get("enum_value")
                 if mode and (not self.hvac_modes or mode in self.hvac_modes):
                     self.hvac_mode = mode
-                    results.append({"url": {
-                        "type": "call_service",
-                        "domain": "climate",
-                        "service": "set_hvac_mode",
-                        "service_data": {"hvac_mode": mode},
-                        "target": {"entity_id": self.entity_id}
-                    }})
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "climate",
+                                "service": "set_hvac_mode",
+                                "service_data": {"hvac_mode": mode},
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
         return results
 
     def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
