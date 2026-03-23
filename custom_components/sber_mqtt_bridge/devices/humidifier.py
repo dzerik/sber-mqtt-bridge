@@ -95,6 +95,8 @@ class HumidifierEntity(BaseEntity):
         Includes online, on_off, target humidity, and work mode
         when values are available.
 
+        Per Sber C2C specification, ``integer_value`` is serialized as a string.
+
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
@@ -104,7 +106,7 @@ class HumidifierEntity(BaseEntity):
         ]
         if self.target_humidity is not None:
             states.append(
-                {"key": "humidity", "value": {"type": "INTEGER", "integer_value": round(self.target_humidity)}}
+                {"key": "humidity", "value": {"type": "INTEGER", "integer_value": str(round(self.target_humidity))}}
             )
         if self.mode:
             states.append({"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": self.mode}})

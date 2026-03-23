@@ -179,6 +179,8 @@ class CurtainEntity(BaseEntity):
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with position and open state.
 
+        Per Sber C2C specification, ``integer_value`` is serialized as a string.
+
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
@@ -196,7 +198,7 @@ class CurtainEntity(BaseEntity):
         states.append(
             {
                 "key": "open_percentage",
-                "value": {"type": "INTEGER", "integer_value": self._convert_position(self.current_position)},
+                "value": {"type": "INTEGER", "integer_value": str(self._convert_position(self.current_position))},
             }
         )
 

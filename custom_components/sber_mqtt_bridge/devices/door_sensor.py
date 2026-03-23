@@ -18,10 +18,14 @@ class DoorSensorEntity(SimpleReadOnlySensor):
     Reports open/close state from HA binary_sensor entities
     (device_class=door, window, garage_door) to the Sber cloud
     via the ``doorcontact_state`` feature.
+
+    Per Sber specification, ``doorcontact_state`` uses BOOL type:
+    - ``true`` = open (contacts disconnected)
+    - ``false`` = closed (contacts connected)
     """
 
     _sber_value_key = "doorcontact_state"
-    _sber_value_type = "ENUM"
+    _sber_value_type = "BOOL"
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize door sensor entity.
@@ -41,6 +45,10 @@ class DoorSensorEntity(SimpleReadOnlySensor):
         super().fill_by_ha_state(ha_state)
         self.is_open = ha_state.get("state") == "on"
 
-    def _get_sber_value(self) -> str:
-        """Return door state as Sber ENUM value."""
-        return "open" if self.is_open else "close"
+    def _get_sber_value(self) -> bool:
+        """Return door state as Sber BOOL value.
+
+        Returns:
+            True if door is open, False if closed.
+        """
+        return self.is_open

@@ -154,6 +154,8 @@ class LightEntity(BaseEntity):
         Includes online, on_off, brightness, color/color_temp, and light_mode
         depending on the current state and color mode.
 
+        Per Sber C2C specification, ``integer_value`` is serialized as a string.
+
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
@@ -164,7 +166,10 @@ class LightEntity(BaseEntity):
 
         if self.current_sber_brightness != 0:
             states.append(
-                {"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": self.current_sber_brightness}}
+                {
+                    "key": "light_brightness",
+                    "value": {"type": "INTEGER", "integer_value": str(self.current_sber_brightness)},
+                }
             )
 
         if self.current_state:
@@ -191,7 +196,7 @@ class LightEntity(BaseEntity):
                     states.append(
                         {
                             "key": "light_colour_temp",
-                            "value": {"type": "INTEGER", "integer_value": self.current_sber_color_temp},
+                            "value": {"type": "INTEGER", "integer_value": str(self.current_sber_color_temp)},
                         }
                     )
                 states.append({"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}})

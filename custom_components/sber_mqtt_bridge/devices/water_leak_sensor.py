@@ -16,10 +16,11 @@ class WaterLeakSensorEntity(SimpleReadOnlySensor):
     """Sber water leak sensor entity.
 
     Reports leak detection state from HA binary_sensor entities
-    (device_class=moisture) to the Sber cloud via the ``water_leak`` feature.
+    (device_class=moisture) to the Sber cloud via the ``water_leak_state``
+    feature.
     """
 
-    _sber_value_key = "water_leak"
+    _sber_value_key = "water_leak_state"
     _sber_value_type = "BOOL"
 
     def __init__(self, entity_data: dict) -> None:

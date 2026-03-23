@@ -185,10 +185,10 @@ class TestClimateToSberCurrentState(unittest.TestCase):
         self.assertTrue(online["value"]["bool_value"])
 
         temp = next(s for s in states if s["key"] == "temperature")
-        self.assertEqual(temp["value"]["integer_value"], 245)  # 24.5 * 10
+        self.assertEqual(temp["value"]["integer_value"], "245")  # 24.5 * 10, as string per spec
 
         temp_set = next(s for s in states if s["key"] == "hvac_temp_set")
-        self.assertEqual(temp_set["value"]["integer_value"], 220)  # 22.0 * 10
+        self.assertEqual(temp_set["value"]["integer_value"], "22")  # whole degrees, as string per spec
 
     def test_unavailable_state(self):
         entity = ClimateEntity(ENTITY_DATA)
@@ -249,7 +249,7 @@ class TestClimateProcessCmd(unittest.TestCase):
     def test_cmd_hvac_temp_set(self):
         entity = self._make_entity()
         result = entity.process_cmd({
-            "states": [{"key": "hvac_temp_set", "value": {"integer_value": 250}}]
+            "states": [{"key": "hvac_temp_set", "value": {"integer_value": 25}}]
         })
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_temperature")
@@ -314,7 +314,7 @@ class TestClimateProcessCmd(unittest.TestCase):
         result = entity.process_cmd({
             "states": [
                 {"key": "on_off", "value": {"bool_value": True}},
-                {"key": "hvac_temp_set", "value": {"integer_value": 200}},
+                {"key": "hvac_temp_set", "value": {"integer_value": 20}},
                 {"key": "hvac_air_flow_power", "value": {"enum_value": "high"}},
             ]
         })

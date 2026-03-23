@@ -1,0 +1,222 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e270]:
+      - generic [ref=e274]:
+        - link [ref=e276] [cursor=pointer]:
+          - /url: /docs/
+          - img [ref=e278]
+        - generic [ref=e283]:
+          - generic [ref=e286]:
+            - img [ref=e287]
+            - searchbox "Поиск по документации" [ref=e290]
+          - img [ref=e293] [cursor=pointer]
+    - main [ref=e301]:
+      - generic [ref=e304]:
+        - article [ref=e308]:
+          - generic [ref=e309]:
+            - button "Содержание раздела" [ref=e310] [cursor=pointer]:
+              - generic [ref=e311]: Содержание раздела
+            - list [ref=e313]:
+              - listitem [ref=e314]:
+                - link [ref=e315] [cursor=pointer]:
+                  - /url: "#primer-opisaniya-sostoyaniya-ustroystva"
+                  - text: Пример описания состояния устройства
+          - generic [ref=e317]:
+            - generic [ref=e321]:
+              - heading "Состояние устройства (state)" [level=1] [ref=e322]
+              - generic [ref=e324]: Обновлено 13 апреля 2025
+            - paragraph [ref=e325]: Структура описывает текущее состояние функции устройства. Например, с помощью этой структуры можно описать, на каком уровне яркости сейчас светит лампа.
+            - paragraph [ref=e326]: "Структура используется:"
+            - list [ref=e327]:
+              - listitem [ref=e328]:
+                - paragraph [ref=e329]: "Когда вендор отправляет умному дому информацию о состоянии устройств пользователя:"
+                - list [ref=e330]:
+                  - listitem [ref=e331]:
+                    - text: при ответе вебхука на запрос
+                    - link "Запрос состояния устройств (post query)" [ref=e332] [cursor=pointer]:
+                      - /url: /docs/ru/smarthome/c2c/webhook-post-query
+                    - text: ;
+                  - listitem [ref=e333]:
+                    - text: при отправке запроса
+                    - link "Передача состояния устройств (post state)" [ref=e334] [cursor=pointer]:
+                      - /url: /docs/ru/smarthome/c2c/api-post-state
+                    - text: .
+              - listitem [ref=e335]:
+                - paragraph [ref=e336]:
+                  - text: Когда умный дом отправляет вендору запрос
+                  - link "Запрос изменения состояния устройства (post command)" [ref=e337] [cursor=pointer]:
+                    - /url: /docs/ru/smarthome/c2c/webhook-post-command
+                  - text: .
+              - listitem [ref=e338]:
+                - paragraph [ref=e339]:
+                  - text: Когда умный дом отвечает вендору на запрос
+                  - link "Получение состояния устройств (get state)" [ref=e340] [cursor=pointer]:
+                    - /url: /docs/ru/smarthome/c2c/api-get-state
+                  - text: .
+            - table [ref=e341]:
+              - row "Поле Тип Обязательное? Описание" [ref=e342]:
+                - cell "Поле" [ref=e343]:
+                  - strong [ref=e344]: Поле
+                - cell "Тип" [ref=e345]:
+                  - strong [ref=e346]: Тип
+                - cell "Обязательное?" [ref=e347]:
+                  - strong [ref=e348]: Обязательное?
+                - cell "Описание" [ref=e349]:
+                  - strong [ref=e350]: Описание
+              - row "key string ✔︎ Название функции устройства (см. Функции устройств)" [ref=e351]:
+                - cell "key" [ref=e352]
+                - cell "string" [ref=e353]
+                - cell "✔︎" [ref=e354]
+                - cell "Название функции устройства (см. Функции устройств)" [ref=e355]:
+                  - text: Название функции устройства (см.
+                  - link "Функции устройств" [ref=e356] [cursor=pointer]:
+                    - /url: /docs/ru/smarthome/c2c/functions
+                  - text: )
+              - row "value object ✔︎ Текущее значение функции (см. Значение функции устройства (value))" [ref=e357]:
+                - cell "value" [ref=e358]
+                - cell "object" [ref=e359]
+                - cell "✔︎" [ref=e360]
+                - cell "Текущее значение функции (см. Значение функции устройства (value))" [ref=e361]:
+                  - text: Текущее значение функции (см.
+                  - link "Значение функции устройства (value)" [ref=e362] [cursor=pointer]:
+                    - /url: /docs/ru/smarthome/c2c/value
+                  - text: )
+            - generic [ref=e364]:
+              - code [ref=e366]:
+                - generic [ref=e367]: "{"
+                - generic [ref=e368]: "\"states\": ["
+                - generic [ref=e369]: "{"
+                - generic [ref=e370]: "\"key\": string,"
+                - generic [ref=e371]: "\"value\": {"
+                - generic [ref=e372]: "\"type\": string,"
+                - generic [ref=e373]: "\"type_value\": object"
+                - generic [ref=e374]: "}"
+                - generic [ref=e375]: "},"
+                - generic [ref=e376]: "{"
+                - generic [ref=e377]: // ...
+                - generic [ref=e378]: "}"
+                - generic [ref=e379]: "]"
+                - generic [ref=e380]: "}"
+              - button "Скопировать в буфер обмена" [ref=e382] [cursor=pointer]:
+                - generic [ref=e383]:
+                  - img [ref=e384]
+                  - img [ref=e387]
+            - heading "Пример описания состояния устройства" [level=2] [ref=e389]:
+              - text: Пример описания состояния устройства
+              - link [ref=e391] [cursor=pointer]:
+                - /url: "#primer-opisaniya-sostoyaniya-ustroystva"
+                - img [ref=e392]
+            - paragraph [ref=e395]:
+              - text: В примере описано устройство, работающее в
+              - link "цветном режиме" [ref=e396] [cursor=pointer]:
+                - /url: /docs/ru/smarthome/c2c/light-mode
+              - text: .
+            - generic [ref=e398]:
+              - code [ref=e400]:
+                - generic [ref=e401]: "{"
+                - generic [ref=e402]: "\"states\": ["
+                - generic [ref=e403]: "{"
+                - generic [ref=e404]: "\"key\": \"light_mode\","
+                - generic [ref=e405]: "\"value\": {"
+                - generic [ref=e406]: "\"type\": \"ENUM\","
+                - generic [ref=e407]: "\"enum_value\": \"colour\""
+                - generic [ref=e408]: "}"
+                - generic [ref=e409]: "}"
+                - generic [ref=e410]: "]"
+                - generic [ref=e411]: "}"
+              - button "Скопировать в буфер обмена" [ref=e413] [cursor=pointer]:
+                - generic [ref=e414]:
+                  - img [ref=e415]
+                  - img [ref=e418]
+        - generic [ref=e423]:
+          - generic [ref=e424]: Это полезный материал?
+          - generic [ref=e425]:
+            - button [ref=e426] [cursor=pointer]:
+              - img [ref=e429]
+            - button [ref=e431] [cursor=pointer]:
+              - img [ref=e434]
+        - navigation [ref=e437]:
+          - link "Устройство пользователя (device)" [ref=e439] [cursor=pointer]:
+            - /url: /docs/ru/smarthome/c2c/device
+            - generic [ref=e442]: Устройство пользователя (device)
+          - link "Значение функции устройства (value)" [ref=e444] [cursor=pointer]:
+            - /url: /docs/ru/smarthome/c2c/value
+            - generic [ref=e447]: Значение функции устройства (value)
+    - generic [ref=e449]:
+      - img [ref=e450]
+      - generic [ref=e453]:
+        - text: ПАО Сбербанк
+        - link "использует cookie" [ref=e454] [cursor=pointer]:
+          - /url: https://www.sberbank.ru/privacy/cookies
+        - text: для персонализации сервисов и удобства пользователей. Вы можете запретить сохранение cookie в настройках своего браузера.
+      - button "Хорошо" [ref=e455] [cursor=pointer]:
+        - generic [ref=e457]: Хорошо
+    - contentinfo [ref=e461]:
+      - generic [ref=e462]:
+        - generic [ref=e463]:
+          - generic [ref=e464]: Витрина технологий
+          - link "Для бизнеса" [ref=e465] [cursor=pointer]:
+            - /url: https://developers.sber.ru/
+            - generic [ref=e468]: Для бизнеса
+          - link "Для разработчиков" [ref=e469] [cursor=pointer]:
+            - /url: https://developers.sber.ru/dev
+            - generic [ref=e472]: Для разработчиков
+          - link "База знаний" [ref=e473] [cursor=pointer]:
+            - /url: https://developers.sber.ru/help
+            - generic [ref=e476]: База знаний
+          - link "Документация" [ref=e477] [cursor=pointer]:
+            - /url: https://developers.sber.ru/docs
+            - generic [ref=e480]: Документация
+          - link "IT-вакансии" [ref=e481] [cursor=pointer]:
+            - /url: https://developers.sber.ru/kak-v-sbere/vacancies
+            - generic [ref=e484]: IT-вакансии
+        - generic [ref=e485]:
+          - generic [ref=e486]: Наши продукты
+          - link "GigaChat API" [ref=e487] [cursor=pointer]:
+            - /url: https://developers.sber.ru/portal/products/gigachat-api
+            - generic [ref=e490]: GigaChat API
+          - link "SaluteJazz" [ref=e491] [cursor=pointer]:
+            - /url: https://developers.sber.ru/portal/products/jazz-by-sber
+            - generic [ref=e494]: SaluteJazz
+          - link "SaluteSpeech" [ref=e495] [cursor=pointer]:
+            - /url: https://developers.sber.ru/portal/products/smartspeech
+            - generic [ref=e498]: SaluteSpeech
+          - link "SaluteBot" [ref=e499] [cursor=pointer]:
+            - /url: https://developers.sber.ru/portal/products/salutebot-chat-bot
+            - generic [ref=e502]: SaluteBot
+          - link "Салют Отели" [ref=e503] [cursor=pointer]:
+            - /url: https://developers.sber.ru/portal/products/salute-hotels
+            - generic [ref=e506]: Салют Отели
+        - generic [ref=e507]:
+          - generic [ref=e508]: Контакты
+          - link "smarthome@sberdevices.ru" [ref=e509] [cursor=pointer]:
+            - /url: mailto:smarthome@sberdevices.ru
+            - generic [ref=e511]:
+              - img [ref=e513]
+              - generic [ref=e516]: smarthome@sberdevices.ru
+          - link "Поддержка в Telegram" [ref=e517] [cursor=pointer]:
+            - /url: https://t.me/sberdevices_chat
+            - generic [ref=e519]:
+              - img [ref=e521]
+              - generic [ref=e523]: Поддержка в Telegram
+      - generic [ref=e524]:
+        - generic [ref=e526]:
+          - text: © 1997–2026 ПАО Сбербанк. Генеральная лицензия на осуществление банковских операций от 11 августа 2015 года. Регистрационный номер — 1481
+          - link "www.sberbank.ru" [ref=e527] [cursor=pointer]:
+            - /url: https://www.sberbank.ru
+        - generic [ref=e528]:
+          - link "Политика конфиденциальности" [ref=e530] [cursor=pointer]:
+            - /url: https://developers.sber.ru/docs/ru/policies/privacy-policy
+            - generic [ref=e531]: Политика конфиденциальности
+          - link "Политика обработки данных" [ref=e533] [cursor=pointer]:
+            - /url: https://www.sberbank.ru/privacy/policy#pdn
+            - generic [ref=e534]: Политика обработки данных
+          - link "Юридические документы" [ref=e536] [cursor=pointer]:
+            - /url: https://developers.sber.ru/docs/ru/policies/overview
+            - generic [ref=e537]: Юридические документы
+    - iframe [ref=e538]:
+      
+  - iframe [ref=e540]:
+    
+  - iframe [ref=e542]:
+    

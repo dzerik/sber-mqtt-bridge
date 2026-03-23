@@ -94,7 +94,7 @@ class TestCurtainToSberCurrentState(unittest.TestCase):
 
         self.assertIn("open_percentage", keys)
         pos = next(s for s in states if s["key"] == "open_percentage")
-        self.assertEqual(pos["value"]["integer_value"], 60)
+        self.assertEqual(pos["value"]["integer_value"], "60")
 
         self.assertIn("open_state", keys)
         state = next(s for s in states if s["key"] == "open_state")

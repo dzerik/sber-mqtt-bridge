@@ -1,0 +1,224 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e7]:
+        - link [ref=e9] [cursor=pointer]:
+          - /url: /docs/
+          - img [ref=e11]
+        - generic [ref=e16]:
+          - generic [ref=e19]:
+            - img [ref=e20]
+            - searchbox "Поиск по документации" [ref=e288]
+          - img [ref=e26] [cursor=pointer]
+    - main [ref=e34]:
+      - generic [ref=e37]:
+        - article [ref=e41]:
+          - generic [ref=e42]:
+            - button "Содержание раздела" [ref=e43] [cursor=pointer]:
+              - generic [ref=e44]: Содержание раздела
+            - list [ref=e46]:
+              - listitem [ref=e47]:
+                - link [ref=e48] [cursor=pointer]:
+                  - /url: "#primer-opisaniya-znacheniya-funktsii"
+                  - text: Пример описания значения функции
+          - generic [ref=e50]:
+            - generic [ref=e54]:
+              - heading "Значение функции устройства (value)" [level=1] [ref=e55]
+              - generic [ref=e57]: Обновлено 28 октября 2025
+            - paragraph [ref=e58]:
+              - text: Структура используется при описании состояния устройства (см. структуру
+              - link "Состояние устройства (state)" [ref=e59] [cursor=pointer]:
+                - /url: /docs/ru/smarthome/c2c/state
+              - text: ).
+            - table [ref=e60]:
+              - row "Поле Тип Обязательное? Описание" [ref=e61]:
+                - cell "Поле" [ref=e62]:
+                  - strong [ref=e63]: Поле
+                - cell "Тип" [ref=e64]:
+                  - strong [ref=e65]: Тип
+                - cell "Обязательное?" [ref=e66]:
+                  - strong [ref=e67]: Обязательное?
+                - cell "Описание" [ref=e68]:
+                  - strong [ref=e69]: Описание
+              - 'row "type string ✔︎ Тип данных, в котором передается значение. Может принимать значение: FLOAT INTEGER STRING BOOL ENUM COLOUR" [ref=e70]':
+                - cell "type" [ref=e71]
+                - cell "string" [ref=e72]
+                - cell "✔︎" [ref=e73]
+                - 'cell "Тип данных, в котором передается значение. Может принимать значение: FLOAT INTEGER STRING BOOL ENUM COLOUR" [ref=e74]':
+                  - paragraph [ref=e75]: "Тип данных, в котором передается значение. Может принимать значение:"
+                  - list [ref=e76]:
+                    - listitem [ref=e77]: FLOAT
+                    - listitem [ref=e78]: INTEGER
+                    - listitem [ref=e79]: STRING
+                    - listitem [ref=e80]: BOOL
+                    - listitem [ref=e81]: ENUM
+                    - listitem [ref=e82]: COLOUR
+              - row "float_value number Вещественное значение" [ref=e83]:
+                - cell "float_value" [ref=e84]:
+                  - paragraph [ref=e85]: float_value
+                - cell "number" [ref=e86]:
+                  - paragraph [ref=e87]: number
+                - cell [ref=e88]
+                - cell "Вещественное значение" [ref=e89]:
+                  - paragraph [ref=e90]: Вещественное значение
+              - row "integer_value string Целочисленное значение long, записанное в виде строки" [ref=e91]:
+                - cell "integer_value" [ref=e92]
+                - cell "string" [ref=e93]
+                - cell [ref=e94]
+                - cell "Целочисленное значение long, записанное в виде строки" [ref=e95]
+              - row "string_value string Строковое значение" [ref=e96]:
+                - cell "string_value" [ref=e97]
+                - cell "string" [ref=e98]
+                - cell [ref=e99]
+                - cell "Строковое значение" [ref=e100]
+              - row "bool_value boolean Логическое значение" [ref=e101]:
+                - cell "bool_value" [ref=e102]
+                - cell "boolean" [ref=e103]
+                - cell [ref=e104]
+                - cell "Логическое значение" [ref=e105]
+              - row "enum_value string Перечисляемое значение" [ref=e106]:
+                - cell "enum_value" [ref=e107]
+                - cell "string" [ref=e108]
+                - cell [ref=e109]
+                - cell "Перечисляемое значение" [ref=e110]
+              - 'row "colour_value colour Цвет в формате HSV: {\"h\":int,\"s\":int,\"v\":int}. Допустимые значения: h: 0–360 s: 0–1000 v: 100–1000" [ref=e111]':
+                - cell "colour_value" [ref=e112]
+                - cell "colour" [ref=e113]
+                - cell [ref=e114]
+                - 'cell "Цвет в формате HSV: {\"h\":int,\"s\":int,\"v\":int}. Допустимые значения: h: 0–360 s: 0–1000 v: 100–1000" [ref=e115]':
+                  - paragraph [ref=e116]: "Цвет в формате HSV: {\"h\":int,\"s\":int,\"v\":int}."
+                  - paragraph [ref=e117]: "Допустимые значения:"
+                  - list [ref=e118]:
+                    - listitem [ref=e119]: "h: 0–360"
+                    - listitem [ref=e120]: "s: 0–1000"
+                    - listitem [ref=e121]: "v: 100–1000"
+            - generic [ref=e123]:
+              - code [ref=e125]:
+                - generic [ref=e126]: "{"
+                - generic [ref=e127]: "\"key\": string,"
+                - generic [ref=e128]: "\"value\": {"
+                - generic [ref=e129]: "\"type\": string,"
+                - generic [ref=e130]: "\"type_value\": object"
+                - generic [ref=e131]: "}"
+                - generic [ref=e132]: "}"
+              - button "Скопировать в буфер обмена" [ref=e134] [cursor=pointer]:
+                - generic [ref=e135]:
+                  - img [ref=e136]
+                  - img [ref=e139]
+            - heading "Пример описания значения функции" [level=2] [ref=e141]:
+              - text: Пример описания значения функции
+              - link [ref=e143] [cursor=pointer]:
+                - /url: "#primer-opisaniya-znacheniya-funktsii"
+                - img [ref=e144]
+            - paragraph [ref=e147]:
+              - text: В примере описана функция
+              - link "light_mode" [ref=e148] [cursor=pointer]:
+                - /url: /docs/ru/smarthome/c2c/light-mode
+              - text: ", имеющая значение"
+              - code [ref=e149]: colour
+              - text: (цветной режим работы).
+            - generic [ref=e151]:
+              - code [ref=e153]:
+                - generic [ref=e154]: "{"
+                - generic [ref=e155]: "\"key\": \"light_mode\","
+                - generic [ref=e156]: "\"value\": {"
+                - generic [ref=e157]: "\"type\": \"ENUM\","
+                - generic [ref=e158]: "\"enum_value\": \"colour\""
+                - generic [ref=e159]: "}"
+                - generic [ref=e160]: "}"
+              - button "Скопировать в буфер обмена" [ref=e162] [cursor=pointer]:
+                - generic [ref=e163]:
+                  - img [ref=e164]
+                  - img [ref=e167]
+        - generic [ref=e172]:
+          - generic [ref=e173]: Это полезный материал?
+          - generic [ref=e174]:
+            - button [ref=e175] [cursor=pointer]:
+              - img [ref=e178]
+            - button [ref=e180] [cursor=pointer]:
+              - img [ref=e183]
+        - navigation [ref=e186]:
+          - link "Состояние устройства (state)" [ref=e188] [cursor=pointer]:
+            - /url: /docs/ru/smarthome/c2c/state
+            - generic [ref=e191]: Состояние устройства (state)
+          - link "Ошибка обработки запроса о конкретном устройстве (error)" [ref=e193] [cursor=pointer]:
+            - /url: /docs/ru/smarthome/c2c/error
+            - generic [ref=e196]: Ошибка обработки запроса о конкретном устройстве (error)
+    - generic [ref=e198]:
+      - img [ref=e199]
+      - generic [ref=e202]:
+        - text: ПАО Сбербанк
+        - link "использует cookie" [ref=e203] [cursor=pointer]:
+          - /url: https://www.sberbank.ru/privacy/cookies
+        - text: для персонализации сервисов и удобства пользователей. Вы можете запретить сохранение cookie в настройках своего браузера.
+      - button "Хорошо" [ref=e204] [cursor=pointer]:
+        - generic [ref=e206]: Хорошо
+    - contentinfo [ref=e210]:
+      - generic [ref=e211]:
+        - generic [ref=e212]:
+          - generic [ref=e213]: Витрина технологий
+          - link "Для бизнеса" [ref=e214] [cursor=pointer]:
+            - /url: https://developers.sber.ru/
+            - generic [ref=e217]: Для бизнеса
+          - link "Для разработчиков" [ref=e218] [cursor=pointer]:
+            - /url: https://developers.sber.ru/dev
+            - generic [ref=e221]: Для разработчиков
+          - link "База знаний" [ref=e222] [cursor=pointer]:
+            - /url: https://developers.sber.ru/help
+            - generic [ref=e225]: База знаний
+          - link "Документация" [ref=e226] [cursor=pointer]:
+            - /url: https://developers.sber.ru/docs
+            - generic [ref=e229]: Документация
+          - link "IT-вакансии" [ref=e230] [cursor=pointer]:
+            - /url: https://developers.sber.ru/kak-v-sbere/vacancies
+            - generic [ref=e233]: IT-вакансии
+        - generic [ref=e234]:
+          - generic [ref=e235]: Наши продукты
+          - link "GigaChat API" [ref=e236] [cursor=pointer]:
+            - /url: https://developers.sber.ru/portal/products/gigachat-api
+            - generic [ref=e239]: GigaChat API
+          - link "SaluteJazz" [ref=e240] [cursor=pointer]:
+            - /url: https://developers.sber.ru/portal/products/jazz-by-sber
+            - generic [ref=e243]: SaluteJazz
+          - link "SaluteSpeech" [ref=e244] [cursor=pointer]:
+            - /url: https://developers.sber.ru/portal/products/smartspeech
+            - generic [ref=e247]: SaluteSpeech
+          - link "SaluteBot" [ref=e248] [cursor=pointer]:
+            - /url: https://developers.sber.ru/portal/products/salutebot-chat-bot
+            - generic [ref=e251]: SaluteBot
+          - link "Салют Отели" [ref=e252] [cursor=pointer]:
+            - /url: https://developers.sber.ru/portal/products/salute-hotels
+            - generic [ref=e255]: Салют Отели
+        - generic [ref=e256]:
+          - generic [ref=e257]: Контакты
+          - link "smarthome@sberdevices.ru" [ref=e258] [cursor=pointer]:
+            - /url: mailto:smarthome@sberdevices.ru
+            - generic [ref=e260]:
+              - img [ref=e262]
+              - generic [ref=e265]: smarthome@sberdevices.ru
+          - link "Поддержка в Telegram" [ref=e266] [cursor=pointer]:
+            - /url: https://t.me/sberdevices_chat
+            - generic [ref=e268]:
+              - img [ref=e270]
+              - generic [ref=e272]: Поддержка в Telegram
+      - generic [ref=e273]:
+        - generic [ref=e275]:
+          - text: © 1997–2026 ПАО Сбербанк. Генеральная лицензия на осуществление банковских операций от 11 августа 2015 года. Регистрационный номер — 1481
+          - link "www.sberbank.ru" [ref=e276] [cursor=pointer]:
+            - /url: https://www.sberbank.ru
+        - generic [ref=e277]:
+          - link "Политика конфиденциальности" [ref=e279] [cursor=pointer]:
+            - /url: https://developers.sber.ru/docs/ru/policies/privacy-policy
+            - generic [ref=e280]: Политика конфиденциальности
+          - link "Политика обработки данных" [ref=e282] [cursor=pointer]:
+            - /url: https://www.sberbank.ru/privacy/policy#pdn
+            - generic [ref=e283]: Политика обработки данных
+          - link "Юридические документы" [ref=e285] [cursor=pointer]:
+            - /url: https://developers.sber.ru/docs/ru/policies/overview
+            - generic [ref=e286]: Юридические документы
+    - iframe [ref=e287]:
+      
+  - iframe [ref=e290]:
+    
+  - iframe [ref=e292]:
+    

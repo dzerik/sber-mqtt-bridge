@@ -131,7 +131,7 @@ class TestHumidifierToSberCurrentState(unittest.TestCase):
         self.assertTrue(on_off["value"]["bool_value"])
 
         hum = next(s for s in states if s["key"] == "humidity")
-        self.assertEqual(hum["value"]["integer_value"], 50)  # plain percentage
+        self.assertEqual(hum["value"]["integer_value"], "50")  # plain percentage, as string per spec
 
         mode = next(s for s in states if s["key"] == "hvac_work_mode")
         self.assertEqual(mode["value"]["enum_value"], "normal")

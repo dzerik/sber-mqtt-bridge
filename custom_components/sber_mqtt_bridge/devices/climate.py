@@ -124,6 +124,11 @@ class ClimateEntity(BaseEntity):
         Includes online, on_off, temperature, target temperature, fan mode,
         swing mode, and HVAC work mode when values are available.
 
+        Per Sber specification:
+        - ``temperature`` uses x10 encoding (e.g. 22.0C -> 220)
+        - ``hvac_temp_set`` uses whole degrees (e.g. 22.0C -> 22)
+        - All ``integer_value`` fields are serialized as strings.
+
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
@@ -133,13 +138,13 @@ class ClimateEntity(BaseEntity):
         ]
         if self.temperature is not None:
             states.append(
-                {"key": "temperature", "value": {"type": "INTEGER", "integer_value": int(self.temperature * 10)}}
+                {"key": "temperature", "value": {"type": "INTEGER", "integer_value": str(int(self.temperature * 10))}}
             )
         if self.target_temperature is not None:
             states.append(
                 {
                     "key": "hvac_temp_set",
-                    "value": {"type": "INTEGER", "integer_value": int(self.target_temperature * 10)},
+                    "value": {"type": "INTEGER", "integer_value": str(round(self.target_temperature))},
                 }
             )
         if self.fan_mode:
@@ -155,7 +160,7 @@ class ClimateEntity(BaseEntity):
 
         Handles the following Sber keys:
         - ``on_off``: turn_on / turn_off
-        - ``hvac_temp_set``: set_temperature
+        - ``hvac_temp_set``: set_temperature (whole degrees, no scaling)
         - ``hvac_air_flow_power``: set_fan_mode
         - ``hvac_air_flow_direction``: set_swing_mode
         - ``hvac_work_mode``: set_hvac_mode
@@ -181,7 +186,8 @@ class ClimateEntity(BaseEntity):
                 raw_temp = value.get("integer_value")
                 if raw_temp is None:
                     continue
-                temp = raw_temp / 10.0
+                # Sber sends hvac_temp_set as whole degrees (no x10 scaling)
+                temp = float(int(raw_temp))
                 results.append(
                     {
                         "url": {

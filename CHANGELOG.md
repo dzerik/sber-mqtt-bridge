@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-03-23
+
+### Fixed
+- **pir sensor**: changed value type from BOOL to ENUM per Sber specification (`"pir"` event value)
+- **doorcontact_state**: changed value type from ENUM (`"open"/"close"`) to BOOL (`true/false`) per Sber specification
+- **water_leak_state**: fixed Sber key from `water_leak` to `water_leak_state` per Sber specification
+- **hvac_temp_set**: removed incorrect x10 scaling — Sber sends/receives whole degrees, not tenths
+- **integer_value serialization**: all `integer_value` fields now serialized as strings per Sber C2C API specification
+
 ## [0.6.0] - 2026-03-23
 
 ### Added

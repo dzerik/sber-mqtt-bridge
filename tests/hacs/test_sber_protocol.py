@@ -131,7 +131,7 @@ class TestBuildStatesListJson(unittest.TestCase):
         result = json.loads(build_states_list_json(self.entities, ["sensor.temp"], self.enabled))
         states = result["devices"]["sensor.temp"]["states"]
         temp = next(s for s in states if s["key"] == "temperature")
-        self.assertEqual(temp["value"]["integer_value"], 225)
+        self.assertEqual(temp["value"]["integer_value"], "225")
 
 
 class TestParseSberCommand(unittest.TestCase):

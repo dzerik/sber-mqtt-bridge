@@ -50,11 +50,15 @@ class SimpleReadOnlySensor(BaseEntity):
     def _build_sber_value_dict(self) -> dict:
         """Build the Sber value dict for the sensor's feature.
 
+        Per Sber C2C specification, ``integer_value`` must be a string.
+
         Returns:
             Dict with 'type' and the corresponding value field.
         """
         value = self._get_sber_value()
         value_field = self._TYPE_KEY_MAP[self._sber_value_type]
+        if self._sber_value_type == "INTEGER":
+            value = str(value)
         return {"type": self._sber_value_type, value_field: value}
 
     def create_features_list(self) -> list[str]:
