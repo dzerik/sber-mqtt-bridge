@@ -49,6 +49,9 @@ class ClimateEntity(BaseEntity):
         self.hvac_mode = None
         self.min_temp = min_temp
         self.max_temp = max_temp
+        self._target_humidity: int | None = None
+        self._preset_mode: str | None = None
+        self._preset_modes: list[str] = []
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update all climate attributes.
@@ -56,7 +59,8 @@ class ClimateEntity(BaseEntity):
         Args:
             ha_state: HA state dict with 'state' and 'attributes' keys.
                 Attributes may include current_temperature, temperature,
-                fan_modes, swing_modes, hvac_modes, etc.
+                fan_modes, swing_modes, hvac_modes, target_humidity,
+                preset_mode, preset_modes, etc.
         """
         super().fill_by_ha_state(ha_state)
         self.current_state = ha_state.get("state", "off") != "off"
@@ -71,12 +75,22 @@ class ClimateEntity(BaseEntity):
         self.hvac_mode = ha_state.get("state")
         self.min_temp = attrs.get("min_temp", 16.0)
         self.max_temp = attrs.get("max_temp", 32.0)
+        target_humidity = attrs.get("target_humidity")
+        if target_humidity is not None:
+            try:
+                self._target_humidity = int(target_humidity)
+            except (TypeError, ValueError):
+                self._target_humidity = None
+        else:
+            self._target_humidity = None
+        self._preset_mode = attrs.get("preset_mode")
+        self._preset_modes = attrs.get("preset_modes", [])
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list based on available climate capabilities.
 
-        Dynamically includes fan, swing, and HVAC mode features
-        only when the HA entity supports them.
+        Dynamically includes fan, swing, HVAC mode, humidity, and night mode
+        features only when the HA entity supports them.
 
         Returns:
             List of Sber feature strings supported by this entity.
@@ -88,7 +102,20 @@ class ClimateEntity(BaseEntity):
             features.append("hvac_air_flow_power")
         if self.hvac_modes:
             features.append("hvac_work_mode")
+        if self._target_humidity is not None:
+            features.append("hvac_humidity_set")
+        if self._has_night_mode:
+            features.append("hvac_night_mode")
         return features
+
+    @property
+    def _has_night_mode(self) -> bool:
+        """Check if the entity supports night/sleep preset mode.
+
+        Returns:
+            True if preset_modes contains 'sleep' or 'night'.
+        """
+        return any(m in self._preset_modes for m in ("sleep", "night"))
 
     def create_allowed_values_list(self) -> dict[str, dict]:
         """Build allowed values map for enum-based features.
@@ -122,7 +149,8 @@ class ClimateEntity(BaseEntity):
         """Build Sber current state payload with all climate attributes.
 
         Includes online, on_off, temperature, target temperature, fan mode,
-        swing mode, and HVAC work mode when values are available.
+        swing mode, HVAC work mode, target humidity, and night mode
+        when values are available.
 
         Per Sber specification:
         - ``temperature`` uses x10 encoding (e.g. 22.0C -> 220)
@@ -153,6 +181,13 @@ class ClimateEntity(BaseEntity):
             states.append({"key": "hvac_air_flow_direction", "value": {"type": "ENUM", "enum_value": self.swing_mode}})
         if self.hvac_mode:
             states.append({"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": self.hvac_mode}})
+        if self._target_humidity is not None:
+            states.append(
+                {"key": "hvac_humidity_set", "value": {"type": "INTEGER", "integer_value": str(self._target_humidity)}}
+            )
+        if self._has_night_mode:
+            is_night = self._preset_mode in ("sleep", "night")
+            states.append({"key": "hvac_night_mode", "value": {"type": "BOOL", "bool_value": is_night}})
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:
@@ -164,8 +199,10 @@ class ClimateEntity(BaseEntity):
         - ``hvac_air_flow_power``: set_fan_mode
         - ``hvac_air_flow_direction``: set_swing_mode
         - ``hvac_work_mode``: set_hvac_mode
+        - ``hvac_humidity_set``: set_humidity (INTEGER 0-100)
+        - ``hvac_night_mode``: set_preset_mode (sleep/none)
 
-        State is NOT mutated here — it will be updated when HA fires a
+        State is NOT mutated here -- it will be updated when HA fires a
         ``state_changed`` event that is handled by ``fill_by_ha_state``.
 
         Args:
@@ -237,6 +274,49 @@ class ClimateEntity(BaseEntity):
                                 "domain": "climate",
                                 "service": "set_hvac_mode",
                                 "service_data": {"hvac_mode": mode},
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
+            elif key == "hvac_humidity_set":
+                raw_humidity = value.get("integer_value")
+                if raw_humidity is None:
+                    continue
+                results.append(
+                    {
+                        "url": {
+                            "type": "call_service",
+                            "domain": "climate",
+                            "service": "set_humidity",
+                            "service_data": {"humidity": int(raw_humidity)},
+                            "target": {"entity_id": self.entity_id},
+                        }
+                    }
+                )
+            elif key == "hvac_night_mode":
+                night_on = value.get("bool_value", False)
+                if night_on:
+                    # Find the night/sleep preset mode
+                    preset = "sleep" if "sleep" in self._preset_modes else "night"
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "climate",
+                                "service": "set_preset_mode",
+                                "service_data": {"preset_mode": preset},
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
+                else:
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "climate",
+                                "service": "set_preset_mode",
+                                "service_data": {"preset_mode": "none"},
                                 "target": {"entity_id": self.entity_id},
                             }
                         }

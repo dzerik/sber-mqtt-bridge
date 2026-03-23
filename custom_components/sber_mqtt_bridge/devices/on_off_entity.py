@@ -52,9 +52,10 @@ class OnOffEntity(BaseEntity):
         self._power: int | None = None
         self._voltage: int | None = None
         self._current: int | None = None
+        self._child_lock: bool | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
-        """Parse HA state and update on/off status and energy attributes.
+        """Parse HA state and update on/off status, energy, and child_lock attributes.
 
         Args:
             ha_state: HA state dict with 'state' and 'attributes' keys.
@@ -65,6 +66,11 @@ class OnOffEntity(BaseEntity):
         self._power = self._parse_int_attr(attrs, "power")
         self._voltage = self._parse_int_attr(attrs, "voltage")
         self._current = self._parse_int_attr(attrs, "current")
+        child_lock = attrs.get("child_lock")
+        if child_lock is not None:
+            self._child_lock = bool(child_lock)
+        else:
+            self._child_lock = None
 
     @staticmethod
     def _parse_int_attr(attrs: dict, key: str) -> int | None:
@@ -86,7 +92,7 @@ class OnOffEntity(BaseEntity):
             return None
 
     def create_features_list(self) -> list[str]:
-        """Return Sber feature list including 'on_off' and optional energy features.
+        """Return Sber feature list including 'on_off' and optional features.
 
         Returns:
             List of Sber feature strings supported by this entity.
@@ -98,10 +104,12 @@ class OnOffEntity(BaseEntity):
             features.append("voltage")
         if self._current is not None:
             features.append("current")
+        if self._child_lock is not None:
+            features.append("child_lock")
         return features
 
     def to_sber_current_state(self) -> dict[str, dict]:
-        """Build Sber current state payload with online, on_off, and energy keys.
+        """Build Sber current state payload with online, on_off, energy, and child_lock.
 
         Returns:
             Dict mapping entity_id to its Sber state representation.
@@ -116,4 +124,6 @@ class OnOffEntity(BaseEntity):
             states.append({"key": "voltage", "value": {"type": "INTEGER", "integer_value": str(self._voltage)}})
         if self._current is not None:
             states.append({"key": "current", "value": {"type": "INTEGER", "integer_value": str(self._current)}})
+        if self._child_lock is not None:
+            states.append({"key": "child_lock", "value": {"type": "BOOL", "bool_value": self._child_lock}})
         return {self.entity_id: {"states": states}}

@@ -35,15 +35,46 @@ class DoorSensorEntity(SimpleReadOnlySensor):
         """
         super().__init__(DOOR_SENSOR_CATEGORY, entity_data)
         self.is_open = False
+        self._tamper: bool | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
-        """Parse HA state and update open/close status.
+        """Parse HA state and update open/close status and tamper alarm.
 
         Args:
             ha_state: HA state dict; 'on' means door is open.
         """
         super().fill_by_ha_state(ha_state)
         self.is_open = ha_state.get("state") == "on"
+        attrs = ha_state.get("attributes", {})
+        tamper = attrs.get("tamper")
+        if tamper is not None:
+            self._tamper = bool(tamper)
+        else:
+            self._tamper = None
+
+    def create_features_list(self) -> list[str]:
+        """Return Sber feature list including tamper_alarm when available.
+
+        Returns:
+            List of Sber feature strings supported by this entity.
+        """
+        features = super().create_features_list()
+        if self._tamper is not None:
+            features.append("tamper_alarm")
+        return features
+
+    def to_sber_current_state(self) -> dict[str, dict]:
+        """Build Sber current state payload with tamper_alarm when available.
+
+        Returns:
+            Dict mapping entity_id to its Sber state representation.
+        """
+        result = super().to_sber_current_state()
+        if self._tamper is not None:
+            result[self.entity_id]["states"].append(
+                {"key": "tamper_alarm", "value": {"type": "BOOL", "bool_value": self._tamper}}
+            )
+        return result
 
     def _get_sber_value(self) -> bool:
         """Return door state as Sber BOOL value.

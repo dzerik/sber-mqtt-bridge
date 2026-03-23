@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-03-23
+
+### Added
+- **air_pressure**: `SensorTempEntity` now reports `air_pressure` (INTEGER) when HA entity has `pressure` attribute
+- **signal_strength**: `SimpleReadOnlySensor` and `CurtainEntity` now report `signal_strength` (ENUM: high/medium/low) from `rssi`, `signal_strength`, or `linkquality` HA attributes
+- **tamper_alarm**: `DoorSensorEntity` and `MotionSensorEntity` now report `tamper_alarm` (BOOL) when HA entity has `tamper` attribute
+- **battery_low_power**: `SimpleReadOnlySensor` now reports `battery_low_power` (BOOL, true when battery < 20%) alongside `battery_percentage`
+- **child_lock**: `OnOffEntity` (relay/socket) now reports `child_lock` (BOOL) when HA entity has `child_lock` attribute
+- **hvac_humidity_set**: `ClimateEntity` now supports `hvac_humidity_set` (INTEGER 0-100) for target humidity control
+- **hvac_night_mode**: `ClimateEntity` and `HumidifierEntity` now support `hvac_night_mode` (BOOL) mapped to sleep/night preset modes
+- 54 new tests covering all added features
+
 ## [0.9.0] - 2026-03-23
 
 ### Added

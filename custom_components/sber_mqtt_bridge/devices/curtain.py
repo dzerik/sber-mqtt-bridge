@@ -45,6 +45,9 @@ class CurtainEntity(BaseEntity):
         super().__init__(category, entity_data)
         self.current_position = 0  # Текущая позиция (0-100%)
         self._battery_level = 100  # Уровень заряда (0-100%)
+        self._signal_strength_raw: int | None = None
+
+        # self._supported_features = entity_data.get("supported_features", 0)  # Уровень заряда (0-100%)
 
         # self._supported_features = entity_data.get("supported_features", 0)
 
@@ -52,7 +55,8 @@ class CurtainEntity(BaseEntity):
         """Update state from Home Assistant data.
 
         Reads ``current_position`` from attributes; falls back to 100
-        if state is 'opened', otherwise 0.
+        if state is 'opened', otherwise 0. Also reads signal strength
+        from ``signal_strength``, ``rssi``, or ``linkquality``.
 
         Args:
             ha_state: HA state dict with 'state' and 'attributes' keys.
@@ -65,6 +69,15 @@ class CurtainEntity(BaseEntity):
             self.current_position = position
         else:
             self.current_position = 100 if self.state == "opened" else 0
+
+        rssi = attrs.get("signal_strength") or attrs.get("rssi") or attrs.get("linkquality")
+        if rssi is not None:
+            try:
+                self._signal_strength_raw = int(rssi)
+            except (TypeError, ValueError):
+                self._signal_strength_raw = None
+        else:
+            self._signal_strength_raw = None
 
     def _convert_position(self, ha_position: int) -> int:
         """Convert HA position (0-100) to Sber position (0-100).
@@ -161,23 +174,43 @@ class CurtainEntity(BaseEntity):
 
         return processing_result
 
+    @staticmethod
+    def _rssi_to_signal_strength(rssi: int) -> str:
+        """Convert raw RSSI/linkquality value to Sber signal_strength enum.
+
+        Args:
+            rssi: Raw RSSI (dBm, typically negative) or linkquality value.
+
+        Returns:
+            Sber enum string: 'high', 'medium', or 'low'.
+        """
+        if rssi > -50:
+            return "high"
+        if rssi > -70:
+            return "medium"
+        return "low"
+
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for curtain capabilities.
 
-        Includes open_percentage, open_set, and open_state features.
+        Includes open_percentage, open_set, open_state, and optionally
+        signal_strength features.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        return [
+        features = [
             *super().create_features_list(),
             "open_percentage",
             "open_set",
             "open_state",
         ]
+        if self._signal_strength_raw is not None:
+            features.append("signal_strength")
+        return features
 
     def to_sber_current_state(self) -> dict[str, dict]:
-        """Build Sber current state payload with position and open state.
+        """Build Sber current state payload with position, open state, and signal.
 
         Per Sber C2C specification, ``integer_value`` is serialized as a string.
 
@@ -208,5 +241,13 @@ class CurtainEntity(BaseEntity):
                 "value": {"type": "ENUM", "enum_value": "open" if self.current_position > 0 else "close"},
             }
         )
+
+        if self._signal_strength_raw is not None:
+            states.append(
+                {
+                    "key": "signal_strength",
+                    "value": {"type": "ENUM", "enum_value": self._rssi_to_signal_strength(self._signal_strength_raw)},
+                }
+            )
 
         return {self.entity_id: {"states": states}}

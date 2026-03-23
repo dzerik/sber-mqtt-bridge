@@ -32,8 +32,8 @@ class HumidifierEntity(BaseEntity):
         self.current_state = False
         self.target_humidity = None
         self.current_humidity = None
-        self.available_modes = []
-        self.mode = None
+        self.available_modes: list[str] = []
+        self.mode: str | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update all humidifier attributes.
@@ -54,8 +54,8 @@ class HumidifierEntity(BaseEntity):
     def create_features_list(self) -> list[str]:
         """Return Sber feature list based on available humidifier capabilities.
 
-        Dynamically includes work mode feature only when the HA entity
-        supports modes.
+        Dynamically includes work mode and night mode features only when
+        the HA entity supports them.
 
         Returns:
             List of Sber feature strings supported by this entity.
@@ -63,7 +63,18 @@ class HumidifierEntity(BaseEntity):
         features = [*super().create_features_list(), "on_off", "humidity"]
         if self.available_modes:
             features.append("hvac_work_mode")
+        if self._has_night_mode:
+            features.append("hvac_night_mode")
         return features
+
+    @property
+    def _has_night_mode(self) -> bool:
+        """Check if the entity supports night/sleep mode.
+
+        Returns:
+            True if available_modes contains 'sleep' or 'night'.
+        """
+        return any(m in self.available_modes for m in ("sleep", "night"))
 
     def create_allowed_values_list(self) -> dict[str, dict]:
         """Build allowed values map for enum-based features.
@@ -92,7 +103,7 @@ class HumidifierEntity(BaseEntity):
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with humidifier attributes.
 
-        Includes online, on_off, target humidity, and work mode
+        Includes online, on_off, target humidity, work mode, and night mode
         when values are available.
 
         Per Sber C2C specification, ``integer_value`` is serialized as a string.
@@ -110,6 +121,9 @@ class HumidifierEntity(BaseEntity):
             )
         if self.mode:
             states.append({"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": self.mode}})
+        if self._has_night_mode:
+            is_night = self.mode in ("sleep", "night")
+            states.append({"key": "hvac_night_mode", "value": {"type": "BOOL", "bool_value": is_night}})
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:
@@ -119,8 +133,9 @@ class HumidifierEntity(BaseEntity):
         - ``on_off``: turn_on / turn_off
         - ``humidity``: set_humidity (INTEGER 0-100, plain percentage)
         - ``hvac_work_mode``: set_mode (ENUM)
+        - ``hvac_night_mode``: set_mode to sleep/normal (BOOL)
 
-        State is NOT mutated here — it will be updated when HA fires a
+        State is NOT mutated here -- it will be updated when HA fires a
         ``state_changed`` event that is handled by ``fill_by_ha_state``.
 
         Args:
@@ -168,4 +183,35 @@ class HumidifierEntity(BaseEntity):
                         }
                     }
                 )
+            elif key == "hvac_night_mode":
+                night_on = value.get("bool_value", False)
+                if night_on:
+                    # Find the night/sleep mode
+                    mode = "sleep" if "sleep" in self.available_modes else "night"
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "humidifier",
+                                "service": "set_mode",
+                                "service_data": {"mode": mode},
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
+                else:
+                    # Find the first non-night mode to revert to
+                    normal_modes = [m for m in self.available_modes if m not in ("sleep", "night")]
+                    if normal_modes:
+                        results.append(
+                            {
+                                "url": {
+                                    "type": "call_service",
+                                    "domain": "humidifier",
+                                    "service": "set_mode",
+                                    "service_data": {"mode": normal_modes[0]},
+                                    "target": {"entity_id": self.entity_id},
+                                }
+                            }
+                        )
         return results
