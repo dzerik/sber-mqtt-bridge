@@ -16,8 +16,7 @@ class HumiditySensorEntity(SimpleReadOnlySensor):
     """Sber humidity sensor entity.
 
     Reports humidity readings from HA sensor entities to the Sber cloud.
-    Humidity is transmitted as an integer value multiplied by 10
-    (e.g. 55.0% becomes 550).
+    Humidity is transmitted as a plain integer percentage (0-100).
     """
 
     _sber_value_key = "humidity"
@@ -45,5 +44,5 @@ class HumiditySensorEntity(SimpleReadOnlySensor):
             self.humidity = 0.0
 
     def _get_sber_value(self) -> int:
-        """Return humidity as integer scaled by 10."""
-        return int(self.humidity * 10)
+        """Return humidity as integer percentage (0-100)."""
+        return round(self.humidity)

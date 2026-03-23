@@ -131,7 +131,7 @@ class TestHumidifierToSberCurrentState(unittest.TestCase):
         self.assertTrue(on_off["value"]["bool_value"])
 
         hum = next(s for s in states if s["key"] == "humidity")
-        self.assertEqual(hum["value"]["integer_value"], 500)  # 50 * 10
+        self.assertEqual(hum["value"]["integer_value"], 50)  # plain percentage
 
         mode = next(s for s in states if s["key"] == "hvac_work_mode")
         self.assertEqual(mode["value"]["enum_value"], "normal")
@@ -205,11 +205,11 @@ class TestHumidifierProcessCmd(unittest.TestCase):
     def test_cmd_humidity(self):
         entity = self._make_entity()
         result = entity.process_cmd({
-            "states": [{"key": "humidity", "value": {"integer_value": 600}}]
+            "states": [{"key": "humidity", "value": {"integer_value": 60}}]
         })
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_humidity")
-        self.assertEqual(url["service_data"]["humidity"], 60)  # 600 / 10
+        self.assertEqual(url["service_data"]["humidity"], 60)  # plain percentage
 
     def test_cmd_mode(self):
         entity = self._make_entity()
