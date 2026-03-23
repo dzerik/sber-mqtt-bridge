@@ -39,6 +39,7 @@ from .const import (
 )
 from .custom_capabilities import get_custom_config
 from .devices.base_entity import BaseEntity
+from .repairs import check_and_create_issues
 from .sber_entity_map import create_sber_entity
 from .sber_protocol import (
     build_devices_list_json,
@@ -247,6 +248,12 @@ class SberBridge:
         type_overrides: dict[str, str] = self._entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
         new_entities: dict[str, BaseEntity] = {}
 
+        # Restore persisted redefinitions from entry options
+        saved_redefs: dict[str, dict] = self._entry.options.get("redefinitions", {})
+        if saved_redefs:
+            self._redefinitions.update(saved_redefs)
+            _LOGGER.debug("Loaded %d persisted redefinitions from options", len(saved_redefs))
+
         # Load custom YAML config
         custom_config = get_custom_config(self._hass)
 
@@ -304,6 +311,12 @@ class SberBridge:
                         sber_entity.parent_entity_id = yaml_cfg.sber_parent_id
                     if yaml_cfg.sber_partner_meta is not None:
                         sber_entity.partner_meta = yaml_cfg.sber_partner_meta
+                    if yaml_cfg.sber_features_add is not None:
+                        sber_entity._extra_features = yaml_cfg.sber_features_add
+                        _LOGGER.debug("YAML sber_features_add for %s: %s", entity_id, yaml_cfg.sber_features_add)
+                    if yaml_cfg.sber_features_remove is not None:
+                        sber_entity._removed_features = yaml_cfg.sber_features_remove
+                        _LOGGER.debug("YAML sber_features_remove for %s: %s", entity_id, yaml_cfg.sber_features_remove)
 
                 # Link device registry data for entities that belong to a device
                 if entry.device_id is not None:
@@ -381,6 +394,9 @@ class SberBridge:
             ", ".join(self._enabled_entity_ids) if self._enabled_entity_ids else "(none)",
         )
 
+        # Check for HA repair issues after entity loading
+        self._hass.async_create_task(check_and_create_issues(self._hass, self))
+
     def _subscribe_ha_events(self) -> None:
         """Subscribe to HA state changes for exposed entities.
 
@@ -453,6 +469,7 @@ class SberBridge:
                     self._reconnect_interval,
                     self._stats.reconnect_count,
                 )
+                await check_and_create_issues(self._hass, self)
                 await asyncio.sleep(self._reconnect_interval)
                 self._reconnect_interval = min(self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX)
             except asyncio.CancelledError:
@@ -566,9 +583,27 @@ class SberBridge:
             await self._publish_states(update_state_ids)
 
     async def _handle_sber_status_request(self, payload: bytes) -> None:
-        """Handle status request from Sber cloud."""
+        """Handle status request from Sber cloud.
+
+        If Sber asks about entities not in our current set, automatically
+        re-publishes the device config so Sber is aware of the correct list.
+        """
         requested_ids = parse_sber_status_request(payload)
         self._stats.status_requests += 1
+
+        # Auto re-publish config if Sber asks about unknown entities
+        if requested_ids:
+            unknown = [
+                eid
+                for eid in requested_ids
+                if eid not in self._entities and eid != "root"
+            ]
+            if unknown:
+                _LOGGER.info(
+                    "Sber asked about unknown entities, re-publishing config: %s",
+                    unknown,
+                )
+                await self._publish_config()
 
         # Track Sber acknowledgment for requested entities
         if requested_ids:
@@ -636,6 +671,7 @@ class SberBridge:
                 "home": data.get("home"),
                 "room": data.get("room"),
             }
+            self._persist_redefinitions()
             _LOGGER.info("Sber group change stored: %s → room=%s", entity_id, data.get("room"))
 
     async def _handle_rename_device(self, payload: bytes) -> None:
@@ -655,7 +691,14 @@ class SberBridge:
         if entity_id and new_name:
             redef = self._redefinitions.setdefault(entity_id, {})
             redef["name"] = new_name
+            self._persist_redefinitions()
             _LOGGER.info("Sber rename stored: %s → %s", entity_id, new_name)
+
+    @callback
+    def _persist_redefinitions(self) -> None:
+        """Save redefinitions to config entry options for persistence across restarts."""
+        new_options = {**self._entry.options, "redefinitions": self._redefinitions}
+        self._hass.config_entries.async_update_entry(self._entry, options=new_options)
 
     def _handle_global_config(self, payload: bytes) -> None:
         """Handle global config from Sber (http_api_endpoint)."""

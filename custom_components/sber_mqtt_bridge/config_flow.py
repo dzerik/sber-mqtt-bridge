@@ -593,13 +593,17 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             if entry is None:
                 continue
 
-            # Determine current auto-detected category
+            # Determine current auto-detected category and features
             entity_data = {
                 "entity_id": entry.entity_id,
                 "original_device_class": entry.original_device_class or "",
             }
             auto_entity = create_sber_entity(entity_id, entity_data)
             auto_cat = auto_entity.category if auto_entity else "unknown"
+            features_str = ""
+            if auto_entity is not None:
+                features = auto_entity.create_features_list()
+                features_str = f" features: {', '.join(features)}"
 
             # Current override value
             current = current_overrides.get(entity_id, "auto")
@@ -607,7 +611,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             display_name = entry.name or entry.original_name or entity_id
             key = f"override_{entity_id}"
 
-            schema_dict[vol.Optional(key, default=current, description={"suffix": f" [{auto_cat}] {display_name}"})] = (
+            schema_dict[vol.Optional(key, default=current, description={"suffix": f" [{auto_cat}] {display_name}{features_str}"})] = (
                 SelectSelector(
                     SelectSelectorConfig(
                         options=category_options,

@@ -47,6 +47,8 @@ class EntityCustomConfig:
         sber_groups: Device groups in Sber (e.g. ``["Свет", "Кухня"]``).
         sber_parent_id: Parent device entity_id for hub hierarchy.
         sber_partner_meta: Arbitrary key-value metadata passed as ``partner_meta`` to Sber.
+        sber_features_add: Extra Sber features to add to the entity.
+        sber_features_remove: Sber features to remove from the entity.
     """
 
     sber_type: str | None = None
@@ -56,6 +58,8 @@ class EntityCustomConfig:
     sber_groups: list[str] | None = None
     sber_parent_id: str | None = None
     sber_partner_meta: dict[str, str] | None = None
+    sber_features_add: list[str] | None = None
+    sber_features_remove: list[str] | None = None
 
 
 @dataclass
@@ -104,6 +108,8 @@ ENTITY_CONFIG_SCHEMA = vol.Schema(
         vol.Optional("sber_groups"): [str],
         vol.Optional("sber_parent_id"): str,
         vol.Optional("sber_partner_meta"): {str: str},
+        vol.Optional("sber_features_add"): [str],
+        vol.Optional("sber_features_remove"): [str],
     }
 )
 """Schema for a single entity's custom configuration."""
@@ -143,6 +149,8 @@ def parse_yaml_config(yaml_data: dict[str, Any]) -> CustomConfig:
             sber_groups=raw_cfg.get("sber_groups"),
             sber_parent_id=raw_cfg.get("sber_parent_id"),
             sber_partner_meta=raw_cfg.get("sber_partner_meta"),
+            sber_features_add=raw_cfg.get("sber_features_add"),
+            sber_features_remove=raw_cfg.get("sber_features_remove"),
         )
         entity_configs[entity_id] = cfg
         _LOGGER.debug(

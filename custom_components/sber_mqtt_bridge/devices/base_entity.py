@@ -68,6 +68,8 @@ class BaseEntity(ABC):
         self.groups: list[str] = []
         self.parent_entity_id: str | None = None
         self.partner_meta: dict[str, str] = {}
+        self._extra_features: list[str] = []
+        self._removed_features: list[str] = []
 
         if entity_data:
             self.area_id = entity_data.get("area_id", "")
@@ -118,6 +120,23 @@ class BaseEntity(ABC):
         """
         return ["online"]
 
+    def get_final_features_list(self) -> list[str]:
+        """Return features list with user overrides applied.
+
+        Removes features from ``_removed_features`` and appends features
+        from ``_extra_features``.  Duplicate-safe.
+
+        Returns:
+            Final list of Sber feature names.
+        """
+        features = self.create_features_list()
+        if self._removed_features:
+            features = [f for f in features if f not in self._removed_features]
+        if self._extra_features:
+            existing = set(features)
+            features.extend(f for f in self._extra_features if f not in existing)
+        return features
+
     def link_device(self, device_data: DeviceData) -> None:
         """Link this entity to a HA device registry entry.
 
@@ -158,7 +177,7 @@ class BaseEntity(ABC):
                     "model": "Unknown",
                     "description": self.name,
                     "category": self.category,
-                    "features": self.create_features_list(),
+                    "features": self.get_final_features_list(),
                 },
                 "hw_version": "Unknown",
                 "sw_version": "Unknown",
@@ -178,7 +197,7 @@ class BaseEntity(ABC):
                     "model": self.linked_device["model"],
                     "description": self.linked_device["name"],
                     "category": self.category,
-                    "features": self.create_features_list(),
+                    "features": self.get_final_features_list(),
                 },
                 "hw_version": self.linked_device["hw_version"],
                 "sw_version": self.linked_device["sw_version"],

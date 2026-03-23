@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-03-23
+
+### Added
+- **HA Repairs**: issue registry integration for missing entities, stateless entities, and persistent connection failures (`repairs.py`)
+- **Feature overrides**: `sber_features_add` / `sber_features_remove` YAML options to customize Sber features per entity
+- **Auto re-publish config**: bridge automatically re-publishes config when Sber asks about unknown entities
+- **Persist redefinitions**: Sber room/name overrides now saved to config entry options and survive restarts
+- **Features info in UI**: entity type overrides step now shows detected Sber features for each entity (read-only)
+- `get_final_features_list()` method in `BaseEntity` for applying feature overrides
+- `_persist_redefinitions()` in `SberBridge` for saving redefinitions to entry options
+- Repair issue translations in English and Russian
+
 ## [1.0.0] - 2026-03-23
 
 ### Added

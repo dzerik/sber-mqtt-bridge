@@ -80,5 +80,19 @@
         "description": "Override the Sber device type for each exposed entity. 'Auto' uses automatic detection based on HA domain and device class."
       }
     }
+  },
+  "issues": {
+    "entity_not_found": {
+      "title": "Entity not found",
+      "description": "Entity `{entity_id}` is in the exposed list but was not found in the entity registry. Remove it from the exposed list or check that the entity exists."
+    },
+    "entities_without_state": {
+      "title": "Entities without state",
+      "description": "{count} entities have no state yet: {entities}. They may not have been initialized or are unavailable."
+    },
+    "connection_issues": {
+      "title": "MQTT connection issues",
+      "description": "Connection to Sber MQTT broker has been lost. Reconnect attempts: {reconnect_count}. Check your credentials and network connectivity."
+    }
   }
 }
