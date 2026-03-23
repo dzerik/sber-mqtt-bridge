@@ -7,7 +7,6 @@ import ssl
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigFlow,
     ConfigFlowResult,
@@ -15,9 +14,9 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
+    EntityFilterSelectorConfig,
     EntitySelector,
     EntitySelectorConfig,
-    EntityFilterSelectorConfig,
 )
 
 from .const import (

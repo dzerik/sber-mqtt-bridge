@@ -30,17 +30,15 @@ class LinearConverter:
     def sber_to_ha(self, sber_value):
         if sber_value < self.sber_side_min:
             return self.ha_side_min
-        elif sber_value > self.sber_side_max:
+        if sber_value > self.sber_side_max:
             return self.ha_side_max
-        else:
-            sber_delta = (sber_value - self.sber_side_min) if not self.is_reversed else (self.sber_side_max - sber_value)
-            return round(sber_delta * (self.ha_side_max - self.ha_side_min) / (self.sber_side_max - self.sber_side_min) + self.ha_side_min)
+        sber_delta = (sber_value - self.sber_side_min) if not self.is_reversed else (self.sber_side_max - sber_value)
+        return round(sber_delta * (self.ha_side_max - self.ha_side_min) / (self.sber_side_max - self.sber_side_min) + self.ha_side_min)
 
     def ha_to_sber(self, ha_value):
         if ha_value < self.ha_side_min:
             return self.sber_side_min
-        elif ha_value > self.ha_side_max:
+        if ha_value > self.ha_side_max:
             return self.sber_side_max
-        else:
-            ha_delta = (ha_value - self.ha_side_min) if not self.is_reversed else (self.ha_side_max - ha_value)
-            return round(ha_delta * (self.sber_side_max - self.sber_side_min) / (self.ha_side_max - self.ha_side_min) + self.sber_side_min)
+        ha_delta = (ha_value - self.ha_side_min) if not self.is_reversed else (self.ha_side_max - ha_value)
+        return round(ha_delta * (self.sber_side_max - self.sber_side_min) / (self.ha_side_max - self.ha_side_min) + self.sber_side_min)

@@ -1,6 +1,7 @@
 import logging
-from .curtain import CurtainEntity
+
 from .base_entity import BaseEntity
+from .curtain import CurtainEntity
 
 logger = logging.getLogger(__name__)
 

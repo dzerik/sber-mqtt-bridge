@@ -1,6 +1,7 @@
 import logging
-from .relay import RelayEntity
+
 from .base_entity import BaseEntity
+from .relay import RelayEntity
 
 logger = logging.getLogger(__name__)
 

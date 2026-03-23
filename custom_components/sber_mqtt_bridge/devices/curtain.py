@@ -1,6 +1,4 @@
-from enum import Enum
 import logging
-import json
 
 from .base_entity import BaseEntity
 
@@ -178,17 +176,16 @@ class CurtainEntity(BaseEntity):
                     }
                 }
             )
-            return
-        else:
-            states.append(
-                {
-                    "key": "online",
-                    "value": {
-                        "type": "BOOL",
-                        "bool_value": True
-                    }
+            return None
+        states.append(
+            {
+                "key": "online",
+                "value": {
+                    "type": "BOOL",
+                    "bool_value": True
                 }
-            )
+            }
+        )
 
         # # Добавление позиции
         states.append({
