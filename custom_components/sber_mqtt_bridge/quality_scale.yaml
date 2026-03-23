@@ -49,4 +49,6 @@ rules:
   test-coverage: todo
 
   # Gold (future)
-  diagnostics: done
+  diagnostics:
+    status: done
+    comment: Implementation exists, tests pending

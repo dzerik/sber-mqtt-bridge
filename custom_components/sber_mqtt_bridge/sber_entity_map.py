@@ -7,6 +7,7 @@ subclass based on the HA entity domain and device class.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from .devices.base_entity import BaseEntity
 from .devices.climate import ClimateEntity
@@ -111,7 +112,7 @@ def _create_climate(entity_data: dict) -> BaseEntity:
     return ClimateEntity(entity_data)
 
 
-ENTITY_CONSTRUCTORS: dict[str, callable] = {
+ENTITY_CONSTRUCTORS: dict[str, Callable] = {
     "light": lambda data: LightEntity(data),
     "cover": _create_cover,
     "sensor": _create_sensor,

@@ -41,8 +41,11 @@ from .sber_protocol import (
 
 _LOGGER = logging.getLogger(__name__)
 
-RECONNECT_INTERVAL = 5
-"""Seconds to wait before reconnecting after an MQTT connection loss."""
+RECONNECT_INTERVAL_MIN = 5
+"""Minimum seconds to wait before reconnecting after an MQTT connection loss."""
+
+RECONNECT_INTERVAL_MAX = 300
+"""Maximum seconds to wait (5 minutes) with exponential backoff."""
 
 
 class SberBridge:
@@ -70,6 +73,7 @@ class SberBridge:
         self._connection_task: asyncio.Task | None = None
         self._running = False
         self._connected = False
+        self._reconnect_interval = RECONNECT_INTERVAL_MIN
 
         self._unsub_listeners: list[Callable] = []
 
@@ -103,15 +107,19 @@ class SberBridge:
         self._connected = False
 
     def _load_exposed_entities(self) -> None:
-        """Load exposed entity list from options and create Sber entity objects."""
-        self._enabled_entity_ids = list(
+        """Load exposed entity list from options and create Sber entity objects.
+
+        Uses swap-on-replace pattern: builds a new dict, then atomically
+        replaces the reference to avoid race conditions with concurrent readers.
+        """
+        new_enabled = list(
             self._entry.options.get(CONF_EXPOSED_ENTITIES, [])
         )
-        self._entities.clear()
+        new_entities: dict[str, BaseEntity] = {}
 
         entity_reg = er.async_get(self._hass)
 
-        for entity_id in self._enabled_entity_ids:
+        for entity_id in new_enabled:
             entry = entity_reg.async_get(entity_id)
             if entry is None:
                 _LOGGER.warning("Entity %s not found in registry", entity_id)
@@ -134,7 +142,7 @@ class SberBridge:
 
             sber_entity = create_sber_entity(entity_id, entity_data)
             if sber_entity is not None:
-                self._entities[entity_id] = sber_entity
+                new_entities[entity_id] = sber_entity
 
                 state = self._hass.states.get(entity_id)
                 if state is not None:
@@ -144,6 +152,10 @@ class SberBridge:
                         "attributes": dict(state.attributes),
                     }
                     sber_entity.fill_by_ha_state(ha_state_dict)
+
+        # Atomic swap — readers see either old or new, never partial state
+        self._entities = new_entities
+        self._enabled_entity_ids = new_enabled
 
         _LOGGER.info(
             "Loaded %d Sber entities from %d exposed",
@@ -166,7 +178,7 @@ class SberBridge:
             self._unsub_listeners.append(unsub)
 
     async def _mqtt_connection_loop(self) -> None:
-        """Maintain persistent MQTT connection with auto-reconnect."""
+        """Maintain persistent MQTT connection with exponential backoff reconnect."""
         ssl_context = create_ssl_context(verify=self._verify_ssl)
 
         while self._running:
@@ -180,6 +192,7 @@ class SberBridge:
                 ) as client:
                     self._mqtt_client = client
                     self._connected = True
+                    self._reconnect_interval = RECONNECT_INTERVAL_MIN
                     _LOGGER.info("Connected to Sber MQTT broker %s", self._broker)
 
                     await client.subscribe(f"{self._down_topic}/#")
@@ -201,17 +214,26 @@ class SberBridge:
                 _LOGGER.warning(
                     "Sber MQTT connection lost: %s. Reconnecting in %ds...",
                     err,
-                    RECONNECT_INTERVAL,
+                    self._reconnect_interval,
                 )
-                await asyncio.sleep(RECONNECT_INTERVAL)
+                await asyncio.sleep(self._reconnect_interval)
+                self._reconnect_interval = min(
+                    self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX
+                )
             except asyncio.CancelledError:
                 break
             except Exception:
                 self._connected = False
                 if not self._running:
                     break
-                _LOGGER.exception("Unexpected MQTT error. Reconnecting in %ds...", RECONNECT_INTERVAL)
-                await asyncio.sleep(RECONNECT_INTERVAL)
+                _LOGGER.exception(
+                    "Unexpected MQTT error. Reconnecting in %ds...",
+                    self._reconnect_interval,
+                )
+                await asyncio.sleep(self._reconnect_interval)
+                self._reconnect_interval = min(
+                    self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX
+                )
 
         self._mqtt_client = None
         self._connected = False
