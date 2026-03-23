@@ -9,6 +9,7 @@ Manages:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 from collections.abc import Callable
@@ -98,10 +99,8 @@ class SberBridge:
 
         if self._connection_task:
             self._connection_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._connection_task
-            except asyncio.CancelledError:
-                pass
             self._connection_task = None
 
         self._connected = False

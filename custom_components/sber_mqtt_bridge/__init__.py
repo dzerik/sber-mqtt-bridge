@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from .const import DOMAIN
+from .const import DOMAIN as DOMAIN
 from .sber_bridge import SberBridge
 
 _LOGGER = logging.getLogger(__name__)

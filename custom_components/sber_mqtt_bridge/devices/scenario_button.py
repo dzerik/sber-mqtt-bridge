@@ -48,7 +48,7 @@ class ScenarioButtonEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        return super().create_features_list() + ["button_event"]
+        return [*super().create_features_list(), "button_event"]
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with online and button_event keys.

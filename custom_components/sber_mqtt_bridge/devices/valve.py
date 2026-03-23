@@ -43,7 +43,7 @@ class ValveEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        return super().create_features_list() + ["on_off"]
+        return [*super().create_features_list(), "on_off"]
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with online and on_off keys.

@@ -152,8 +152,9 @@ def parse_sber_status_request(payload: bytes | str) -> list[str]:
     """
     try:
         data = json.loads(payload).get("devices", [])
+    except (json.JSONDecodeError, AttributeError):
+        return []
+    else:
         if len(data) == 1 and data[0] == "":
             return []
         return data
-    except (json.JSONDecodeError, AttributeError):
-        return []

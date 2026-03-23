@@ -308,7 +308,7 @@ class LightEntity(BaseEntity):
                         }
                     })
 
-        logger.debug(f"(LightEntity.process_cmd) Command: {cmd_key}, processing res: {processing_result}")
+        logger.debug("(LightEntity.process_cmd) Command: %s, processing res: %s", cmd_key, processing_result)
         return processing_result
 
     def process_state_change(self, old_state, new_state):

@@ -60,7 +60,7 @@ class HumidifierEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = super().create_features_list() + ["on_off", "humidity"]
+        features = [*super().create_features_list(), "on_off", "humidity"]
         if self.available_modes:
             features.append("hvac_work_mode")
         return features
