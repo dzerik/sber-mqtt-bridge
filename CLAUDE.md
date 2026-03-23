@@ -143,7 +143,8 @@ tests/hacs/            — Тесты HACS integration
 ### Тесты
 - Запуск: `source .venv/bin/activate && python -m pytest tests/hacs/ -v -o asyncio_mode=auto`
 - Фреймворк: `pytest` + `pytest-homeassistant-custom-component`
-- Coverage target: 95%+
+- Coverage minimum: 80% (enforced by pyproject.toml `fail_under`)
+- Coverage target: 95%+ (aspirational)
 
 ### Линтинг
 - `ruff check .` — linting

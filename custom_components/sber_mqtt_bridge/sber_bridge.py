@@ -147,6 +147,10 @@ class SberBridge:
         self._stats = BridgeStats()
         self._last_config_publish_time: float | None = None
 
+        # Debounce: coalesce rapid state changes into a single publish
+        self._pending_publish_ids: set[str] = set()
+        self._publish_timer: asyncio.TimerHandle | None = None
+
     @property
     def is_connected(self) -> bool:
         """Return True if connected to Sber MQTT."""
@@ -585,7 +589,29 @@ class SberBridge:
             return
 
         _LOGGER.debug("HA → Sber state: %s = %s", entity_id, new_state.state)
-        self._hass.async_create_task(self._publish_states([entity_id]))
+        self._schedule_debounced_publish(entity_id)
+
+    @callback
+    def _schedule_debounced_publish(self, entity_id: str) -> None:
+        """Schedule a debounced state publish, coalescing rapid changes.
+
+        Multiple state changes within 100ms are batched into a single
+        MQTT publish to avoid flooding the broker during sensor bursts.
+        """
+        self._pending_publish_ids.add(entity_id)
+        if self._publish_timer is not None:
+            self._publish_timer.cancel()
+        loop = self._hass.loop
+        self._publish_timer = loop.call_later(0.1, self._fire_debounced_publish)
+
+    @callback
+    def _fire_debounced_publish(self) -> None:
+        """Fire the debounced publish task with accumulated entity IDs."""
+        self._publish_timer = None
+        ids = list(self._pending_publish_ids)
+        self._pending_publish_ids.clear()
+        if ids:
+            self._hass.async_create_task(self._publish_states(ids))
 
     async def _publish_states(self, entity_ids: list[str] | None = None) -> None:
         """Publish entity states to Sber MQTT."""
