@@ -157,7 +157,7 @@ class TestLightToSberCurrentState(unittest.TestCase):
     """Test to_sber_current_state builds correct Sber state payload."""
 
     def test_on_state_color_temp_mode(self):
-        """On state in color_temp mode includes on_off, brightness, colour_temperature, light_mode=white."""
+        """On state in color_temp mode includes on_off, brightness, light_colour_temp, light_mode=white."""
         entity = LightEntity(ENTITY_DATA)
         entity.fill_by_ha_state(
             _make_ha_state(state="on", color_mode="color_temp", brightness=200, color_temp=300)
@@ -172,7 +172,7 @@ class TestLightToSberCurrentState(unittest.TestCase):
         self.assertTrue(on_off["value"]["bool_value"])
 
         self.assertIn("light_brightness", keys)
-        self.assertIn("colour_temperature", keys)
+        self.assertIn("light_colour_temp", keys)
         self.assertIn("light_mode", keys)
         mode = next(s for s in states if s["key"] == "light_mode")
         self.assertEqual(mode["value"]["enum_value"], "white")

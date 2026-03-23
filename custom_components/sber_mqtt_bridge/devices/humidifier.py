@@ -98,9 +98,8 @@ class HumidifierEntity(BaseEntity):
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
-        is_online = self.state not in ("unavailable", "unknown", None)
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": is_online}},
+            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
             {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.current_state}},
         ]
         if self.target_humidity is not None:
@@ -133,16 +132,7 @@ class HumidifierEntity(BaseEntity):
             if key == "on_off":
                 on = value.get("bool_value", False)
                 self.current_state = on
-                results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "humidifier",
-                            "service": "turn_on" if on else "turn_off",
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
+                results.append(self._build_on_off_service_call(self.entity_id, "humidifier", on))
             elif key == "humidity":
                 humidity = value.get("integer_value", 500) / 10.0
                 self.target_humidity = humidity
@@ -159,6 +149,8 @@ class HumidifierEntity(BaseEntity):
                 )
             elif key == "hvac_work_mode":
                 mode = value.get("enum_value")
+                if mode is None:
+                    continue
                 self.mode = mode
                 results.append(
                     {
@@ -173,11 +165,3 @@ class HumidifierEntity(BaseEntity):
                 )
         return results
 
-    def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
-        """Handle HA state change event by refreshing internal state.
-
-        Args:
-            old_state: Previous HA state dict (unused).
-            new_state: New HA state dict to apply.
-        """
-        self.fill_by_ha_state(new_state)

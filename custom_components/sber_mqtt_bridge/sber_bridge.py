@@ -17,6 +17,7 @@ from collections.abc import Callable
 import aiomqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 
@@ -115,6 +116,7 @@ class SberBridge:
         new_entities: dict[str, BaseEntity] = {}
 
         entity_reg = er.async_get(self._hass)
+        device_reg = dr.async_get(self._hass)
 
         for entity_id in new_enabled:
             entry = entity_reg.async_get(entity_id)
@@ -140,6 +142,27 @@ class SberBridge:
             sber_entity = create_sber_entity(entity_id, entity_data)
             if sber_entity is not None:
                 new_entities[entity_id] = sber_entity
+
+                # Link device registry data for entities that belong to a device
+                if entry.device_id is not None:
+                    device = device_reg.async_get(entry.device_id)
+                    if device is not None:
+                        device_data = {
+                            "id": device.id,
+                            "name": device.name_by_user or device.name,
+                            "area_id": device.area_id or "",
+                            "manufacturer": device.manufacturer or "Unknown",
+                            "model": device.model or "Unknown",
+                            "model_id": device.model_id or "",
+                            "hw_version": device.hw_version or "Unknown",
+                            "sw_version": device.sw_version or "Unknown",
+                        }
+                        try:
+                            sber_entity.link_device(device_data)
+                        except ValueError:
+                            _LOGGER.warning(
+                                "Device ID mismatch for %s", entity_id
+                            )
 
                 state = self._hass.states.get(entity_id)
                 if state is not None:

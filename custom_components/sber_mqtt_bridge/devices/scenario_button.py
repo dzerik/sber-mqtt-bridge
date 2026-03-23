@@ -37,7 +37,10 @@ class ScenarioButtonEntity(BaseEntity):
             ha_state: HA state dict with 'state' key.
         """
         super().fill_by_ha_state(ha_state)
-        if ha_state.get("state") == "on":
+        state = ha_state.get("state")
+        if state in ("unavailable", "unknown"):
+            return
+        if state == "on":
             self.button_event = "click"
         else:
             self.button_event = "double_click"
@@ -56,9 +59,8 @@ class ScenarioButtonEntity(BaseEntity):
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
-        is_online = self.state not in ("unavailable", "unknown", None)
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": is_online}},
+            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
             {"key": "button_event", "value": {"type": "ENUM", "enum_value": self.button_event}},
         ]
         return {self.entity_id: {"states": states}}
@@ -74,11 +76,3 @@ class ScenarioButtonEntity(BaseEntity):
         """
         return []
 
-    def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
-        """Handle HA state change event by refreshing internal state.
-
-        Args:
-            old_state: Previous HA state dict (unused).
-            new_state: New HA state dict to apply.
-        """
-        self.fill_by_ha_state(new_state)

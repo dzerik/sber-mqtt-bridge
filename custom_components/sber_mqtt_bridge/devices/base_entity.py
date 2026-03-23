@@ -215,6 +215,27 @@ class BaseEntity(ABC):
         domain, _ = entity_id.split(".", 1)
         return domain
 
+    @staticmethod
+    def _build_on_off_service_call(entity_id: str, domain: str, on: bool) -> dict:
+        """Build a HA service call dict for turning a device on or off.
+
+        Args:
+            entity_id: HA entity identifier (e.g., 'climate.living_room').
+            domain: HA service domain (e.g., 'climate', 'humidifier').
+            on: True to turn on, False to turn off.
+
+        Returns:
+            Dict with 'url' key containing the HA service call descriptor.
+        """
+        return {
+            "url": {
+                "type": "call_service",
+                "domain": domain,
+                "service": "turn_on" if on else "turn_off",
+                "target": {"entity_id": entity_id},
+            }
+        }
+
     @abstractmethod
     def process_cmd(self, cmd_data: dict) -> list[dict]:
         """Process a command from Sber cloud.
@@ -227,11 +248,23 @@ class BaseEntity(ABC):
             or empty list if no action needed.
         """
 
-    @abstractmethod
+    @property
+    def _is_online(self) -> bool:
+        """Check if entity is online (not unavailable/unknown).
+
+        Returns:
+            True if the entity state indicates it is reachable.
+        """
+        return self.state not in ("unavailable", "unknown", None)
+
     def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
         """Handle a state change event from Home Assistant.
+
+        Default implementation refreshes internal state via fill_by_ha_state.
+        Override in subclasses if additional processing is needed.
 
         Args:
             old_state: Previous HA state dict (may be None).
             new_state: New HA state dict.
         """
+        self.fill_by_ha_state(new_state)
