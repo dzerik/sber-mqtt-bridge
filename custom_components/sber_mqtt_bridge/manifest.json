@@ -3,7 +3,7 @@
   "name": "Sber Smart Home MQTT Bridge",
   "codeowners": ["@dzerik"],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": ["frontend", "http"],
   "documentation": "https://github.com/dzerik/sber-mqtt-bridge",
   "issue_tracker": "https://github.com/dzerik/sber-mqtt-bridge/issues",
   "integration_type": "service",

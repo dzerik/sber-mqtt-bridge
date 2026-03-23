@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import logging
+import pathlib
 from dataclasses import dataclass
 from typing import Any
 
+from homeassistant.components.frontend import async_register_built_in_panel
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN as DOMAIN
 from .custom_capabilities import parse_yaml_config
 from .sber_bridge import SberBridge
+from .websocket_api import async_setup_websocket_api
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -75,6 +79,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
     await bridge.async_start()
 
     entry.runtime_data = SberBridgeData(bridge=bridge)
+
+    # Store bridge reference for WebSocket API access
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN]["bridge"] = bridge
+
+    # Register WebSocket API
+    async_setup_websocket_api(hass)
+
+    # Register frontend panel (static path + sidebar entry)
+    panel_dir = str(pathlib.Path(__file__).parent / "www")
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig("/sber_mqtt_bridge/panel", panel_dir, cache_headers=False)]
+    )
+
+    async_register_built_in_panel(
+        hass,
+        component_name="custom",
+        sidebar_title="Sber Bridge",
+        sidebar_icon="mdi:home-assistant",
+        frontend_url_path="sber-mqtt-bridge",
+        config={
+            "_panel_custom": {
+                "name": "sber-mqtt-panel",
+                "module_url": "/sber_mqtt_bridge/panel/sber-panel.js",
+            }
+        },
+        require_admin=False,
+    )
+
     return True
 
 
@@ -89,6 +122,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) 
         True if unload succeeded.
     """
     await entry.runtime_data.bridge.async_stop()
+
+    # Remove panel from sidebar
+    hass.components.frontend.async_remove_panel("sber-mqtt-bridge")
+
+    # Clean up bridge reference
+    if DOMAIN in hass.data:
+        hass.data[DOMAIN].pop("bridge", None)
+
     return True
 
 
