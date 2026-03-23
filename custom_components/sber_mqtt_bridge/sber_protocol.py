@@ -14,7 +14,7 @@ from .devices.base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 """Protocol version string included in the hub device descriptor."""
 
 

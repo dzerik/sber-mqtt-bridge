@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-03-23
+
+### Added
+- "Remove ALL entities" option in Options Flow — clear list in one click
+
+### Fixed
+- Device deduplication: bulk add now keeps only the richest entity per
+  physical device (light > switch for same device_id)
+- Warning logged when multiple entities share the same device_id
+- Manifest.json stray characters removed
+- Entity mapping debug logging (domain → Sber category with device_class)
+
 ## [0.4.0] - 2026-03-23
 
 ### Added
