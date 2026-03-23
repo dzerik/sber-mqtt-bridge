@@ -26,5 +26,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: SberBri
             "entities_loaded": bridge.entities_count,
             "enabled_entity_ids": bridge.enabled_entity_ids,
             "redefinitions": bridge.redefinitions,
+            "unacknowledged_entities": bridge.unacknowledged_entities,
+            "stats": bridge.stats,
         },
     }

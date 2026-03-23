@@ -4,6 +4,7 @@ Manages:
 - Async MQTT connection to Sber cloud broker (aiomqtt)
 - HA state change listening and publishing to Sber
 - Sber command reception and forwarding to HA services
+- Connection health monitoring and device acknowledgment tracking
 """
 
 from __future__ import annotations
@@ -12,7 +13,9 @@ import asyncio
 import contextlib
 import json
 import logging
+import time
 from collections.abc import Callable
+from dataclasses import dataclass, field
 
 import aiomqtt
 from homeassistant.config_entries import ConfigEntry
@@ -50,6 +53,66 @@ RECONNECT_INTERVAL_MIN = 5
 RECONNECT_INTERVAL_MAX = 300
 """Maximum seconds to wait (5 minutes) with exponential backoff."""
 
+MAX_MQTT_PAYLOAD_SIZE = 1_000_000
+"""Maximum MQTT payload size in bytes (1 MB) to prevent DoS from oversized messages."""
+
+
+@dataclass
+class BridgeStats:
+    """Connection statistics and health metrics for the Sber MQTT bridge."""
+
+    connected_since: float | None = None
+    """Timestamp when the current connection was established."""
+
+    messages_received: int = 0
+    """Total MQTT messages received from Sber."""
+
+    messages_sent: int = 0
+    """Total MQTT messages published to Sber."""
+
+    commands_received: int = 0
+    """Total Sber commands processed."""
+
+    config_requests: int = 0
+    """Total config requests received from Sber."""
+
+    status_requests: int = 0
+    """Total status requests received from Sber."""
+
+    errors_from_sber: int = 0
+    """Total error messages received from Sber."""
+
+    publish_errors: int = 0
+    """Total failed publish attempts."""
+
+    last_message_time: float | None = None
+    """Timestamp of the last message received."""
+
+    reconnect_count: int = 0
+    """Total number of reconnections since startup."""
+
+    acknowledged_entities: set[str] = field(default_factory=set)
+    """Entity IDs that Sber has acknowledged (via status_request or command)."""
+
+    def as_dict(self) -> dict:
+        """Return stats as a serializable dict."""
+        now = time.monotonic()
+        return {
+            "connected_since": self.connected_since,
+            "connection_uptime_seconds": (
+                round(now - self.connected_since, 1) if self.connected_since else None
+            ),
+            "messages_received": self.messages_received,
+            "messages_sent": self.messages_sent,
+            "commands_received": self.commands_received,
+            "config_requests": self.config_requests,
+            "status_requests": self.status_requests,
+            "errors_from_sber": self.errors_from_sber,
+            "publish_errors": self.publish_errors,
+            "reconnect_count": self.reconnect_count,
+            "acknowledged_entities": sorted(self.acknowledged_entities),
+        }
+
 
 class SberBridge:
     """Bridge between Home Assistant and Sber Smart Home MQTT cloud."""
@@ -81,6 +144,9 @@ class SberBridge:
         self._unsub_state_listeners: list[Callable] = []
         self._unsub_lifecycle_listeners: list[Callable] = []
 
+        self._stats = BridgeStats()
+        self._last_config_publish_time: float | None = None
+
     @property
     def is_connected(self) -> bool:
         """Return True if connected to Sber MQTT."""
@@ -101,16 +167,25 @@ class SberBridge:
         """Return a copy of the entity redefinitions mapping."""
         return dict(self._redefinitions)
 
+    @property
+    def stats(self) -> dict:
+        """Return bridge statistics as a serializable dict."""
+        return self._stats.as_dict()
+
+    @property
+    def unacknowledged_entities(self) -> list[str]:
+        """Return entity IDs that were published but not yet acknowledged by Sber."""
+        return [
+            eid for eid in self._enabled_entity_ids
+            if eid not in self._stats.acknowledged_entities
+        ]
+
     async def async_start(self) -> None:
         """Start the bridge: load entities, subscribe to HA events, connect MQTT.
 
         HA state events are subscribed immediately (independent of MQTT connectivity)
         so that no state changes are lost while waiting for the first connection.
         MQTT connection is established in a background task with exponential backoff.
-
-        Subscribes to ``EVENT_HOMEASSISTANT_STARTED`` to reload entities once the
-        entity registry is fully initialised (covers the case when entities are not
-        yet available during early startup).
         """
         self._running = True
         self._load_exposed_entities()
@@ -217,9 +292,10 @@ class SberBridge:
         self._enabled_entity_ids = new_enabled
 
         _LOGGER.info(
-            "Loaded %d Sber entities from %d exposed",
+            "Loaded %d Sber entities from %d exposed: %s",
             len(self._entities),
             len(self._enabled_entity_ids),
+            ", ".join(self._enabled_entity_ids) if self._enabled_entity_ids else "(none)",
         )
 
     def _subscribe_ha_events(self) -> None:
@@ -242,11 +318,7 @@ class SberBridge:
 
     @callback
     def _on_homeassistant_started(self, _event: Event) -> None:
-        """Reload exposed entities after HA is fully started.
-
-        Called once via ``EVENT_HOMEASSISTANT_STARTED`` to ensure entity
-        registry is fully populated before we resolve exposed entity IDs.
-        """
+        """Reload exposed entities after HA is fully started."""
         _LOGGER.debug("HA started — reloading exposed entities")
         self._load_exposed_entities()
         self._subscribe_ha_events()
@@ -269,7 +341,11 @@ class SberBridge:
                     self._mqtt_client = client
                     self._connected = True
                     self._reconnect_interval = RECONNECT_INTERVAL_MIN
-                    _LOGGER.info("Connected to Sber MQTT broker %s", self._broker)
+                    self._stats.connected_since = time.monotonic()
+                    _LOGGER.info(
+                        "Connected to Sber MQTT broker %s:%d (entities: %d)",
+                        self._broker, self._port, len(self._entities),
+                    )
 
                     await client.subscribe(f"{self._down_topic}/#")
                     await client.subscribe(SBER_GLOBAL_CONFIG_TOPIC)
@@ -277,18 +353,20 @@ class SberBridge:
                     async for message in client.messages:
                         if not self._running:
                             break
+                        self._stats.messages_received += 1
+                        self._stats.last_message_time = time.monotonic()
                         await self._handle_mqtt_message(str(message.topic), message.payload)
 
             except aiomqtt.MqttError as err:
-                # Atomically mark as disconnected before any await
                 self._connected = False
                 self._mqtt_client = None
+                self._stats.connected_since = None
+                self._stats.reconnect_count += 1
                 if not self._running:
                     break
                 _LOGGER.warning(
-                    "Sber MQTT connection lost: %s. Reconnecting in %ds...",
-                    err,
-                    self._reconnect_interval,
+                    "Sber MQTT connection lost: %s. Reconnecting in %ds... (attempt #%d)",
+                    err, self._reconnect_interval, self._stats.reconnect_count,
                 )
                 await asyncio.sleep(self._reconnect_interval)
                 self._reconnect_interval = min(self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX)
@@ -297,6 +375,8 @@ class SberBridge:
             except Exception:
                 self._connected = False
                 self._mqtt_client = None
+                self._stats.connected_since = None
+                self._stats.reconnect_count += 1
                 if not self._running:
                     break
                 _LOGGER.exception(
@@ -308,10 +388,20 @@ class SberBridge:
 
         self._mqtt_client = None
         self._connected = False
+        self._stats.connected_since = None
 
     async def _handle_mqtt_message(self, topic: str, payload: bytes) -> None:
         """Route incoming MQTT messages to handlers."""
-        _LOGGER.debug("MQTT message: %s", topic)
+        suffix = topic.rsplit("/", 1)[-1] if "/" in topic else topic
+        _LOGGER.debug("MQTT ← %s (%d bytes)", topic, len(payload) if payload else 0)
+
+        # Payload size guard (M2)
+        if payload and len(payload) > MAX_MQTT_PAYLOAD_SIZE:
+            _LOGGER.warning(
+                "MQTT payload too large (%d bytes, max %d), dropping: %s",
+                len(payload), MAX_MQTT_PAYLOAD_SIZE, topic,
+            )
+            return
 
         if topic.endswith("/down/commands"):
             await self._handle_sber_command(payload)
@@ -320,24 +410,41 @@ class SberBridge:
         elif topic.endswith("/down/config_request"):
             await self._handle_sber_config_request()
         elif topic.endswith("/down/errors"):
-            _LOGGER.warning("Sber MQTT error: %s", payload)
+            self._handle_sber_error(payload)
         elif topic.endswith("/down/change_group_device_request"):
             await self._handle_change_group(payload)
         elif topic.endswith("/down/rename_device_request"):
             await self._handle_rename_device(payload)
         elif topic == SBER_GLOBAL_CONFIG_TOPIC:
             self._handle_global_config(payload)
+        else:
+            _LOGGER.debug("Unhandled MQTT topic suffix: %s", suffix)
 
     async def _handle_sber_command(self, payload: bytes) -> None:
         """Handle command from Sber cloud → execute HA service."""
         data = parse_sber_command(payload)
-        _LOGGER.debug("Sber command payload: %s", data)
+        self._stats.commands_received += 1
 
-        for entity_id, cmd_data in data.get("devices", {}).items():
+        devices = data.get("devices", {})
+        _LOGGER.debug(
+            "Sber command for %d device(s): %s",
+            len(devices), list(devices.keys()),
+        )
+
+        for entity_id, cmd_data in devices.items():
+            # Track Sber acknowledgment
+            self._stats.acknowledged_entities.add(entity_id)
+
             entity = self._entities.get(entity_id)
             if entity is None:
-                _LOGGER.warning("Unknown entity in Sber command: %s", entity_id)
+                _LOGGER.warning("Sber command for unknown entity: %s", entity_id)
                 continue
+
+            _LOGGER.info(
+                "Sber → HA command: %s [%s]",
+                entity_id,
+                ", ".join(s.get("key", "?") for s in cmd_data.get("states", [])),
+            )
 
             results = entity.process_cmd(cmd_data)
             for result in results:
@@ -355,17 +462,62 @@ class SberBridge:
                         target=cmd.get("target", {}),
                         blocking=False,
                     )
+                    _LOGGER.debug(
+                        "HA service called: %s.%s → %s",
+                        cmd["domain"], cmd["service"],
+                        cmd.get("target", {}).get("entity_id", "?"),
+                    )
                 except Exception:
                     _LOGGER.exception("Error calling HA service for %s", entity_id)
 
     async def _handle_sber_status_request(self, payload: bytes) -> None:
         """Handle status request from Sber cloud."""
         requested_ids = parse_sber_status_request(payload)
+        self._stats.status_requests += 1
+
+        # Track Sber acknowledgment for requested entities
+        if requested_ids:
+            for eid in requested_ids:
+                self._stats.acknowledged_entities.add(eid)
+            _LOGGER.info(
+                "Sber status request for %d specific entities: %s",
+                len(requested_ids), requested_ids,
+            )
+        else:
+            # All entities requested — mark all as acknowledged
+            self._stats.acknowledged_entities.update(self._enabled_entity_ids)
+            _LOGGER.info(
+                "Sber status request for ALL entities (%d)",
+                len(self._enabled_entity_ids),
+            )
+
         await self._publish_states(requested_ids if requested_ids else None)
 
     async def _handle_sber_config_request(self) -> None:
         """Handle config request from Sber cloud — send device list."""
+        self._stats.config_requests += 1
+        _LOGGER.info(
+            "Sber config request received (will publish %d entities)",
+            len(self._enabled_entity_ids),
+        )
         await self._publish_config()
+
+    def _handle_sber_error(self, payload: bytes) -> None:
+        """Handle error message from Sber cloud."""
+        self._stats.errors_from_sber += 1
+        try:
+            error_data = json.loads(payload)
+            _LOGGER.warning(
+                "Sber error (#%d): %s",
+                self._stats.errors_from_sber,
+                json.dumps(error_data, ensure_ascii=False, indent=2),
+            )
+        except (json.JSONDecodeError, TypeError):
+            _LOGGER.warning(
+                "Sber error (#%d, raw): %s",
+                self._stats.errors_from_sber,
+                payload[:500] if isinstance(payload, (str, bytes)) else payload,
+            )
 
     async def _handle_change_group(self, payload: bytes) -> None:
         """Handle device group/room change from Sber."""
@@ -380,6 +532,7 @@ class SberBridge:
                 "home": data.get("home"),
                 "room": data.get("room"),
             }
+            _LOGGER.info("Sber group change: %s → room=%s", device_id, data.get("room"))
             await self._publish_config(entity_ids=[device_id])
 
     async def _handle_rename_device(self, payload: bytes) -> None:
@@ -394,6 +547,7 @@ class SberBridge:
         if device_id and new_name:
             redef = self._redefinitions.setdefault(device_id, {})
             redef["name"] = new_name
+            _LOGGER.info("Sber rename: %s → %s", device_id, new_name)
             await self._publish_config(entity_ids=[device_id])
 
     def _handle_global_config(self, payload: bytes) -> None:
@@ -430,6 +584,7 @@ class SberBridge:
             _LOGGER.exception("Error processing state change for %s", entity_id)
             return
 
+        _LOGGER.debug("HA → Sber state: %s = %s", entity_id, new_state.state)
         self._hass.async_create_task(self._publish_states([entity_id]))
 
     async def _publish_states(self, entity_ids: list[str] | None = None) -> None:
@@ -440,7 +595,9 @@ class SberBridge:
         payload = build_states_list_json(self._entities, entity_ids, self._enabled_entity_ids)
         try:
             await self._mqtt_client.publish(f"{self._root_topic}/up/status", payload)
+            self._stats.messages_sent += 1
         except aiomqtt.MqttError:
+            self._stats.publish_errors += 1
             _LOGGER.exception("Error publishing states to Sber")
 
     async def _publish_config(self, entity_ids: list[str] | None = None) -> None:
@@ -452,6 +609,21 @@ class SberBridge:
         payload = build_devices_list_json(self._entities, ids_to_publish, self._redefinitions)
         try:
             await self._mqtt_client.publish(f"{self._root_topic}/up/config", payload)
-            _LOGGER.info("Published device config to Sber (%d entities)", len(ids_to_publish))
+            self._stats.messages_sent += 1
+            self._last_config_publish_time = time.monotonic()
+            _LOGGER.info(
+                "Published device config to Sber (%d entities): %s",
+                len(ids_to_publish),
+                ", ".join(ids_to_publish),
+            )
+
+            # Log unacknowledged entities for debugging
+            unack = self.unacknowledged_entities
+            if unack:
+                _LOGGER.debug(
+                    "Entities not yet acknowledged by Sber (%d): %s",
+                    len(unack), ", ".join(unack),
+                )
         except aiomqtt.MqttError:
+            self._stats.publish_errors += 1
             _LOGGER.exception("Error publishing config to Sber")
