@@ -3,8 +3,8 @@
 ## Development Setup
 
 ```bash
-git clone https://github.com/mberezovsky/MQTT-SberGate.git
-cd MQTT-SberGate
+git clone https://github.com/dzerik/sber-mqtt-bridge.git
+cd sber-mqtt-bridge
 uv venv .venv
 source .venv/bin/activate
 uv pip install aiomqtt pytest pytest-asyncio pytest-homeassistant-custom-component pytest-cov ruff mypy

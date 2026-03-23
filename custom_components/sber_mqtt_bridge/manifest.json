@@ -1,13 +1,14 @@
 {
   "domain": "sber_mqtt_bridge",
   "name": "Sber Smart Home MQTT Bridge",
-  "codeowners": ["@mberezovsky"],
+  "codeowners": ["@dzerik"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/mberezovsky/MQTT-SberGate",
+  "documentation": "https://github.com/dzerik/sber-mqtt-bridge",
+  "issue_tracker": "https://github.com/dzerik/sber-mqtt-bridge/issues",
   "integration_type": "service",
   "iot_class": "cloud_push",
   "requirements": ["aiomqtt>=2.0,<3.0"],
-  "version": "0.2.0",
+  "version": "0.3.0",
   "loggers": ["aiomqtt"]
 }
