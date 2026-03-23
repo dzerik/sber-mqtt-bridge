@@ -14,8 +14,10 @@ import contextlib
 import json
 import logging
 import time
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 import aiomqtt
 from homeassistant.config_entries import ConfigEntry
@@ -152,6 +154,9 @@ class SberBridge:
         self._pending_publish_ids: set[str] = set()
         self._publish_timer: asyncio.TimerHandle | None = None
 
+        # Ring buffer for MQTT message log (DevTools)
+        self._message_log: deque[dict[str, Any]] = deque(maxlen=50)
+
     @property
     def is_connected(self) -> bool:
         """Return True if connected to Sber MQTT."""
@@ -186,6 +191,15 @@ class SberBridge:
     def unacknowledged_entities(self) -> list[str]:
         """Return entity IDs that were published but not yet acknowledged by Sber."""
         return [eid for eid in self._enabled_entity_ids if eid not in self._stats.acknowledged_entities]
+
+    @property
+    def message_log(self) -> list[dict[str, Any]]:
+        """Return a copy of the MQTT message log ring buffer."""
+        return list(self._message_log)
+
+    def clear_message_log(self) -> None:
+        """Clear the MQTT message log."""
+        self._message_log.clear()
 
     async def async_start(self) -> None:
         """Start the bridge: load entities, subscribe to HA events, connect MQTT.
@@ -495,7 +509,19 @@ class SberBridge:
     async def _handle_mqtt_message(self, topic: str, payload: bytes) -> None:
         """Route incoming MQTT messages to handlers."""
         suffix = topic.rsplit("/", 1)[-1] if "/" in topic else topic
-        _LOGGER.debug("MQTT ← %s (%d bytes)", topic, len(payload) if payload else 0)
+        _LOGGER.debug("MQTT <- %s (%d bytes)", topic, len(payload) if payload else 0)
+
+        # DevTools: log incoming message
+        self._message_log.append(
+            {
+                "time": time.time(),
+                "direction": "in",
+                "topic": topic,
+                "payload": payload[:500].decode("utf-8", errors="replace")
+                if isinstance(payload, bytes)
+                else str(payload)[:500],
+            }
+        )
 
         # Payload size guard (M2)
         if payload and len(payload) > MAX_MQTT_PAYLOAD_SIZE:
@@ -593,11 +619,7 @@ class SberBridge:
 
         # Auto re-publish config if Sber asks about unknown entities
         if requested_ids:
-            unknown = [
-                eid
-                for eid in requested_ids
-                if eid not in self._entities and eid != "root"
-            ]
+            unknown = [eid for eid in requested_ids if eid not in self._entities and eid != "root"]
             if unknown:
                 _LOGGER.info(
                     "Sber asked about unknown entities, re-publishing config: %s",
@@ -765,9 +787,19 @@ class SberBridge:
             return
 
         payload = build_states_list_json(self._entities, entity_ids, self._enabled_entity_ids)
+        topic = f"{self._root_topic}/up/status"
         try:
-            await self._mqtt_client.publish(f"{self._root_topic}/up/status", payload)
+            await self._mqtt_client.publish(topic, payload)
             self._stats.messages_sent += 1
+            # DevTools: log outgoing message
+            self._message_log.append(
+                {
+                    "time": time.time(),
+                    "direction": "out",
+                    "topic": topic,
+                    "payload": payload[:500] if isinstance(payload, str) else "",
+                }
+            )
         except aiomqtt.MqttError:
             self._stats.publish_errors += 1
             _LOGGER.exception("Error publishing states to Sber")
@@ -782,14 +814,24 @@ class SberBridge:
 
         ids_to_publish = entity_ids or self._enabled_entity_ids
         payload = build_devices_list_json(self._entities, ids_to_publish, self._redefinitions)
+        topic = f"{self._root_topic}/up/config"
         try:
-            await self._mqtt_client.publish(f"{self._root_topic}/up/config", payload)
+            await self._mqtt_client.publish(topic, payload)
             self._stats.messages_sent += 1
             self._last_config_publish_time = time.monotonic()
             _LOGGER.info(
                 "Published device config to Sber (%d entities): %s",
                 len(ids_to_publish),
                 ", ".join(ids_to_publish),
+            )
+            # DevTools: log outgoing message
+            self._message_log.append(
+                {
+                    "time": time.time(),
+                    "direction": "out",
+                    "topic": topic,
+                    "payload": payload[:500] if isinstance(payload, str) else "",
+                }
             )
 
             # Log unacknowledged entities for debugging

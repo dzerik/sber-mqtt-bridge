@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-03-23
+
+### Added
+- **DevTools tab** in SPA panel for MQTT protocol debugging
+- **Raw Config Payload** viewer: loads and displays the full JSON sent to Sber `up/config` topic
+- **Raw State Payload** viewer: loads and displays the full JSON sent to Sber `up/status` topic
+- **MQTT Message Log**: real-time ring buffer of last 50 MQTT messages (incoming/outgoing) with auto-refresh
+- New WS commands: `sber_mqtt_bridge/raw_config`, `sber_mqtt_bridge/raw_states`, `sber_mqtt_bridge/message_log`, `sber_mqtt_bridge/clear_message_log`
+- Copy-to-clipboard for JSON payloads
+- Color-coded message direction (blue=incoming, green=outgoing)
+
 ## [1.4.1] - 2026-03-23
 
 ### Fixed

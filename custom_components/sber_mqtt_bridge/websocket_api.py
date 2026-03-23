@@ -70,6 +70,10 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_publish_one_status)
     websocket_api.async_register_command(hass, ws_export)
     websocket_api.async_register_command(hass, ws_import)
+    websocket_api.async_register_command(hass, ws_raw_config)
+    websocket_api.async_register_command(hass, ws_raw_states)
+    websocket_api.async_register_command(hass, ws_message_log)
+    websocket_api.async_register_command(hass, ws_clear_message_log)
     _LOGGER.debug("Sber MQTT Bridge WebSocket API registered")
 
 
@@ -623,4 +627,124 @@ async def ws_import(
     hass.config_entries.async_update_entry(entry, options=new_options)
     await hass.config_entries.async_reload(entry.entry_id)
 
+    connection.send_result(msg["id"], {"success": True})
+
+
+# ---------- DevTools commands ----------
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/raw_config",
+    }
+)
+@websocket_api.async_response
+async def ws_raw_config(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Get the raw config JSON that would be sent to Sber.
+
+    Returns the full device list payload as published to ``up/config``.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message.
+    """
+    bridge = _get_bridge(hass)
+    if bridge is None:
+        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
+        return
+
+    from .sber_protocol import build_devices_list_json
+
+    payload = build_devices_list_json(bridge.entities, bridge.enabled_entity_ids, bridge.redefinitions)
+    connection.send_result(msg["id"], {"payload": payload})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/raw_states",
+    }
+)
+@websocket_api.async_response
+async def ws_raw_states(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Get the raw states JSON that would be sent to Sber.
+
+    Returns the full state list payload as published to ``up/status``.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message.
+    """
+    bridge = _get_bridge(hass)
+    if bridge is None:
+        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
+        return
+
+    from .sber_protocol import build_states_list_json
+
+    payload = build_states_list_json(bridge.entities, None, bridge.enabled_entity_ids)
+    connection.send_result(msg["id"], {"payload": payload})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/message_log",
+    }
+)
+@callback
+def ws_message_log(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Get the recent MQTT message log from the ring buffer.
+
+    Returns the last 50 MQTT messages (incoming and outgoing).
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message.
+    """
+    bridge = _get_bridge(hass)
+    if bridge is None:
+        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
+        return
+
+    connection.send_result(msg["id"], {"messages": bridge.message_log})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/clear_message_log",
+    }
+)
+@callback
+def ws_clear_message_log(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Clear the MQTT message log ring buffer.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message.
+    """
+    bridge = _get_bridge(hass)
+    if bridge is None:
+        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
+        return
+
+    bridge.clear_message_log()
     connection.send_result(msg["id"], {"success": True})

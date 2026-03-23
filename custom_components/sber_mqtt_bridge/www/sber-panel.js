@@ -15,6 +15,7 @@ import "./components/sber-add-dialog.js";
 import "./components/sber-toolbar.js";
 import "./components/sber-wizard.js";
 import "./components/sber-toast.js";
+import "./components/sber-devtools.js";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
@@ -421,9 +422,12 @@ class SberMqttPanel extends LitElement {
         <div class="tab ${this._tab === 1 ? "active" : ""}" @click=${() => this._tab = 1}>
           Status
         </div>
+        <div class="tab ${this._tab === 2 ? "active" : ""}" @click=${() => this._tab = 2}>
+          DevTools
+        </div>
       </div>
 
-      ${this._tab === 0 ? this._renderDevices() : this._renderStatus()}
+      ${this._tab === 0 ? this._renderDevices() : this._tab === 1 ? this._renderStatus() : this._renderDevtools()}
 
       <sber-add-dialog
         .hass=${this.hass}
@@ -470,6 +474,17 @@ class SberMqttPanel extends LitElement {
         <h2>Statistics</h2>
         <sber-stats-grid .status=${s}></sber-stats-grid>
       </div>
+    `;
+  }
+
+  /* ---------- tab: devtools ---------- */
+
+  _renderDevtools() {
+    return html`
+      <sber-devtools
+        .hass=${this.hass}
+        @devtools-toast=${(e) => this._showToast(e.detail.message, e.detail.type)}
+      ></sber-devtools>
     `;
   }
 }
