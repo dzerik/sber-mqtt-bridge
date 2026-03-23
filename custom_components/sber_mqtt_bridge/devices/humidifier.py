@@ -104,7 +104,7 @@ class HumidifierEntity(BaseEntity):
         ]
         if self.target_humidity is not None:
             states.append(
-                {"key": "humidity", "value": {"type": "INTEGER", "integer_value": int(self.target_humidity * 10)}}
+                {"key": "humidity", "value": {"type": "INTEGER", "integer_value": round(self.target_humidity)}}
             )
         if self.mode:
             states.append({"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": self.mode}})
@@ -139,14 +139,14 @@ class HumidifierEntity(BaseEntity):
                 raw_humidity = value.get("integer_value")
                 if raw_humidity is None:
                     continue
-                humidity = raw_humidity / 10.0
+                # Sber sends humidity as plain integer 0-100 (no scaling)
                 results.append(
                     {
                         "url": {
                             "type": "call_service",
                             "domain": "humidifier",
                             "service": "set_humidity",
-                            "service_data": {"humidity": round(humidity)},
+                            "service_data": {"humidity": int(raw_humidity)},
                             "target": {"entity_id": self.entity_id},
                         }
                     }

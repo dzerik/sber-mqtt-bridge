@@ -203,7 +203,7 @@ class CurtainEntity(BaseEntity):
         states.append(
             {
                 "key": "open_state",
-                "value": {"type": "ENUM", "enum_value": "open" if self.current_position > 0 else "closed"},
+                "value": {"type": "ENUM", "enum_value": "open" if self.current_position > 0 else "close"},
             }
         )
 
