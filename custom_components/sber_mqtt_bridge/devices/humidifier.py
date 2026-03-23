@@ -136,7 +136,10 @@ class HumidifierEntity(BaseEntity):
                 on = value.get("bool_value", False)
                 results.append(self._build_on_off_service_call(self.entity_id, "humidifier", on))
             elif key == "humidity":
-                humidity = value.get("integer_value", 500) / 10.0
+                raw_humidity = value.get("integer_value")
+                if raw_humidity is None:
+                    continue
+                humidity = raw_humidity / 10.0
                 results.append(
                     {
                         "url": {

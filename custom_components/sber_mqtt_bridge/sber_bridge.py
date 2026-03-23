@@ -78,7 +78,8 @@ class SberBridge:
         self._connected = False
         self._reconnect_interval = RECONNECT_INTERVAL_MIN
 
-        self._unsub_listeners: list[Callable] = []
+        self._unsub_state_listeners: list[Callable] = []
+        self._unsub_lifecycle_listeners: list[Callable] = []
 
     @property
     def is_connected(self) -> bool:
@@ -118,7 +119,7 @@ class SberBridge:
 
         # Re-load entities after HA is fully started to pick up any entities
         # that were not yet registered during early async_setup_entry.
-        self._unsub_listeners.append(
+        self._unsub_lifecycle_listeners.append(
             self._hass.bus.async_listen_once(
                 EVENT_HOMEASSISTANT_STARTED, self._on_homeassistant_started
             )
@@ -128,9 +129,13 @@ class SberBridge:
         """Stop the bridge: disconnect MQTT, unsubscribe from HA events."""
         self._running = False
 
-        for unsub in self._unsub_listeners:
+        for unsub in self._unsub_state_listeners:
             unsub()
-        self._unsub_listeners.clear()
+        self._unsub_state_listeners.clear()
+
+        for unsub in self._unsub_lifecycle_listeners:
+            unsub()
+        self._unsub_lifecycle_listeners.clear()
 
         if self._connection_task:
             self._connection_task.cancel()
@@ -218,10 +223,14 @@ class SberBridge:
         )
 
     def _subscribe_ha_events(self) -> None:
-        """Subscribe to HA state changes for exposed entities."""
-        for unsub in self._unsub_listeners:
+        """Subscribe to HA state changes for exposed entities.
+
+        Only manages state-change listeners (not lifecycle listeners like
+        EVENT_HOMEASSISTANT_STARTED, which are tracked separately).
+        """
+        for unsub in self._unsub_state_listeners:
             unsub()
-        self._unsub_listeners.clear()
+        self._unsub_state_listeners.clear()
 
         if self._enabled_entity_ids:
             unsub = async_track_state_change_event(
@@ -229,7 +238,7 @@ class SberBridge:
                 self._enabled_entity_ids,
                 self._on_ha_state_changed,
             )
-            self._unsub_listeners.append(unsub)
+            self._unsub_state_listeners.append(unsub)
 
     @callback
     def _on_homeassistant_started(self, _event: Event) -> None:

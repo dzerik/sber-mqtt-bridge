@@ -275,13 +275,14 @@ class TestLightProcessCmd(unittest.TestCase):
         self.assertGreaterEqual(br, 50)
         self.assertLessEqual(br, 255)
 
-    def test_cmd_brightness_when_off_no_call(self):
-        """light_brightness while off generates no service call."""
+    def test_cmd_brightness_when_off_still_sends(self):
+        """light_brightness while off still generates service call (state not gated)."""
         entity = self._make_entity(state="off")
         result = entity.process_cmd({
             "states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": 500}}]
         })
-        self.assertEqual(len(result), 0)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "turn_on")
 
     def test_cmd_light_colour_when_on(self):
         """light_colour with HSV generates turn_on with hs_color."""
@@ -301,8 +302,8 @@ class TestLightProcessCmd(unittest.TestCase):
         self.assertIn("hs_color", url["service_data"])
         self.assertIn("brightness", url["service_data"])
 
-    def test_cmd_light_colour_when_off_no_call(self):
-        """light_colour while off generates no service call."""
+    def test_cmd_light_colour_when_off_still_sends(self):
+        """light_colour while off still generates service call (state not gated)."""
         entity = self._make_entity(state="off")
         result = entity.process_cmd({
             "states": [{
@@ -310,7 +311,8 @@ class TestLightProcessCmd(unittest.TestCase):
                 "value": {"type": "COLOUR", "colour_value": {"h": 120, "s": 500, "v": 500}}
             }]
         })
-        self.assertEqual(len(result), 0)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "turn_on")
 
     def test_cmd_light_colour_none_value(self):
         """light_colour with no colour_value uses default."""
@@ -351,13 +353,14 @@ class TestLightProcessCmd(unittest.TestCase):
         self.assertEqual(url["service"], "turn_on")
         self.assertIn("color_temp", url["service_data"])
 
-    def test_cmd_light_colour_temp_when_off(self):
-        """light_colour_temp while off generates no service call."""
+    def test_cmd_light_colour_temp_when_off_still_sends(self):
+        """light_colour_temp while off still generates service call (state not gated)."""
         entity = self._make_entity(state="off")
         result = entity.process_cmd({
             "states": [{"key": "light_colour_temp", "value": {"type": "INTEGER", "integer_value": 500}}]
         })
-        self.assertEqual(len(result), 0)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "turn_on")
 
     def test_cmd_none_data(self):
         """None cmd_data returns empty list."""
