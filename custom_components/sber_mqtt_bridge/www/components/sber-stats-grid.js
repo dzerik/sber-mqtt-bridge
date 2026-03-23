@@ -1,4 +1,4 @@
-https://github.com/TohaRG2/MQTT-Sber-HA/blob/master/custom_components/sber_mqtt/www/panel.js#L277-L390 /**
+/**
  * Sber MQTT Bridge — Statistics grid component.
  *
  * Renders bridge statistics (uptime, messages, errors, etc.) in a responsive grid.
