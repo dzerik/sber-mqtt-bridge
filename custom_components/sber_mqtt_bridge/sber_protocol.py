@@ -118,7 +118,12 @@ def build_states_list_json(
             _LOGGER.exception("Error building Sber current state for %s", entity_id)
 
     if not states["devices"]:
-        states["devices"] = {"root": {"states": [{"key": "online", "value": {"type": "BOOL", "bool_value": True}}]}}
+        # Fallback: report hub as online but with no device states.
+        # This happens when no entities have state yet (e.g. all unavailable).
+        has_entities = bool(entities)
+        states["devices"] = {
+            "root": {"states": [{"key": "online", "value": {"type": "BOOL", "bool_value": has_entities}}]}
+        }
 
     return json.dumps(states)
 

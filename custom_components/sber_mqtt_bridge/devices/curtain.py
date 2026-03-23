@@ -169,22 +169,12 @@ class CurtainEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = super().create_features_list()  # Когда вызывается 'тот метод?'
-        features += [
+        return [
+            *super().create_features_list(),
             "open_percentage",
             "open_set",
             "open_state",
-            # , "battary_percentage"
         ]
-        return features
-
-    def to_sber_state(self) -> dict:
-        """Build full Sber device descriptor for curtain.
-
-        Returns:
-            Sber device descriptor dict.
-        """
-        return super().to_sber_state()
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with position and open state.
