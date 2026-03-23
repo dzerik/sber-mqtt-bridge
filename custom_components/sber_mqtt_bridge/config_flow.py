@@ -16,7 +16,7 @@ from homeassistant.config_entries import (
     ConfigFlowResult,
     OptionsFlowWithReload,
 )
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.selector import (
     EntityFilterSelectorConfig,
     EntitySelector,
@@ -49,7 +49,7 @@ USER_DATA_SCHEMA = vol.Schema(
 )
 
 
-def create_ssl_context(*, verify: bool = True) -> ssl.SSLContext:
+def create_ssl_context(verify: bool = True) -> ssl.SSLContext:
     """Create an SSL context for Sber MQTT broker connection.
 
     Args:
@@ -67,11 +67,15 @@ def create_ssl_context(*, verify: bool = True) -> ssl.SSLContext:
 
 
 async def _validate_sber_connection(
-    login: str, password: str, broker: str, port: int, *, verify_ssl: bool = True
+    hass: HomeAssistant, login: str, password: str, broker: str, port: int, *, verify_ssl: bool = True
 ) -> str | None:
     """Validate Sber MQTT credentials by attempting a connection.
 
+    The SSL context is created in an executor thread because
+    ``ssl.create_default_context()`` performs blocking I/O (loads CA certs).
+
     Args:
+        hass: Home Assistant instance (used for executor offloading).
         login: Sber MQTT login.
         password: Sber MQTT password.
         broker: MQTT broker hostname.
@@ -84,7 +88,7 @@ async def _validate_sber_connection(
     try:
         import aiomqtt
 
-        ssl_context = create_ssl_context(verify=verify_ssl)
+        ssl_context = await hass.async_add_executor_job(create_ssl_context, verify_ssl)
 
         async with aiomqtt.Client(
             hostname=broker,
@@ -126,6 +130,7 @@ class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             error = await _validate_sber_connection(
+                self.hass,
                 user_input[CONF_SBER_LOGIN],
                 user_input[CONF_SBER_PASSWORD],
                 user_input[CONF_SBER_BROKER],
@@ -165,6 +170,7 @@ class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             reauth_entry = self._get_reauth_entry()
             error = await _validate_sber_connection(
+                self.hass,
                 reauth_entry.data[CONF_SBER_LOGIN],
                 user_input[CONF_SBER_PASSWORD],
                 reauth_entry.data[CONF_SBER_BROKER],

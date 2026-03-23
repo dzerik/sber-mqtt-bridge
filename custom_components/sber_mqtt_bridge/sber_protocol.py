@@ -135,7 +135,7 @@ def parse_sber_command(payload: bytes | str) -> dict[str, Any]:
     try:
         return json.loads(payload)
     except (json.JSONDecodeError, TypeError):
-        _LOGGER.exception("Failed to parse Sber command payload")
+        _LOGGER.warning("Failed to parse Sber command payload: %s", payload[:200] if isinstance(payload, (str, bytes)) else payload)
         return {"devices": {}}
 
 

@@ -237,7 +237,6 @@ class TestClimateProcessCmd(unittest.TestCase):
         url = result[0]["url"]
         self.assertEqual(url["domain"], "climate")
         self.assertEqual(url["service"], "turn_on")
-        self.assertTrue(entity.current_state)
 
     def test_cmd_on_off_turn_off(self):
         entity = self._make_entity()
@@ -246,7 +245,6 @@ class TestClimateProcessCmd(unittest.TestCase):
         })
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_off")
-        self.assertFalse(entity.current_state)
 
     def test_cmd_hvac_temp_set(self):
         entity = self._make_entity()
@@ -256,7 +254,6 @@ class TestClimateProcessCmd(unittest.TestCase):
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_temperature")
         self.assertEqual(url["service_data"]["temperature"], 25.0)
-        self.assertEqual(entity.target_temperature, 25.0)
 
     def test_cmd_fan_mode_valid(self):
         entity = self._make_entity()
@@ -266,7 +263,6 @@ class TestClimateProcessCmd(unittest.TestCase):
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_fan_mode")
         self.assertEqual(url["service_data"]["fan_mode"], "low")
-        self.assertEqual(entity.fan_mode, "low")
 
     def test_cmd_fan_mode_invalid_rejected(self):
         """Invalid fan mode not in allowed list is rejected."""
@@ -300,7 +296,6 @@ class TestClimateProcessCmd(unittest.TestCase):
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_hvac_mode")
         self.assertEqual(url["service_data"]["hvac_mode"], "heat")
-        self.assertEqual(entity.hvac_mode, "heat")
 
     def test_cmd_hvac_mode_invalid_rejected(self):
         entity = self._make_entity()

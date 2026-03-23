@@ -33,3 +33,4 @@ mqtt_sber_gate/tests/data/devices/lights/Color_Tuning/*
 /.serena/
 /.idea/
 /docs/audit/
+/mqtt_sber_gate/

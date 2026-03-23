@@ -103,12 +103,16 @@ class LightEntity(BaseEntity):
         return allowed_values
 
     def to_sber_state(self):  # Really it is to_sber_entity
-        """Формирует состояние для Сбер"""
+        """Build full Sber device descriptor including allowed values.
+
+        Features are already populated by ``super().to_sber_state()``.
+        Only adds ``allowed_values`` on top.
+        """
         res = super().to_sber_state()
         if res is None:
             return None
 
-        res["model"] |= {"features": self.create_features_list(), "allowed_values": self.create_allowed_values_list()}
+        res["model"]["allowed_values"] = self.create_allowed_values_list()
 
         return res
 
@@ -196,7 +200,7 @@ class LightEntity(BaseEntity):
                 sber_br_value = int(cmd_value.get("integer_value", 50))
                 ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
 
-                brightness = max(50, min(int(ha_br_value), 255))
+                brightness = max(0, min(int(ha_br_value), 255))
                 if self.current_state:
                     processing_result.append(
                         {
