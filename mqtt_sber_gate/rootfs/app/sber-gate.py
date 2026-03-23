@@ -90,127 +90,6 @@ def options_change(k,v):
       logger.info('В настройках изменился параметр: '+k+' с '+str(t)+' на '+str(v)+' (обновляю и сохраняю).')
       json_write(fOptions,Options)
 
-def post_command_to_ha(entity_id, url, payload):
-   logger.info('HA REST API REQUEST: '+ url)
-   hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
-   logger.debug("Headers: '"+str(hds)+"'")
-   logger.debug("Payload: "+str(payload))
-   full_url = Options['ha-api_url']+url
-   logger.debug("Url: "+full_url)
-   return requests.post(full_url, json=payload, headers=hds)
-
-
-def ha_OnOff(id):
-   OnOff = DevicesDB.get_state(id,'on_off')
-   entity_domain,entity_name=id.split('.',1)
-   logger.info('Отправляем команду в HA для '+id+' ON: '+str(OnOff))
-   # url=Options['ha-api_url']+'/api/services/'+entity_domain+'/'
-   url='/api/services/'+entity_domain+'/'
-   if entity_domain == 'button':
-      url += 'press'
-   else:
-      if OnOff:
-         url += 'turn_on'
-      else:
-         url += 'turn_off'
-   logger.info('HA REST API REQUEST: '+ url)
-   post_command_to_ha(id, url, {"entity_id": id})
-   # hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
-   # response=requests.post(url, json={"entity_id": id}, headers=hds)
-#   print(response)
-
-def ha_climate(id,changes):
-   hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
-   entity_domain,entity_name=id.split('.',1)
-   logger.info('Отправляем команду в HA для '+id+' Climate: ')
-#   if changes.get('hvac_temp_set',False):
-   url=Options['ha-api_url']+'/api/services/'+entity_domain+'/set_temperature'
-   logger.info('HA REST API REQUEST: '+ url)
-   if DevicesDB.get_state(id,'on_off'):
-      payload = {"entity_id": id, "temperature": DevicesDB.get_state(id,'hvac_temp_set'), "hvac_mode": "cool"}
-   else:
-      payload = {"entity_id": id, "temperature": DevicesDB.get_state(id,'hvac_temp_set'), "hvac_mode": "off"}
-   response=requests.post(url, json=payload, headers=hds)
-
-def ha_switch(id,OnOff):
-#   if DevicesDB.DB[id].get('entity_ha',False):
-   logger.info('Отправляем команду в HA для '+id+' ON: '+str(OnOff))
-   if OnOff:
-      url=Options['ha-api_url']+'/api/services/switch/turn_on'
-   else:
-      url=Options['ha-api_url']+'/api/services/switch/turn_off'
-   hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
-   response=requests.post(url, json={"entity_id": id}, headers=hds)
-#   if response.status_code == 200:
-#      logger.info(response.text)
-#   else:
-#      logger.info(response.status_code)
-
-def ha_script(id,OnOff):
-   logger.info('Отправляем команду в HA для '+id+' ON: '+str(OnOff))
-   if OnOff:
-      url=Options['ha-api_url']+'/api/services/script/turn_on'
-   else:
-      url=Options['ha-api_url']+'/api/services/script/turn_off'
-   hds = {'Authorization': 'Bearer '+Options['ha-api_token'], 'content-type': 'application/json'}
-   response=requests.post(url, json={"entity_id": id}, headers=hds)
-
-   def DeviceStates_mqttSber(self,id):
-      d=self.DB.get(id,None)
-#      logger.info(d)
-      r=[]
-      if (d is None):
-         logger.info('Запрошен несуществующий объект: '+id)
-         return r
-      s=d.get('States',None)
-      if (s is None):
-         logger.info('У объекта: '+id+'отсутствует информация о состояниях')
-         return r
-      if d['category'] == 'relay':
-         v=s.get('on_off',False)
-         r.append({'key':'online','value':{"type": "BOOL", "bool_value": True}})
-         r.append({'key':'on_off','value':{"type": "BOOL", "bool_value": v}})
-      if d['category'] == 'sensor_temp':
-         v=round(s.get('temperature',0)*10)
-         r.append({'key':'online','value':{"type": "BOOL", "bool_value": True}})
-         r.append({'key':'temperature','value':{"type": "INTEGER", "integer_value": v}})
-
-      if d['category'] == 'scenario_button':
-         v=s.get('button_event','click')
-         r.append({'key':'online','value':{"type": "BOOL", "bool_value": True}})
-         r.append({'key':'button_event','value':{"type": "ENUM", "enum_value": v}})
-
-      if d['category'] == 'hvac_ac':
-         v=round(s.get('temperature',20)*10)
-         vv=round(s.get('hvac_temp_set',20)*10)
-         r.append({'key':'online','value':{"type": "BOOL", "bool_value": True}})
-         r.append({'key':'on_off','value':{"type": "BOOL", "bool_value": True}})
-         r.append({'key':'temperature','value':{"type": "INTEGER", "integer_value": v}})
-         r.append({'key':'hvac_temp_set','value':{"type": "INTEGER", "integer_value": vv}})
-
-      if d['category'] == 'hvac_radiator':
-#         logger.info('hvac')
-         v=round(s.get('temperature',0)*10)
-         r.append({'key':'online','value':{"type": "BOOL", "bool_value": True}})
-         r.append({'key':'on_off','value':{"type": "BOOL", "bool_value": True}})
-         r.append({'key':'temperature','value':{"type": "INTEGER", "integer_value": v}})
-         r.append({'key':'hvac_temp_set','value':{"type": "INTEGER", "integer_value": 30}})
-#         logger.info(r)
-
-
-
-#      for k,v in s.items():
-#         logger.info(k)
-#         if (isinstance(v,bool)):
-#            o={'key':k,'value':{"type": "BOOL", "bool_value": v}}
-#         elif (isinstance(v, int)):
-#            o={'key':k,'value':{"type": "INTEGER", "integer_value": v}}
-#         else:
-#            logger.info(v)
-#            o={'key':k,'value':{"type": "BOOL", "bool_value": False}}
-#         r.append(o)
-      return r
-
 #-------------------------------------------------
 def on_connect_local(mqttc, obj, flags, rc):
    logger.info("HA Connect Local Broker, rc: " + str(rc))
@@ -280,39 +159,15 @@ def on_message_cmd(mqttc, obj, msg):
    logger.info("(on_message_cmd) Sber MQTT Command: " + str(data))
    for id,cmd_data in data['devices'].items():
       entity = DevicesDB.entities_store.get(id)
-      if (entity is None):
-         changes={}
-         for k in cmd_data['states']:
-            type=k['value'].get('type','')
-            val=''
-            if type == 'BOOL':
-               val=k['value'].get('bool_value',False)
-            if type == 'INTEGER':
-               val=k['value'].get('integer_value',0)
-            if type == 'ENUM':
-               val=k['value'].get('enum_value','')
-
-            if DevicesDB.DB[id].get(k['key'],None) == val:
-               changes[k['key']] = False
-            else:
-               changes[k['key']] = True
-
-            DevicesDB.change_state(id,k['key'],val)
-
-         if DevicesDB.DB[id].get('entity_type',None) == 'climate':
-            ha_climate(id,changes)
-         else:
-            if DevicesDB.DB[id].get('entity_ha',False):
-               ha_OnOff(id)
-            else:
-               logger.info('Объект отсутствует в HA: ' + id)
-      else:
-         logger.info("(on_message_cmd)Изменяем состояние объекта: " + id)
-         processing_result = entity.process_cmd(cmd_data)
-         for payload in processing_result:
-            command_to_send = payload.get("url", None)
-            if command_to_send is not None:
-               ws_server.send_command(command_to_send)
+      if entity is None:
+         logger.warning(f'(on_message_cmd) Неизвестная сущность: {id}')
+         continue
+      logger.info(f"(on_message_cmd) Изменяем состояние объекта: {id}")
+      processing_result = entity.process_cmd(cmd_data)
+      for payload in processing_result:
+         command_to_send = payload.get("url", None)
+         if command_to_send is not None:
+            ws_server.send_command(command_to_send)
 
 def on_message_stat(mqttc, obj, msg):
    try:

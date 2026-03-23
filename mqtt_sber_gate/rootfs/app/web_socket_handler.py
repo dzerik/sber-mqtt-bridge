@@ -187,62 +187,27 @@ class WebSocketHandler:
         if entity_id is None or new_state is None:
             logger.info(f"Either entity_id or new_state is None. entity_id: {entity_id}, new_state: {new_state}. Skipping.")
             return
-        
+
         entity = self.devices_db.entities_store.get(entity_id)
         if entity:
             entity.process_state_change(old_state, new_state)
             logger.info(f"(_process_event) Publishing device {entity_id}")
-            sber_root_topic = self.sber_root_topic 
             assert self.mqttc is not None, "MQTT client is not initialized"
-            self.mqttc.publish(sber_root_topic+'/up/status', self.devices_db.do_mqtt_json_states_list([entity_id]), qos=0)
+            self.mqttc.publish(self.sber_root_topic+'/up/status', self.devices_db.do_mqtt_json_states_list([entity_id]), qos=0)
         else:
-            self.handle_event_new(entity_id, old_state, new_state)
-            # logger.debug(f"Process event: entity {entity_id} not found")
+            logger.debug(f"Process event: entity {entity_id} not found in EntitiesStore")
 
-#    async def handle_event(self, data):
     def handle_event(self, data):
         """Handle state change events"""
         event_data = data['event']['data']
         new_state = event_data['new_state']
         old_state = event_data['old_state']
-        
+
         if not new_state or not old_state:
             return
-            
-        entity_id = new_state['entity_id']
-        self.handle_event_new(entity_id, old_state, new_state)
 
-    def handle_event_new(self, entity_id, old_state, new_state):
-        dev = self.devices_db.DB.get(entity_id)
-        
-        if not dev or not dev.get('enabled'):
-            return
-            
-        logger.info(f'HA Event: {entity_id}: {old_state["state"]} -> {new_state["state"]}')
-        
-        if dev['category'] == 'sensor_temp':
-            self.devices_db.change_state(entity_id, 'temperature', float(new_state['state']))
-        elif new_state['state'] == 'on':
-            self.devices_db.change_state(entity_id, 'on_off', True)
-            if 'button_event' in dev.get('States', {}):
-                self.devices_db.change_state(entity_id, 'button_event', 'click')
-        else:
-            if dev.get('entity_type') == 'climate':
-                if new_state['state'] == 'off':
-                    self.devices_db.change_state(entity_id, 'on_off', False)
-                else:
-                    self.devices_db.change_state(entity_id, 'on_off', True)
-            else:
-                self.devices_db.change_state(entity_id, 'on_off', False)
-                if 'button_event' in dev.get('States', {}):
-                    self.devices_db.change_state(entity_id, 'button_event', 'double_click')
-                    
-        # Send updated states
-        sber_root_topic = self.sber_root_topic 
-        # Async publishing here leads to hang all processes. So remain sync publishing here.
-        self.mqttc.publish(sber_root_topic+'/up/status', 
-                     self.devices_db.do_mqtt_json_states_list([entity_id]), 
-                     qos=0)
+        entity_id = new_state['entity_id']
+        self._process_event(entity_id, old_state, new_state)
 
     def handle_pong(self, data):
         """Handle ping message response. Just ignoring"""
