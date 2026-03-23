@@ -3,7 +3,7 @@
   dict({
     'devices': list([
       dict({
-        'hw_version': '1.5.0',
+        'hw_version': '1.5.1',
         'id': 'root',
         'model': dict({
           'category': 'hub',
@@ -16,7 +16,7 @@
           'model': 'VHub',
         }),
         'name': 'Home Assistant Bridge',
-        'sw_version': '1.5.0',
+        'sw_version': '1.5.1',
       }),
       dict({
         'default_name': 'switch.lamp',
@@ -33,7 +33,6 @@
           'manufacturer': 'Unknown',
           'model': 'Unknown',
         }),
-        'model_id': '',
         'name': 'Lamp',
         'room': 'room1',
         'sw_version': 'Unknown',
@@ -45,7 +44,7 @@
   dict({
     'devices': list([
       dict({
-        'hw_version': '1.5.0',
+        'hw_version': '1.5.1',
         'id': 'root',
         'model': dict({
           'category': 'hub',
@@ -58,7 +57,7 @@
           'model': 'VHub',
         }),
         'name': 'Home Assistant Bridge',
-        'sw_version': '1.5.0',
+        'sw_version': '1.5.1',
       }),
       dict({
         'default_name': 'switch.lamp',
@@ -76,7 +75,6 @@
           'manufacturer': 'Unknown',
           'model': 'Unknown',
         }),
-        'model_id': '',
         'name': 'New Lamp',
         'room': 'Kitchen',
         'sw_version': 'Unknown',

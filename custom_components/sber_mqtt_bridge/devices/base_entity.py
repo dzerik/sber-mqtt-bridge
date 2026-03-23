@@ -181,7 +181,6 @@ class BaseEntity(ABC):
                 },
                 "hw_version": "Unknown",
                 "sw_version": "Unknown",
-                "model_id": "",
             }
         else:
             if self.linked_device is None:

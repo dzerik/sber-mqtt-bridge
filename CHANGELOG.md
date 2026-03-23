@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-03-24
+
+### Fixed
+- **Climate hvac_work_mode mapping**: HA modes now mapped to Sber values (`cool`→`cooling`, `heat`→`heating`, `fan_only`→`ventilation`, `dry`→`dehumidification`, `heat_cool`→`auto`). Mode `off` excluded from work modes (handled by `on_off`)
+- **Climate swing_mode mapping**: HA swing modes mapped to Sber values (`off`→`no`, `both`→`rotation`)
+- **Bidirectional mode mapping**: Sber commands correctly reverse-mapped back to HA modes
+- **sber_name override for linked devices**: fixed name not applying when device has registry entry
+
 ## [1.5.1] - 2026-03-24
 
 ### Fixed
