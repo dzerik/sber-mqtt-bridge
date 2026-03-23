@@ -146,7 +146,7 @@ class HumidifierEntity(BaseEntity):
                             "type": "call_service",
                             "domain": "humidifier",
                             "service": "set_humidity",
-                            "service_data": {"humidity": int(humidity)},
+                            "service_data": {"humidity": round(humidity)},
                             "target": {"entity_id": self.entity_id},
                         }
                     }

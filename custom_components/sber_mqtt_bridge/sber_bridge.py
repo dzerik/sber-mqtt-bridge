@@ -208,6 +208,12 @@ class SberBridge:
         """Stop the bridge: disconnect MQTT, unsubscribe from HA events."""
         self._running = False
 
+        # Cancel pending debounced publish
+        if self._publish_timer is not None:
+            self._publish_timer.cancel()
+            self._publish_timer = None
+        self._pending_publish_ids.clear()
+
         for unsub in self._unsub_state_listeners:
             unsub()
         self._unsub_state_listeners.clear()
@@ -530,14 +536,17 @@ class SberBridge:
         except json.JSONDecodeError:
             return
 
-        device_id = data.get("device_id")
-        if device_id:
-            self._redefinitions[device_id] = {
+        # NOTE: Sber's "device_id" is the value we published as "id" in to_sber_state,
+        # which is entity_id (e.g. "light.living_room"). The variable name is misleading
+        # but matches the Sber protocol field name.
+        entity_id = data.get("device_id")
+        if entity_id:
+            self._redefinitions[entity_id] = {
                 "home": data.get("home"),
                 "room": data.get("room"),
             }
-            _LOGGER.info("Sber group change: %s → room=%s", device_id, data.get("room"))
-            await self._publish_config(entity_ids=[device_id])
+            _LOGGER.info("Sber group change: %s → room=%s", entity_id, data.get("room"))
+            await self._publish_config(entity_ids=[entity_id])
 
     async def _handle_rename_device(self, payload: bytes) -> None:
         """Handle device rename from Sber."""
@@ -546,13 +555,14 @@ class SberBridge:
         except json.JSONDecodeError:
             return
 
-        device_id = data.get("device_id")
+        # See _handle_change_group for device_id vs entity_id note.
+        entity_id = data.get("device_id")
         new_name = data.get("new_name")
-        if device_id and new_name:
-            redef = self._redefinitions.setdefault(device_id, {})
+        if entity_id and new_name:
+            redef = self._redefinitions.setdefault(entity_id, {})
             redef["name"] = new_name
-            _LOGGER.info("Sber rename: %s → %s", device_id, new_name)
-            await self._publish_config(entity_ids=[device_id])
+            _LOGGER.info("Sber rename: %s → %s", entity_id, new_name)
+            await self._publish_config(entity_ids=[entity_id])
 
     def _handle_global_config(self, payload: bytes) -> None:
         """Handle global config from Sber (http_api_endpoint)."""
