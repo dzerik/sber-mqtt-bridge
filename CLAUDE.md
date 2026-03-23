@@ -94,16 +94,28 @@ tests/hacs/            — Тесты HACS integration
 
 Все файлы должны начинаться с `from __future__ import annotations`.
 
-## Git Versioning
+## Версионирование (ОБЯЗАТЕЛЬНО!)
 
 ### Формат версии
 - Semantic Versioning: `MAJOR.MINOR.PATCH`
-- Версия в `custom_components/sber_mqtt_bridge/manifest.json` (поле `"version"`)
+- **ЕДИНАЯ версия** во всех местах:
+  - `custom_components/sber_mqtt_bridge/manifest.json` (поле `"version"`)
+  - `custom_components/sber_mqtt_bridge/sber_protocol.py` (константа `VERSION`)
+  - `pyproject.toml` (поле `version`)
+  - `CHANGELOG.md` (запись для версии)
 
 ### Процесс при коммите
 1. Определи уровень изменений (patch/minor/major)
-2. Обнови `"version"` в `manifest.json`
-3. Включи изменение версии в коммит
+2. Обнови **ВСЕ 4 места** с версией
+3. Обнови `CHANGELOG.md` — добавь запись в `[Unreleased]` или создай новую секцию
+4. Включи изменения версии в коммит
+
+### CHANGELOG.md (ОБЯЗАТЕЛЬНО!)
+- Формат: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+- Категории: `Added`, `Changed`, `Fixed`, `Removed`, `Deprecated`, `Security`
+- Каждый релиз: дата + версия
+- Секция `[Unreleased]` для текущей разработки
+- Обновлять при **КАЖДОМ** значимом коммите
 
 ### Уровни версий
 - **PATCH**: баг-фиксы, рефакторинг, мелкие улучшения
