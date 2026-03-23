@@ -45,7 +45,7 @@ rules:
   parallel-updates:
     status: exempt
     comment: Push-based, not polling
-  reauthentication-flow: todo
+  reauthentication-flow: done
   test-coverage: todo
 
   # Gold (future)

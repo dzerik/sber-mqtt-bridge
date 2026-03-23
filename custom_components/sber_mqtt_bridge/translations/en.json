@@ -1,6 +1,13 @@
 {
   "config": {
     "step": {
+      "reauth_confirm": {
+        "title": "Re-authenticate Sber MQTT Bridge",
+        "description": "Please enter the new MQTT password.",
+        "data": {
+          "sber_password": "New MQTT Password"
+        }
+      },
       "user": {
         "title": "Sber Smart Home MQTT Bridge",
         "description": "Enter your Sber Smart Home MQTT credentials.",
@@ -26,7 +33,8 @@
       "unknown": "Unexpected error"
     },
     "abort": {
-      "already_configured": "This Sber account is already configured"
+      "already_configured": "This Sber account is already configured",
+      "reauth_successful": "Re-authentication successful"
     }
   },
   "options": {

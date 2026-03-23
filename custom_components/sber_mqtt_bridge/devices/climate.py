@@ -72,7 +72,7 @@ class ClimateEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = super().create_features_list() + ["on_off", "temperature", "hvac_temp_set"]
+        features = [*super().create_features_list(), "on_off", "temperature", "hvac_temp_set"]
         if self.swing_modes:
             features.append("hvac_air_flow_direction")
         if self.fan_modes:

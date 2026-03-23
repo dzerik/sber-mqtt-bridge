@@ -44,7 +44,7 @@ class DoorSensorEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        return super().create_features_list() + ["doorcontact_state"]
+        return [*super().create_features_list(), "doorcontact_state"]
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with online and doorcontact_state.

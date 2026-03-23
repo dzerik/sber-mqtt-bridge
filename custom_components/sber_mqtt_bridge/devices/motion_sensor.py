@@ -43,7 +43,7 @@ class MotionSensorEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        return super().create_features_list() + ["pir"]
+        return [*super().create_features_list(), "pir"]
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with online and pir keys.

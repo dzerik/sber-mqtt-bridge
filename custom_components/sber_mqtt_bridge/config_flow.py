@@ -97,7 +97,7 @@ async def _validate_sber_connection(
     except aiomqtt.MqttCodeError as err:
         _LOGGER.error("Sber MQTT auth failed: %s", err)
         return "invalid_auth"
-    except Exception:  # noqa: BLE001
+    except Exception:
         _LOGGER.exception("Cannot connect to Sber MQTT broker")
         return "cannot_connect"
     else:
@@ -147,6 +147,49 @@ class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=self.add_suggested_values_to_schema(
                 USER_DATA_SCHEMA, user_input
             ),
+            errors=errors,
+        )
+
+    async def async_step_reauth(
+        self, entry_data: dict[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle re-authentication when credentials become invalid.
+
+        Args:
+            entry_data: Existing config entry data.
+        """
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show re-authentication form and validate new credentials.
+
+        Args:
+            user_input: New credentials submitted by user, or None to show form.
+        """
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            reauth_entry = self._get_reauth_entry()
+            error = await _validate_sber_connection(
+                reauth_entry.data[CONF_SBER_LOGIN],
+                user_input[CONF_SBER_PASSWORD],
+                reauth_entry.data[CONF_SBER_BROKER],
+                reauth_entry.data[CONF_SBER_PORT],
+                verify_ssl=reauth_entry.data.get(CONF_SBER_VERIFY_SSL, True),
+            )
+            if error:
+                errors["base"] = error
+            else:
+                return self.async_update_reload_and_abort(
+                    reauth_entry,
+                    data={**reauth_entry.data, CONF_SBER_PASSWORD: user_input[CONF_SBER_PASSWORD]},
+                )
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({vol.Required(CONF_SBER_PASSWORD): str}),
             errors=errors,
         )
 

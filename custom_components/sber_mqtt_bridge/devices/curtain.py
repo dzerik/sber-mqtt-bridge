@@ -111,19 +111,18 @@ class CurtainEntity(BaseEntity):
             if key is None:
                 continue
 
-            if key == "open_percentage":
-                if value.get("type") == "INTEGER":
-                    ha_position = int(value.get("integer_value", 0))
-                    ha_position = max(0, min(100, ha_position))
-                    processing_result.append({
-                        "url": {
-                            "type": "call_service",
-                            "domain": "cover",
-                            "service": "set_cover_position",
-                            "service_data": {"position": ha_position},
-                            "target": {"entity_id": self.entity_id}
-                        }
-                    })
+            if key == "open_percentage" and value.get("type") == "INTEGER":
+                ha_position = int(value.get("integer_value", 0))
+                ha_position = max(0, min(100, ha_position))
+                processing_result.append({
+                    "url": {
+                        "type": "call_service",
+                        "domain": "cover",
+                        "service": "set_cover_position",
+                        "service_data": {"position": ha_position},
+                        "target": {"entity_id": self.entity_id}
+                    }
+                })
                     # self.current_position = ha_position
 
             if key == "cover_position":

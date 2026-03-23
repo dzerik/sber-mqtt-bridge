@@ -43,7 +43,7 @@ class RelayEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        return super().create_features_list() + ["on_off"]
+        return [*super().create_features_list(), "on_off"]
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with online and on_off keys.
@@ -80,10 +80,7 @@ class RelayEntity(BaseEntity):
                 self.current_state = on
                 domain = self.entity_id.split(".")[0]
 
-                if domain == "button":
-                    service = "press"
-                else:
-                    service = "turn_on" if on else "turn_off"
+                service = "press" if domain == "button" else "turn_on" if on else "turn_off"
 
                 results.append({"url": {
                     "type": "call_service",

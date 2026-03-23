@@ -1,6 +1,13 @@
 {
   "config": {
     "step": {
+      "reauth_confirm": {
+        "title": "Повторная аутентификация Sber MQTT Bridge",
+        "description": "Введите новый пароль MQTT.",
+        "data": {
+          "sber_password": "Новый MQTT пароль"
+        }
+      },
       "user": {
         "title": "Sber Smart Home MQTT Bridge",
         "description": "Введите данные MQTT интеграции Sber Smart Home.",
@@ -26,7 +33,8 @@
       "unknown": "Непредвиденная ошибка"
     },
     "abort": {
-      "already_configured": "Этот аккаунт Sber уже настроен"
+      "already_configured": "Этот аккаунт Sber уже настроен",
+      "reauth_successful": "Повторная аутентификация выполнена успешно"
     }
   },
   "options": {
