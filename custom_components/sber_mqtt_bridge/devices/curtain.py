@@ -1,37 +1,60 @@
+"""Sber Curtain entity -- maps HA cover entities to Sber curtain category."""
+
+from __future__ import annotations
+
 import logging
 
 from .base_entity import BaseEntity
 
 CURTAIN_ENTITY_CATEGORY = "curtain"
+"""Sber device category for curtain/cover entities."""
+
 logger = logging.getLogger(__name__)
 
+
 class CurtainEntity(BaseEntity):
-    """Класс для управления шторами с поддержкой батареи и статуса открытия"""
-    current_position : int = 0  # Текущая позиция (0-100%)
-    min_position: int = 0   # Минимальная позиция (0-100%)
-    max_position: int = 100  # Максимальная позиция (0-100%)
-    battery_level: int = 0  # Уровень заряда (0-100%)
+    """Sber curtain entity for cover control with position support.
+
+    Maps HA cover entities to the Sber 'curtain' category with support for:
+    - Position control (0-100%)
+    - Open/close/stop commands
+    - Open state reporting
+    """
+
+    current_position: int = 0
+    """Current cover position (0-100%)."""
+
+    min_position: int = 0
+    """Minimum allowed position (0-100%)."""
+
+    max_position: int = 100
+    """Maximum allowed position (0-100%)."""
+
+    battery_level: int = 0
+    """Battery level percentage (0-100%)."""
+
     # _supported_features = []
 
-    def __init__(self, entity_data: dict):
-        super().__init__(CURTAIN_ENTITY_CATEGORY, entity_data)
-        """
-        Инициализация устройства
+    def __init__(self, entity_data: dict) -> None:
+        """Initialize curtain entity.
 
         Args:
-            entity_data (dict): Данные из Home Assistant
+            entity_data: HA entity registry dict containing entity metadata.
         """
+        super().__init__(CURTAIN_ENTITY_CATEGORY, entity_data)
         self.current_position = 0  # Текущая позиция (0-100%)
         self._battery_level = 100  # Уровень заряда (0-100%)
 
         # self._supported_features = entity_data.get("supported_features", 0)
 
-    def fill_by_ha_state(self, ha_state):
-        """
-        Обновление состояния из данных Home Assistant
+    def fill_by_ha_state(self, ha_state: dict) -> None:
+        """Update state from Home Assistant data.
+
+        Reads ``current_position`` from attributes; falls back to 100
+        if state is 'opened', otherwise 0.
 
         Args:
-            ha_state (dict): Состояние из Home Assistant
+            ha_state: HA state dict with 'state' and 'attributes' keys.
         """
         super().fill_by_ha_state(ha_state)
 
@@ -52,19 +75,32 @@ class CurtainEntity(BaseEntity):
         #             f"открыто={self._is_open}, позиция={self._position}%, "
         #             f"батарея={self._battery_level}%")
 
-    def _convert_position(self, ha_position):
-        """Конвертация позиции из Home Assistant (0-100) в Sber (0-100)"""
-        return int(ha_position)
+    def _convert_position(self, ha_position: int) -> int:
+        """Convert HA position (0-100) to Sber position (0-100).
 
-    def process_cmd(self, cmd_data):
-        """
-        Обработка команд от Sber
+        Currently a 1:1 mapping; override in subclasses if needed.
 
         Args:
-            cmd_data (dict): Команды в формате Sber
+            ha_position: Position value from Home Assistant.
 
         Returns:
-            list: Список команд для отправки в Home Assistant
+            Position value for Sber protocol.
+        """
+        return int(ha_position)
+
+    def process_cmd(self, cmd_data: dict) -> list[dict]:
+        """Process Sber curtain commands and produce HA service calls.
+
+        Handles the following Sber keys:
+        - ``open_percentage``: set_cover_position (INTEGER 0-100)
+        - ``cover_position``: set_cover_position (INTEGER 0-100)
+        - ``open_set``: open_cover / close_cover / stop_cover (ENUM)
+
+        Args:
+            cmd_data: Sber command dict with 'states' list.
+
+        Returns:
+            List of HA service call dicts to execute.
         """
         processing_result = []
 
@@ -148,8 +184,14 @@ class CurtainEntity(BaseEntity):
 
         return processing_result
 
-    def create_features_list(self):
-        """Формирует список возможных функций"""
+    def create_features_list(self) -> list[str]:
+        """Return Sber feature list for curtain capabilities.
+
+        Includes open_percentage, open_set, and open_state features.
+
+        Returns:
+            List of Sber feature strings supported by this entity.
+        """
         features = super().create_features_list() # Когда вызывается 'тот метод?'
         features += [
             "open_percentage"
@@ -160,11 +202,23 @@ class CurtainEntity(BaseEntity):
         return features
 
 
-    def to_sber_state(self):
+    def to_sber_state(self) -> dict:
+        """Build full Sber device descriptor for curtain.
+
+        Returns:
+            Sber device descriptor dict.
+        """
         return super().to_sber_state()
 
-    def to_sber_current_state(self):
-        """Формирование текущего состояния для отправки в Sber"""
+    def to_sber_current_state(self) -> dict[str, dict] | None:
+        """Build Sber current state payload with position and open state.
+
+        Returns None if the entity is unavailable.
+
+        Returns:
+            Dict mapping entity_id to its Sber state representation,
+            or None if entity is unavailable.
+        """
         states = []
         if self.state == "unavailable":
             states.append(
@@ -203,5 +257,11 @@ class CurtainEntity(BaseEntity):
 
         return {self.entity_id: {"states": states}}
 
-    def process_state_change(self, old_state, new_state):
+    def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
+        """Handle HA state change event by refreshing internal state.
+
+        Args:
+            old_state: Previous HA state dict (unused).
+            new_state: New HA state dict to apply.
+        """
         self.fill_by_ha_state(new_state)

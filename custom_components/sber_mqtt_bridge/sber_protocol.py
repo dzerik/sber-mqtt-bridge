@@ -15,6 +15,7 @@ from .devices.base_entity import BaseEntity
 _LOGGER = logging.getLogger(__name__)
 
 VERSION = "0.1.0"
+"""Protocol version string included in the hub device descriptor."""
 
 
 def build_hub_device(version: str = VERSION) -> dict:
@@ -43,9 +44,12 @@ def build_devices_list_json(
     """Build Sber device config JSON for MQTT publish.
 
     Args:
-        entities: Dict of entity_id -> BaseEntity instances
-        enabled_entity_ids: List of entity_ids to include
-        redefinitions: Optional dict of entity_id -> {home, room, name} overrides
+        entities: Dict of entity_id -> BaseEntity instances.
+        enabled_entity_ids: List of entity_ids to include.
+        redefinitions: Optional dict of entity_id -> {home, room, name} overrides.
+
+    Returns:
+        JSON string with the Sber device list payload.
     """
     device_list: dict[str, Any] = {"devices": [build_hub_device()]}
 
@@ -86,9 +90,12 @@ def build_states_list_json(
     """Build Sber state list JSON for MQTT publish.
 
     Args:
-        entities: Dict of entity_id -> BaseEntity instances
-        entity_ids: Specific entity_ids to include (None = all enabled)
-        enabled_entity_ids: List of enabled entity_ids (used when entity_ids is None)
+        entities: Dict of entity_id -> BaseEntity instances.
+        entity_ids: Specific entity_ids to include (None = all enabled).
+        enabled_entity_ids: List of enabled entity_ids (used when entity_ids is None).
+
+    Returns:
+        JSON string with the Sber states payload.
     """
     states: dict[str, Any] = {"devices": {}}
 

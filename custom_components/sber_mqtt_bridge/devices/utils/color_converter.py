@@ -1,11 +1,42 @@
+"""Color conversion utilities between Home Assistant and Sber HSV color spaces."""
+
+from __future__ import annotations
+
+
 class ColorConverter:
+    """Bidirectional HSV color converter between HA and Sber color spaces.
+
+    HA uses:
+    - Hue: 0-360 degrees
+    - Saturation: 0-100%
+    - Brightness (Value): 0-255
+
+    Sber uses:
+    - Hue: 0-360 degrees
+    - Saturation: 0-1000
+    - Value: 100-1000
+    """
+
     @staticmethod
-    def ha_to_sber_hsv(ha_hue, ha_saturation, ha_brightness):
-        """
-        Конвертирует цвет из HA (HS/RGB) в HSV для Sber:
-        - H: 0–360 → 0–360
-        - S: 0–100% → 0–1000
-        - V: 0–255 → 100–1000
+    def ha_to_sber_hsv(
+        ha_hue: float | None,
+        ha_saturation: float | None,
+        ha_brightness: float | None,
+    ) -> tuple[int, int, int]:
+        """Convert HA HSV color values to Sber HSV format.
+
+        Conversion rules:
+        - H: 0-360 -> 0-360 (no change)
+        - S: 0-100% -> 0-1000 (multiply by 10)
+        - V: 0-255 -> 100-1000 (linear mapping)
+
+        Args:
+            ha_hue: Hue in degrees (0-360), or None for default 0.
+            ha_saturation: Saturation percentage (0-100), or None for default 0.
+            ha_brightness: Brightness value (0-255), or None for default 0.
+
+        Returns:
+            Tuple of (sber_hue, sber_saturation, sber_value) as integers.
         """
         # Нормализация значений HA
         ha_hue = max(0, min(360, ha_hue if ha_hue is not None else 0))         # H: 0–360
@@ -21,12 +52,25 @@ class ColorConverter:
 
 
     @staticmethod
-    def sber_to_ha_hsv(sber_hue, sber_saturation, sber_value):
-        """
-        Конвертирует HSV от Sber (0–360, 0–1000, 100–1000) в HA (HS/RGB):
-        - H: 0–360 → 0–360
-        - S: 0–1000 → 0–100%
-        - V: 100–1000 → 0–255
+    def sber_to_ha_hsv(
+        sber_hue: float | None,
+        sber_saturation: float | None,
+        sber_value: float | None,
+    ) -> tuple[int, int, int]:
+        """Convert Sber HSV color values to HA HSV format.
+
+        Conversion rules:
+        - H: 0-360 -> 0-360 (no change)
+        - S: 0-1000 -> 0-100% (divide by 10)
+        - V: 100-1000 -> 0-255 (linear mapping)
+
+        Args:
+            sber_hue: Hue in degrees (0-360), or None for default 0.
+            sber_saturation: Saturation (0-1000), or None for default 0.
+            sber_value: Value/brightness (100-1000), or None for default 0.
+
+        Returns:
+            Tuple of (ha_hue, ha_saturation, ha_brightness) as integers.
         """
         # Нормализация значений Sber
         sber_hue = max(0, min(360, sber_hue if sber_hue is not None else 0))          # H: 0–360
