@@ -1,5 +1,8 @@
+
 .idea/*
-mqtt_sber_gate/**/__pycache__/*
+__pycache__/
+*.pyc
+.venv/
 *.json.ORIG
 SberGate.log
 .gitignore
@@ -19,3 +22,7 @@ mqtt_sber_gate/rootfs/app/new_devices_list.json
 mqtt_sber_gate/rootfs/app/sber-gate.py
 mqtt_sber_gate/rootfs/app/Request.sh
 mqtt_sber_gate/tests/data/devices/lights/Color_Tuning/*
+/.mcp.json
+/.serena/
+/.idea/
+/docs/audit/
