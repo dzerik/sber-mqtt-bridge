@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-23
+
+### Added
+- Bulk entity selection in Options Flow: "Add ALL supported entities" one-click
+- Domain-based selection: "Add all by domain" with entity counts per domain
+- Three selection modes: manual, by domain, add all
+
+### Fixed
+- **CRITICAL**: Infinite loop — `change_group_device_request` no longer triggers config re-publish
+- **CRITICAL**: Humidity sensor sent value x10 (550 instead of 55%) — now plain INTEGER(0-100) per Sber docs
+- **CRITICAL**: Batch commands triggered N separate MQTT publishes — now batched into one
+- Curtain `open_state` ENUM reverted to correct `"close"` (not `"closed"`) per Sber protocol
+- TOCTOU race: `AttributeError` caught when `_mqtt_client` becomes None during publish
+- `acknowledged_entities` and `_redefinitions` pruned on entity reload (memory leak fix)
+- Humidifier docstring corrected: "plain percentage" not "divided by 10"
+- HSV color values clamped to min 0 to prevent negative values from Sber
+
 ## [0.3.1] - 2026-03-23
 
 ### Fixed
