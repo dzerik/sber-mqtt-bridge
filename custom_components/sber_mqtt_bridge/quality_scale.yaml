@@ -15,9 +15,9 @@ rules:
   docs-actions:
     status: exempt
     comment: No custom service actions
-  docs-high-level-description: todo
-  docs-installation-instructions: todo
-  docs-removal-instructions: todo
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
   entity-event-setup: done
   entity-unique-id:
     status: exempt
@@ -35,8 +35,8 @@ rules:
     status: exempt
     comment: No custom service actions
   config-entry-unloading: done
-  docs-configuration-parameters: todo
-  docs-installation-parameters: todo
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
   entity-unavailable:
     status: exempt
     comment: Service integration, does not create HA entities
@@ -46,7 +46,9 @@ rules:
     status: exempt
     comment: Push-based, not polling
   reauthentication-flow: done
-  test-coverage: todo
+  test-coverage:
+    status: done
+    comment: 82% coverage, 219 tests (target was 80%)
 
   # Gold (future)
   diagnostics:
