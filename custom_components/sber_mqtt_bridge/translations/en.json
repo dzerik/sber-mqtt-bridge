@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sber Smart Home MQTT Bridge",
+        "description": "Enter your Sber Smart Home MQTT credentials.",
+        "data": {
+          "sber_login": "MQTT Login",
+          "sber_password": "MQTT Password",
+          "sber_broker": "MQTT Broker",
+          "sber_port": "MQTT Port"
+        },
+        "data_description": {
+          "sber_login": "Login from Sber Studio integration project",
+          "sber_password": "Password from Sber Studio integration project",
+          "sber_broker": "Sber MQTT broker address",
+          "sber_port": "Sber MQTT broker port (default: 8883)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Sber MQTT broker",
+      "invalid_auth": "Invalid MQTT credentials",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This Sber account is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sber Bridge Settings",
+        "data": {
+          "exposed_entities": "Entities to expose to Sber"
+        },
+        "data_description": {
+          "exposed_entities": "Select which Home Assistant entities to make available in Sber Smart Home"
+        }
+      }
+    }
+  }
+}
