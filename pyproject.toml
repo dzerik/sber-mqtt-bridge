@@ -1,0 +1,83 @@
+[project]
+name = "sber-mqtt-bridge"
+version = "0.1.0"
+description = "Sber Smart Home MQTT Bridge for Home Assistant"
+requires-python = ">=3.13"
+license = {text = "MIT"}
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "A001",    # variable shadowing builtins
+    "ASYNC",   # flake8-async
+    "B",       # flake8-bugbear
+    "BLE",     # blind-except
+    "E",       # pycodestyle errors
+    "F",       # pyflakes
+    "G",       # flake8-logging-format
+    "I",       # isort
+    "ICN001",  # import conventions
+    "LOG",     # flake8-logging
+    "N804",    # first argument of classmethod
+    "N805",    # first argument of method
+    "PERF",    # perflint
+    "PGH",     # pygrep-hooks
+    "PIE",     # misc lints
+    "PT",      # flake8-pytest-style
+    "RET",     # flake8-return
+    "RSE",     # flake8-raise
+    "RUF",     # ruff-specific rules
+    "S",       # flake8-bandit (security)
+    "SIM",     # flake8-simplify
+    "T20",     # flake8-print
+    "TRY",     # tryceratops
+    "UP",      # pyupgrade
+    "W",       # pycodestyle warnings
+]
+
+ignore = [
+    "E501",     # line too long (handled by formatter)
+    "RUF001",   # ambiguous unicode (Russian text)
+    "RUF002",   # ambiguous unicode docstring
+    "RUF003",   # ambiguous unicode comment
+    "S101",     # assert usage (OK in tests)
+    "TRY003",   # long exception message
+    "TRY400",   # logging.error inside except
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S106"]
+
+[tool.mypy]
+python_version = "3.13"
+show_error_codes = true
+follow_imports = "silent"
+strict_equality = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unused_ignores = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+warn_return_any = true
+disable_error_code = ["import-not-found", "import-untyped"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/hacs"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["custom_components/sber_mqtt_bridge"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
