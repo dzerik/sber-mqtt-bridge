@@ -280,6 +280,9 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
         """Choose entity selection mode."""
         if user_input is not None:
             mode = user_input.get("selection_mode", "manual")
+            if mode == "clear_all":
+                _LOGGER.info("Clearing all exposed entities")
+                return self.async_create_entry(data={CONF_EXPOSED_ENTITIES: []})
             if mode == "add_all":
                 all_ids = _get_entities_by_domains(self.hass, SUPPORTED_DOMAINS)
                 _LOGGER.info("Adding all %d supported entities", len(all_ids))
@@ -298,6 +301,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                                 SelectOptionDict(value="manual", label="Select entities manually"),
                                 SelectOptionDict(value="by_domain", label="Add all entities by domain"),
                                 SelectOptionDict(value="add_all", label="Add ALL supported entities"),
+                                SelectOptionDict(value="clear_all", label="Remove ALL entities"),
                             ],
                             mode=SelectSelectorMode.LIST,
                         )
