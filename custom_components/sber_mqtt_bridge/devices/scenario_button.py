@@ -6,7 +6,7 @@ import logging
 
 from .base_entity import BaseEntity
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 SCENARIO_BUTTON_CATEGORY = "scenario_button"
 """Sber device category for scenario button entities."""

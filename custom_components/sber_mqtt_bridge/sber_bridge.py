@@ -85,9 +85,15 @@ class SberBridge:
         return self._connected
 
     async def async_start(self) -> None:
-        """Start the bridge: load entities, connect MQTT, subscribe to HA events."""
+        """Start the bridge: load entities, subscribe to HA events, connect MQTT.
+
+        HA state events are subscribed immediately (independent of MQTT connectivity)
+        so that no state changes are lost while waiting for the first connection.
+        MQTT connection is established in a background task with exponential backoff.
+        """
         self._running = True
         self._load_exposed_entities()
+        self._subscribe_ha_events()
         self._connection_task = asyncio.create_task(self._mqtt_connection_loop())
 
     async def async_stop(self) -> None:
@@ -218,15 +224,15 @@ class SberBridge:
                     await client.subscribe(f"{self._down_topic}/#")
                     await client.subscribe(SBER_GLOBAL_CONFIG_TOPIC)
 
-                    self._subscribe_ha_events()
-
                     async for message in client.messages:
                         if not self._running:
                             break
                         await self._handle_mqtt_message(str(message.topic), message.payload)
 
             except aiomqtt.MqttError as err:
+                # Atomically mark as disconnected before any await
                 self._connected = False
+                self._mqtt_client = None
                 if not self._running:
                     break
                 _LOGGER.warning(
@@ -240,6 +246,7 @@ class SberBridge:
                 break
             except Exception:
                 self._connected = False
+                self._mqtt_client = None
                 if not self._running:
                     break
                 _LOGGER.exception(

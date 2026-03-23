@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import logging
 
-from .on_off_entity import OnOffEntity
 from .relay import RelayEntity
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 SOCKET_CATEGORY = "socket"
 """Sber device category for smart socket/outlet entities."""
@@ -23,10 +22,7 @@ class SocketEntity(RelayEntity):
     def __init__(self, entity_data: dict) -> None:
         """Initialize socket entity.
 
-        Calls ``OnOffEntity.__init__`` directly (skipping ``RelayEntity``)
-        to set the socket category while preserving relay behavior.
-
         Args:
             entity_data: HA entity registry dict containing entity metadata.
         """
-        OnOffEntity.__init__(self, SOCKET_CATEGORY, entity_data)
+        super().__init__(entity_data, category=SOCKET_CATEGORY)

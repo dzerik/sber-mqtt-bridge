@@ -6,7 +6,7 @@ import logging
 
 from .base_entity import BaseEntity
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 HUMIDIFIER_CATEGORY = "hvac_humidifier"
 """Sber device category for humidifier entities."""

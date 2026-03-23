@@ -11,7 +11,7 @@ import logging
 
 from .base_entity import BaseEntity
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class OnOffEntity(BaseEntity):

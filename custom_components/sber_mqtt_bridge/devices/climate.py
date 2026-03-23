@@ -6,7 +6,7 @@ import logging
 
 from .base_entity import BaseEntity
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 CLIMATE_CATEGORY = "hvac_ac"
 """Sber device category for air conditioner / HVAC entities."""
@@ -22,13 +22,22 @@ class ClimateEntity(BaseEntity):
     - Allowed values for dynamic enum features
     """
 
-    def __init__(self, entity_data: dict) -> None:
+    def __init__(
+        self,
+        entity_data: dict,
+        category: str = CLIMATE_CATEGORY,
+        min_temp: float = 16.0,
+        max_temp: float = 32.0,
+    ) -> None:
         """Initialize climate entity.
 
         Args:
             entity_data: HA entity registry dict containing entity metadata.
+            category: Sber device category (override in subclasses).
+            min_temp: Minimum temperature default.
+            max_temp: Maximum temperature default.
         """
-        super().__init__(CLIMATE_CATEGORY, entity_data)
+        super().__init__(category, entity_data)
         self.current_state = False
         self.temperature = None
         self.target_temperature = None
@@ -38,8 +47,8 @@ class ClimateEntity(BaseEntity):
         self.fan_mode = None
         self.swing_mode = None
         self.hvac_mode = None
-        self.min_temp = 16.0
-        self.max_temp = 32.0
+        self.min_temp = min_temp
+        self.max_temp = max_temp
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update all climate attributes.

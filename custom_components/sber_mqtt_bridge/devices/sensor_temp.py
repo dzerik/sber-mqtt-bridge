@@ -6,7 +6,7 @@ import logging
 
 from .simple_sensor import SimpleReadOnlySensor
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 SENSOR_TEMP_CATEGORY = "sensor_temp"
 """Sber device category for temperature sensor entities."""

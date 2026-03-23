@@ -6,7 +6,7 @@ import logging
 
 from .on_off_entity import OnOffEntity
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 VALVE_CATEGORY = "valve"
 """Sber device category for valve entities."""

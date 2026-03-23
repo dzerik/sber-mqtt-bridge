@@ -33,13 +33,11 @@ custom_components/sber_mqtt_bridge/     # HACS integration (АКТИВНАЯ Р�
     utils/
       color_converter.py   — HSV конвертация HA ↔ Sber
       linear_converter.py  — Линейное масштабирование значений
+    on_off_entity.py   — OnOffEntity (base for relay, valve, socket)
+    simple_sensor.py   — SimpleReadOnlySensor (base for 5 sensor types)
   strings.json         — UI строки (source of truth)
   translations/        — en.json, ru.json
   manifest.json        — HA manifest
-
-mqtt_sber_gate/                         # Legacy addon (НЕ АКТИВНАЯ РАЗРАБОТКА)
-  rootfs/app/          — Standalone agent (paho-mqtt, websocket, http server)
-  tests/               — Legacy тесты
 
 tests/hacs/            — Тесты HACS integration
   test_config_flow.py  — Config Flow UI
