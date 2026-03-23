@@ -125,24 +125,68 @@ async def _validate_sber_connection(
         return None
 
 
+# Domain priority for deduplication: when multiple entities share one device_id,
+# keep the one with the richest Sber mapping (light > switch, cover > switch, etc.)
+DOMAIN_PRIORITY: dict[str, int] = {
+    "light": 10,
+    "cover": 9,
+    "climate": 8,
+    "humidifier": 7,
+    "valve": 6,
+    "switch": 3,
+    "script": 2,
+    "button": 1,
+    "input_boolean": 1,
+    "sensor": 5,
+    "binary_sensor": 5,
+}
+
+
 def _get_entities_by_domains(hass: HomeAssistant, domains: list[str]) -> list[str]:
-    """Return all entity IDs from the registry matching the given domains.
+    """Return entity IDs matching the given domains, deduplicated by device.
+
+    When multiple entities share the same ``device_id`` (e.g. a Zigbee device
+    that exposes both ``light.kitchen`` and ``switch.kitchen``), only the
+    entity with the richest Sber mapping is kept (light > switch).
+    Entities without a ``device_id`` are always included.
 
     Args:
         hass: Home Assistant instance.
         domains: List of HA domains to filter.
 
     Returns:
-        Sorted list of entity IDs.
+        Sorted list of deduplicated entity IDs.
     """
     entity_reg = er.async_get(hass)
-    result: list[str] = []
+
+    # Collect candidates grouped by device_id
+    # device_id -> (priority, entity_id)
+    device_best: dict[str, tuple[int, str]] = {}
+    no_device: list[str] = []
+
     for entry in entity_reg.entities.values():
         if entry.disabled_by is not None:
             continue
         domain = entry.entity_id.split(".", 1)[0]
-        if domain in domains:
-            result.append(entry.entity_id)
+        if domain not in domains:
+            continue
+
+        if entry.device_id is None:
+            no_device.append(entry.entity_id)
+            continue
+
+        priority = DOMAIN_PRIORITY.get(domain, 0)
+        existing = device_best.get(entry.device_id)
+        if existing is None or priority > existing[0]:
+            if existing is not None:
+                _LOGGER.debug(
+                    "Device %s: %s (priority %d) replaces %s (priority %d)",
+                    entry.device_id, entry.entity_id, priority,
+                    existing[1], existing[0],
+                )
+            device_best[entry.device_id] = (priority, entry.entity_id)
+
+    result = no_device + [eid for _, eid in device_best.values()]
     return sorted(result)
 
 

@@ -298,9 +298,22 @@ class SberBridge:
                     }
                     sber_entity.fill_by_ha_state(ha_state_dict)
 
+        # Warn about multiple entities sharing the same physical device
+        device_entities: dict[str, list[str]] = {}
+        for eid, ent in new_entities.items():
+            did = getattr(ent, "device_id", None)
+            if did:
+                device_entities.setdefault(did, []).append(eid)
+        for did, eids in device_entities.items():
+            if len(eids) > 1:
+                _LOGGER.warning(
+                    "Device %s has %d entities in Sber (may cause duplicates): %s",
+                    did, len(eids), ", ".join(eids),
+                )
+
         # Atomic swap — readers see either old or new, never partial state
         self._entities = new_entities
-        self._enabled_entity_ids = new_enabled
+        self._enabled_entity_ids = list(new_entities.keys())
 
         # Prune stale data from previous entity sets
         valid_ids = set(new_enabled)
