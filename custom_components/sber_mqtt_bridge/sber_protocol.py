@@ -14,7 +14,7 @@ from .devices.base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "0.4.1"
+VERSION = "0.5.0"
 """Protocol version string included in the hub device descriptor."""
 
 
@@ -140,7 +140,9 @@ def parse_sber_command(payload: bytes | str) -> dict[str, Any]:
     try:
         return json.loads(payload)
     except (json.JSONDecodeError, TypeError):
-        _LOGGER.warning("Failed to parse Sber command payload: %s", payload[:200] if isinstance(payload, (str, bytes)) else payload)
+        _LOGGER.warning(
+            "Failed to parse Sber command payload: %s", payload[:200] if isinstance(payload, (str, bytes)) else payload
+        )
         return {"devices": {}}
 
 

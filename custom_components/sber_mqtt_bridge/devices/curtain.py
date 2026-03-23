@@ -208,4 +208,3 @@ class CurtainEntity(BaseEntity):
         )
 
         return {self.entity_id: {"states": states}}
-

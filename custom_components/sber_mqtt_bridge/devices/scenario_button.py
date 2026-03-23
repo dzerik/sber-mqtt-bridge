@@ -75,4 +75,3 @@ class ScenarioButtonEntity(BaseEntity):
             Empty list -- scenario buttons are read-only.
         """
         return []
-

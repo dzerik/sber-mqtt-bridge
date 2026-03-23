@@ -40,6 +40,13 @@
   "options": {
     "step": {
       "init": {
+        "title": "Options",
+        "menu_options": {
+          "select_entities_menu": "Entity selection",
+          "type_overrides": "Entity type overrides"
+        }
+      },
+      "select_entities_menu": {
         "title": "Entity Selection Mode",
         "data": {
           "selection_mode": "How to select entities"
@@ -60,6 +67,17 @@
         "data": {
           "domains": "Domains to add"
         }
+      },
+      "select_labels": {
+        "title": "Select by Label",
+        "description": "Select labels to add all entities with those labels to Sber. Existing selections will be preserved.",
+        "data": {
+          "labels": "Labels"
+        }
+      },
+      "type_overrides": {
+        "title": "Entity Type Overrides",
+        "description": "Override the Sber device type for each exposed entity. 'Auto' uses automatic detection based on HA domain and device class."
       }
     }
   }

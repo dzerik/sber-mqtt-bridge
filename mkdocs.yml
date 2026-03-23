@@ -1,0 +1,76 @@
+site_name: Sber Smart Home MQTT Bridge
+site_url: https://dzerik.github.io/sber-mqtt-bridge/
+site_description: >-
+  Home Assistant integration for Sber Smart Home via MQTT.
+  Control HA devices through Sber voice assistants and the Sber Smart Home app.
+repo_url: https://github.com/dzerik/sber-mqtt-bridge
+repo_name: dzerik/sber-mqtt-bridge
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: ru
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      lang:
+        - ru
+        - en
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Sber Studio Setup: sber-setup.md
+  - Configuration: configuration.md
+  - Supported Devices: devices.md
+  - Troubleshooting: troubleshooting.md
+  - Changelog: changelog.md
+  - Contributing: contributing.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/dzerik/sber-mqtt-bridge
+    - icon: fontawesome/brands/telegram
+      link: https://t.me/+k_w9uO0h73FkNjJi

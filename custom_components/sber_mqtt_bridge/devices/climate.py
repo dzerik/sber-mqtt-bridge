@@ -236,4 +236,3 @@ class ClimateEntity(BaseEntity):
                         }
                     )
         return results
-

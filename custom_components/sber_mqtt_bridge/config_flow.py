@@ -1,7 +1,8 @@
 """Config flow for Sber Smart Home MQTT Bridge.
 
 Provides UI-based configuration for Sber MQTT credentials
-and entity selection via Options Flow with bulk-add support.
+and entity selection via Options Flow with menu-based navigation,
+entity type overrides, and label-based filtering.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
     CONF_SBER_BROKER,
     CONF_SBER_LOGIN,
@@ -40,6 +42,7 @@ from .const import (
     SBER_PORT_DEFAULT,
     SUPPORTED_DOMAINS,
 )
+from .sber_entity_map import OVERRIDABLE_CATEGORIES, create_sber_entity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,7 +60,7 @@ USER_DATA_SCHEMA = vol.Schema(
 DOMAIN_LABELS: dict[str, str] = {
     "light": "Lights",
     "switch": "Switches",
-    "cover": "Covers (curtains, blinds)",
+    "cover": "Covers (curtains, blinds, gates)",
     "climate": "Climate (HVAC, radiators)",
     "sensor": "Sensors (temperature, humidity)",
     "binary_sensor": "Binary sensors (motion, door, leak)",
@@ -66,6 +69,21 @@ DOMAIN_LABELS: dict[str, str] = {
     "input_boolean": "Input booleans (scenario buttons)",
     "script": "Scripts",
     "button": "Buttons",
+}
+
+# Human-readable labels for Sber categories (used in type override selector)
+CATEGORY_LABELS: dict[str, str] = {
+    "light": "Light",
+    "relay": "Relay (switch)",
+    "socket": "Socket (outlet)",
+    "curtain": "Curtain",
+    "window_blind": "Window blind",
+    "gate": "Gate / Garage door",
+    "hvac_ac": "Air conditioner (HVAC)",
+    "hvac_radiator": "Radiator",
+    "valve": "Valve",
+    "hvac_humidifier": "Humidifier",
+    "scenario_button": "Scenario button",
 }
 
 
@@ -181,12 +199,41 @@ def _get_entities_by_domains(hass: HomeAssistant, domains: list[str]) -> list[st
             if existing is not None:
                 _LOGGER.debug(
                     "Device %s: %s (priority %d) replaces %s (priority %d)",
-                    entry.device_id, entry.entity_id, priority,
-                    existing[1], existing[0],
+                    entry.device_id,
+                    entry.entity_id,
+                    priority,
+                    existing[1],
+                    existing[0],
                 )
             device_best[entry.device_id] = (priority, entry.entity_id)
 
     result = no_device + [eid for _, eid in device_best.values()]
+    return sorted(result)
+
+
+def _get_entities_by_labels(hass: HomeAssistant, labels: list[str]) -> list[str]:
+    """Return entity IDs that have any of the specified labels.
+
+    Args:
+        hass: Home Assistant instance.
+        labels: List of label IDs to match.
+
+    Returns:
+        Sorted list of matching entity IDs.
+    """
+    entity_reg = er.async_get(hass)
+    label_set = set(labels)
+    result: list[str] = []
+
+    for entry in entity_reg.entities.values():
+        if entry.disabled_by is not None:
+            continue
+        domain = entry.entity_id.split(".", 1)[0]
+        if domain not in SUPPORTED_DOMAINS:
+            continue
+        if hasattr(entry, "labels") and label_set & set(entry.labels):
+            result.append(entry.entity_id)
+
     return sorted(result)
 
 
@@ -270,29 +317,55 @@ class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
 class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
     """Handle options flow for Sber MQTT Bridge.
 
-    Provides three modes for entity selection:
-    - Manual: pick individual entities from a selector
-    - Add all: add all supported entities at once
-    - By domain: select domains and add all entities from those domains
+    Provides a menu-based flow with sections:
+    - Entity selection (manual, by domain, by label, add all, clear all)
+    - Entity type overrides (override Sber category per entity)
     """
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Show the main options menu."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=[
+                "select_entities_menu",
+                "type_overrides",
+            ],
+        )
+
+    # ── Entity Selection Menu ──
+
+    async def async_step_select_entities_menu(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> ConfigFlowResult:
         """Choose entity selection mode."""
         if user_input is not None:
             mode = user_input.get("selection_mode", "manual")
             if mode == "clear_all":
                 _LOGGER.info("Clearing all exposed entities")
-                return self.async_create_entry(data={CONF_EXPOSED_ENTITIES: []})
+                return self.async_create_entry(
+                    data={
+                        CONF_EXPOSED_ENTITIES: [],
+                        CONF_ENTITY_TYPE_OVERRIDES: self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}),
+                    },
+                )
             if mode == "add_all":
                 all_ids = _get_entities_by_domains(self.hass, SUPPORTED_DOMAINS)
                 _LOGGER.info("Adding all %d supported entities", len(all_ids))
-                return self.async_create_entry(data={CONF_EXPOSED_ENTITIES: all_ids})
+                return self.async_create_entry(
+                    data={
+                        CONF_EXPOSED_ENTITIES: all_ids,
+                        CONF_ENTITY_TYPE_OVERRIDES: self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}),
+                    },
+                )
             if mode == "by_domain":
                 return await self.async_step_select_domains()
+            if mode == "by_label":
+                return await self.async_step_select_labels()
             return await self.async_step_select_entities()
 
         return self.async_show_form(
-            step_id="init",
+            step_id="select_entities_menu",
             data_schema=vol.Schema(
                 {
                     vol.Required("selection_mode", default="manual"): SelectSelector(
@@ -300,6 +373,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                             options=[
                                 SelectOptionDict(value="manual", label="Select entities manually"),
                                 SelectOptionDict(value="by_domain", label="Add all entities by domain"),
+                                SelectOptionDict(value="by_label", label="Add entities by label"),
                                 SelectOptionDict(value="add_all", label="Add ALL supported entities"),
                                 SelectOptionDict(value="clear_all", label="Remove ALL entities"),
                             ],
@@ -313,7 +387,12 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
     async def async_step_select_entities(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manual entity selection step."""
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            return self.async_create_entry(
+                data={
+                    **user_input,
+                    CONF_ENTITY_TYPE_OVERRIDES: self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}),
+                },
+            )
 
         return self.async_show_form(
             step_id="select_entities",
@@ -345,9 +424,16 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                 merged = sorted(set(existing) | set(domain_ids))
                 _LOGGER.info(
                     "Adding %d entities from domains %s (total: %d)",
-                    len(domain_ids), selected_domains, len(merged),
+                    len(domain_ids),
+                    selected_domains,
+                    len(merged),
                 )
-                return self.async_create_entry(data={CONF_EXPOSED_ENTITIES: merged})
+                return self.async_create_entry(
+                    data={
+                        CONF_EXPOSED_ENTITIES: merged,
+                        CONF_ENTITY_TYPE_OVERRIDES: self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}),
+                    },
+                )
             return self.async_create_entry(data=self.config_entry.options)
 
         # Build domain options with entity counts
@@ -365,9 +451,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             count = domain_counts.get(domain, 0)
             if count > 0:
                 label = DOMAIN_LABELS.get(domain, domain)
-                domain_options.append(
-                    SelectOptionDict(value=domain, label=f"{label} ({count})")
-                )
+                domain_options.append(SelectOptionDict(value=domain, label=f"{label} ({count})"))
 
         return self.async_show_form(
             step_id="select_domains",
@@ -382,4 +466,150 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                     ),
                 }
             ),
+        )
+
+    # ── Label-based Filtering ──
+
+    async def async_step_select_labels(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Label-based entity selection step."""
+        if user_input is not None:
+            selected_labels = user_input.get("labels", [])
+            if selected_labels:
+                label_ids = _get_entities_by_labels(self.hass, selected_labels)
+                existing = list(self.config_entry.options.get(CONF_EXPOSED_ENTITIES, []))
+                merged = sorted(set(existing) | set(label_ids))
+                _LOGGER.info(
+                    "Adding %d entities with labels %s (total: %d)",
+                    len(label_ids),
+                    selected_labels,
+                    len(merged),
+                )
+                return self.async_create_entry(
+                    data={
+                        CONF_EXPOSED_ENTITIES: merged,
+                        CONF_ENTITY_TYPE_OVERRIDES: self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}),
+                    },
+                )
+            return self.async_create_entry(data=self.config_entry.options)
+
+        # Collect all labels from supported entities
+        entity_reg = er.async_get(self.hass)
+        all_labels: set[str] = set()
+        for entry in entity_reg.entities.values():
+            if entry.disabled_by is not None:
+                continue
+            domain = entry.entity_id.split(".", 1)[0]
+            if domain in SUPPORTED_DOMAINS and hasattr(entry, "labels"):
+                all_labels.update(entry.labels)
+
+        if not all_labels:
+            # No labels found — go back with a message
+            return self.async_show_form(
+                step_id="select_labels",
+                data_schema=vol.Schema(
+                    {
+                        vol.Optional("labels"): SelectSelector(
+                            SelectSelectorConfig(
+                                options=[],
+                                multiple=True,
+                                mode=SelectSelectorMode.LIST,
+                            )
+                        ),
+                    }
+                ),
+            )
+
+        label_options = [SelectOptionDict(value=label, label=label) for label in sorted(all_labels)]
+
+        return self.async_show_form(
+            step_id="select_labels",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("labels"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=label_options,
+                            multiple=True,
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    ),
+                }
+            ),
+        )
+
+    # ── Entity Type Overrides ──
+
+    async def async_step_type_overrides(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Entity type override selection step.
+
+        Shows exposed entities and allows overriding their Sber category.
+        """
+        exposed = list(self.config_entry.options.get(CONF_EXPOSED_ENTITIES, []))
+        current_overrides: dict[str, str] = dict(self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}))
+
+        if user_input is not None:
+            # Parse overrides from user input
+            new_overrides: dict[str, str] = {}
+            for entity_id in exposed:
+                key = f"override_{entity_id}"
+                selected = user_input.get(key, "auto")
+                if selected != "auto":
+                    new_overrides[entity_id] = selected
+
+            _LOGGER.info("Entity type overrides updated: %s", new_overrides)
+            return self.async_create_entry(
+                data={
+                    CONF_EXPOSED_ENTITIES: exposed,
+                    CONF_ENTITY_TYPE_OVERRIDES: new_overrides,
+                },
+            )
+
+        if not exposed:
+            # No entities exposed — show empty form
+            return self.async_show_form(
+                step_id="type_overrides",
+                data_schema=vol.Schema({}),
+                description_placeholders={"entities_info": "No entities are exposed yet."},
+            )
+
+        # Build form with one selector per exposed entity
+        entity_reg = er.async_get(self.hass)
+        schema_dict: dict = {}
+
+        # Build category options
+        category_options = [SelectOptionDict(value="auto", label="Auto (detect from domain)")]
+        for cat in OVERRIDABLE_CATEGORIES:
+            cat_label = CATEGORY_LABELS.get(cat, cat)
+            category_options.append(SelectOptionDict(value=cat, label=cat_label))
+
+        for entity_id in exposed:
+            entry = entity_reg.async_get(entity_id)
+            if entry is None:
+                continue
+
+            # Determine current auto-detected category
+            entity_data = {
+                "entity_id": entry.entity_id,
+                "original_device_class": entry.original_device_class or "",
+            }
+            auto_entity = create_sber_entity(entity_id, entity_data)
+            auto_cat = auto_entity.category if auto_entity else "unknown"
+
+            # Current override value
+            current = current_overrides.get(entity_id, "auto")
+
+            display_name = entry.name or entry.original_name or entity_id
+            key = f"override_{entity_id}"
+
+            schema_dict[vol.Optional(key, default=current, description={"suffix": f" [{auto_cat}] {display_name}"})] = (
+                SelectSelector(
+                    SelectSelectorConfig(
+                        options=category_options,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            )
+
+        return self.async_show_form(
+            step_id="type_overrides",
+            data_schema=vol.Schema(schema_dict),
         )

@@ -27,6 +27,9 @@ CONF_SBER_VERIFY_SSL = "sber_verify_ssl"
 CONF_EXPOSED_ENTITIES = "exposed_entities"
 """Options key for the list of HA entity IDs exposed to Sber."""
 
+CONF_ENTITY_TYPE_OVERRIDES = "entity_type_overrides"
+"""Options key for entity type overrides dict (entity_id → sber_category)."""
+
 # Defaults
 
 SBER_BROKER_DEFAULT = "mqtt-partners.iot.sberdevices.ru"

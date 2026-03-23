@@ -27,6 +27,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from .config_flow import create_ssl_context
 from .const import (
+    CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
     CONF_SBER_BROKER,
     CONF_SBER_LOGIN,
@@ -99,9 +100,7 @@ class BridgeStats:
         now = time.monotonic()
         return {
             "connected_since": self.connected_since,
-            "connection_uptime_seconds": (
-                round(now - self.connected_since, 1) if self.connected_since else None
-            ),
+            "connection_uptime_seconds": (round(now - self.connected_since, 1) if self.connected_since else None),
             "messages_received": self.messages_received,
             "messages_sent": self.messages_sent,
             "commands_received": self.commands_received,
@@ -162,6 +161,11 @@ class SberBridge:
         return len(self._entities)
 
     @property
+    def entities(self) -> dict[str, BaseEntity]:
+        """Return the dict of loaded Sber entities (read-only view)."""
+        return self._entities
+
+    @property
     def enabled_entity_ids(self) -> list[str]:
         """Return a copy of the enabled entity ID list."""
         return list(self._enabled_entity_ids)
@@ -179,10 +183,7 @@ class SberBridge:
     @property
     def unacknowledged_entities(self) -> list[str]:
         """Return entity IDs that were published but not yet acknowledged by Sber."""
-        return [
-            eid for eid in self._enabled_entity_ids
-            if eid not in self._stats.acknowledged_entities
-        ]
+        return [eid for eid in self._enabled_entity_ids if eid not in self._stats.acknowledged_entities]
 
     async def async_start(self) -> None:
         """Start the bridge: load entities, subscribe to HA events, connect MQTT.
@@ -199,9 +200,7 @@ class SberBridge:
         # Re-load entities after HA is fully started to pick up any entities
         # that were not yet registered during early async_setup_entry.
         self._unsub_lifecycle_listeners.append(
-            self._hass.bus.async_listen_once(
-                EVENT_HOMEASSISTANT_STARTED, self._on_homeassistant_started
-            )
+            self._hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, self._on_homeassistant_started)
         )
 
     async def async_stop(self) -> None:
@@ -238,6 +237,7 @@ class SberBridge:
         """
         # Deduplicate entity IDs while preserving order
         new_enabled = list(dict.fromkeys(self._entry.options.get(CONF_EXPOSED_ENTITIES, [])))
+        type_overrides: dict[str, str] = self._entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
         new_entities: dict[str, BaseEntity] = {}
 
         entity_reg = er.async_get(self._hass)
@@ -264,7 +264,11 @@ class SberBridge:
                 "hidden_by": entry.hidden_by,
             }
 
-            sber_entity = create_sber_entity(entity_id, entity_data)
+            sber_entity = create_sber_entity(
+                entity_id,
+                entity_data,
+                sber_category=type_overrides.get(entity_id),
+            )
             if sber_entity is not None:
                 new_entities[entity_id] = sber_entity
 
@@ -285,9 +289,7 @@ class SberBridge:
                         try:
                             sber_entity.link_device(device_data)
                         except ValueError:
-                            _LOGGER.warning(
-                                "Device ID mismatch for %s", entity_id
-                            )
+                            _LOGGER.warning("Device ID mismatch for %s", entity_id)
 
                 state = self._hass.states.get(entity_id)
                 if state is not None:
@@ -308,7 +310,9 @@ class SberBridge:
             if len(eids) > 1:
                 _LOGGER.warning(
                     "Device %s has %d entities in Sber (may cause duplicates): %s",
-                    did, len(eids), ", ".join(eids),
+                    did,
+                    len(eids),
+                    ", ".join(eids),
                 )
 
         # Atomic swap — readers see either old or new, never partial state
@@ -354,9 +358,7 @@ class SberBridge:
 
     async def _mqtt_connection_loop(self) -> None:
         """Maintain persistent MQTT connection with exponential backoff reconnect."""
-        ssl_context = await self._hass.async_add_executor_job(
-            create_ssl_context, self._verify_ssl
-        )
+        ssl_context = await self._hass.async_add_executor_job(create_ssl_context, self._verify_ssl)
 
         while self._running:
             try:
@@ -373,7 +375,9 @@ class SberBridge:
                     self._stats.connected_since = time.monotonic()
                     _LOGGER.info(
                         "Connected to Sber MQTT broker %s:%d (entities: %d)",
-                        self._broker, self._port, len(self._entities),
+                        self._broker,
+                        self._port,
+                        len(self._entities),
                     )
 
                     await client.subscribe(f"{self._down_topic}/#")
@@ -395,7 +399,9 @@ class SberBridge:
                     break
                 _LOGGER.warning(
                     "Sber MQTT connection lost: %s. Reconnecting in %ds... (attempt #%d)",
-                    err, self._reconnect_interval, self._stats.reconnect_count,
+                    err,
+                    self._reconnect_interval,
+                    self._stats.reconnect_count,
                 )
                 await asyncio.sleep(self._reconnect_interval)
                 self._reconnect_interval = min(self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX)
@@ -428,7 +434,9 @@ class SberBridge:
         if payload and len(payload) > MAX_MQTT_PAYLOAD_SIZE:
             _LOGGER.warning(
                 "MQTT payload too large (%d bytes, max %d), dropping: %s",
-                len(payload), MAX_MQTT_PAYLOAD_SIZE, topic,
+                len(payload),
+                MAX_MQTT_PAYLOAD_SIZE,
+                topic,
             )
             return
 
@@ -457,7 +465,8 @@ class SberBridge:
         devices = data.get("devices", {})
         _LOGGER.debug(
             "Sber command for %d device(s): %s",
-            len(devices), list(devices.keys()),
+            len(devices),
+            list(devices.keys()),
         )
 
         update_state_ids: list[str] = []
@@ -495,7 +504,8 @@ class SberBridge:
                     )
                     _LOGGER.debug(
                         "HA service called: %s.%s → %s",
-                        cmd["domain"], cmd["service"],
+                        cmd["domain"],
+                        cmd["service"],
                         cmd.get("target", {}).get("entity_id", "?"),
                     )
                 except Exception:
@@ -516,7 +526,8 @@ class SberBridge:
                 self._stats.acknowledged_entities.add(eid)
             _LOGGER.info(
                 "Sber status request for %d specific entities: %s",
-                len(requested_ids), requested_ids,
+                len(requested_ids),
+                requested_ids,
             )
         else:
             # All entities requested — mark all as acknowledged
@@ -693,7 +704,8 @@ class SberBridge:
             if unack:
                 _LOGGER.debug(
                     "Entities not yet acknowledged by Sber (%d): %s",
-                    len(unack), ", ".join(unack),
+                    len(unack),
+                    ", ".join(unack),
                 )
         except aiomqtt.MqttError:
             self._stats.publish_errors += 1

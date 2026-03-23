@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-23
+
+### Added
+- **Entity type overrides**: override Sber device category per entity in Options Flow
+  (e.g. expose `switch.kitchen` as `light` in Sber)
+- **Options Flow menu**: reorganized as menu with "Entity selection" and "Entity type overrides"
+- **Gate/garage door support**: new `GateEntity` for cover entities with `gate`/`garage_door` device class
+- **Label-based entity filtering**: select entities by HA labels in Options Flow
+- **Extended diagnostics**: per-entity details (sber_category, features, state, linked device)
+- `CATEGORY_CONSTRUCTORS` mapping for direct Sber category to entity class resolution
+- `OVERRIDABLE_CATEGORIES` list of categories available for user overrides
+- `CONF_ENTITY_TYPE_OVERRIDES` option key for storing overrides
+
+### Changed
+- `create_sber_entity()` now accepts optional `sber_category` parameter for overrides
+- `_create_cover()` now maps `gate`/`garage_door` device classes to `GateEntity`
+- Options Flow `init` step is now a menu instead of a form
+- Entity selection steps preserve `entity_type_overrides` across options changes
+
 ## [0.4.1] - 2026-03-23
 
 ### Added

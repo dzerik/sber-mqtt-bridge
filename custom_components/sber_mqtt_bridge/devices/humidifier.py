@@ -167,4 +167,3 @@ class HumidifierEntity(BaseEntity):
                     }
                 )
         return results
-
