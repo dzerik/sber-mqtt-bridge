@@ -4,110 +4,181 @@
 [![GitHub Release](https://img.shields.io/github/v/release/dzerik/sber-mqtt-bridge)](https://github.com/dzerik/sber-mqtt-bridge/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
 
-Home Assistant custom integration for bridging HA entities to [Sber Smart Home](https://developers.sber.ru/docs/ru/smarthome) cloud via MQTT.
+**[Документация на русском / Russian documentation](README_RU.md)**
 
-Control your Home Assistant devices through Sber voice assistants (Salut) and the Sber Smart Home app.
+Home Assistant custom integration for bridging HA entities to [Sber Smart Home](https://developers.sber.ru/docs/ru/smarthome) cloud via MQTT. Control your Home Assistant devices through Sber voice assistants (**Salut**) and the **Sber Smart Home** mobile app.
+
+## How It Works
+
+```
+Home Assistant  ←→  This Integration  ←→  Sber MQTT Cloud  ←→  Sber App / Salut
+     (your devices)      (bridge)          (mqtt-partners.iot)     (voice control)
+```
+
+The integration connects to the Sber MQTT broker, publishes your HA devices as Sber Smart Home devices, and translates commands back to HA service calls. State changes in HA are instantly reflected in the Sber app.
 
 ## Features
 
-- Native HA integration (not an addon) — installs via HACS
-- Config Flow UI for Sber MQTT credentials
-- Entity selection — choose which HA entities to expose to Sber
-- Real-time state sync — HA state changes instantly reflected in Sber
-- Voice control through Sber assistants (Salut)
-- 15 device types supported
-- Automatic MQTT reconnection with exponential backoff
-- Optional SSL certificate verification (for custom CA)
+- Native HA integration — installs via HACS, no addons required
+- Config Flow UI — set up entirely from the HA interface
+- Bulk entity selection — add all entities, by domain, or pick individually
+- Smart deduplication — when a device has both `light` and `switch` entities, only the richer one is exposed
+- Real-time state sync — HA changes are instantly reflected in Sber (with 100ms debounce)
+- Voice control through all Sber assistants (Salut, Athena, Joy)
+- 15 device types with automatic mapping
+- Connection health monitoring and diagnostics
+- Device acknowledgment tracking — see which devices Sber has confirmed
+- Automatic MQTT reconnection with exponential backoff (5s → 5min)
+- SSL certificate verification (configurable)
 - Translations: English and Russian
 
 ## Supported Device Types
 
-| HA Domain | Sber Category | Description |
-|-----------|---------------|-------------|
-| `light` | light | Brightness, color, color temperature |
-| `switch` | relay | On/off control |
-| `switch` (outlet) | socket | Smart socket |
-| `script` | relay | Script execution |
-| `button` | relay | Button press |
-| `cover` | curtain | Curtains, position control |
-| `cover` (blind/shade) | window_blind | Blinds, roller shutters |
-| `climate` | hvac_ac | Air conditioner, HVAC |
-| `climate` (radiator) | hvac_radiator | Radiator thermostat |
-| `sensor` (temperature) | sensor_temp | Temperature sensor |
-| `sensor` (humidity) | sensor_temp | Humidity sensor |
-| `binary_sensor` (motion) | sensor_pir | Motion sensor |
-| `binary_sensor` (door) | sensor_door | Door/window sensor |
-| `binary_sensor` (moisture) | sensor_water_leak | Water leak sensor |
-| `input_boolean` | scenario_button | Scenario button |
-| `valve` | valve | Motorized water valve |
-| `humidifier` | hvac_humidifier | Air humidifier |
+| HA Domain | Sber Category | Capabilities |
+|-----------|---------------|--------------|
+| `light` | light | On/off, brightness, color (HSV), color temperature |
+| `switch` | relay | On/off |
+| `switch` (outlet) | socket | On/off (smart socket icon in Sber) |
+| `script` | relay | Execute script |
+| `button` | relay | Press button |
+| `cover` | curtain | Open/close/stop, position 0-100% |
+| `cover` (blind/shade) | window_blind | Open/close/stop, position 0-100% |
+| `climate` | hvac_ac | On/off, temperature, fan mode, swing, HVAC mode |
+| `climate` (radiator) | hvac_radiator | On/off, temperature (25-40C default) |
+| `sensor` (temperature) | sensor_temp | Temperature reading (x10 precision) |
+| `sensor` (humidity) | sensor_temp | Humidity reading (0-100%) |
+| `binary_sensor` (motion) | sensor_pir | Motion detected (boolean) |
+| `binary_sensor` (door) | sensor_door | Open/close state |
+| `binary_sensor` (moisture) | sensor_water_leak | Leak detected (boolean) |
+| `input_boolean` | scenario_button | Click / double click events |
+| `valve` | valve | Open/close valve |
+| `humidifier` | hvac_humidifier | On/off, target humidity, work mode |
 
-## Prerequisites
+## Prerequisites — Setting Up Sber Studio
 
-1. [Register in Sber Studio](https://developers.sber.ru/studio/workspaces/)
-2. Create an integration project and obtain MQTT credentials (login + password)
-3. See [Sber MQTT-to-Cloud documentation](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy)
+Before installing the integration, you need MQTT credentials from Sber:
+
+### Step 1: Register in Sber Studio
+
+1. Go to [Sber Studio](https://developers.sber.ru/studio/workspaces/)
+2. Sign in with your Sber ID (same account as Sber Smart Home app)
+3. Create a new workspace if you don't have one
+
+### Step 2: Create an Integration Project
+
+1. In Sber Studio, go to **Smart Home** section
+2. Click **Create Project** (or **Создать проект**)
+3. Select **MQTT Integration** type
+4. Give it a name (e.g. "Home Assistant Bridge")
+
+### Step 3: Get MQTT Credentials
+
+1. Open your project settings
+2. Find the **MQTT Connection** section
+3. Copy **Login** and **Password** — you will need these in HA
+4. The broker address is `mqtt-partners.iot.sberdevices.ru`, port `8883`
+
+For detailed instructions, see [Sber MQTT-to-Cloud documentation](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy).
+
+### Step 4: Link Sber App
+
+1. Open the **Sber Smart Home** app on your phone
+2. Go to **Settings** > **Connected Services** (or **Подключенные сервисы**)
+3. Your MQTT integration should appear — enable it
+4. Devices will appear in the app after the bridge connects
 
 ## Installation
 
 ### HACS (recommended)
 
-1. Open HACS in Home Assistant
-2. Click "Custom repositories" (three dots menu)
-3. Add `https://github.com/dzerik/sber-mqtt-bridge` as "Integration"
-4. Search for "Sber Smart Home MQTT Bridge" and install
-5. Restart Home Assistant
+1. Open **HACS** in Home Assistant
+2. Click the three dots menu > **Custom repositories**
+3. Add `https://github.com/dzerik/sber-mqtt-bridge` with category **Integration**
+4. Search for **"Sber Smart Home MQTT Bridge"** and click **Install**
+5. **Restart Home Assistant**
 
 ### Manual
 
-1. Copy `custom_components/sber_mqtt_bridge/` to your HA `config/custom_components/`
-2. Restart Home Assistant
+1. Download the [latest release](https://github.com/dzerik/sber-mqtt-bridge/releases)
+2. Copy `custom_components/sber_mqtt_bridge/` to your HA `config/custom_components/`
+3. Restart Home Assistant
 
 ## Configuration
 
-1. Go to **Settings** > **Devices & Services** > **Add Integration**
-2. Search for "Sber Smart Home MQTT Bridge"
-3. Enter your Sber MQTT credentials:
-   - **MQTT Login** — from your Sber Studio integration project
-   - **MQTT Password** — from your Sber Studio integration project
-   - **MQTT Broker** — `mqtt-partners.iot.sberdevices.ru` (default)
-   - **MQTT Port** — `8883` (default)
-   - **Verify SSL** — enable (recommended); disable only if broker uses a custom CA
-4. After adding, go to integration options to select which entities to expose to Sber
+### Initial Setup
 
-### Configuration Parameters
+1. Go to **Settings** > **Devices & Services** > **Add Integration**
+2. Search for **"Sber Smart Home MQTT Bridge"**
+3. Enter your Sber MQTT credentials:
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| MQTT Login | Yes | — | Sber Studio integration login |
-| MQTT Password | Yes | — | Sber Studio integration password |
-| MQTT Broker | No | `mqtt-partners.iot.sberdevices.ru` | Sber MQTT broker address |
-| MQTT Port | No | `8883` | Sber MQTT broker port |
-| Verify SSL | No | `true` | Verify broker SSL certificate |
+| MQTT Login | Yes | — | Login from Sber Studio project |
+| MQTT Password | Yes | — | Password from Sber Studio project |
+| MQTT Broker | No | `mqtt-partners.iot.sberdevices.ru` | Broker address |
+| MQTT Port | No | `8883` | Broker port (TLS) |
+| Verify SSL | No | `true` | Verify broker certificate |
 
-### Options
+### Selecting Entities
 
-| Parameter | Description |
-|-----------|-------------|
-| Exposed Entities | Select which HA entities to make available in Sber Smart Home |
+After setup, go to integration options to choose which entities to expose to Sber. Four modes are available:
 
-## Removal
+| Mode | Description |
+|------|-------------|
+| **Select manually** | Pick individual entities from a searchable list. You can also remove entities here. |
+| **Add by domain** | Select domains (Lights, Switches, etc.) with entity counts. Adds all entities from chosen domains. Preserves existing selection. |
+| **Add ALL** | One-click: add every supported entity to Sber. |
+| **Remove ALL** | Clear the entire exposed list. |
 
-1. Go to **Settings** > **Devices & Services**
-2. Find "Sber Smart Home MQTT Bridge"
-3. Click the three dots menu and select "Delete"
+**Smart deduplication**: When a Zigbee device registers both `light.kitchen` and `switch.kitchen`, only `light` is included (richer API with brightness/color). Priority: light > cover > climate > humidifier > valve > sensor > switch > script > button.
+
+### Managing Devices in Sber App
+
+After entities are exposed:
+
+1. Open the **Sber Smart Home** app
+2. Devices appear automatically (may take 10-30 seconds)
+3. **Rename devices**: tap the device > settings icon > change name
+4. **Assign rooms**: tap the device > settings icon > select room
+5. **Voice control**: say *"Салют, включи свет на кухне"* (Salut, turn on kitchen light)
+
+**Note**: Room assignments and renames made in the Sber app are stored locally in the integration and will be included in future config publishes.
 
 ## Troubleshooting
 
-- **Cannot connect**: Verify your Sber MQTT credentials in Sber Studio
-- **SSL errors**: Try disabling SSL verification in the integration options (for brokers with custom CA)
-- **Entities not appearing in Sber**: Check that entities are selected in integration options
-- **Enable debug logging**: Add to `configuration.yaml`:
-  ```yaml
-  logger:
-    logs:
-      custom_components.sber_mqtt_bridge: debug
-  ```
+| Problem | Solution |
+|---------|----------|
+| Cannot connect | Verify credentials in Sber Studio. Check that your project is active. |
+| SSL errors | Try disabling "Verify SSL" in integration settings (for custom CA). |
+| Entities not in Sber | Check Options > select entities. Check HA logs for mapping warnings. |
+| Devices appear/disappear | Check HA logs for reconnection messages. Ensure stable internet. |
+| Duplicate devices | Remove duplicates in Options > manual mode. Or use "Remove ALL" then "Add ALL" for clean reset. |
+| Sensors show wrong values | Enable debug logging and check entity mapping in logs. |
+
+### Debug Logging
+
+Add to `configuration.yaml`:
+
+```yaml
+logger:
+  logs:
+    custom_components.sber_mqtt_bridge: debug
+```
+
+This will show:
+- `MQTT <- topic (N bytes)` — every incoming message
+- `Sber -> HA command: entity_id [keys]` — command details
+- `HA -> Sber state: entity_id = state` — state publishes
+- `Entity xxx -> Sber category (domain, device_class)` — mapping decisions
+- `Sber error (#N): {...}` — errors from Sber cloud
+
+### Diagnostics
+
+Go to **Settings** > **Devices & Services** > **Sber Smart Home MQTT Bridge** > **three dots** > **Download diagnostics**. The file contains:
+- Connection status and uptime
+- Message counters (received, sent, errors)
+- List of acknowledged/unacknowledged entities
+- Entity configuration
 
 ## Acknowledgments
 
@@ -129,7 +200,7 @@ This project is not affiliated with, endorsed by, or sponsored by Sber, SberDevi
 
 - [Sber Smart Home Developer Portal](https://developers.sber.ru/docs/ru/smarthome)
 - [Register in Sber Studio](https://developers.sber.ru/docs/ru/smarthome/space/registration)
-- [MQTT-to-Cloud Integration](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy)
+- [MQTT-to-Cloud Integration Guide](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy)
 - [Supported Device Categories](https://developers.sber.ru/docs/ru/smarthome/c2c/devices)
 - [Telegram Community](https://t.me/+k_w9uO0h73FkNjJi)
 
