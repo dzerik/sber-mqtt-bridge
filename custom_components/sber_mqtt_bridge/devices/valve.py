@@ -1,10 +1,14 @@
-"""Sber Valve entity -- maps HA valve entities to Sber valve category."""
+"""Sber Valve entity -- maps HA valve entities to Sber valve category.
+
+Uses ``open_set``/``open_state`` features (NOT ``on_off``).
+Per Sber specification, valve is controlled via ENUM open/close/stop commands.
+"""
 
 from __future__ import annotations
 
 import logging
 
-from .on_off_entity import OnOffEntity
+from .base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -12,14 +16,13 @@ VALVE_CATEGORY = "valve"
 """Sber device category for valve entities."""
 
 
-class ValveEntity(OnOffEntity):
+class ValveEntity(BaseEntity):
     """Sber valve entity for open/close valve control.
 
     Maps HA valve entities to the Sber 'valve' category.
-    Uses ``on_off`` feature where on=open and off=close.
+    Uses ``open_set`` (command) and ``open_state`` (state) features
+    per Sber specification. Does NOT use ``on_off``.
     """
-
-    _ha_on_state = "open"
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize valve entity.
@@ -28,14 +31,46 @@ class ValveEntity(OnOffEntity):
             entity_data: HA entity registry dict containing entity metadata.
         """
         super().__init__(VALVE_CATEGORY, entity_data)
+        self.is_open: bool = False
+
+    def fill_by_ha_state(self, ha_state: dict) -> None:
+        """Parse HA state and update open/close status.
+
+        Args:
+            ha_state: HA state dict with 'state' and 'attributes' keys.
+        """
+        super().fill_by_ha_state(ha_state)
+        self.is_open = ha_state.get("state") == "open"
+
+    def create_features_list(self) -> list[str]:
+        """Return Sber feature list with open_set and open_state.
+
+        Returns:
+            List of Sber feature strings supported by this entity.
+        """
+        return [*super().create_features_list(), "open_set", "open_state"]
+
+    def to_sber_current_state(self) -> dict[str, dict]:
+        """Build Sber current state payload with online and open_state.
+
+        Returns:
+            Dict mapping entity_id to its Sber state representation.
+        """
+        states = [
+            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
+            {"key": "open_state", "value": {"type": "ENUM", "enum_value": "open" if self.is_open else "close"}},
+        ]
+        return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:
-        """Process Sber on/off command and produce HA valve service calls.
+        """Process Sber open_set command and produce HA valve service calls.
 
-        Maps ``on_off=True`` to ``open_valve`` and ``on_off=False`` to
-        ``close_valve``.
+        Maps ``open_set`` ENUM values:
+        - ``"open"`` -> ``open_valve``
+        - ``"close"`` -> ``close_valve``
+        - ``"stop"`` -> ``stop_valve``
 
-        State is NOT mutated here — it will be updated when HA fires a
+        State is NOT mutated here -- it will be updated when HA fires a
         ``state_changed`` event that is handled by ``fill_by_ha_state``.
 
         Args:
@@ -44,21 +79,28 @@ class ValveEntity(OnOffEntity):
         Returns:
             List of HA service call dicts to execute.
         """
-        results = []
+        results: list[dict] = []
+        service_map = {
+            "open": "open_valve",
+            "close": "close_valve",
+            "stop": "stop_valve",
+        }
         for item in cmd_data.get("states", []):
             key = item.get("key")
             value = item.get("value", {})
 
-            if key == "on_off" and value.get("type") == "BOOL":
-                on = value.get("bool_value", False)
-                results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "valve",
-                            "service": "open_valve" if on else "close_valve",
-                            "target": {"entity_id": self.entity_id},
+            if key == "open_set" and value.get("type") == "ENUM":
+                action = value.get("enum_value")
+                service = service_map.get(action)
+                if service:
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "valve",
+                                "service": service,
+                                "target": {"entity_id": self.entity_id},
+                            }
                         }
-                    }
-                )
+                    )
         return results

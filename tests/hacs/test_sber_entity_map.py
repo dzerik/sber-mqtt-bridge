@@ -7,6 +7,7 @@ from custom_components.sber_mqtt_bridge.sber_entity_map import (
     create_sber_entity,
 )
 from custom_components.sber_mqtt_bridge.devices.light import LightEntity
+from custom_components.sber_mqtt_bridge.devices.led_strip import LedStripEntity
 from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
 from custom_components.sber_mqtt_bridge.devices.socket_entity import SocketEntity
 from custom_components.sber_mqtt_bridge.devices.climate import ClimateEntity
@@ -17,10 +18,16 @@ from custom_components.sber_mqtt_bridge.devices.humidity_sensor import HumidityS
 from custom_components.sber_mqtt_bridge.devices.motion_sensor import MotionSensorEntity
 from custom_components.sber_mqtt_bridge.devices.door_sensor import DoorSensorEntity
 from custom_components.sber_mqtt_bridge.devices.water_leak_sensor import WaterLeakSensorEntity
+from custom_components.sber_mqtt_bridge.devices.smoke_sensor import SmokeSensorEntity
+from custom_components.sber_mqtt_bridge.devices.gas_sensor import GasSensorEntity
 from custom_components.sber_mqtt_bridge.devices.scenario_button import ScenarioButtonEntity
 from custom_components.sber_mqtt_bridge.devices.valve import ValveEntity
 from custom_components.sber_mqtt_bridge.devices.humidifier import HumidifierEntity
 from custom_components.sber_mqtt_bridge.devices.hvac_radiator import HvacRadiatorEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_heater import HvacHeaterEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_boiler import HvacBoilerEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_underfloor_heating import HvacUnderfloorEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_fan import HvacFanEntity
 
 
 def _data(entity_id, **kwargs):
@@ -31,7 +38,8 @@ class TestEntityConstructorsMap(unittest.TestCase):
 
     def test_all_supported_domains(self):
         expected = {"light", "cover", "sensor", "binary_sensor", "switch",
-                    "script", "button", "input_boolean", "climate", "valve", "humidifier"}
+                    "script", "button", "input_boolean", "climate", "valve",
+                    "humidifier", "fan", "water_heater"}
         self.assertEqual(set(ENTITY_CONSTRUCTORS.keys()), expected)
 
 
@@ -111,6 +119,16 @@ class TestCreateSberEntity(unittest.TestCase):
         self.assertIsInstance(e, WaterLeakSensorEntity)
         self.assertEqual(e.category, "sensor_water_leak")
 
+    def test_binary_sensor_smoke(self):
+        e = create_sber_entity("binary_sensor.smoke", _data("binary_sensor.smoke", original_device_class="smoke"))
+        self.assertIsInstance(e, SmokeSensorEntity)
+        self.assertEqual(e.category, "sensor_smoke")
+
+    def test_binary_sensor_gas(self):
+        e = create_sber_entity("binary_sensor.gas", _data("binary_sensor.gas", original_device_class="gas"))
+        self.assertIsInstance(e, GasSensorEntity)
+        self.assertEqual(e.category, "sensor_gas")
+
     def test_binary_sensor_unsupported(self):
         e = create_sber_entity("binary_sensor.bat", _data("binary_sensor.bat", original_device_class="battery"))
         self.assertIsNone(e)
@@ -125,6 +143,11 @@ class TestCreateSberEntity(unittest.TestCase):
         self.assertIsInstance(e, HvacRadiatorEntity)
         self.assertEqual(e.category, "hvac_radiator")
 
+    def test_climate_heater(self):
+        e = create_sber_entity("climate.heat", _data("climate.heat", original_device_class="heater"))
+        self.assertIsInstance(e, HvacHeaterEntity)
+        self.assertEqual(e.category, "hvac_heater")
+
     def test_valve(self):
         e = create_sber_entity("valve.water", _data("valve.water"))
         self.assertIsInstance(e, ValveEntity)
@@ -135,6 +158,16 @@ class TestCreateSberEntity(unittest.TestCase):
         self.assertIsInstance(e, HumidifierEntity)
         self.assertEqual(e.category, "hvac_humidifier")
 
+    def test_fan(self):
+        e = create_sber_entity("fan.room", _data("fan.room"))
+        self.assertIsInstance(e, HvacFanEntity)
+        self.assertEqual(e.category, "hvac_fan")
+
+    def test_water_heater(self):
+        e = create_sber_entity("water_heater.boiler", _data("water_heater.boiler"))
+        self.assertIsInstance(e, HvacBoilerEntity)
+        self.assertEqual(e.category, "hvac_boiler")
+
     def test_unsupported_domain(self):
         e = create_sber_entity("camera.front", _data("camera.front"))
         self.assertIsNone(e)
@@ -142,6 +175,43 @@ class TestCreateSberEntity(unittest.TestCase):
     def test_automation_unsupported(self):
         e = create_sber_entity("automation.test", _data("automation.test"))
         self.assertIsNone(e)
+
+
+class TestCategoryOverrides(unittest.TestCase):
+    """Test sber_category override functionality."""
+
+    def test_override_led_strip(self):
+        e = create_sber_entity("light.strip", _data("light.strip"), sber_category="led_strip")
+        self.assertIsInstance(e, LedStripEntity)
+        self.assertEqual(e.category, "led_strip")
+
+    def test_override_hvac_fan(self):
+        e = create_sber_entity("switch.fan", _data("switch.fan"), sber_category="hvac_fan")
+        self.assertIsInstance(e, HvacFanEntity)
+        self.assertEqual(e.category, "hvac_fan")
+
+    def test_override_hvac_heater(self):
+        e = create_sber_entity("climate.heat", _data("climate.heat"), sber_category="hvac_heater")
+        self.assertIsInstance(e, HvacHeaterEntity)
+        self.assertEqual(e.category, "hvac_heater")
+
+    def test_override_hvac_boiler(self):
+        e = create_sber_entity("climate.boiler", _data("climate.boiler"), sber_category="hvac_boiler")
+        self.assertIsInstance(e, HvacBoilerEntity)
+        self.assertEqual(e.category, "hvac_boiler")
+
+    def test_override_hvac_underfloor(self):
+        e = create_sber_entity("climate.floor", _data("climate.floor"), sber_category="hvac_underfloor_heating")
+        self.assertIsInstance(e, HvacUnderfloorEntity)
+        self.assertEqual(e.category, "hvac_underfloor_heating")
+
+    def test_override_sensor_smoke(self):
+        e = create_sber_entity("binary_sensor.x", _data("binary_sensor.x"), sber_category="sensor_smoke")
+        self.assertIsInstance(e, SmokeSensorEntity)
+
+    def test_override_sensor_gas(self):
+        e = create_sber_entity("binary_sensor.x", _data("binary_sensor.x"), sber_category="sensor_gas")
+        self.assertIsInstance(e, GasSensorEntity)
 
 
 if __name__ == "__main__":

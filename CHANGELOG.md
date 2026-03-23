@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-03-23
+
+### Fixed
+- **valve**: replaced incorrect `on_off` feature with `open_set`/`open_state` per Sber specification (ENUM open/close/stop)
+
+### Added
+- **led_strip**: new `LedStripEntity` for LED strip devices (same features as light, different category)
+- **sensor_smoke**: new `SmokeSensorEntity` for smoke detector binary sensors (`smoke_state` BOOL)
+- **sensor_gas**: new `GasSensorEntity` for gas leak detector binary sensors (`gas_leak_state` BOOL)
+- **hvac_fan**: new `HvacFanEntity` for fan devices with `on_off` and `hvac_air_flow_power` features
+- **hvac_heater**: new `HvacHeaterEntity` for space heaters (ClimateEntity subclass, 5-40 C)
+- **hvac_boiler**: new `HvacBoilerEntity` for water heaters (ClimateEntity subclass, 25-80 C)
+- **hvac_underfloor_heating**: new `HvacUnderfloorEntity` for underfloor heating (ClimateEntity subclass, 25-50 C)
+- **battery_percentage**: optional battery level reporting for all `SimpleReadOnlySensor` subclasses
+- **power/voltage/current**: optional energy monitoring features for `OnOffEntity` (relay, socket)
+- **fan** and **water_heater** HA domains now supported in entity mapping
+- Smoke (`device_class=smoke`) and gas (`device_class=gas`) binary sensors now supported
+
 ## [0.7.0] - 2026-03-23
 
 ### Fixed

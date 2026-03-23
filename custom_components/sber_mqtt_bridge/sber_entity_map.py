@@ -14,15 +14,22 @@ from .devices.base_entity import BaseEntity
 from .devices.climate import ClimateEntity
 from .devices.curtain import CurtainEntity
 from .devices.door_sensor import DoorSensorEntity
+from .devices.gas_sensor import GasSensorEntity
 from .devices.gate import GateEntity
 from .devices.humidifier import HumidifierEntity
 from .devices.humidity_sensor import HumiditySensorEntity
+from .devices.hvac_boiler import HvacBoilerEntity
+from .devices.hvac_fan import HvacFanEntity
+from .devices.hvac_heater import HvacHeaterEntity
 from .devices.hvac_radiator import HvacRadiatorEntity
+from .devices.hvac_underfloor_heating import HvacUnderfloorEntity
+from .devices.led_strip import LedStripEntity
 from .devices.light import LightEntity
 from .devices.motion_sensor import MotionSensorEntity
 from .devices.relay import RelayEntity
 from .devices.scenario_button import ScenarioButtonEntity
 from .devices.sensor_temp import SensorTempEntity
+from .devices.smoke_sensor import SmokeSensorEntity
 from .devices.socket_entity import SocketEntity
 from .devices.valve import ValveEntity
 from .devices.water_leak_sensor import WaterLeakSensorEntity
@@ -35,6 +42,7 @@ _LOGGER = logging.getLogger(__name__)
 # Used by create_sber_entity when a user override specifies an explicit category.
 CATEGORY_CONSTRUCTORS: dict[str, Callable[[dict], BaseEntity]] = {
     "light": lambda data: LightEntity(data),
+    "led_strip": lambda data: LedStripEntity(data),
     "relay": lambda data: RelayEntity(data),
     "socket": lambda data: SocketEntity(data),
     "curtain": lambda data: CurtainEntity(data),
@@ -42,6 +50,10 @@ CATEGORY_CONSTRUCTORS: dict[str, Callable[[dict], BaseEntity]] = {
     "gate": lambda data: GateEntity(data),
     "hvac_ac": lambda data: ClimateEntity(data),
     "hvac_radiator": lambda data: HvacRadiatorEntity(data),
+    "hvac_heater": lambda data: HvacHeaterEntity(data),
+    "hvac_boiler": lambda data: HvacBoilerEntity(data),
+    "hvac_underfloor_heating": lambda data: HvacUnderfloorEntity(data),
+    "hvac_fan": lambda data: HvacFanEntity(data),
     "valve": lambda data: ValveEntity(data),
     "hvac_humidifier": lambda data: HumidifierEntity(data),
     "scenario_button": lambda data: ScenarioButtonEntity(data),
@@ -50,12 +62,15 @@ CATEGORY_CONSTRUCTORS: dict[str, Callable[[dict], BaseEntity]] = {
     "sensor_pir": lambda data: MotionSensorEntity(data),
     "sensor_door": lambda data: DoorSensorEntity(data),
     "sensor_water_leak": lambda data: WaterLeakSensorEntity(data),
+    "sensor_smoke": lambda data: SmokeSensorEntity(data),
+    "sensor_gas": lambda data: GasSensorEntity(data),
 }
 """Mapping of Sber category names to entity constructor callables."""
 
 # Categories available for user overrides in Options Flow
 OVERRIDABLE_CATEGORIES: list[str] = [
     "light",
+    "led_strip",
     "relay",
     "socket",
     "curtain",
@@ -63,6 +78,10 @@ OVERRIDABLE_CATEGORIES: list[str] = [
     "gate",
     "hvac_ac",
     "hvac_radiator",
+    "hvac_heater",
+    "hvac_boiler",
+    "hvac_underfloor_heating",
+    "hvac_fan",
     "valve",
     "hvac_humidifier",
     "scenario_button",
@@ -96,7 +115,8 @@ def _create_binary_sensor(entity_data: dict) -> BaseEntity | None:
 
     Returns:
         MotionSensorEntity for motion, DoorSensorEntity for door/window/garage,
-        WaterLeakSensorEntity for moisture, or None if unsupported.
+        WaterLeakSensorEntity for moisture, SmokeSensorEntity for smoke,
+        GasSensorEntity for gas, or None if unsupported.
     """
     dc = entity_data.get("original_device_class", "")
     if dc == "motion":
@@ -105,6 +125,10 @@ def _create_binary_sensor(entity_data: dict) -> BaseEntity | None:
         return DoorSensorEntity(entity_data)
     if dc == "moisture":
         return WaterLeakSensorEntity(entity_data)
+    if dc == "smoke":
+        return SmokeSensorEntity(entity_data)
+    if dc == "gas":
+        return GasSensorEntity(entity_data)
     return None
 
 
@@ -148,12 +172,27 @@ def _create_climate(entity_data: dict) -> BaseEntity:
         entity_data: HA entity registry dict with 'original_device_class' key.
 
     Returns:
-        HvacRadiatorEntity for radiators, ClimateEntity for others.
+        HvacRadiatorEntity for radiators, HvacHeaterEntity for heaters,
+        ClimateEntity for others.
     """
     dc = entity_data.get("original_device_class", "")
     if dc == "radiator":
         return HvacRadiatorEntity(entity_data)
+    if dc == "heater":
+        return HvacHeaterEntity(entity_data)
     return ClimateEntity(entity_data)
+
+
+def _create_water_heater(entity_data: dict) -> BaseEntity:
+    """Create a Sber water heater entity (mapped to hvac_boiler).
+
+    Args:
+        entity_data: HA entity registry dict.
+
+    Returns:
+        HvacBoilerEntity instance.
+    """
+    return HvacBoilerEntity(entity_data)
 
 
 ENTITY_CONSTRUCTORS: dict[str, Callable] = {
@@ -168,6 +207,8 @@ ENTITY_CONSTRUCTORS: dict[str, Callable] = {
     "climate": _create_climate,
     "valve": lambda data: ValveEntity(data),
     "humidifier": lambda data: HumidifierEntity(data),
+    "fan": lambda data: HvacFanEntity(data),
+    "water_heater": _create_water_heater,
 }
 """Mapping of HA domain names to Sber entity constructor callables."""
 

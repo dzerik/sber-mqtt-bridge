@@ -60,5 +60,7 @@ SUPPORTED_DOMAINS = [
     "input_boolean",
     "script",
     "button",
+    "fan",
+    "water_heater",
 ]
 """List of HA entity domains that can be exported to Sber Smart Home."""
