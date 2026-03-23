@@ -43,11 +43,17 @@ class EntityCustomConfig:
         sber_type: Override Sber device category (e.g. ``"light"`` for a switch).
         sber_name: Override display name shown in Sber.
         sber_room: Override room/area name in Sber.
+        sber_nicknames: Alternative voice names for Sber (e.g. ``["Свет кухня"]``).
+        sber_groups: Device groups in Sber (e.g. ``["Свет", "Кухня"]``).
+        sber_parent_id: Parent device entity_id for hub hierarchy.
     """
 
     sber_type: str | None = None
     sber_name: str | None = None
     sber_room: str | None = None
+    sber_nicknames: list[str] | None = None
+    sber_groups: list[str] | None = None
+    sber_parent_id: str | None = None
 
 
 @dataclass
@@ -92,6 +98,9 @@ ENTITY_CONFIG_SCHEMA = vol.Schema(
         vol.Optional("sber_type"): str,
         vol.Optional("sber_name"): str,
         vol.Optional("sber_room"): str,
+        vol.Optional("sber_nicknames"): [str],
+        vol.Optional("sber_groups"): [str],
+        vol.Optional("sber_parent_id"): str,
     }
 )
 """Schema for a single entity's custom configuration."""
@@ -127,14 +136,20 @@ def parse_yaml_config(yaml_data: dict[str, Any]) -> CustomConfig:
             sber_type=raw_cfg.get("sber_type"),
             sber_name=raw_cfg.get("sber_name"),
             sber_room=raw_cfg.get("sber_room"),
+            sber_nicknames=raw_cfg.get("sber_nicknames"),
+            sber_groups=raw_cfg.get("sber_groups"),
+            sber_parent_id=raw_cfg.get("sber_parent_id"),
         )
         entity_configs[entity_id] = cfg
         _LOGGER.debug(
-            "Custom config for %s: type=%s, name=%s, room=%s",
+            "Custom config for %s: type=%s, name=%s, room=%s, nicknames=%s, groups=%s, parent_id=%s",
             entity_id,
             cfg.sber_type,
             cfg.sber_name,
             cfg.sber_room,
+            cfg.sber_nicknames,
+            cfg.sber_groups,
+            cfg.sber_parent_id,
         )
 
     return CustomConfig(entity_configs=entity_configs)

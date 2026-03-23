@@ -128,16 +128,28 @@ class LightEntity(BaseEntity):
         return allowed_values
 
     def to_sber_state(self) -> dict:
-        """Build full Sber device descriptor including allowed values.
+        """Build full Sber device descriptor including allowed values and dependencies.
 
         Features are already populated by ``super().to_sber_state()``.
-        Only adds ``allowed_values`` on top.
+        Adds ``allowed_values`` and ``dependencies`` (light_colour depends on
+        light_mode == "colour") when appropriate.
 
         Returns:
-            Sber device descriptor dict with model, features, and allowed_values.
+            Sber device descriptor dict with model, features, allowed_values,
+            and optionally dependencies.
         """
         res = super().to_sber_state()
         res["model"]["allowed_values"] = self.create_allowed_values_list()
+
+        features = res["model"]["features"]
+        if "light_colour" in features and "light_mode" in features:
+            res["model"]["dependencies"] = {
+                "light_colour": {
+                    "key": "light_mode",
+                    "values": [{"type": "ENUM", "enum_value": "colour"}],
+                },
+            }
+
         return res
 
     def _is_current_color_mode_colored(self) -> bool:

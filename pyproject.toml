@@ -1,9 +1,18 @@
 [project]
 name = "sber-mqtt-bridge"
-version = "0.9.1"
+version = "0.9.2"
 description = "Sber Smart Home MQTT Bridge for Home Assistant"
 requires-python = ">=3.13"
-license = {text = "MIT"}
+license = "MIT"
+
+[tool.setuptools.packages.find]
+include = ["custom_components*"]
+
+[project.optional-dependencies]
+docs = [
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]
 
 [tool.ruff]
 target-version = "py313"

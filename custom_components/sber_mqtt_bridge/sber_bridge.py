@@ -294,6 +294,15 @@ class SberBridge:
                     sber_entity.name = yaml_cfg.sber_name
                     _LOGGER.debug("YAML sber_name override for %s: %s", entity_id, yaml_cfg.sber_name)
 
+                # Apply YAML nicknames, groups, parent_id
+                if yaml_cfg is not None:
+                    if yaml_cfg.sber_nicknames is not None:
+                        sber_entity.nicknames = yaml_cfg.sber_nicknames
+                    if yaml_cfg.sber_groups is not None:
+                        sber_entity.groups = yaml_cfg.sber_groups
+                    if yaml_cfg.sber_parent_id is not None:
+                        sber_entity.parent_entity_id = yaml_cfg.sber_parent_id
+
                 # Link device registry data for entities that belong to a device
                 if entry.device_id is not None:
                     device = device_reg.async_get(entry.device_id)

@@ -209,6 +209,28 @@ class CurtainEntity(BaseEntity):
             features.append("signal_strength")
         return features
 
+    def to_sber_state(self) -> dict:
+        """Build full Sber device descriptor including allowed values.
+
+        Adds ``allowed_values`` for ``open_set`` (ENUM) and ``open_percentage``
+        (INTEGER 0-100) features.
+
+        Returns:
+            Sber device descriptor dict with model, features, and allowed_values.
+        """
+        res = super().to_sber_state()
+        res["model"]["allowed_values"] = {
+            "open_set": {
+                "type": "ENUM",
+                "enum_values": {"values": ["open", "close", "stop"]},
+            },
+            "open_percentage": {
+                "type": "INTEGER",
+                "integer_values": {"min": "0", "max": "100", "step": "1"},
+            },
+        }
+        return res
+
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with position, open state, and signal.
 

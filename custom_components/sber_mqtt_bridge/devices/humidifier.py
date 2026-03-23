@@ -77,14 +77,18 @@ class HumidifierEntity(BaseEntity):
         return any(m in self.available_modes for m in ("sleep", "night"))
 
     def create_allowed_values_list(self) -> dict[str, dict]:
-        """Build allowed values map for enum-based features.
+        """Build allowed values map for enum-based and integer-based features.
 
         Returns:
-            Dict mapping feature key to its allowed ENUM values descriptor.
+            Dict mapping feature key to its allowed values descriptor.
         """
-        allowed = {}
+        allowed: dict[str, dict] = {}
         if self.available_modes:
             allowed["hvac_work_mode"] = {"type": "ENUM", "enum_values": {"values": self.available_modes}}
+        allowed["hvac_humidity_set"] = {
+            "type": "INTEGER",
+            "integer_values": {"min": "0", "max": "100", "step": "1"},
+        }
         return allowed
 
     def to_sber_state(self) -> dict:

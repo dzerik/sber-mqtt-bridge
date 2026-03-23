@@ -159,7 +159,11 @@ class TestClimateCreateAllowedValues(unittest.TestCase):
             _make_ha_state(fan_modes=[], swing_modes=[], hvac_modes=[])
         )
         av = entity.create_allowed_values_list()
-        self.assertEqual(av, {})
+        # Only hvac_temp_set remains when no enum modes
+        self.assertNotIn("hvac_air_flow_power", av)
+        self.assertNotIn("hvac_air_flow_direction", av)
+        self.assertNotIn("hvac_work_mode", av)
+        self.assertIn("hvac_temp_set", av)
 
 
 class TestClimateToSberCurrentState(unittest.TestCase):

@@ -118,18 +118,26 @@ class ClimateEntity(BaseEntity):
         return any(m in self._preset_modes for m in ("sleep", "night"))
 
     def create_allowed_values_list(self) -> dict[str, dict]:
-        """Build allowed values map for enum-based features.
+        """Build allowed values map for enum-based and integer-based features.
 
         Returns:
-            Dict mapping feature key to its allowed ENUM values descriptor.
+            Dict mapping feature key to its allowed values descriptor.
         """
-        allowed = {}
+        allowed: dict[str, dict] = {}
         if self.fan_modes:
             allowed["hvac_air_flow_power"] = {"type": "ENUM", "enum_values": {"values": self.fan_modes}}
         if self.swing_modes:
             allowed["hvac_air_flow_direction"] = {"type": "ENUM", "enum_values": {"values": self.swing_modes}}
         if self.hvac_modes:
             allowed["hvac_work_mode"] = {"type": "ENUM", "enum_values": {"values": self.hvac_modes}}
+        allowed["hvac_temp_set"] = {
+            "type": "INTEGER",
+            "integer_values": {
+                "min": str(int(self.min_temp)),
+                "max": str(int(self.max_temp)),
+                "step": "1",
+            },
+        }
         return allowed
 
     def to_sber_state(self) -> dict:

@@ -64,6 +64,9 @@ class BaseEntity(ABC):
         self.state = None
         self.is_filled_by_state = False
         self.linked_device = None
+        self.nicknames: list[str] = []
+        self.groups: list[str] = []
+        self.parent_entity_id: str | None = None
 
         if entity_data:
             self.area_id = entity_data.get("area_id", "")
@@ -132,6 +135,7 @@ class BaseEntity(ABC):
 
         Returns:
             Dict with device descriptor for Sber (id, name, room, model, features).
+            Optionally includes nicknames, groups, and parent_id when configured.
 
         Raises:
             RuntimeError: If fill_by_ha_state was not called first.
@@ -141,7 +145,7 @@ class BaseEntity(ABC):
             raise RuntimeError(f"Entity {self.entity_id}: fill_by_ha_state must be called before to_sber_state")
 
         if self.device_id is None:
-            return {
+            res: dict = {
                 "id": self.entity_id,
                 "name": self.name,
                 "default_name": self.entity_id,
@@ -158,25 +162,34 @@ class BaseEntity(ABC):
                 "sw_version": "Unknown",
                 "model_id": "",
             }
+        else:
+            if self.linked_device is None:
+                raise RuntimeError(f"Entity {self.entity_id}: linked_device required when device_id is set")
+            res = {
+                "id": self.entity_id,
+                "name": self.linked_device.get("name", self.original_name),
+                "default_name": self.original_name,
+                "room": self.linked_device.get("area_id", self.area_id),
+                "model": {
+                    "id": self.linked_device["model_id"],
+                    "manufacturer": self.linked_device["manufacturer"],
+                    "model": self.linked_device["model"],
+                    "description": self.linked_device["name"],
+                    "category": self.category,
+                    "features": self.create_features_list(),
+                },
+                "hw_version": self.linked_device["hw_version"],
+                "sw_version": self.linked_device["sw_version"],
+            }
 
-        if self.linked_device is None:
-            raise RuntimeError(f"Entity {self.entity_id}: linked_device required when device_id is set")
-        return {
-            "id": self.entity_id,
-            "name": self.linked_device.get("name", self.original_name),
-            "default_name": self.original_name,
-            "room": self.linked_device.get("area_id", self.area_id),
-            "model": {
-                "id": self.linked_device["model_id"],
-                "manufacturer": self.linked_device["manufacturer"],
-                "model": self.linked_device["model"],
-                "description": self.linked_device["name"],
-                "category": self.category,
-                "features": self.create_features_list(),
-            },
-            "hw_version": self.linked_device["hw_version"],
-            "sw_version": self.linked_device["sw_version"],
-        }
+        if self.nicknames:
+            res["nicknames"] = self.nicknames
+        if self.groups:
+            res["groups"] = self.groups
+        if self.parent_entity_id:
+            res["parent_id"] = self.parent_entity_id
+
+        return res
 
     @abstractmethod
     def to_sber_current_state(self) -> dict:

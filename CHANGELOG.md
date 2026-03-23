@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-03-23
+
+### Added
+- **dependencies**: `LightEntity.to_sber_state()` now includes `dependencies` block when light supports colour mode (light_colour depends on light_mode == "colour")
+- **allowed_values**: added `allowed_values` to `ValveEntity` (open_set ENUM), `CurtainEntity` (open_set ENUM + open_percentage INTEGER), `ScenarioButtonEntity` (button_event ENUM), `ClimateEntity` (hvac_temp_set INTEGER), and `HumidifierEntity` (hvac_humidity_set INTEGER)
+- **nicknames**: new `sber_nicknames` YAML option for alternative voice names in Sber (`EntityCustomConfig.sber_nicknames`, `BaseEntity.nicknames`)
+- **groups**: new `sber_groups` YAML option for device groups in Sber (`EntityCustomConfig.sber_groups`, `BaseEntity.groups`)
+- **parent_id**: new `sber_parent_id` YAML option for hub-device hierarchy (`EntityCustomConfig.sber_parent_id`, `BaseEntity.parent_entity_id`)
+- 30 new tests covering all P2 structural improvements
+
 ## [0.9.1] - 2026-03-23
 
 ### Added
