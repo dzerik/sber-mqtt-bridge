@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-03-23
+
+### Fixed
+- Debounce timer not cancelled on bridge teardown (orphaned task prevention)
+- `_handle_change_group` / `_handle_rename_device` variable naming (`device_id` → `entity_id`)
+- `humidifier.set_humidity` uses `round()` instead of `int()` for correct rounding
+- LightEntity: removed optimistic state mutation from `process_cmd`
+- LightEntity: added missing `online` key in `to_sber_current_state`
+- LightEntity: `ha_state["attributes"]` → `.get("attributes", {})` (KeyError prevention)
+- CurtainEntity: same `.get()` fix for attributes access
+- SSL `create_default_context()` offloaded to executor (no longer blocks event loop)
+- Startup ordering: `EVENT_HOMEASSISTANT_STARTED` listener for entity registry reload
+
+### Added
+- `BridgeStats` dataclass with connection health metrics (uptime, counters, reconnects)
+- Device acknowledgment tracking (entities confirmed by Sber via status_request/command)
+- State publish debounce (100ms coalescing for burst HA state changes)
+- MQTT payload size guard (1MB max, prevents DoS)
+- Enhanced debug logging: all MQTT messages, Sber commands, HA service calls, errors
+
+### Changed
+- `_unsub_listeners` split into `_unsub_state_listeners` + `_unsub_lifecycle_listeners`
+- Diagnostics now shows `stats` and `unacknowledged_entities`
+
+### Removed
+- Dead code: `EntityContext` class, `device_data.py`, `CONF_SBER_HTTP_ENDPOINT`
+- Redundant `to_sber_state` override in `CurtainEntity`
+
 ## [0.3.0] - 2026-03-23
 
 ### Added
