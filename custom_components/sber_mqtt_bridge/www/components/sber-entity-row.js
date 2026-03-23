@@ -203,7 +203,7 @@ class SberEntityRow extends LitElement {
         />
       </td>
       <td><code>${d.entity_id}</code></td>
-      <td>${d.name || "\u2014"}</td>
+      <td>${d.name || "\u2014"}${d.linked_entities ? html` <span class="feature-tag" style="background:var(--info-color,#2196f3);color:#fff">\u{1F517} +${Object.keys(d.linked_entities).length}</span>` : ""}</td>
       <td><code>${d.sber_category}</code></td>
       <td>
         <div class="features">

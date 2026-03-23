@@ -29,6 +29,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from .config_flow import create_ssl_context
 from .const import (
+    CONF_ENTITY_LINKS,
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
     CONF_SBER_BROKER,
@@ -137,6 +138,10 @@ class SberBridge:
         self._entities: dict[str, BaseEntity] = {}
         self._enabled_entity_ids: list[str] = []
         self._redefinitions: dict[str, dict] = {}
+        self._entity_links: dict[str, dict[str, str]] = {}
+        """Primary entity → {role: linked_entity_id}."""
+        self._linked_reverse: dict[str, tuple[str, str]] = {}
+        """Linked entity_id → (primary_entity_id, role)."""
 
         self._mqtt_client: aiomqtt.Client | None = None
         self._connection_task: asyncio.Task | None = None
@@ -181,6 +186,16 @@ class SberBridge:
     def redefinitions(self) -> dict[str, str]:
         """Return a copy of the entity redefinitions mapping."""
         return dict(self._redefinitions)
+
+    @property
+    def entity_links(self) -> dict[str, dict[str, str]]:
+        """Return the current entity link map."""
+        return dict(self._entity_links)
+
+    @property
+    def linked_entity_ids(self) -> set[str]:
+        """Return set of all linked entity IDs (not primary)."""
+        return set(self._linked_reverse.keys())
 
     @property
     def stats(self) -> dict:
@@ -360,9 +375,43 @@ class SberBridge:
                     }
                     sber_entity.fill_by_ha_state(ha_state_dict)
 
-        # Warn about multiple entities sharing the same physical device
+        # Load and apply entity links
+        raw_links: dict[str, dict[str, str]] = self._entry.options.get(CONF_ENTITY_LINKS, {})
+        new_links: dict[str, dict[str, str]] = {}
+        new_reverse: dict[str, tuple[str, str]] = {}
+        for primary_id, roles in raw_links.items():
+            if primary_id not in new_entities:
+                continue
+            primary_entity = new_entities[primary_id]
+            valid_roles: dict[str, str] = {}
+            for role, linked_id in roles.items():
+                linked_state = self._hass.states.get(linked_id)
+                if linked_state is None:
+                    _LOGGER.warning("Linked entity %s (role=%s) for %s not found", linked_id, role, primary_id)
+                    continue
+                if hasattr(primary_entity, "update_linked_data"):
+                    ha_state_dict = {
+                        "entity_id": linked_state.entity_id,
+                        "state": linked_state.state,
+                        "attributes": dict(linked_state.attributes),
+                    }
+                    primary_entity.update_linked_data(role, ha_state_dict)
+                    primary_entity._linked_entities[role] = linked_id
+                valid_roles[role] = linked_id
+                new_reverse[linked_id] = (primary_id, role)
+            if valid_roles:
+                new_links[primary_id] = valid_roles
+                _LOGGER.info("Entity links for %s: %s", primary_id, valid_roles)
+
+        self._entity_links = new_links
+        self._linked_reverse = new_reverse
+
+        # Warn about multiple entities sharing the same physical device (exclude linked)
+        linked_ids = set(new_reverse.keys())
         device_entities: dict[str, list[str]] = {}
         for eid, ent in new_entities.items():
+            if eid in linked_ids:
+                continue
             did = getattr(ent, "device_id", None)
             if did:
                 device_entities.setdefault(did, []).append(eid)
@@ -421,10 +470,16 @@ class SberBridge:
             unsub()
         self._unsub_state_listeners.clear()
 
-        if self._enabled_entity_ids:
+        # Subscribe to both primary entities and linked entities
+        all_tracked = list(self._enabled_entity_ids)
+        for linked_id in self._linked_reverse:
+            if linked_id not in all_tracked:
+                all_tracked.append(linked_id)
+
+        if all_tracked:
             unsub = async_track_state_change_event(
                 self._hass,
-                self._enabled_entity_ids,
+                all_tracked,
                 self._on_ha_state_changed,
             )
             self._unsub_state_listeners.append(unsub)
@@ -734,14 +789,14 @@ class SberBridge:
 
     @callback
     def _on_ha_state_changed(self, event: Event) -> None:
-        """Handle HA state change → publish to Sber."""
+        """Handle HA state change → publish to Sber.
+
+        Also handles linked entity state changes by forwarding data
+        to the primary entity and scheduling publish for the primary.
+        """
         entity_id = event.data["entity_id"]
         new_state = event.data.get("new_state")
         if new_state is None:
-            return
-
-        entity = self._entities.get(entity_id)
-        if entity is None:
             return
 
         ha_state_dict = {
@@ -749,6 +804,20 @@ class SberBridge:
             "state": new_state.state,
             "attributes": dict(new_state.attributes),
         }
+
+        # Check if this is a linked entity → forward to primary
+        if entity_id in self._linked_reverse:
+            primary_id, role = self._linked_reverse[entity_id]
+            primary_entity = self._entities.get(primary_id)
+            if primary_entity is not None and hasattr(primary_entity, "update_linked_data"):
+                primary_entity.update_linked_data(role, ha_state_dict)
+                _LOGGER.debug("Linked %s (%s) → primary %s", entity_id, role, primary_id)
+                self._schedule_debounced_publish(primary_id)
+            return
+
+        entity = self._entities.get(entity_id)
+        if entity is None:
+            return
 
         try:
             entity.process_state_change(event.data.get("old_state"), ha_state_dict)

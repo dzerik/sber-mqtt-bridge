@@ -219,12 +219,12 @@ class TestHumidifierAllowedValues(unittest.TestCase):
         self.assertEqual(av["hvac_humidity_set"]["integer_values"]["min"], "0")
         self.assertEqual(av["hvac_humidity_set"]["integer_values"]["max"], "100")
 
-    def test_hvac_work_mode_and_humidity_both_present(self):
+    def test_hvac_air_flow_power_and_humidity_both_present(self):
         entity = HumidifierEntity(HUMIDIFIER_DATA)
         entity.fill_by_ha_state(_humidifier_state())
         result = entity.to_sber_state()
         av = result["model"]["allowed_values"]
-        self.assertIn("hvac_work_mode", av)
+        self.assertIn("hvac_air_flow_power", av)
         self.assertIn("hvac_humidity_set", av)
 
 

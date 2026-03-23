@@ -75,7 +75,8 @@ class TestHumidifierCreateFeaturesList(unittest.TestCase):
         features = entity.create_features_list()
         self.assertIn("on_off", features)
         self.assertIn("humidity", features)
-        self.assertIn("hvac_work_mode", features)
+        self.assertIn("hvac_humidity_set", features)
+        self.assertIn("hvac_air_flow_power", features)
         self.assertIn("online", features)
 
     def test_without_modes(self):
@@ -84,7 +85,8 @@ class TestHumidifierCreateFeaturesList(unittest.TestCase):
         features = entity.create_features_list()
         self.assertIn("on_off", features)
         self.assertIn("humidity", features)
-        self.assertNotIn("hvac_work_mode", features)
+        self.assertIn("hvac_humidity_set", features)
+        self.assertNotIn("hvac_air_flow_power", features)
 
 
 class TestHumidifierCreateAllowedValues(unittest.TestCase):
@@ -94,10 +96,10 @@ class TestHumidifierCreateAllowedValues(unittest.TestCase):
         entity = HumidifierEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
         av = entity.create_allowed_values_list()
-        self.assertIn("hvac_work_mode", av)
-        self.assertEqual(av["hvac_work_mode"]["type"], "ENUM")
+        self.assertIn("hvac_air_flow_power", av)
+        self.assertEqual(av["hvac_air_flow_power"]["type"], "ENUM")
         self.assertEqual(
-            av["hvac_work_mode"]["enum_values"]["values"],
+            av["hvac_air_flow_power"]["enum_values"]["values"],
             ["normal", "eco", "turbo"],
         )
 
@@ -106,7 +108,7 @@ class TestHumidifierCreateAllowedValues(unittest.TestCase):
         entity.fill_by_ha_state(_make_ha_state(available_modes=[]))
         av = entity.create_allowed_values_list()
         # Only hvac_humidity_set remains when no enum modes
-        self.assertNotIn("hvac_work_mode", av)
+        self.assertNotIn("hvac_air_flow_power", av)
         self.assertIn("hvac_humidity_set", av)
 
 
@@ -124,7 +126,7 @@ class TestHumidifierToSberCurrentState(unittest.TestCase):
         self.assertIn("online", keys)
         self.assertIn("on_off", keys)
         self.assertIn("humidity", keys)
-        self.assertIn("hvac_work_mode", keys)
+        self.assertIn("hvac_air_flow_power", keys)
 
         online = next(s for s in states if s["key"] == "online")
         self.assertTrue(online["value"]["bool_value"])
@@ -138,7 +140,7 @@ class TestHumidifierToSberCurrentState(unittest.TestCase):
         hum_set = next(s for s in states if s["key"] == "hvac_humidity_set")
         self.assertEqual(hum_set["value"]["integer_value"], "50")  # target humidity
 
-        mode = next(s for s in states if s["key"] == "hvac_work_mode")
+        mode = next(s for s in states if s["key"] == "hvac_air_flow_power")
         self.assertEqual(mode["value"]["enum_value"], "normal")
 
     def test_off_state(self):
@@ -179,7 +181,7 @@ class TestHumidifierToSberCurrentState(unittest.TestCase):
         result = entity.to_sber_current_state()
         states = result["humidifier.room"]["states"]
         keys = [s["key"] for s in states]
-        self.assertNotIn("hvac_work_mode", keys)
+        self.assertNotIn("hvac_air_flow_power", keys)
 
 
 class TestHumidifierProcessCmd(unittest.TestCase):
@@ -219,7 +221,7 @@ class TestHumidifierProcessCmd(unittest.TestCase):
     def test_cmd_mode(self):
         entity = self._make_entity()
         result = entity.process_cmd({
-            "states": [{"key": "hvac_work_mode", "value": {"enum_value": "eco"}}]
+            "states": [{"key": "hvac_air_flow_power", "value": {"enum_value": "eco"}}]
         })
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_mode")
@@ -236,7 +238,7 @@ class TestHumidifierProcessCmd(unittest.TestCase):
             "states": [
                 {"key": "on_off", "value": {"bool_value": True}},
                 {"key": "humidity", "value": {"integer_value": 700}},
-                {"key": "hvac_work_mode", "value": {"enum_value": "boost"}},
+                {"key": "hvac_air_flow_power", "value": {"enum_value": "boost"}},
             ]
         })
         self.assertEqual(len(result), 3)

@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: sber-mqtt-bridge
-Version: 0.9.2
+Version: 1.5.0
 Summary: Sber Smart Home MQTT Bridge for Home Assistant
 License-Expression: MIT
 Requires-Python: >=3.13

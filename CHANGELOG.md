@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-03-24
+
+### Added
+- **Entity Linking**: link auxiliary HA entities (battery, humidity, temperature, signal) to a primary Sber device
+- **Auto-detection in Wizard**: Step 2 shows related entities from the same physical device with compatibility info
+- **`suggest_links` WS command**: auto-detects linkable entities by shared `device_id` and `device_class`
+- **`set_entity_links` WS command**: save/remove entity links with validation
+- **Linked entity state tracking**: state changes from linked entities propagate to primary device
+- **Device table linked badge**: shows link count (chain icon) next to device name
+- **Export/import v2**: entity_links included in export payload
+
+### Changed
+- Available entities list now filters out linked entities (they won't appear in Add dialog or Wizard)
+- Remove entities also cleans up associated entity links
+- Sensor entities (`SimpleReadOnlySensor`) support `update_linked_data()` for battery/signal injection
+- `SensorTempEntity` supports linked humidity feature
+- `HumiditySensorEntity` supports linked temperature feature
+
 ## [1.5.3] - 2026-03-24
 
 ### Fixed

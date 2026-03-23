@@ -137,15 +137,20 @@ class SberWizard extends LitElement {
     if (!this.hass) return;
     try {
       const result = await this.hass.callWS({
-        type: "sber_mqtt_bridge/related_sensors",
+        type: "sber_mqtt_bridge/suggest_links",
         entity_id: entityId,
       });
-      this._relatedSensors = result.sensors || [];
+      this._relatedSensors = result.candidates || [];
+      this._allowedRoles = result.allowed_roles || [];
+      // Auto-select compatible candidates with known roles
       this._enabledSensors = new Set(
-        this._relatedSensors.map((s) => s.entity_id)
+        this._relatedSensors
+          .filter((s) => s.compatible && s.suggested_role)
+          .map((s) => s.entity_id)
       );
     } catch {
       this._relatedSensors = [];
+      this._allowedRoles = [];
       this._enabledSensors = new Set();
     }
   }
@@ -175,15 +180,11 @@ class SberWizard extends LitElement {
 
   _finish() {
     if (!isValidSalutName(this._name)) return;
-    const sensors = {};
+    // Build entity_links: {role: linked_entity_id}
+    const entity_links = {};
     for (const s of this._relatedSensors) {
-      if (this._enabledSensors.has(s.entity_id)) {
-        const dc = s.device_class || "";
-        if (dc === "power") sensors.power_entity = s.entity_id;
-        else if (dc === "current") sensors.current_entity = s.entity_id;
-        else if (dc === "voltage") sensors.voltage_entity = s.entity_id;
-        else if (dc === "battery") sensors.battery_entity = s.entity_id;
-        else if (dc === "temperature") sensors.temperature_entity = s.entity_id;
+      if (this._enabledSensors.has(s.entity_id) && s.suggested_role && s.compatible) {
+        entity_links[s.suggested_role] = s.entity_id;
       }
     }
     this.dispatchEvent(
@@ -194,7 +195,7 @@ class SberWizard extends LitElement {
           name: this._name,
           slug_id: this._slugId,
           room: this._room,
-          sensors,
+          entity_links,
         },
         bubbles: true,
         composed: true,
@@ -498,17 +499,19 @@ class SberWizard extends LitElement {
 
       ${this._relatedSensors.length > 0 ? html`
         <div class="sensors-section">
-          <div class="sensors-title">Related sensors (auto-detected)</div>
+          <div class="sensors-title">Related entities (auto-detected from device)</div>
           ${this._relatedSensors.map((s) => html`
-            <div class="sensor-row">
+            <div class="sensor-row" style="${!s.compatible ? 'opacity: 0.4' : ''}">
               <input
                 type="checkbox"
                 .checked=${this._enabledSensors.has(s.entity_id)}
+                ?disabled=${!s.compatible}
                 @change=${() => this._toggleSensor(s.entity_id)}
               />
-              <span>${s.name}</span>
-              <span class="sensor-class">${s.device_class || "unknown"}</span>
+              <span>${s.friendly_name}</span>
+              <span class="sensor-class">${s.suggested_role || s.device_class || "unknown"}</span>
               <span class="entity-id">${s.entity_id}</span>
+              ${!s.compatible && s.device_class ? html`<span style="font-size:11px;color:var(--error-color)">(not supported)</span>` : ""}
             </div>
           `)}
         </div>

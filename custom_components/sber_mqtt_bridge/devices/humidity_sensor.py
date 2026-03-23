@@ -30,6 +30,7 @@ class HumiditySensorEntity(SimpleReadOnlySensor):
         """
         super().__init__(HUMIDITY_SENSOR_CATEGORY, entity_data)
         self.humidity = 0.0
+        self._linked_temperature: float | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update humidity value.
@@ -42,6 +43,46 @@ class HumiditySensorEntity(SimpleReadOnlySensor):
             self.humidity = float(ha_state.get("state", 0))
         except (ValueError, TypeError):
             self.humidity = 0.0
+
+    def update_linked_data(self, role: str, ha_state: dict) -> None:
+        """Inject data from a linked entity (temperature, battery, signal).
+
+        Args:
+            role: Link role name.
+            ha_state: HA state dict.
+        """
+        super().update_linked_data(role, ha_state)
+        if role == "temperature":
+            state_val = ha_state.get("state")
+            if state_val not in (None, "unknown", "unavailable"):
+                try:
+                    self._linked_temperature = float(state_val)
+                except (TypeError, ValueError):
+                    pass
+
+    def create_features_list(self) -> list[str]:
+        """Return Sber feature list including temperature when linked.
+
+        Returns:
+            List of Sber feature strings supported by this entity.
+        """
+        features = super().create_features_list()
+        if self._linked_temperature is not None:
+            features.append("temperature")
+        return features
+
+    def to_sber_current_state(self) -> dict[str, dict]:
+        """Build Sber current state payload with linked temperature.
+
+        Returns:
+            Dict mapping entity_id to its Sber state representation.
+        """
+        result = super().to_sber_current_state()
+        if self._linked_temperature is not None:
+            result[self.entity_id]["states"].append(
+                {"key": "temperature", "value": {"type": "INTEGER", "integer_value": str(int(self._linked_temperature * 10))}}
+            )
+        return result
 
     def _get_sber_value(self) -> int:
         """Return humidity as integer percentage (0-100)."""

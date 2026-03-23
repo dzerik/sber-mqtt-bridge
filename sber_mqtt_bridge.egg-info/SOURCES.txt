@@ -6,10 +6,12 @@ custom_components/sber_mqtt_bridge/config_flow.py
 custom_components/sber_mqtt_bridge/const.py
 custom_components/sber_mqtt_bridge/custom_capabilities.py
 custom_components/sber_mqtt_bridge/diagnostics.py
+custom_components/sber_mqtt_bridge/repairs.py
 custom_components/sber_mqtt_bridge/sber_bridge.py
 custom_components/sber_mqtt_bridge/sber_entity_map.py
 custom_components/sber_mqtt_bridge/sber_models.py
 custom_components/sber_mqtt_bridge/sber_protocol.py
+custom_components/sber_mqtt_bridge/websocket_api.py
 custom_components/sber_mqtt_bridge/devices/__init__.py
 custom_components/sber_mqtt_bridge/devices/base_entity.py
 custom_components/sber_mqtt_bridge/devices/climate.py

@@ -63,6 +63,29 @@ class SimpleReadOnlySensor(BaseEntity):
         super().__init__(category, entity_data)
         self._battery_level: int | None = None
         self._signal_strength_raw: int | None = None
+        self._linked_entities: dict[str, str] = {}
+        """Linked entity IDs by role: {role: entity_id}."""
+
+    def update_linked_data(self, role: str, ha_state: dict) -> None:
+        """Inject data from a linked entity into this sensor.
+
+        Args:
+            role: Link role name (battery, signal_strength, humidity, temperature).
+            ha_state: HA state dict with 'state' and 'attributes'.
+        """
+        state_val = ha_state.get("state")
+        if state_val in (None, "unknown", "unavailable"):
+            return
+        if role == "battery":
+            try:
+                self._battery_level = int(float(state_val))
+            except (TypeError, ValueError):
+                pass
+        elif role == "signal_strength":
+            try:
+                self._signal_strength_raw = int(float(state_val))
+            except (TypeError, ValueError):
+                pass
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update internal state including battery and signal.
