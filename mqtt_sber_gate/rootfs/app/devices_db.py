@@ -9,7 +9,19 @@ from typing import Dict
 from devices.curtain import CurtainEntity
 from devices.device_data import DeviceData
 from devices.base_entity import BaseEntity
+from devices.door_sensor import DoorSensorEntity
+from devices.humidifier import HumidifierEntity
+from devices.humidity_sensor import HumiditySensorEntity
+from devices.hvac_radiator import HvacRadiatorEntity
 from devices.light import LightEntity
+from devices.motion_sensor import MotionSensorEntity
+from devices.relay import RelayEntity
+from devices.scenario_button import ScenarioButtonEntity
+from devices.sensor_temp import SensorTempEntity
+from devices.socket_entity import SocketEntity
+from devices.valve import ValveEntity
+from devices.water_leak_sensor import WaterLeakSensorEntity
+from devices.window_blind import WindowBlindEntity
 
 logger = logging.getLogger(__name__)
 VERSION = "0.0.1"
@@ -63,9 +75,60 @@ class EntitiesStore:
     _entity_redefinition_info: dict[str, EntityRedefinitions_Sber] = {} # Тут лежит информация о месте, в котором размещается устройство с т.з. сбера. 
     # Сбер может прислать команду OnMESSAGE: sberdevices/v1/d2ebe7l94jevif0sq1eg/down/change_group_device_request 0 b'{"device_id":"light.spot5_sp","home":"\xd0\x9e\xd0\xb1\xd0\xbe\xd0\xb3\xd0\xb0\xd1\x82\xd0\xb8\xd1\x82\xd0\xb5\xd0\xbb\xd1\x8c\xd0\xbd\xd0\xb0\xd1\x8f","room":"\xd0\xa1\xd0\xbf\xd0\xb0\xd0\xbb\xd1\x8c\xd0\xbd\xd1\x8f"}'
     # и по ней надо поменять атрибуты home и room для устройства. И запомнить их, чтобы в следующий раз уже его размещать в этом месте.
+    @staticmethod
+    def _create_sensor(ha_state):
+        dc = ha_state.get("original_device_class", "")
+        if dc == "temperature":
+            return SensorTempEntity(ha_state)
+        if dc == "humidity":
+            return HumiditySensorEntity(ha_state)
+        return None
+
+    @staticmethod
+    def _create_binary_sensor(ha_state):
+        dc = ha_state.get("original_device_class", "")
+        if dc == "motion":
+            return MotionSensorEntity(ha_state)
+        if dc in ("door", "window", "garage_door"):
+            return DoorSensorEntity(ha_state)
+        if dc == "moisture":
+            return WaterLeakSensorEntity(ha_state)
+        return None
+
+    @staticmethod
+    def _create_switch(ha_state):
+        dc = ha_state.get("original_device_class", "")
+        if dc == "outlet":
+            return SocketEntity(ha_state)
+        return RelayEntity(ha_state)
+
+    @staticmethod
+    def _create_cover(ha_state):
+        dc = ha_state.get("original_device_class", "")
+        if dc in ("blind", "shade", "shutter"):
+            return WindowBlindEntity(ha_state)
+        return CurtainEntity(ha_state)
+
+    @staticmethod
+    def _create_climate(ha_state):
+        from devices.climate import ClimateEntity
+        dc = ha_state.get("original_device_class", "")
+        if dc == "radiator":
+            return HvacRadiatorEntity(ha_state)
+        return ClimateEntity(ha_state)
+
     _deviceConstructorsMap = {
-        "light":    lambda ha_state: LightEntity(ha_state),
-        "cover":    lambda ha_state: CurtainEntity(ha_state),
+        "light":            lambda ha_state: LightEntity(ha_state),
+        "cover":            lambda ha_state: EntitiesStore._create_cover(ha_state),
+        "sensor":           lambda ha_state: EntitiesStore._create_sensor(ha_state),
+        "binary_sensor":    lambda ha_state: EntitiesStore._create_binary_sensor(ha_state),
+        "switch":           lambda ha_state: EntitiesStore._create_switch(ha_state),
+        "script":           lambda ha_state: RelayEntity(ha_state),
+        "button":           lambda ha_state: RelayEntity(ha_state),
+        "input_boolean":    lambda ha_state: ScenarioButtonEntity(ha_state),
+        "climate":          lambda ha_state: EntitiesStore._create_climate(ha_state),
+        "valve":            lambda ha_state: ValveEntity(ha_state),
+        "humidifier":       lambda ha_state: HumidifierEntity(ha_state),
     }
     _enabled_entities: list = []
 

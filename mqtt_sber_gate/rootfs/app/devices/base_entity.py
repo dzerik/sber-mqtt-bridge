@@ -153,10 +153,10 @@ class BaseEntity:
         return domain
 
     @abstractmethod
-    def process_cmd(self, source, cmd_data):
+    def process_cmd(self, cmd_data):
         """
-        Обрабатывает команду от Sber или HA
-        Возвращает True, если состояние было изменено
+        Обрабатывает команду от Sber.
+        Возвращает список dict с HA service call для отправки через WebSocket.
         """
         raise NotImplementedError("Метод process_cmd должен быть переопределен")
 

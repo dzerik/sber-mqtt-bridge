@@ -1,202 +1,105 @@
 import unittest
-import os
-import json
+from devices.climate import ClimateEntity
 
-from devices.climate import ClimateDevice
-# from devices.climate import ClimateDevice 
-
-# Путь к тестовым данным
-# JSON_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'devices', 'climate.json')
-
-climate_test_data_sber =  {
-   "id": "climate.aux_cloud_e87072945e65_ac",
-   "manufacturer": "Unknown",
-   "model": "Unknown",
-   "hw_version": "Unknown",
-   "sw_version": "Unknown",
-   "description": "air conditioner Air Conditioner",
-   "category": "hvac_ac",
-   "features": [
-      "online",
-      "on_off",
-      "temperature",
-      "hvac_temp_set",
-      "hvac_air_flow_direction",
-      "hvac_air_flow_power",
-      "hvac_work_mode",
-   ],
-   "allowed_values": {
-      "hvac_air_flow_direction": {
-         "type": "ENUM",
-         "enum_values": {
-            "values": [
-                "off",
-               "vertical",
-               "horizontal",
-               "both"
-            ]
-         }
-      },
-      "hvac_air_flow_power":{
-         "type": "ENUM",
-         "enum_values": {
-            "values": [
-               "auto",
-               "low",
-               "medium",
-               "high",
-               "turbo",
-               "silent"
-            ]
-         }
-      },
-      "hvac_work_mode":{
-         "type": "ENUM",
-         "enum_values": {
-            "values": [
-               "off",
-               "auto",
-               "cool",
-               "heat",
-               "dry",
-               "fan_only"
-            ]
-         }
-      }
-   }
+ENTITY_DATA = {
+    "entity_id": "climate.living_room_ac",
+    "name": "Living Room AC",
+    "original_name": "Air Conditioner",
+    "device_id": "dev_ac_001",
+    "area_id": "living_room",
+    "platform": "test",
 }
 
-climate_test_data_ha =     {
-        "entity_id": "climate.aux_cloud_e87072945e65_ac",
-        "state": "off",
-        "attributes": {
-            "hvac_modes": [
-                "off",
-                "auto",
-                "cool",
-                "heat",
-                "dry",
-                "fan_only"
-            ],
-            "min_temp": 16,
-            "max_temp": 32,
-            "target_temp_step": 0.5,
-            "fan_modes": [
-                "auto",
-                "low",
-                "medium",
-                "high",
-                "turbo",
-                "silent"
-            ],
-            "swing_modes": [
-                "off",
-                "vertical",
-                "horizontal",
-                "both"
-            ],
-            "current_temperature": 26.6,
-            "temperature": 22.0,
-            "fan_mode": "auto",
-            "hvac_action": "off",
-            "swing_mode": "off",
-            "icon": "mdi:air-conditioner",
-            "friendly_name": "air conditioner Air Conditioner",
-            "supported_features": 425
-        },
-        "last_changed": "2025-08-18T08:16:00.503857+00:00",
-        "last_reported": "2025-08-19T02:33:21.237550+00:00",
-        "last_updated": "2025-08-19T02:33:21.237550+00:00",
-        "context": {
-            "id": "01K302S2JN96H6YBPH1RJ5J7SD",
-            "parent_id": {},
-            "user_id": {}
-        }
-    }
+HA_STATE = {
+    "entity_id": "climate.living_room_ac",
+    "state": "cool",
+    "attributes": {
+        "current_temperature": 26.5,
+        "temperature": 24.0,
+        "fan_modes": ["auto", "low", "medium", "high"],
+        "swing_modes": ["off", "vertical"],
+        "hvac_modes": ["off", "cool", "heat", "auto"],
+        "fan_mode": "auto",
+        "swing_mode": "off",
+        "min_temp": 16,
+        "max_temp": 30,
+        "friendly_name": "Living Room AC",
+    },
+}
 
 
-class TestClimateDevice(unittest.TestCase):
-    device = None
+class TestClimateEntity(unittest.TestCase):
 
     def setUp(self):
-        """Создаем тестовый объект климат-устройства на основе данных из JSON"""
-        self.device = ClimateDevice(climate_test_data_ha)
+        self.entity = ClimateEntity(ENTITY_DATA)
 
-    def test_loading(self):
-        """Проверка загрузки данных из JSON"""
-        self.assertEqual(self.device.id, "climate.aux_cloud_e87072945e65_ac")
-        self.assertEqual(self.device.description, "air conditioner Air Conditioner")
-        self.assertEqual(self.device.temperature, 26.6)
-        self.assertEqual(self.device.hvac_temp_set, 22.0)
-        self.assertEqual(self.device.online, False)
-        self.assertListEqual(self.device.fan_modes, ["auto", "low", "medium", "high", "turbo", "silent"])
-        self.assertListEqual(self.device.swing_modes, ["off", "vertical", "horizontal", "both"])
+    def test_construction(self):
+        self.assertEqual(self.entity.category, "hvac_ac")
+        self.assertEqual(self.entity.entity_id, "climate.living_room_ac")
 
-    def test_to_ha_state(self):
-        """Проверка формирования состояния для Home Assistant"""
-        ha_state = self.device.to_ha_state()
-       
-        assert ha_state == climate_test_data_ha
+    def test_fill_by_ha_state(self):
+        self.entity.fill_by_ha_state(HA_STATE)
+        self.assertTrue(self.entity.current_state)
+        self.assertEqual(self.entity.temperature, 26.5)
+        self.assertEqual(self.entity.target_temperature, 24.0)
+        self.assertEqual(self.entity.fan_mode, "auto")
+        self.assertEqual(self.entity.hvac_mode, "cool")
+        self.assertEqual(self.entity.fan_modes, ["auto", "low", "medium", "high"])
 
-    def test_to_sber(self):
-        """Проверка формирования состояния для Sber"""
-        sber_state = self.device.to_sber_state()
+    def test_create_features_list(self):
+        self.entity.fill_by_ha_state(HA_STATE)
+        features = self.entity.create_features_list()
+        self.assertIn("on_off", features)
+        self.assertIn("temperature", features)
+        self.assertIn("hvac_temp_set", features)
+        self.assertIn("hvac_air_flow_power", features)
+        self.assertIn("hvac_air_flow_direction", features)
+        self.assertIn("hvac_work_mode", features)
 
-        assert sber_state == climate_test_data_sber
+    def test_create_allowed_values_list(self):
+        self.entity.fill_by_ha_state(HA_STATE)
+        allowed = self.entity.create_allowed_values_list()
+        self.assertIn("hvac_air_flow_power", allowed)
+        self.assertEqual(allowed["hvac_air_flow_power"]["enum_values"]["values"], ["auto", "low", "medium", "high"])
+
+    def test_to_sber_current_state(self):
+        self.entity.fill_by_ha_state(HA_STATE)
+        result = self.entity.to_sber_current_state()
+        states = result["climate.living_room_ac"]["states"]
+        temp = next(s for s in states if s["key"] == "temperature")
+        self.assertEqual(temp["value"]["integer_value"], 265)
+        hvac_set = next(s for s in states if s["key"] == "hvac_temp_set")
+        self.assertEqual(hvac_set["value"]["integer_value"], 240)
 
     def test_process_cmd_on_off(self):
-        """Проверка обработки команды включения/выключения"""
-        # Тестирование включения устройства
-        cmd = self.device.process_cmd("sber", {"on_off": True})
-        self.assertIsNotNone(cmd)
-        self.assertEqual(cmd["url"], "/api/services/climate/turn_on")
-        self.assertEqual(cmd["data"], {"entity_id": "climate.aux_cloud_e87072945e65_ac"})
+        cmd = {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}
+        results = self.entity.process_cmd(cmd)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["url"]["service"], "turn_on")
 
-        cmd = self.device.process_cmd("sber", {"on_off": False})
-        self.assertIsNotNone(cmd)
-        self.assertEqual(cmd["url"], "/api/services/climate/turn_off")
-        self.assertEqual(cmd["data"], {"entity_id": "climate.aux_cloud_e87072945e65_ac"})
+    def test_process_cmd_temperature(self):
+        cmd = {"states": [{"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": 250}}]}
+        results = self.entity.process_cmd(cmd)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["url"]["service"], "set_temperature")
+        self.assertEqual(results[0]["url"]["service_data"]["temperature"], 25.0)
 
-        cmd = self.device.process_cmd("sber", {"on_off": False})
-        self.assertIsNotNone(cmd)
-        self.assertEqual(cmd["url"], "/api/services/climate/turn_off")
-        self.assertEqual(cmd["data"], {"entity_id": "climate.aux_cloud_e87072945e65_ac"})
+    def test_process_cmd_fan_mode(self):
+        cmd = {"states": [{"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": "high"}}]}
+        results = self.entity.process_cmd(cmd)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["url"]["service"], "set_fan_mode")
+        self.assertEqual(results[0]["url"]["service_data"]["fan_mode"], "high")
 
-    def test_process_cmd_hvac_temp_set(self):
-        """Проверка обработки команды установки температуры"""
-        old_state = self.device.on_off
+    def test_process_cmd_returns_list(self):
+        cmd = {"states": []}
+        results = self.entity.process_cmd(cmd)
+        self.assertIsInstance(results, list)
 
-        self.device.on_off = False
-        cmd = self.device.process_cmd("sber", {"hvac_temp_set": 25.5})
-        self.assertIsNotNone(cmd)
-        self.assertEqual(cmd["url"], "/api/services/climate/set_temperature")
-        self.assertEqual(cmd["data"], {"entity_id": "climate.aux_cloud_e87072945e65_ac", "temperature": 25.5, "hvac_mode": "heat"})
+    def test_process_state_change(self):
+        self.entity.process_state_change(HA_STATE, HA_STATE)
+        self.assertTrue(self.entity.current_state)
 
-        self.device.on_off = True
-        cmd = self.device.process_cmd("sber", {"hvac_temp_set": 29.9})
-        self.assertIsNotNone(cmd)
-        self.assertEqual(cmd["url"], "/api/services/climate/set_temperature")
-        self.assertEqual(cmd["data"], {"entity_id": "climate.aux_cloud_e87072945e65_ac", "temperature": 29.9, "hvac_mode": "cool"})
-    
-    def test_process_wrong_cmd(self):
-        """Проверка обработки неправильной команды"""
-        cmd = self.device.process_cmd("sber", {"wrong_cmd": True})
-        self.assertIsNone(cmd)
-        cmd = self.device.process_cmd("ha", None)
-        self.assertIsNone(cmd)
 
-        
-    # def test_process_multiple_commands(self):
-    #     """Проверка обработки нескольких команд одновременно"""
-    #     # Изменение и температуры, и состояния включения
-    #     changed = self.device.process_cmd("sber", {
-    #         "on_off": False,
-    #         "hvac_temp_set": 22.0
-    #     })
-        
-    #     self.assertTrue(changed)
-    #     self.assertFalse(self.device.on_off)
-    #     self.assertEqual(self.device.hvac_temp_set, 22.0)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
