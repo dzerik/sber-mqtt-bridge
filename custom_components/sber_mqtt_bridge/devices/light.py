@@ -4,6 +4,8 @@ Supports brightness, color temperature, RGB color (HSV), and light mode.
 Uses LinearConverter for value range mapping and ColorConverter for HSV.
 """
 
+from __future__ import annotations
+
 import logging
 
 from .base_entity import BaseEntity
@@ -149,7 +151,7 @@ class LightEntity(BaseEntity):
                 if self.current_sber_color_temp is not None:
                     states.append(
                         {
-                            "key": "colour_temperature",
+                            "key": "light_colour_temp",
                             "value": {"type": "INTEGER", "integer_value": self.current_sber_color_temp},
                         }
                     )
@@ -247,11 +249,7 @@ class LightEntity(BaseEntity):
                 processing_result.append({"update_state": True})
 
             if cmd_key == "light_colour_temp":
-                sber_color_temp = int(
-                    cmd_value.get("integer_value", 0)
-                )  # [0, 1000] - нет. У нас стоит явное ограничение и сбер его выдерживает. Масштабировать не нужно.
-                if sber_color_temp is None:
-                    sber_color_temp = 0
+                sber_color_temp = int(cmd_value.get("integer_value") or 0)
 
                 ha_color_temp = self.color_temp_converter.sber_to_ha(sber_color_temp)
 
@@ -273,5 +271,3 @@ class LightEntity(BaseEntity):
         logger.debug("(LightEntity.process_cmd) processing res: %s", processing_result)
         return processing_result
 
-    def process_state_change(self, old_state, new_state):
-        self.fill_by_ha_state(new_state)

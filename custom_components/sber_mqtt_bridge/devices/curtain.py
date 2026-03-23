@@ -111,7 +111,7 @@ class CurtainEntity(BaseEntity):
             if key is None:
                 continue
 
-            if key == "open_percentage" and value.get("type") == "INTEGER":
+            if key in ("open_percentage", "cover_position"):
                 ha_position = int(value.get("integer_value", 0))
                 ha_position = max(0, min(100, ha_position))
                 processing_result.append(
@@ -125,31 +125,8 @@ class CurtainEntity(BaseEntity):
                         }
                     }
                 )
-                # self.current_position = ha_position
 
-            if key == "cover_position":
-                # Команда на установку позиции
-                sber_position = value.get("integer_value", 0)
-                ha_position = sber_position  # 0-100 → 0-100
-
-                # Ограничение диапазона
-                ha_position = max(0, min(100, ha_position))
-
-                # Формирование команды
-                processing_result.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "cover",
-                            "service": "set_cover_position",
-                            "service_data": {"position": ha_position},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
-                # self.current_position = ha_position
-
-            elif key == "open_set":
+            if key == "open_set":
                 # Команда открытия/закрытия
                 action = value.get("enum_value", None)
                 if action is None:
@@ -218,20 +195,21 @@ class CurtainEntity(BaseEntity):
         """
         return super().to_sber_state()
 
-    def to_sber_current_state(self) -> dict[str, dict] | None:
+    def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with position and open state.
 
-        Returns None if the entity is unavailable.
-
         Returns:
-            Dict mapping entity_id to its Sber state representation,
-            or None if entity is unavailable.
+            Dict mapping entity_id to its Sber state representation.
         """
-        states = []
-        if self.state == "unavailable":
-            states.append({"key": "online", "value": {"type": "BOOL", "bool_value": False}})
-            return None
-        states.append({"key": "online", "value": {"type": "BOOL", "bool_value": True}})
+        if not self._is_online:
+            states = [
+                {"key": "online", "value": {"type": "BOOL", "bool_value": False}},
+            ]
+            return {self.entity_id: {"states": states}}
+
+        states = [
+            {"key": "online", "value": {"type": "BOOL", "bool_value": True}},
+        ]
 
         # # Добавление позиции
         states.append(
@@ -244,17 +222,9 @@ class CurtainEntity(BaseEntity):
         states.append(
             {
                 "key": "open_state",
-                "value": {"type": "ENUM", "enum_value": "open" if self.current_position > 0 else "close"},
+                "value": {"type": "ENUM", "enum_value": "open" if self.current_position > 0 else "closed"},
             }
         )
 
         return {self.entity_id: {"states": states}}
 
-    def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
-        """Handle HA state change event by refreshing internal state.
-
-        Args:
-            old_state: Previous HA state dict (unused).
-            new_state: New HA state dict to apply.
-        """
-        self.fill_by_ha_state(new_state)

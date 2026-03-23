@@ -106,9 +106,9 @@ class TestCurtainToSberCurrentState(unittest.TestCase):
         result = entity.to_sber_current_state()
         states = result["cover.curtain"]["states"]
         state = next(s for s in states if s["key"] == "open_state")
-        self.assertEqual(state["value"]["enum_value"], "close")
+        self.assertEqual(state["value"]["enum_value"], "closed")
 
-    def test_unavailable_returns_none(self):
+    def test_unavailable_returns_offline(self):
         entity = CurtainEntity(ENTITY_DATA)
         entity.fill_by_ha_state({
             "entity_id": "cover.curtain",
@@ -116,7 +116,10 @@ class TestCurtainToSberCurrentState(unittest.TestCase):
             "attributes": {},
         })
         result = entity.to_sber_current_state()
-        self.assertIsNone(result)
+        self.assertIsNotNone(result)
+        states = result["cover.curtain"]["states"]
+        online = next(s for s in states if s["key"] == "online")
+        self.assertFalse(online["value"]["bool_value"])
 
 
 class TestCurtainProcessCmd(unittest.TestCase):

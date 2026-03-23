@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from .base_entity import BaseEntity
+from .on_off_entity import OnOffEntity
 from .relay import RelayEntity
 
 logger = logging.getLogger(__name__)
@@ -23,11 +23,10 @@ class SocketEntity(RelayEntity):
     def __init__(self, entity_data: dict) -> None:
         """Initialize socket entity.
 
-        Calls ``BaseEntity.__init__`` directly (skipping ``RelayEntity``)
+        Calls ``OnOffEntity.__init__`` directly (skipping ``RelayEntity``)
         to set the socket category while preserving relay behavior.
 
         Args:
             entity_data: HA entity registry dict containing entity metadata.
         """
-        BaseEntity.__init__(self, SOCKET_CATEGORY, entity_data)
-        self.current_state = False
+        OnOffEntity.__init__(self, SOCKET_CATEGORY, entity_data)
