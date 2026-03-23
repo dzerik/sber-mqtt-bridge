@@ -8,13 +8,15 @@
           "sber_login": "MQTT Логин",
           "sber_password": "MQTT Пароль",
           "sber_broker": "MQTT Брокер",
-          "sber_port": "MQTT Порт"
+          "sber_port": "MQTT Порт",
+          "sber_verify_ssl": "Проверять SSL сертификат"
         },
         "data_description": {
           "sber_login": "Логин из проекта интеграции Sber Studio",
           "sber_password": "Пароль из проекта интеграции Sber Studio",
           "sber_broker": "Адрес MQTT брокера Sber",
-          "sber_port": "Порт MQTT брокера Sber (по умолчанию: 8883)"
+          "sber_port": "Порт MQTT брокера Sber (по умолчанию: 8883)",
+          "sber_verify_ssl": "Отключайте только если брокер использует собственный или самоподписанный CA сертификат"
         }
       }
     },

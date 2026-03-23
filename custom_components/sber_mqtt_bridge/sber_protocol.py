@@ -72,7 +72,7 @@ def build_devices_list_json(
             if redef.get("name"):
                 device_data["name"] = redef["name"]
 
-        filtered = {k: v for k, v in device_data.items() if v}
+        filtered = {k: v for k, v in device_data.items() if v is not None}
         device_list["devices"].append(filtered)
 
     return json.dumps(device_list)
@@ -125,9 +125,17 @@ def build_states_list_json(
 def parse_sber_command(payload: bytes | str) -> dict[str, Any]:
     """Parse Sber MQTT command payload.
 
-    Returns dict with 'devices' key: {entity_id: {states: [...]}}
+    Args:
+        payload: Raw MQTT payload (bytes or str).
+
+    Returns:
+        Parsed dict with 'devices' key, or empty dict on parse error.
     """
-    return json.loads(payload)
+    try:
+        return json.loads(payload)
+    except (json.JSONDecodeError, TypeError):
+        _LOGGER.exception("Failed to parse Sber command payload")
+        return {"devices": {}}
 
 
 def parse_sber_status_request(payload: bytes | str) -> list[str]:

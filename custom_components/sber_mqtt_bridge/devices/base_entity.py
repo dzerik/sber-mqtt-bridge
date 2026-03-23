@@ -1,53 +1,84 @@
-# devices/base.py
+"""Base entity class for Sber Smart Home device representations.
+
+All device types (light, relay, climate, etc.) inherit from BaseEntity.
+It defines the contract for converting between HA states and Sber JSON protocol.
+"""
+
+from __future__ import annotations
+
 import copy
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 from .device_data import DeviceData
 
 
 class EntityContext:
+    """Context information from a Home Assistant state object."""
+
     id: str
     parent_id: str
     user_id: str
 
-    def __init__(self, ha_state):
+    def __init__(self, ha_state: dict) -> None:
+        """Initialize from HA state dict with context field."""
         if ha_state:
-            self.id = ha_state.get("context", {}).get("id")
-            self.parent_id = ha_state.get("context", {}).get("parent_id")
-            self.user_id = ha_state.get("context", {}).get("user_id")
+            ctx = ha_state.get("context", {})
+            self.id = ctx.get("id")
+            self.parent_id = ctx.get("parent_id")
+            self.user_id = ctx.get("user_id")
 
-class BaseEntity:
+
+class BaseEntity(ABC):
+    """Abstract base class for all Sber device entities.
+
+    Defines the interface that all device types must implement:
+    - fill_by_ha_state: Parse HA state into internal representation
+    - create_features_list: Return Sber feature names
+    - to_sber_state: Build Sber device config JSON
+    - to_sber_current_state: Build Sber current state JSON
+    - process_cmd: Handle Sber commands, return HA service calls
+    - process_state_change: Handle HA state change events
+    """
+
     category: str
     area_id: str
     categories: list[str]
-    config_entry_id: str
-    config_subentry_id: str
-    device_id: str
-    disabled_by: str
-    entity_category: str
+    config_entry_id: str | None
+    config_subentry_id: str | None
+    device_id: str | None
+    disabled_by: str | None
+    entity_category: str | None
     entity_id: str
-    has_entity_name: bool
-    hidden_by: str
-    icon: str
-    id: str
+    has_entity_name: bool | None
+    hidden_by: str | None
+    icon: str | None
+    id: str | None
     labels: list[str]
     name: str
     options: dict
-    original_name: str
-    platform: str
-    translation_key: str
-    unique_id: str
+    original_name: str | None
+    platform: str | None
+    translation_key: str | None
+    unique_id: str | None
 
-    #State variables
-    state: str
-    attributes: dict = {}
+    # State variables
+    state: str | None
+    is_filled_by_state: bool
+    linked_device: DeviceData | None
 
-    #Filling flags
-    is_filled_by_state = False
-    linked_device: DeviceData = None
+    def __init__(self, category: str, entity_data: dict) -> None:
+        """Initialize base entity from HA entity registry data.
 
-    def __init__(self, category, entity_data: dict):
+        Args:
+            category: Sber device category (e.g., 'light', 'relay', 'sensor_temp').
+            entity_data: Dict with HA entity registry fields.
+        """
         self.category = category
+        self.attributes: dict = {}
+        self.state = None
+        self.is_filled_by_state = False
+        self.linked_device = None
+
         if entity_data:
             self.area_id = entity_data.get("area_id", "")
             self.categories = entity_data.get("categories", [])
@@ -69,60 +100,89 @@ class BaseEntity:
             self.translation_key = entity_data.get("translation_key")
             self.unique_id = entity_data.get("unique_id")
 
-            if self.name is None or len(self.name) == 0:
-                if self.original_name is not None and len(self.original_name) > 0:
-                    self.name = self.original_name
-                else:
-                    self.name = self.entity_id
+            if not self.name:
+                self.name = self.original_name or self.entity_id
 
             if self.area_id is None:
                 self.area_id = ""
 
-    def fill_by_ha_state(self, ha_entity_state):
+    def fill_by_ha_state(self, ha_entity_state: dict) -> None:
+        """Parse HA state dict and update internal state.
+
+        Args:
+            ha_entity_state: Dict with 'state' and 'attributes' keys from HA.
+        """
         self.state = ha_entity_state.get("state")
         self.attributes = copy.deepcopy(ha_entity_state.get("attributes", {}))
         self.is_filled_by_state = True
 
-    def is_group_state(self):
+    def is_group_state(self) -> bool:
+        """Check if this entity represents a group of other entities."""
         entity_list = self.attributes.get("entity_id")
-        if entity_list == None or len(entity_list) == 0:
-            return False
-        return True
+        return entity_list is not None and len(entity_list) > 0
 
-    def create_features_list(self):
+    def create_features_list(self) -> list[str]:
+        """Return list of Sber feature names supported by this entity.
+
+        Base implementation returns ['online']. Child classes extend this.
+        """
         return ["online"]
 
-    def link_device(self, device_data: DeviceData):
-        assert self.device_id == device_data.get("id")
+    def link_device(self, device_data: DeviceData) -> None:
+        """Link this entity to a HA device registry entry.
+
+        Args:
+            device_data: Device registry data dict.
+
+        Raises:
+            ValueError: If device_id does not match.
+        """
+        if self.device_id != device_data.get("id"):
+            raise ValueError(
+                f"Device ID mismatch: {self.device_id} != {device_data.get('id')}"
+            )
         self.linked_device = device_data
 
-    def to_sber_state(self):
-        assert self.is_filled_by_state
+    def to_sber_state(self) -> dict:
+        """Build Sber device config JSON for MQTT publish.
 
-        if self.device_id is None: # Possibly it's a group
+        Returns:
+            Dict with device descriptor for Sber (id, name, room, model, features).
+
+        Raises:
+            RuntimeError: If fill_by_ha_state was not called first.
+            RuntimeError: If device has device_id but linked_device is not set.
+        """
+        if not self.is_filled_by_state:
+            raise RuntimeError(
+                f"Entity {self.entity_id}: fill_by_ha_state must be called before to_sber_state"
+            )
+
+        if self.device_id is None:
             return {
-            "id": self.entity_id,
-            "name": self.name,
-            "default_name": self.entity_id,
-            "room": self.area_id,
-            "model": {
-                "id": "Mdl_"+self.category,
-                "manufacturer": "Unknown",
-                "model": "Unknown",
-                "description": self.name,
-                "category": self.category,
-                # "allowed_values": {},
-                "features": self.create_features_list(),
-            },
-            "hw_version": "Unknown",
-            "sw_version": "Unknown",
-            "model_id": "",
-
+                "id": self.entity_id,
+                "name": self.name,
+                "default_name": self.entity_id,
+                "room": self.area_id,
+                "model": {
+                    "id": f"Mdl_{self.category}",
+                    "manufacturer": "Unknown",
+                    "model": "Unknown",
+                    "description": self.name,
+                    "category": self.category,
+                    "features": self.create_features_list(),
+                },
+                "hw_version": "Unknown",
+                "sw_version": "Unknown",
+                "model_id": "",
             }
 
-        assert self.linked_device is not None, True
+        if self.linked_device is None:
+            raise RuntimeError(
+                f"Entity {self.entity_id}: linked_device required when device_id is set"
+            )
         return {
-            "id": self.entity_id ,
+            "id": self.entity_id,
             "name": self.linked_device.get("name", self.original_name),
             "default_name": self.original_name,
             "room": self.linked_device.get("area_id", self.area_id),
@@ -132,34 +192,52 @@ class BaseEntity:
                 "model": self.linked_device["model"],
                 "description": self.linked_device["name"],
                 "category": self.category,
-                # "allowed_values": {},
                 "features": self.create_features_list(),
             },
             "hw_version": self.linked_device["hw_version"],
             "sw_version": self.linked_device["sw_version"],
-            # "model_id": self.linked_device["model_id"],
         }
 
-    def to_sber_current_state(self):
-        raise NotImplementedError("Implement in child classes")
+    @abstractmethod
+    def to_sber_current_state(self) -> dict:
+        """Build Sber current state JSON for MQTT publish.
+
+        Returns:
+            Dict with entity_id key mapping to {'states': [...]}.
+        """
 
     def get_entity_domain(self) -> str:
-        """
-        Извлекает домен из entity_id (например, 'climate' из 'climate.living_room')
-        """
-        if not isinstance(self.id, str) or '.' not in self.id:
-            raise ValueError(f"entity_id '{self.id}' имеет недопустимый формат")
+        """Extract HA domain from entity_id.
 
-        domain, _ = self.id.split('.', 1)
+        Returns:
+            Domain string (e.g., 'climate' from 'climate.living_room').
+
+        Raises:
+            ValueError: If entity_id has invalid format.
+        """
+        entity_id = self.entity_id
+        if not isinstance(entity_id, str) or "." not in entity_id:
+            raise ValueError(f"entity_id '{entity_id}' has invalid format")
+        domain, _ = entity_id.split(".", 1)
         return domain
 
     @abstractmethod
-    def process_cmd(self, cmd_data):
-        """
-        Обрабатывает команду от Sber.
-        Возвращает список dict с HA service call для отправки через WebSocket.
-        """
-        raise NotImplementedError("Метод process_cmd должен быть переопределен")
+    def process_cmd(self, cmd_data: dict) -> list[dict]:
+        """Process a command from Sber cloud.
 
-    def process_state_change(self, old_state, new_state):
-        raise NotImplementedError("Method must be redefined in child classes")
+        Args:
+            cmd_data: Command payload with 'states' list.
+
+        Returns:
+            List of dicts with 'url' key containing HA service call descriptors,
+            or empty list if no action needed.
+        """
+
+    @abstractmethod
+    def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
+        """Handle a state change event from Home Assistant.
+
+        Args:
+            old_state: Previous HA state dict (may be None).
+            new_state: New HA state dict.
+        """

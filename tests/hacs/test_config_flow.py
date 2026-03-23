@@ -23,6 +23,7 @@ MOCK_USER_INPUT = {
     CONF_SBER_PASSWORD: "test_pass",
     CONF_SBER_BROKER: SBER_BROKER_DEFAULT,
     CONF_SBER_PORT: SBER_PORT_DEFAULT,
+    "sber_verify_ssl": True,
 }
 
 

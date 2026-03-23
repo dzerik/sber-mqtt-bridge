@@ -8,13 +8,15 @@
           "sber_login": "MQTT Login",
           "sber_password": "MQTT Password",
           "sber_broker": "MQTT Broker",
-          "sber_port": "MQTT Port"
+          "sber_port": "MQTT Port",
+          "sber_verify_ssl": "Verify SSL certificate"
         },
         "data_description": {
           "sber_login": "Login from Sber Studio integration project",
           "sber_password": "Password from Sber Studio integration project",
           "sber_broker": "Sber MQTT broker address",
-          "sber_port": "Sber MQTT broker port (default: 8883)"
+          "sber_port": "Sber MQTT broker port (default: 8883)",
+          "sber_verify_ssl": "Disable only if broker uses a custom or self-signed CA certificate"
         }
       }
     },
