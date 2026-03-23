@@ -9,14 +9,16 @@ class DevicesConverter:
         self._deviceDB = deviceDB
         self._logger = logger
         self.ha_device_converters_dict={
-        'switch': self.upd_sw,
+        'switch': self.create_by_entities_store,
         'light': self.create_by_entities_store,
-        'script': self.upd_scr,
-        'sensor': self.upd_sensor,
-        'button': self.upd_button,
-        'input_boolean': self.upd_input_boolean,
-        'climate': self.upd_climate,
-        'hvac_radiator': self.upd_hvac_radiator,
+        'script': self.create_by_entities_store,
+        'sensor': self.create_by_entities_store,
+        'binary_sensor': self.create_by_entities_store,
+        'button': self.create_by_entities_store,
+        'input_boolean': self.create_by_entities_store,
+        'climate': self.create_by_entities_store,
+        'valve': self.create_by_entities_store,
+        'humidifier': self.create_by_entities_store,
         'cover': self.create_by_entities_store
         }
 

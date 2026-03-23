@@ -3,18 +3,18 @@ from .base_entity import BaseEntity
 
 logger = logging.getLogger(__name__)
 
-RELAY_CATEGORY = "relay"
+VALVE_CATEGORY = "valve"
 
 
-class RelayEntity(BaseEntity):
+class ValveEntity(BaseEntity):
 
     def __init__(self, entity_data: dict):
-        super().__init__(RELAY_CATEGORY, entity_data)
+        super().__init__(VALVE_CATEGORY, entity_data)
         self.current_state = False
 
     def fill_by_ha_state(self, ha_state):
         super().fill_by_ha_state(ha_state)
-        self.current_state = ha_state.get("state") == "on"
+        self.current_state = ha_state.get("state") == "open"
 
     def create_features_list(self):
         return super().create_features_list() + ["on_off"]
@@ -36,17 +36,10 @@ class RelayEntity(BaseEntity):
             if key == "on_off" and value.get("type") == "BOOL":
                 on = value.get("bool_value", False)
                 self.current_state = on
-                domain = self.entity_id.split(".")[0]
-
-                if domain == "button":
-                    service = "press"
-                else:
-                    service = "turn_on" if on else "turn_off"
-
                 results.append({"url": {
                     "type": "call_service",
-                    "domain": domain,
-                    "service": service,
+                    "domain": "valve",
+                    "service": "open_valve" if on else "close_valve",
                     "target": {"entity_id": self.entity_id}
                 }})
         return results
