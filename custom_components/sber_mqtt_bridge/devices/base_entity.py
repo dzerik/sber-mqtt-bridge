@@ -9,23 +9,9 @@ from __future__ import annotations
 import copy
 from abc import ABC, abstractmethod
 
-from .device_data import DeviceData
-
-
-class EntityContext:
-    """Context information from a Home Assistant state object."""
-
-    id: str
-    parent_id: str
-    user_id: str
-
-    def __init__(self, ha_state: dict) -> None:
-        """Initialize from HA state dict with context field."""
-        if ha_state:
-            ctx = ha_state.get("context", {})
-            self.id = ctx.get("id")
-            self.parent_id = ctx.get("parent_id")
-            self.user_id = ctx.get("user_id")
+# DeviceData type alias — linked_device is stored as a plain dict with keys:
+# id, name, area_id, manufacturer, model, model_id, hw_version, sw_version
+DeviceData = dict[str, str]
 
 
 class BaseEntity(ABC):

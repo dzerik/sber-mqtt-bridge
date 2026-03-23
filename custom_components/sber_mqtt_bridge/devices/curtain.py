@@ -58,23 +58,13 @@ class CurtainEntity(BaseEntity):
             ha_state: HA state dict with 'state' and 'attributes' keys.
         """
         super().fill_by_ha_state(ha_state)
+        attrs = ha_state.get("attributes", {})
 
-        # state_value = ha_state.get("state", "closed")
-
-        # Обновление позиции
-        position = ha_state["attributes"].get("current_position")
+        position = attrs.get("current_position")
         if position is not None:
             self.current_position = position
         else:
             self.current_position = 100 if self.state == "opened" else 0
-
-        # # Обновление уровня батареи
-        # battery = ha_state["attributes"].get("battery_level")
-        # if battery is not None:
-        #     self._battery_level = battery
-        # _LOGGER.debug(f"Обновлено состояние {self.entity_id}: "
-        #             f"открыто={self._is_open}, позиция={self._position}%, "
-        #             f"батарея={self._battery_level}%")
 
     def _convert_position(self, ha_position: int) -> int:
         """Convert HA position (0-100) to Sber position (0-100).
