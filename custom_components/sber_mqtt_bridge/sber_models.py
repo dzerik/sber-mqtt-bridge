@@ -96,6 +96,10 @@ class SberDevice(BaseModel):
         hw_version: Hardware version string.
         sw_version: Software version string.
         model_id: Optional model identifier.
+        nicknames: Alternative voice names.
+        groups: Device groups.
+        parent_id: Parent device entity_id for hub hierarchy.
+        partner_meta: Arbitrary key-value metadata for partner integrations.
     """
 
     id: str
@@ -106,6 +110,10 @@ class SberDevice(BaseModel):
     hw_version: str = "Unknown"
     sw_version: str = "Unknown"
     model_id: str = ""
+    nicknames: list[str] | None = None
+    groups: list[str] | None = None
+    parent_id: str | None = None
+    partner_meta: dict[str, str] | None = None
 
 
 # ---------------------------------------------------------------------------

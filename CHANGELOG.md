@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-03-23
+
+### Added
+- **pydantic validation**: `build_devices_list_json()` and `build_states_list_json()` now validate output payloads via `validate_config_payload()` / `validate_status_payload()` (pydantic models from `sber_models.py`)
+- **partner_meta**: new `sber_partner_meta` YAML option for arbitrary key-value metadata passed to Sber (`EntityCustomConfig.sber_partner_meta`, `BaseEntity.partner_meta`); included in `to_sber_state()` output and `SberDevice` pydantic model
+- **CI/CD**: GitHub Actions workflows for HACS validation (`hacs.yml`), Hassfest (`hassfest.yml`), and full CI pipeline (`ci.yaml`) with lint, test (Python 3.13 + 3.14 matrix), hassfest, and HACS validation
+- **multi-version testing**: CI test matrix runs on Python 3.13 and 3.14
+
 ## [0.9.2] - 2026-03-23
 
 ### Added

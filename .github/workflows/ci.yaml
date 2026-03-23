@@ -22,19 +22,23 @@ jobs:
         run: ruff format --check custom_components/
 
   test:
-    name: Test
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.13', '3.14']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
       - name: Install dependencies
         run: |
-          pip install aiomqtt pytest pytest-asyncio pytest-homeassistant-custom-component pytest-cov
+          pip install aiomqtt pytest pytest-asyncio pytest-homeassistant-custom-component pytest-cov syrupy pydantic
       - name: Run tests
         run: |
-          pytest tests/hacs/ -v -o asyncio_mode=auto --cov=custom_components/sber_mqtt_bridge --cov-report=xml
+          pytest tests/hacs/ -v -o asyncio_mode=auto --cov=custom_components/sber_mqtt_bridge --cov-report=term-missing --cov-report=xml
 
   hassfest:
     name: Hassfest

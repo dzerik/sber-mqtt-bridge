@@ -46,6 +46,7 @@ class EntityCustomConfig:
         sber_nicknames: Alternative voice names for Sber (e.g. ``["Свет кухня"]``).
         sber_groups: Device groups in Sber (e.g. ``["Свет", "Кухня"]``).
         sber_parent_id: Parent device entity_id for hub hierarchy.
+        sber_partner_meta: Arbitrary key-value metadata passed as ``partner_meta`` to Sber.
     """
 
     sber_type: str | None = None
@@ -54,6 +55,7 @@ class EntityCustomConfig:
     sber_nicknames: list[str] | None = None
     sber_groups: list[str] | None = None
     sber_parent_id: str | None = None
+    sber_partner_meta: dict[str, str] | None = None
 
 
 @dataclass
@@ -101,6 +103,7 @@ ENTITY_CONFIG_SCHEMA = vol.Schema(
         vol.Optional("sber_nicknames"): [str],
         vol.Optional("sber_groups"): [str],
         vol.Optional("sber_parent_id"): str,
+        vol.Optional("sber_partner_meta"): {str: str},
     }
 )
 """Schema for a single entity's custom configuration."""
@@ -139,10 +142,11 @@ def parse_yaml_config(yaml_data: dict[str, Any]) -> CustomConfig:
             sber_nicknames=raw_cfg.get("sber_nicknames"),
             sber_groups=raw_cfg.get("sber_groups"),
             sber_parent_id=raw_cfg.get("sber_parent_id"),
+            sber_partner_meta=raw_cfg.get("sber_partner_meta"),
         )
         entity_configs[entity_id] = cfg
         _LOGGER.debug(
-            "Custom config for %s: type=%s, name=%s, room=%s, nicknames=%s, groups=%s, parent_id=%s",
+            "Custom config for %s: type=%s, name=%s, room=%s, nicknames=%s, groups=%s, parent_id=%s, partner_meta=%s",
             entity_id,
             cfg.sber_type,
             cfg.sber_name,
@@ -150,6 +154,7 @@ def parse_yaml_config(yaml_data: dict[str, Any]) -> CustomConfig:
             cfg.sber_nicknames,
             cfg.sber_groups,
             cfg.sber_parent_id,
+            cfg.sber_partner_meta,
         )
 
     return CustomConfig(entity_configs=entity_configs)

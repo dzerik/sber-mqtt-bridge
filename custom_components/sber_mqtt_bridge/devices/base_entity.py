@@ -67,6 +67,7 @@ class BaseEntity(ABC):
         self.nicknames: list[str] = []
         self.groups: list[str] = []
         self.parent_entity_id: str | None = None
+        self.partner_meta: dict[str, str] = {}
 
         if entity_data:
             self.area_id = entity_data.get("area_id", "")
@@ -135,7 +136,8 @@ class BaseEntity(ABC):
 
         Returns:
             Dict with device descriptor for Sber (id, name, room, model, features).
-            Optionally includes nicknames, groups, and parent_id when configured.
+            Optionally includes nicknames, groups, parent_id, and partner_meta
+            when configured.
 
         Raises:
             RuntimeError: If fill_by_ha_state was not called first.
@@ -188,6 +190,8 @@ class BaseEntity(ABC):
             res["groups"] = self.groups
         if self.parent_entity_id:
             res["parent_id"] = self.parent_entity_id
+        if self.partner_meta:
+            res["partner_meta"] = self.partner_meta
 
         return res
 
