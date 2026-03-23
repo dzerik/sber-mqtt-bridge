@@ -40,12 +40,25 @@
   "options": {
     "step": {
       "init": {
-        "title": "Sber Bridge Settings",
+        "title": "Entity Selection Mode",
+        "data": {
+          "selection_mode": "How to select entities"
+        }
+      },
+      "select_entities": {
+        "title": "Select Entities",
         "data": {
           "exposed_entities": "Entities to expose to Sber"
         },
         "data_description": {
           "exposed_entities": "Select which Home Assistant entities to make available in Sber Smart Home"
+        }
+      },
+      "select_domains": {
+        "title": "Select by Domain",
+        "description": "Select domains to add all their entities to Sber. Existing selections will be preserved.",
+        "data": {
+          "domains": "Domains to add"
         }
       }
     }
