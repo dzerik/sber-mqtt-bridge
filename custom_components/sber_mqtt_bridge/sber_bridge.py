@@ -11,20 +11,22 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import ssl
 from collections.abc import Callable
 
 import aiomqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 
+from .config_flow import create_ssl_context
 from .const import (
     CONF_EXPOSED_ENTITIES,
     CONF_SBER_BROKER,
     CONF_SBER_LOGIN,
     CONF_SBER_PASSWORD,
     CONF_SBER_PORT,
+    CONF_SBER_VERIFY_SSL,
     SBER_GLOBAL_CONFIG_TOPIC,
     SBER_TOPIC_PREFIX,
 )
@@ -54,6 +56,7 @@ class SberBridge:
         self._password: str = entry.data[CONF_SBER_PASSWORD]
         self._broker: str = entry.data[CONF_SBER_BROKER]
         self._port: int = entry.data[CONF_SBER_PORT]
+        self._verify_ssl: bool = entry.data.get(CONF_SBER_VERIFY_SSL, True)
 
         self._root_topic = f"{SBER_TOPIC_PREFIX}/{self._login}"
         self._down_topic = f"{self._root_topic}/down"
@@ -105,10 +108,10 @@ class SberBridge:
         )
         self._entities.clear()
 
-        er = self._hass.helpers.entity_registry.async_get(self._hass)
+        entity_reg = er.async_get(self._hass)
 
         for entity_id in self._enabled_entity_ids:
-            entry = er.async_get(entity_id)
+            entry = entity_reg.async_get(entity_id)
             if entry is None:
                 _LOGGER.warning("Entity %s not found in registry", entity_id)
                 continue
@@ -163,9 +166,7 @@ class SberBridge:
 
     async def _mqtt_connection_loop(self) -> None:
         """Maintain persistent MQTT connection with auto-reconnect."""
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
+        ssl_context = create_ssl_context(verify=self._verify_ssl)
 
         while self._running:
             try:
@@ -174,7 +175,7 @@ class SberBridge:
                     port=self._port,
                     username=self._login,
                     password=self._password,
-                    tls_params=aiomqtt.TLSParameters(ssl_context=ssl_context),
+                    tls_context=ssl_context,
                 ) as client:
                     self._mqtt_client = client
                     self._connected = True
@@ -236,7 +237,7 @@ class SberBridge:
     async def _handle_sber_command(self, payload: bytes) -> None:
         """Handle command from Sber cloud → execute HA service."""
         data = parse_sber_command(payload)
-        _LOGGER.info("Sber command: %s", data)
+        _LOGGER.debug("Sber command payload: %s", data)
 
         for entity_id, cmd_data in data.get("devices", {}).items():
             entity = self._entities.get(entity_id)

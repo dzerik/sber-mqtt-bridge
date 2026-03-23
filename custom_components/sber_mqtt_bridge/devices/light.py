@@ -1,4 +1,9 @@
-# devices/light.py
+"""Sber Light entity — maps HA light to Sber light category.
+
+Supports brightness, color temperature, RGB color (HSV), and light mode.
+Uses LinearConverter for value range mapping and ColorConverter for HSV.
+"""
+
 import logging
 
 from .base_entity import BaseEntity
@@ -6,29 +11,36 @@ from .utils.color_converter import ColorConverter
 from .utils.linear_converter import LinearConverter
 
 LIGHT_ENTITY_CATEGORY = "light"
+"""Sber device category for light entities."""
+
 logger = logging.getLogger(__name__)
 
+
 class LightEntity(BaseEntity):
-    supported_features: int = 0
-    max_mireds: int = 500
-    min_mireds: int = 153
-    supported_color_modes: list[str] = []
-    current_state: bool = False
-    current_sber_brightness: int = 0
-    current_sber_color_temp: int = 0
-    current_color_mode: str = None
+    """Sber light entity with brightness, color, and color temperature support."""
 
-    brightness_converter: LinearConverter = LinearConverter()
-    color_temp_converter: LinearConverter = LinearConverter()
-    color_temp_converter.set_reversed(True)
+    def __init__(self, ha_entity_data: dict) -> None:
+        """Initialize light entity from HA entity data.
 
-    def __init__(self, ha_entity_data: dict):
+        Args:
+            ha_entity_data: HA entity registry dict.
+        """
         super().__init__(LIGHT_ENTITY_CATEGORY, ha_entity_data)
-        self.current_state = ha_entity_data.get("state", "off") == "on"
+        self.supported_features: int = 0
+        self.max_mireds: int = 500
+        self.min_mireds: int = 153
+        self.supported_color_modes: list[str] = []
+        self.current_state: bool = ha_entity_data.get("state", "off") == "on"
+        self.current_sber_brightness: int = 0
+        self.current_sber_color_temp: int = 0
+        self.current_color_mode: str | None = None
 
+        self.brightness_converter = LinearConverter()
         self.brightness_converter.set_ha_limits(0, 255)
         self.brightness_converter.set_sber_limits(50, 1000)
 
+        self.color_temp_converter = LinearConverter()
+        self.color_temp_converter.set_reversed(True)
         self.color_temp_converter.set_ha_limits(153, 500)
         self.color_temp_converter.set_sber_limits(0, 1000)
 
@@ -201,7 +213,7 @@ class LightEntity(BaseEntity):
         processing_result = []
 
         if cmd_data is None:
-            return None
+            return []
 
         for data_item in cmd_data.get("states", []):
             cmd_key = data_item.get("key", "")

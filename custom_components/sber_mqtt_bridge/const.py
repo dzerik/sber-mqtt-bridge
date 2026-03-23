@@ -4,10 +4,11 @@ DOMAIN = "sber_mqtt_bridge"
 
 # Config entry data keys
 CONF_SBER_LOGIN = "sber_login"
-CONF_SBER_PASSWORD = "sber_password"
+CONF_SBER_PASSWORD = "sber_password"  # noqa: S105
 CONF_SBER_BROKER = "sber_broker"
 CONF_SBER_PORT = "sber_port"
 CONF_SBER_HTTP_ENDPOINT = "sber_http_endpoint"
+CONF_SBER_VERIFY_SSL = "sber_verify_ssl"
 
 # Options keys
 CONF_EXPOSED_ENTITIES = "exposed_entities"
