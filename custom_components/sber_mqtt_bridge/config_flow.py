@@ -324,19 +324,47 @@ class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
 class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
     """Handle options flow for Sber MQTT Bridge.
 
-    Provides a menu-based flow with sections:
-    - Entity selection (manual, by domain, by label, add all, clear all)
-    - Entity type overrides (override Sber category per entity)
+    Primary device management is done through the sidebar panel.
+    Options Flow is kept as a fallback with a link to the panel
+    and advanced entity selection for users who prefer it.
     """
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Show the main options menu."""
-        return self.async_show_menu(
+        """Show panel link with fallback to advanced options."""
+        if user_input is not None:
+            mode = user_input.get("action", "panel")
+            if mode == "advanced":
+                return self.async_show_menu(
+                    step_id="advanced_menu",
+                    menu_options=[
+                        "select_entities_menu",
+                        "type_overrides",
+                    ],
+                )
+            # Default: just close (user goes to panel)
+            return self.async_create_entry(data=self.config_entry.options)
+
+        return self.async_show_form(
             step_id="init",
-            menu_options=[
-                "select_entities_menu",
-                "type_overrides",
-            ],
+            data_schema=vol.Schema(
+                {
+                    vol.Required("action", default="panel"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                SelectOptionDict(
+                                    value="panel",
+                                    label="Open Sber Bridge panel (recommended)",
+                                ),
+                                SelectOptionDict(
+                                    value="advanced",
+                                    label="Advanced entity management (fallback)",
+                                ),
+                            ],
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    ),
+                }
+            ),
         )
 
     # ── Entity Selection Menu ──
