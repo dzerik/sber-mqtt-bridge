@@ -98,7 +98,7 @@ class TestHumidifierCreateAllowedValues(unittest.TestCase):
         self.assertEqual(av["hvac_work_mode"]["type"], "ENUM")
         self.assertEqual(
             av["hvac_work_mode"]["enum_values"]["values"],
-            ["normal", "eco", "boost"],
+            ["normal", "eco", "turbo"],
         )
 
     def test_without_modes(self):
@@ -133,7 +133,10 @@ class TestHumidifierToSberCurrentState(unittest.TestCase):
         self.assertTrue(on_off["value"]["bool_value"])
 
         hum = next(s for s in states if s["key"] == "humidity")
-        self.assertEqual(hum["value"]["integer_value"], "50")  # plain percentage, as string per spec
+        self.assertEqual(hum["value"]["integer_value"], "45")  # current_humidity, not target
+
+        hum_set = next(s for s in states if s["key"] == "hvac_humidity_set")
+        self.assertEqual(hum_set["value"]["integer_value"], "50")  # target humidity
 
         mode = next(s for s in states if s["key"] == "hvac_work_mode")
         self.assertEqual(mode["value"]["enum_value"], "normal")

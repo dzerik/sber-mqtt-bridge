@@ -1,5 +1,22 @@
 # Sber Smart Home MQTT Bridge — Project Rules
 
+## КРИТИЧЕСКОЕ ПРАВИЛО: Sber Protocol — ВСЕГДА сверяйся с документацией!
+
+**ПЕРЕД любым изменением devices/, protocol, features, allowed_values — ОБЯЗАТЕЛЬНО:**
+
+1. **Загрузи документацию** через context7: `/websites/developers_sber_ru_ru`
+2. **Найди эталонный пример** для конкретной `category` устройства (topic: `{category} category features model`)
+3. **Сверь features, allowed_values, enum-значения** с официальным примером
+4. **НЕ УГАДЫВАЙ** названия enum-значений — у Sber свои стандарты:
+   - `hvac_work_mode`: `cooling`, `heating`, `ventilation`, `dehumidification`, `auto` (НЕ HA-названия!)
+   - `hvac_humidifier` использует `hvac_air_flow_power` (НЕ `hvac_work_mode`!)
+   - `hvac_air_flow_power`: `auto`, `low`, `medium`, `high`, `turbo`, `quiet`
+   - HA `off` НЕ включается в work modes — управляется через `on_off`
+5. **Проверь конкурентное решение** TohaRG2/MQTT-Sber-HA при сомнениях
+6. **Документация**: `https://developers.sber.ru/docs/ru/smarthome/c2c/{category}`
+
+**Нарушение этого правила приводит к тому, что Sber cloud молча отклоняет ВСЕ устройства!**
+
 ## Проект
 
 **Sber Smart Home MQTT Bridge** — мост между Home Assistant и облаком Sber SmartHome через MQTT.

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-03-24
+
+### Fixed
+- **Humidifier uses `hvac_air_flow_power`** instead of `hvac_work_mode` — per Sber `hvac_humidifier` docs
+- **Humidifier mode mapping**: HA modes (`Low`→`low`, `Mid`→`medium`, `High`→`high`, `Auto`→`auto`, `boost`→`turbo`, `sleep`→`quiet`)
+- **Humidifier `hvac_humidity_set`** added to features — target humidity now settable from Sber
+- **Humidifier `humidity` state** now sends `current_humidity` (reading), `hvac_humidity_set` sends target
+- **Binary sensor `occupancy`/`presence`** mapped to `sensor_pir` (was unmapped → null)
+- **Binary sensor `opening`** mapped to `sensor_door`
+- **Binary sensor `water`** mapped to `sensor_water_leak`
+
+### Changed
+- Added critical Sber protocol rule to CLAUDE.md — always check docs before implementing device types
+
 ## [1.5.2] - 2026-03-24
 
 ### Fixed

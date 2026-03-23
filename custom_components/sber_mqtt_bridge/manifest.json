@@ -9,6 +9,6 @@
   "integration_type": "service",
   "iot_class": "cloud_push",
   "requirements": ["aiomqtt>=2.0,<3.0", "pydantic>=2.0,<3.0"],
-  "version": "1.5.2",
+  "version": "1.5.3",
   "loggers": ["aiomqtt"]
 }

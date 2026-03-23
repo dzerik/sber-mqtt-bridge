@@ -134,11 +134,11 @@ def _create_binary_sensor(entity_data: dict) -> BaseEntity | None:
         GasSensorEntity for gas, or None if unsupported.
     """
     dc = entity_data.get("original_device_class", "")
-    if dc == "motion":
+    if dc in ("motion", "occupancy", "presence"):
         return MotionSensorEntity(entity_data)
-    if dc in ("door", "window", "garage_door"):
+    if dc in ("door", "window", "garage_door", "opening"):
         return DoorSensorEntity(entity_data)
-    if dc == "moisture":
+    if dc in ("moisture", "water"):
         return WaterLeakSensorEntity(entity_data)
     if dc == "smoke":
         return SmokeSensorEntity(entity_data)
