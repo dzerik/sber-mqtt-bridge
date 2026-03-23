@@ -34,6 +34,9 @@ class RelayEntity(OnOffEntity):
         Handles the ``on_off`` key to generate ``turn_on``/``turn_off`` (or
         ``press`` for button domain) service calls.
 
+        State is NOT mutated here — it will be updated when HA fires a
+        ``state_changed`` event that is handled by ``fill_by_ha_state``.
+
         Args:
             cmd_data: Sber command dict with 'states' list.
 
@@ -47,7 +50,6 @@ class RelayEntity(OnOffEntity):
 
             if key == "on_off" and value.get("type") == "BOOL":
                 on = value.get("bool_value", False)
-                self.current_state = on
                 domain = self.entity_id.split(".")[0]
 
                 service = "press" if domain == "button" else "turn_on" if on else "turn_off"

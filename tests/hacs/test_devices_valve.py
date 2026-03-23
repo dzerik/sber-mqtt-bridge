@@ -106,7 +106,6 @@ class TestValveProcessCmd(unittest.TestCase):
         url = result[0]["url"]
         self.assertEqual(url["domain"], "valve")
         self.assertEqual(url["service"], "open_valve")
-        self.assertTrue(entity.current_state)
 
     def test_cmd_close(self):
         entity = self._make_entity("open")
@@ -115,7 +114,6 @@ class TestValveProcessCmd(unittest.TestCase):
         })
         url = result[0]["url"]
         self.assertEqual(url["service"], "close_valve")
-        self.assertFalse(entity.current_state)
 
     def test_cmd_wrong_type_ignored(self):
         """Non-BOOL type for on_off is ignored."""

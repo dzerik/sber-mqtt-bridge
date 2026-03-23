@@ -35,6 +35,9 @@ class ValveEntity(OnOffEntity):
         Maps ``on_off=True`` to ``open_valve`` and ``on_off=False`` to
         ``close_valve``.
 
+        State is NOT mutated here — it will be updated when HA fires a
+        ``state_changed`` event that is handled by ``fill_by_ha_state``.
+
         Args:
             cmd_data: Sber command dict with 'states' list.
 
@@ -48,7 +51,6 @@ class ValveEntity(OnOffEntity):
 
             if key == "on_off" and value.get("type") == "BOOL":
                 on = value.get("bool_value", False)
-                self.current_state = on
                 results.append(
                     {
                         "url": {

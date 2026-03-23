@@ -193,7 +193,6 @@ class TestHumidifierProcessCmd(unittest.TestCase):
         url = result[0]["url"]
         self.assertEqual(url["domain"], "humidifier")
         self.assertEqual(url["service"], "turn_on")
-        self.assertTrue(entity.current_state)
 
     def test_cmd_on_off_turn_off(self):
         entity = self._make_entity()
@@ -202,7 +201,6 @@ class TestHumidifierProcessCmd(unittest.TestCase):
         })
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_off")
-        self.assertFalse(entity.current_state)
 
     def test_cmd_humidity(self):
         entity = self._make_entity()
@@ -212,7 +210,6 @@ class TestHumidifierProcessCmd(unittest.TestCase):
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_humidity")
         self.assertEqual(url["service_data"]["humidity"], 60)  # 600 / 10
-        self.assertEqual(entity.target_humidity, 60.0)
 
     def test_cmd_mode(self):
         entity = self._make_entity()
@@ -222,7 +219,6 @@ class TestHumidifierProcessCmd(unittest.TestCase):
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_mode")
         self.assertEqual(url["service_data"]["mode"], "eco")
-        self.assertEqual(entity.mode, "eco")
 
     def test_cmd_empty_states(self):
         entity = self._make_entity()

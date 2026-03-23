@@ -79,13 +79,13 @@ class HumidifierEntity(BaseEntity):
     def to_sber_state(self) -> dict:
         """Build full Sber device descriptor including allowed values.
 
-        Overrides base to inject features and allowed_values into the model.
+        Overrides base to inject allowed_values into the model.
+        Features are already populated by ``super().to_sber_state()``.
 
         Returns:
             Sber device descriptor dict with model, features, and allowed_values.
         """
         res = super().to_sber_state()
-        res["model"]["features"] = self.create_features_list()
         res["model"]["allowed_values"] = self.create_allowed_values_list()
         return res
 
@@ -118,6 +118,9 @@ class HumidifierEntity(BaseEntity):
         - ``humidity``: set_humidity (INTEGER, divided by 10)
         - ``hvac_work_mode``: set_mode (ENUM)
 
+        State is NOT mutated here — it will be updated when HA fires a
+        ``state_changed`` event that is handled by ``fill_by_ha_state``.
+
         Args:
             cmd_data: Sber command dict with 'states' list.
 
@@ -131,11 +134,9 @@ class HumidifierEntity(BaseEntity):
 
             if key == "on_off":
                 on = value.get("bool_value", False)
-                self.current_state = on
                 results.append(self._build_on_off_service_call(self.entity_id, "humidifier", on))
             elif key == "humidity":
                 humidity = value.get("integer_value", 500) / 10.0
-                self.target_humidity = humidity
                 results.append(
                     {
                         "url": {
@@ -151,7 +152,6 @@ class HumidifierEntity(BaseEntity):
                 mode = value.get("enum_value")
                 if mode is None:
                     continue
-                self.mode = mode
                 results.append(
                     {
                         "url": {

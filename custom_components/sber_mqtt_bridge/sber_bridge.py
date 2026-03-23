@@ -16,6 +16,7 @@ from collections.abc import Callable
 
 import aiomqtt
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -84,17 +85,44 @@ class SberBridge:
         """Return True if connected to Sber MQTT."""
         return self._connected
 
+    @property
+    def entities_count(self) -> int:
+        """Return the number of loaded Sber entities."""
+        return len(self._entities)
+
+    @property
+    def enabled_entity_ids(self) -> list[str]:
+        """Return a copy of the enabled entity ID list."""
+        return list(self._enabled_entity_ids)
+
+    @property
+    def redefinitions(self) -> dict[str, str]:
+        """Return a copy of the entity redefinitions mapping."""
+        return dict(self._redefinitions)
+
     async def async_start(self) -> None:
         """Start the bridge: load entities, subscribe to HA events, connect MQTT.
 
         HA state events are subscribed immediately (independent of MQTT connectivity)
         so that no state changes are lost while waiting for the first connection.
         MQTT connection is established in a background task with exponential backoff.
+
+        Subscribes to ``EVENT_HOMEASSISTANT_STARTED`` to reload entities once the
+        entity registry is fully initialised (covers the case when entities are not
+        yet available during early startup).
         """
         self._running = True
         self._load_exposed_entities()
         self._subscribe_ha_events()
         self._connection_task = asyncio.create_task(self._mqtt_connection_loop())
+
+        # Re-load entities after HA is fully started to pick up any entities
+        # that were not yet registered during early async_setup_entry.
+        self._unsub_listeners.append(
+            self._hass.bus.async_listen_once(
+                EVENT_HOMEASSISTANT_STARTED, self._on_homeassistant_started
+            )
+        )
 
     async def async_stop(self) -> None:
         """Stop the bridge: disconnect MQTT, unsubscribe from HA events."""
@@ -203,9 +231,22 @@ class SberBridge:
             )
             self._unsub_listeners.append(unsub)
 
+    @callback
+    def _on_homeassistant_started(self, _event: Event) -> None:
+        """Reload exposed entities after HA is fully started.
+
+        Called once via ``EVENT_HOMEASSISTANT_STARTED`` to ensure entity
+        registry is fully populated before we resolve exposed entity IDs.
+        """
+        _LOGGER.debug("HA started — reloading exposed entities")
+        self._load_exposed_entities()
+        self._subscribe_ha_events()
+
     async def _mqtt_connection_loop(self) -> None:
         """Maintain persistent MQTT connection with exponential backoff reconnect."""
-        ssl_context = create_ssl_context(verify=self._verify_ssl)
+        ssl_context = await self._hass.async_add_executor_job(
+            create_ssl_context, self._verify_ssl
+        )
 
         while self._running:
             try:

@@ -29,9 +29,9 @@ async def test_diagnostics_redacts_password(hass: HomeAssistant) -> None:
     """Test that the password is redacted in diagnostics output."""
     mock_bridge = MagicMock()
     mock_bridge.is_connected = True
-    mock_bridge._entities = {"light.room": MagicMock()}
-    mock_bridge._enabled_entity_ids = ["light.room"]
-    mock_bridge._redefinitions = {}
+    mock_bridge.entities_count = 1
+    mock_bridge.enabled_entity_ids = ["light.room"]
+    mock_bridge.redefinitions = {}
 
     mock_runtime_data = MagicMock()
     mock_runtime_data.bridge = mock_bridge
@@ -69,9 +69,9 @@ async def test_diagnostics_disconnected_bridge(hass: HomeAssistant) -> None:
     """Test diagnostics with a disconnected bridge."""
     mock_bridge = MagicMock()
     mock_bridge.is_connected = False
-    mock_bridge._entities = {}
-    mock_bridge._enabled_entity_ids = []
-    mock_bridge._redefinitions = {}
+    mock_bridge.entities_count = 0
+    mock_bridge.enabled_entity_ids = []
+    mock_bridge.redefinitions = {}
 
     mock_runtime_data = MagicMock()
     mock_runtime_data.bridge = mock_bridge

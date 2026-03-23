@@ -23,8 +23,8 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: SberBri
         "options": dict(entry.options),
         "bridge": {
             "connected": bridge.is_connected,
-            "entities_loaded": len(bridge._entities),
-            "enabled_entity_ids": bridge._enabled_entity_ids,
-            "redefinitions": bridge._redefinitions,
+            "entities_loaded": bridge.entities_count,
+            "enabled_entity_ids": bridge.enabled_entity_ids,
+            "redefinitions": bridge.redefinitions,
         },
     }

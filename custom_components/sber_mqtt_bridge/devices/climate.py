@@ -108,13 +108,13 @@ class ClimateEntity(BaseEntity):
     def to_sber_state(self) -> dict:
         """Build full Sber device descriptor including allowed values.
 
-        Overrides base to inject features and allowed_values into the model.
+        Overrides base to inject allowed_values into the model.
+        Features are already populated by ``super().to_sber_state()``.
 
         Returns:
             Sber device descriptor dict with model, features, and allowed_values.
         """
         res = super().to_sber_state()
-        res["model"]["features"] = self.create_features_list()
         res["model"]["allowed_values"] = self.create_allowed_values_list()
         return res
 
@@ -160,6 +160,9 @@ class ClimateEntity(BaseEntity):
         - ``hvac_air_flow_direction``: set_swing_mode
         - ``hvac_work_mode``: set_hvac_mode
 
+        State is NOT mutated here — it will be updated when HA fires a
+        ``state_changed`` event that is handled by ``fill_by_ha_state``.
+
         Args:
             cmd_data: Sber command dict with 'states' list.
 
@@ -173,14 +176,12 @@ class ClimateEntity(BaseEntity):
 
             if key == "on_off":
                 on = value.get("bool_value", False)
-                self.current_state = on
                 results.append(self._build_on_off_service_call(self.entity_id, "climate", on))
             elif key == "hvac_temp_set":
                 raw_temp = value.get("integer_value")
                 if raw_temp is None:
                     continue
                 temp = raw_temp / 10.0
-                self.target_temperature = temp
                 results.append(
                     {
                         "url": {
@@ -195,7 +196,6 @@ class ClimateEntity(BaseEntity):
             elif key == "hvac_air_flow_power":
                 mode = value.get("enum_value")
                 if mode and (not self.fan_modes or mode in self.fan_modes):
-                    self.fan_mode = mode
                     results.append(
                         {
                             "url": {
@@ -210,7 +210,6 @@ class ClimateEntity(BaseEntity):
             elif key == "hvac_air_flow_direction":
                 mode = value.get("enum_value")
                 if mode and (not self.swing_modes or mode in self.swing_modes):
-                    self.swing_mode = mode
                     results.append(
                         {
                             "url": {
@@ -225,7 +224,6 @@ class ClimateEntity(BaseEntity):
             elif key == "hvac_work_mode":
                 mode = value.get("enum_value")
                 if mode and (not self.hvac_modes or mode in self.hvac_modes):
-                    self.hvac_mode = mode
                     results.append(
                         {
                             "url": {
