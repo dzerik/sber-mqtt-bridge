@@ -37,6 +37,7 @@ from .const import (
     SBER_GLOBAL_CONFIG_TOPIC,
     SBER_TOPIC_PREFIX,
 )
+from .custom_capabilities import get_custom_config
 from .devices.base_entity import BaseEntity
 from .sber_entity_map import create_sber_entity
 from .sber_protocol import (
@@ -234,11 +235,20 @@ class SberBridge:
 
         Uses swap-on-replace pattern: builds a new dict, then atomically
         replaces the reference to avoid race conditions with concurrent readers.
+
+        Custom YAML config (``sber_type``, ``sber_name``, ``sber_room``) from
+        ``configuration.yaml`` is applied after entity creation:
+        - ``sber_type`` overrides Sber category (UI override takes precedence).
+        - ``sber_name`` overrides entity display name.
+        - ``sber_room`` is added to redefinitions.
         """
         # Deduplicate entity IDs while preserving order
         new_enabled = list(dict.fromkeys(self._entry.options.get(CONF_EXPOSED_ENTITIES, [])))
         type_overrides: dict[str, str] = self._entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
         new_entities: dict[str, BaseEntity] = {}
+
+        # Load custom YAML config
+        custom_config = get_custom_config(self._hass)
 
         entity_reg = er.async_get(self._hass)
         device_reg = dr.async_get(self._hass)
@@ -264,13 +274,25 @@ class SberBridge:
                 "hidden_by": entry.hidden_by,
             }
 
+            # Determine sber_category: UI override > YAML override > auto-detect
+            yaml_cfg = custom_config.get(entity_id)
+            sber_category = type_overrides.get(entity_id)
+            if sber_category is None and yaml_cfg is not None and yaml_cfg.sber_type is not None:
+                sber_category = yaml_cfg.sber_type
+                _LOGGER.debug("YAML sber_type override for %s: %s", entity_id, sber_category)
+
             sber_entity = create_sber_entity(
                 entity_id,
                 entity_data,
-                sber_category=type_overrides.get(entity_id),
+                sber_category=sber_category,
             )
             if sber_entity is not None:
                 new_entities[entity_id] = sber_entity
+
+                # Apply YAML name override
+                if yaml_cfg is not None and yaml_cfg.sber_name is not None:
+                    sber_entity.name = yaml_cfg.sber_name
+                    _LOGGER.debug("YAML sber_name override for %s: %s", entity_id, yaml_cfg.sber_name)
 
                 # Link device registry data for entities that belong to a device
                 if entry.device_id is not None:
@@ -318,6 +340,23 @@ class SberBridge:
         # Atomic swap — readers see either old or new, never partial state
         self._entities = new_entities
         self._enabled_entity_ids = list(new_entities.keys())
+
+        # Apply YAML room overrides to redefinitions
+        new_redefinitions: dict[str, dict[str, str]] = {}
+        for entity_id in self._enabled_entity_ids:
+            yaml_cfg = custom_config.get(entity_id)
+            if yaml_cfg is not None and yaml_cfg.sber_room is not None:
+                new_redefinitions[entity_id] = {"room": yaml_cfg.sber_room}
+                _LOGGER.debug("YAML sber_room override for %s: %s", entity_id, yaml_cfg.sber_room)
+
+        # Merge YAML room overrides into existing redefinitions (runtime overrides take precedence)
+        for eid, redef in new_redefinitions.items():
+            if eid not in self._redefinitions:
+                self._redefinitions[eid] = redef
+            else:
+                # Only set room from YAML if not already set by Sber cloud
+                if "room" not in self._redefinitions[eid]:
+                    self._redefinitions[eid]["room"] = redef["room"]
 
         # Prune stale data from previous entity sets
         valid_ids = set(new_enabled)

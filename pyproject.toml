@@ -1,6 +1,6 @@
 [project]
 name = "sber-mqtt-bridge"
-version = "0.5.1"
+version = "0.6.0"
 description = "Sber Smart Home MQTT Bridge for Home Assistant"
 requires-python = ">=3.13"
 license = {text = "MIT"}

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-23
+
+### Added
+- **Pydantic models** for Sber protocol (`sber_models.py`): typed schemas for device config, states, commands
+- Helper constructors (`make_bool_value`, `make_integer_value`, `make_enum_value`, `make_colour_value`, `make_state`)
+- Optional payload validation functions (`validate_config_payload`, `validate_status_payload`)
+- **Custom YAML capabilities** (`custom_capabilities.py`): per-entity overrides via `configuration.yaml`
+  - `sber_type` — override Sber device category (UI Options Flow override takes precedence)
+  - `sber_name` — override display name in Sber
+  - `sber_room` — set room/area in Sber
+- `async_setup()` in `__init__.py` for parsing YAML platform config
+- `pydantic>=2.0,<3.0` added to manifest.json requirements
+
 ## [0.5.1] - 2026-03-23
 
 ### Added

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN as DOMAIN
+from .custom_capabilities import parse_yaml_config
 from .sber_bridge import SberBridge
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,6 +29,32 @@ class SberBridgeData:
 
 type SberBridgeConfigEntry = ConfigEntry[SberBridgeData]
 """Type alias for a ConfigEntry carrying SberBridgeData as runtime_data."""
+
+
+async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
+    """Set up the Sber MQTT Bridge component from configuration.yaml.
+
+    Parses the optional ``sber_mqtt_bridge:`` YAML section and stores
+    the custom entity configuration in ``hass.data[DOMAIN]``.
+
+    Args:
+        hass: Home Assistant core instance.
+        config: Full HA configuration dict.
+
+    Returns:
+        True always (YAML config is optional).
+    """
+    hass.data.setdefault(DOMAIN, {})
+
+    if DOMAIN in config:
+        yaml_config = parse_yaml_config(config[DOMAIN])
+        hass.data[DOMAIN]["yaml_config"] = yaml_config
+        _LOGGER.info(
+            "Loaded YAML config with %d entity overrides",
+            len(yaml_config.entity_configs),
+        )
+
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> bool:
