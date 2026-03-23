@@ -69,6 +69,8 @@ DOMAIN_LABELS: dict[str, str] = {
     "input_boolean": "Input booleans (scenario buttons)",
     "script": "Scripts",
     "button": "Buttons",
+    "media_player": "Media players (TV)",
+    "vacuum": "Vacuums",
 }
 
 # Human-readable labels for Sber categories (used in type override selector)
@@ -84,6 +86,11 @@ CATEGORY_LABELS: dict[str, str] = {
     "valve": "Valve",
     "hvac_humidifier": "Humidifier",
     "scenario_button": "Scenario button",
+    "hvac_air_purifier": "Air purifier",
+    "kettle": "Kettle",
+    "tv": "TV / Media player",
+    "vacuum_cleaner": "Vacuum cleaner",
+    "intercom": "Intercom",
 }
 
 

@@ -39,7 +39,7 @@ class TestEntityConstructorsMap(unittest.TestCase):
     def test_all_supported_domains(self):
         expected = {"light", "cover", "sensor", "binary_sensor", "switch",
                     "script", "button", "input_boolean", "climate", "valve",
-                    "humidifier", "fan", "water_heater"}
+                    "humidifier", "fan", "water_heater", "media_player", "vacuum"}
         self.assertEqual(set(ENTITY_CONSTRUCTORS.keys()), expected)
 
 

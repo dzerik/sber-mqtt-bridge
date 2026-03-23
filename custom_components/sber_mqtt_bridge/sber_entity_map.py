@@ -18,11 +18,14 @@ from .devices.gas_sensor import GasSensorEntity
 from .devices.gate import GateEntity
 from .devices.humidifier import HumidifierEntity
 from .devices.humidity_sensor import HumiditySensorEntity
+from .devices.hvac_air_purifier import HvacAirPurifierEntity
 from .devices.hvac_boiler import HvacBoilerEntity
 from .devices.hvac_fan import HvacFanEntity
 from .devices.hvac_heater import HvacHeaterEntity
 from .devices.hvac_radiator import HvacRadiatorEntity
 from .devices.hvac_underfloor_heating import HvacUnderfloorEntity
+from .devices.intercom import IntercomEntity
+from .devices.kettle import KettleEntity
 from .devices.led_strip import LedStripEntity
 from .devices.light import LightEntity
 from .devices.motion_sensor import MotionSensorEntity
@@ -31,6 +34,8 @@ from .devices.scenario_button import ScenarioButtonEntity
 from .devices.sensor_temp import SensorTempEntity
 from .devices.smoke_sensor import SmokeSensorEntity
 from .devices.socket_entity import SocketEntity
+from .devices.tv import TvEntity
+from .devices.vacuum_cleaner import VacuumCleanerEntity
 from .devices.valve import ValveEntity
 from .devices.water_leak_sensor import WaterLeakSensorEntity
 from .devices.window_blind import WindowBlindEntity
@@ -64,6 +69,11 @@ CATEGORY_CONSTRUCTORS: dict[str, Callable[[dict], BaseEntity]] = {
     "sensor_water_leak": lambda data: WaterLeakSensorEntity(data),
     "sensor_smoke": lambda data: SmokeSensorEntity(data),
     "sensor_gas": lambda data: GasSensorEntity(data),
+    "hvac_air_purifier": lambda data: HvacAirPurifierEntity(data),
+    "kettle": lambda data: KettleEntity(data),
+    "tv": lambda data: TvEntity(data),
+    "vacuum_cleaner": lambda data: VacuumCleanerEntity(data),
+    "intercom": lambda data: IntercomEntity(data),
 }
 """Mapping of Sber category names to entity constructor callables."""
 
@@ -85,6 +95,11 @@ OVERRIDABLE_CATEGORIES: list[str] = [
     "valve",
     "hvac_humidifier",
     "scenario_button",
+    "hvac_air_purifier",
+    "kettle",
+    "tv",
+    "vacuum_cleaner",
+    "intercom",
 ]
 """Sber categories that users can select as type overrides."""
 
@@ -195,6 +210,22 @@ def _create_water_heater(entity_data: dict) -> BaseEntity:
     return HvacBoilerEntity(entity_data)
 
 
+def _create_fan(entity_data: dict) -> BaseEntity:
+    """Create a Sber fan entity based on device class.
+
+    Args:
+        entity_data: HA entity registry dict with 'original_device_class' key.
+
+    Returns:
+        HvacAirPurifierEntity for purifier/air_purifier device classes,
+        HvacFanEntity for all other fans.
+    """
+    dc = entity_data.get("original_device_class", "")
+    if dc in ("purifier", "air_purifier"):
+        return HvacAirPurifierEntity(entity_data)
+    return HvacFanEntity(entity_data)
+
+
 ENTITY_CONSTRUCTORS: dict[str, Callable] = {
     "light": lambda data: LightEntity(data),
     "cover": _create_cover,
@@ -207,8 +238,10 @@ ENTITY_CONSTRUCTORS: dict[str, Callable] = {
     "climate": _create_climate,
     "valve": lambda data: ValveEntity(data),
     "humidifier": lambda data: HumidifierEntity(data),
-    "fan": lambda data: HvacFanEntity(data),
+    "fan": _create_fan,
     "water_heater": _create_water_heater,
+    "media_player": lambda data: TvEntity(data),
+    "vacuum": lambda data: VacuumCleanerEntity(data),
 }
 """Mapping of HA domain names to Sber entity constructor callables."""
 

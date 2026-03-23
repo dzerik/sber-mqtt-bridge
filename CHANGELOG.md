@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-03-23
+
+### Added
+- **hvac_air_purifier**: new air purifier entity (Sber `hvac_air_purifier` category) mapped from HA `fan` with `purifier`/`air_purifier` device class
+- **kettle**: new smart kettle entity (Sber `kettle` category) mapped from HA `water_heater`
+- **tv**: new TV entity (Sber `tv` category) mapped from HA `media_player` — supports volume, mute, source selection
+- **vacuum_cleaner**: new vacuum cleaner entity (Sber `vacuum_cleaner` category) mapped from HA `vacuum` — supports start/stop/pause/return_to_base, fan speed, battery
+- **intercom**: new intercom entity (Sber `intercom` category) — available via type override only, supports on/off and read-only call features
+- Added `media_player` and `vacuum` to `SUPPORTED_DOMAINS`
+- Added all 5 new categories to `OVERRIDABLE_CATEGORIES` and `CATEGORY_CONSTRUCTORS`
+- Fan device_class routing: `purifier`/`air_purifier` → `HvacAirPurifierEntity`, default → `HvacFanEntity`
+
 ## [0.8.0] - 2026-03-23
 
 ### Fixed
