@@ -115,7 +115,7 @@ class HumidifierEntity(BaseEntity):
 
         Handles the following Sber keys:
         - ``on_off``: turn_on / turn_off
-        - ``humidity``: set_humidity (INTEGER, divided by 10)
+        - ``humidity``: set_humidity (INTEGER 0-100, plain percentage)
         - ``hvac_work_mode``: set_mode (ENUM)
 
         State is NOT mutated here — it will be updated when HA fires a

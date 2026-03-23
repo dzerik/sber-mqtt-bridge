@@ -263,9 +263,9 @@ class LightEntity(BaseEntity):
                 hsv_color = cmd_value.get("colour_value")
                 if hsv_color is not None:
                     color = ColorConverter.sber_to_ha_hsv(
-                        min(hsv_color.get("h", 0), 360),
-                        min(hsv_color.get("s", 0), 1000),
-                        min(hsv_color.get("v", 0), 1000),
+                        max(0, min(hsv_color.get("h", 0), 360)),
+                        max(0, min(hsv_color.get("s", 0), 1000)),
+                        max(0, min(hsv_color.get("v", 0), 1000)),
                     )
                 else:
                     color = ColorConverter.ha_to_sber_hsv(0, 0, 0)

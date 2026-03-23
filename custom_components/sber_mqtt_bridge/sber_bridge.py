@@ -301,6 +301,11 @@ class SberBridge:
         self._entities = new_entities
         self._enabled_entity_ids = new_enabled
 
+        # Prune stale data from previous entity sets
+        valid_ids = set(new_enabled)
+        self._stats.acknowledged_entities &= valid_ids
+        self._redefinitions = {k: v for k, v in self._redefinitions.items() if k in valid_ids}
+
         _LOGGER.info(
             "Loaded %d Sber entities from %d exposed: %s",
             len(self._entities),
@@ -441,6 +446,8 @@ class SberBridge:
             len(devices), list(devices.keys()),
         )
 
+        update_state_ids: list[str] = []
+
         for entity_id, cmd_data in devices.items():
             # Track Sber acknowledgment
             self._stats.acknowledged_entities.add(entity_id)
@@ -461,7 +468,7 @@ class SberBridge:
                 cmd = result.get("url")
                 if cmd is None:
                     if result.get("update_state"):
-                        await self._publish_states([entity_id])
+                        update_state_ids.append(entity_id)
                     continue
 
                 try:
@@ -479,6 +486,10 @@ class SberBridge:
                     )
                 except Exception:
                     _LOGGER.exception("Error calling HA service for %s", entity_id)
+
+        # Batch publish state updates (e.g. light_mode) in a single call
+        if update_state_ids:
+            await self._publish_states(update_state_ids)
 
     async def _handle_sber_status_request(self, payload: bytes) -> None:
         """Handle status request from Sber cloud."""
@@ -642,6 +653,9 @@ class SberBridge:
         except aiomqtt.MqttError:
             self._stats.publish_errors += 1
             _LOGGER.exception("Error publishing states to Sber")
+        except (AttributeError, TypeError):
+            # TOCTOU: _mqtt_client may become None between the check and publish()
+            self._stats.publish_errors += 1
 
     async def _publish_config(self, entity_ids: list[str] | None = None) -> None:
         """Publish device config to Sber MQTT."""
@@ -670,3 +684,5 @@ class SberBridge:
         except aiomqtt.MqttError:
             self._stats.publish_errors += 1
             _LOGGER.exception("Error publishing config to Sber")
+        except (AttributeError, TypeError):
+            self._stats.publish_errors += 1
