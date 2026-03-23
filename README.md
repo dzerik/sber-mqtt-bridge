@@ -1,9 +1,8 @@
 # Sber Smart Home MQTT Bridge
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
-[![GitHub Release](https://img.shields.io/github/v/release/mberezovsky/MQTT-SberGate)](https://github.com/mberezovsky/MQTT-SberGate/releases)
-[![Tests](https://img.shields.io/badge/tests-219%20passed-brightgreen)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-82%25-green)](tests/)
+[![GitHub Release](https://img.shields.io/github/v/release/dzerik/sber-mqtt-bridge)](https://github.com/dzerik/sber-mqtt-bridge/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
 
 Home Assistant custom integration for bridging HA entities to [Sber Smart Home](https://developers.sber.ru/docs/ru/smarthome) cloud via MQTT.
 
@@ -55,7 +54,7 @@ Control your Home Assistant devices through Sber voice assistants (Salut) and th
 
 1. Open HACS in Home Assistant
 2. Click "Custom repositories" (three dots menu)
-3. Add `https://github.com/mberezovsky/MQTT-SberGate` as "Integration"
+3. Add `https://github.com/dzerik/sber-mqtt-bridge` as "Integration"
 4. Search for "Sber Smart Home MQTT Bridge" and install
 5. Restart Home Assistant
 
@@ -109,6 +108,22 @@ Control your Home Assistant devices through Sber voice assistants (Salut) and th
     logs:
       custom_components.sber_mqtt_bridge: debug
   ```
+
+## Acknowledgments
+
+This project is a fork and evolution of [MQTT-SberGate](https://gitverse.ru/mberezovsky/MQTT-SberGate) by [@mberezovsky](https://gitverse.ru/mberezovsky). The original project provided the Sber Smart Home MQTT protocol implementation as a Home Assistant addon. This version has been rewritten as a native HACS custom integration with full async support, Config Flow UI, and comprehensive test coverage.
+
+Thank you to the original author for the foundational work and Sber protocol reverse-engineering.
+
+## Trademarks & Legal Notice
+
+All product names, logos, and brands mentioned in this project are property of their respective owners:
+
+- **Sber**, **SberDevices**, **Salut**, **Sber Smart Home** are trademarks of [Sber](https://www.sber.ru/) (PAO Sberbank).
+- **Home Assistant** is a trademark of the [Home Assistant](https://www.home-assistant.io/) project.
+- **HACS** (Home Assistant Community Store) is an independent community project.
+
+This project is not affiliated with, endorsed by, or sponsored by Sber, SberDevices, or the Home Assistant project. It is an independent open-source community integration.
 
 ## Links
 

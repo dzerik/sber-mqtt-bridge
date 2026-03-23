@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-23
+
+### Added
+- `OnOffEntity` base class for relay, valve, socket (eliminates duplication)
+- `SimpleReadOnlySensor` base class for 5 sensor types (eliminates duplication)
+- `_is_online` property in `BaseEntity` (replaces duplicated inline checks)
+- Device registry linking in `_load_exposed_entities` — entities with device_id now appear in Sber
+- HA state event subscription at startup (independent of MQTT connectivity)
+- `category` parameter in `RelayEntity`, `ClimateEntity`, `CurtainEntity` for clean subclassing
+- Acknowledgments and legal trademark notice in README
+- Migrated to GitHub: `dzerik/sber-mqtt-bridge`
+
+### Fixed
+- **CRITICAL**: Entities with `device_id` silently skipped from Sber (link_device never called)
+- **CRITICAL**: `CurtainEntity.to_sber_current_state` returned `None` instead of `dict` on unavailable
+- **CRITICAL**: `LightEntity` `int(None)` crash on missing `integer_value` in color temp command
+- **CRITICAL**: `LightEntity` state key `colour_temperature` mismatched registered feature `light_colour_temp`
+- **CRITICAL**: `CurtainEntity` `elif open_set` silently dropped command when `cover_position` was present
+- Curtain open_state ENUM value `"close"` corrected to `"closed"`
+- ScenarioButton spurious `double_click` on `unavailable`/`unknown` states
+- Climate hardcoded 22°C fallback on missing `integer_value` — now skips command
+- Humidifier `set_mode` with `None` mode guard
+- Race condition: `_connected` and `_mqtt_client` now reset atomically on disconnect
+- Dead code `ConfigEntryNotReady` try/except removed (bridge uses background reconnect)
+- HA events no longer lost during MQTT reconnect window
+
+### Changed
+- `process_state_change` default implementation moved to `BaseEntity` (removed from 6 subclasses)
+- Logger convention: `logger` renamed to `_LOGGER` in all 17 device files
+- `SocketEntity`, `WindowBlindEntity`, `HvacRadiatorEntity` use proper `super().__init__()` chain
+- `HvacRadiatorEntity` no longer duplicates `ClimateEntity.__init__` body
+- Removed dead code: `CONF_SBER_HTTP_ENDPOINT`, `SBER_HTTP_ENDPOINT_DEFAULT`
+- `LightEntity` added `from __future__ import annotations`
+- jscpd duplication reduced: 13 clones → 9 (4.34% → 3.38%)
+
+### Removed
+- Legacy addon `mqtt_sber_gate/` directory (fully superseded by HACS integration)
+- Wrong-project audit file `docs/audit/audit-02-architecture.md` (described xiaomi_miio)
+
 ## [0.2.0] - 2026-03-23
 
 ### Added
