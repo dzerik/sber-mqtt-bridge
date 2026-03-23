@@ -186,34 +186,37 @@ class ClimateEntity(BaseEntity):
                 }})
             elif key == "hvac_air_flow_power":
                 mode = value.get("enum_value")
-                self.fan_mode = mode
-                results.append({"url": {
-                    "type": "call_service",
-                    "domain": "climate",
-                    "service": "set_fan_mode",
-                    "service_data": {"fan_mode": mode},
-                    "target": {"entity_id": self.entity_id}
-                }})
+                if mode and (not self.fan_modes or mode in self.fan_modes):
+                    self.fan_mode = mode
+                    results.append({"url": {
+                        "type": "call_service",
+                        "domain": "climate",
+                        "service": "set_fan_mode",
+                        "service_data": {"fan_mode": mode},
+                        "target": {"entity_id": self.entity_id}
+                    }})
             elif key == "hvac_air_flow_direction":
                 mode = value.get("enum_value")
-                self.swing_mode = mode
-                results.append({"url": {
-                    "type": "call_service",
-                    "domain": "climate",
-                    "service": "set_swing_mode",
-                    "service_data": {"swing_mode": mode},
-                    "target": {"entity_id": self.entity_id}
-                }})
+                if mode and (not self.swing_modes or mode in self.swing_modes):
+                    self.swing_mode = mode
+                    results.append({"url": {
+                        "type": "call_service",
+                        "domain": "climate",
+                        "service": "set_swing_mode",
+                        "service_data": {"swing_mode": mode},
+                        "target": {"entity_id": self.entity_id}
+                    }})
             elif key == "hvac_work_mode":
                 mode = value.get("enum_value")
-                self.hvac_mode = mode
-                results.append({"url": {
-                    "type": "call_service",
-                    "domain": "climate",
-                    "service": "set_hvac_mode",
-                    "service_data": {"hvac_mode": mode},
-                    "target": {"entity_id": self.entity_id}
-                }})
+                if mode and (not self.hvac_modes or mode in self.hvac_modes):
+                    self.hvac_mode = mode
+                    results.append({"url": {
+                        "type": "call_service",
+                        "domain": "climate",
+                        "service": "set_hvac_mode",
+                        "service_data": {"hvac_mode": mode},
+                        "target": {"entity_id": self.entity_id}
+                    }})
         return results
 
     def process_state_change(self, old_state: dict | None, new_state: dict) -> None:

@@ -5,7 +5,7 @@
 **Sber Smart Home MQTT Bridge** — мост между Home Assistant и облаком Sber SmartHome через MQTT.
 Реализован как HACS custom integration (`custom_components/sber_mqtt_bridge/`) и legacy addon (`mqtt_sber_gate/`).
 
-- **Язык**: Python 3.13+
+- **Язык**: Python 3.13+ (тесты на 3.14)
 - **Платформа**: Home Assistant (HACS custom component)
 - **Транспорт**: MQTT через `aiomqtt` к Sber cloud broker (`mqtt-partners.iot.sberdevices.ru:8883`)
 - **Версия**: `custom_components/sber_mqtt_bridge/manifest.json` (поле `"version"`)

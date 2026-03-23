@@ -30,7 +30,7 @@ class DeviceData:
         platform: Integration platform name.
         sw_version: Software/firmware version string.
         translation_key: Translation key for localized names.
-        unuque_id: Unique identifier for the entity (note: typo preserved).
+        unique_id: Unique identifier for the entity.
     """
 
     area_id: str
@@ -51,7 +51,7 @@ class DeviceData:
     platform: str
     sw_version: str
     translation_key: str
-    unuque_id: str
+    unique_id: str
 
     def __init__(self, device_data: dict) -> None:
         """Initialize DeviceData from a raw entity registry dict.
@@ -79,4 +79,4 @@ class DeviceData:
         self.platform = device_data.get("platform")
         self.translation_key = device_data.get("translation_key")
         self.sw_version = device_data.get("sw_version", "Unknown")
-        self.unuque_id = device_data.get("unique_id")
+        self.unique_id = device_data.get("unique_id")
