@@ -1,7 +1,8 @@
 """WebSocket API for Sber MQTT Bridge panel.
 
 Provides real-time device and connection data to the frontend SPA panel
-via Home Assistant native WebSocket commands.
+via Home Assistant native WebSocket commands, including entity management
+(add, remove, override, bulk operations).
 """
 
 from __future__ import annotations
@@ -12,10 +13,18 @@ from typing import TYPE_CHECKING, Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN
+from .const import (
+    CONF_ENTITY_TYPE_OVERRIDES,
+    CONF_EXPOSED_ENTITIES,
+    DOMAIN,
+    SUPPORTED_DOMAINS,
+)
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+
     from .sber_bridge import SberBridge
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,6 +40,16 @@ def _get_bridge(hass: HomeAssistant) -> SberBridge | None:
     return data.get("bridge")
 
 
+def _get_config_entry(hass: HomeAssistant) -> ConfigEntry | None:
+    """Get the first config entry for the Sber MQTT Bridge domain.
+
+    Returns:
+        The ConfigEntry instance, or None if not found.
+    """
+    entries = hass.config_entries.async_entries(DOMAIN)
+    return entries[0] if entries else None
+
+
 @callback
 def async_setup_websocket_api(hass: HomeAssistant) -> None:
     """Register WebSocket API commands for the Sber MQTT Bridge panel.
@@ -41,6 +60,12 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_get_devices)
     websocket_api.async_register_command(hass, ws_get_status)
     websocket_api.async_register_command(hass, ws_republish)
+    websocket_api.async_register_command(hass, ws_get_available_entities)
+    websocket_api.async_register_command(hass, ws_add_entities)
+    websocket_api.async_register_command(hass, ws_remove_entities)
+    websocket_api.async_register_command(hass, ws_set_type_override)
+    websocket_api.async_register_command(hass, ws_bulk_add)
+    websocket_api.async_register_command(hass, ws_clear_all)
     _LOGGER.debug("Sber MQTT Bridge WebSocket API registered")
 
 
@@ -161,3 +186,285 @@ async def ws_republish(
 
     await bridge._publish_config()
     connection.send_result(msg["id"], {"success": True})
+
+
+# ---------- Entity management commands ----------
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/available_entities",
+    }
+)
+@websocket_api.async_response
+async def ws_get_available_entities(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Get all HA entities available for export to Sber.
+
+    Returns entities from SUPPORTED_DOMAINS that are not disabled,
+    excluding those already in the exposed list.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None:
+        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
+        return
+
+    exposed: list[str] = list(entry.options.get(CONF_EXPOSED_ENTITIES, []))
+    exposed_set = set(exposed)
+
+    registry = er.async_get(hass)
+    entities: list[dict[str, Any]] = []
+
+    for entity_entry in registry.entities.values():
+        if entity_entry.disabled:
+            continue
+        domain = entity_entry.domain
+        if domain not in SUPPORTED_DOMAINS:
+            continue
+        if entity_entry.entity_id in exposed_set:
+            continue
+
+        state = hass.states.get(entity_entry.entity_id)
+        friendly_name = ""
+        if state and state.attributes:
+            friendly_name = state.attributes.get("friendly_name", "")
+
+        entities.append(
+            {
+                "entity_id": entity_entry.entity_id,
+                "domain": domain,
+                "device_class": entity_entry.device_class or entity_entry.original_device_class or "",
+                "friendly_name": friendly_name or entity_entry.name or entity_entry.original_name or "",
+            }
+        )
+
+    connection.send_result(msg["id"], {"entities": entities})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/add_entities",
+        vol.Required("entity_ids"): [str],
+    }
+)
+@websocket_api.async_response
+async def ws_add_entities(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Add entities to the exposed list and reload the integration.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message with ``entity_ids`` list.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None:
+        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
+        return
+
+    current: list[str] = list(entry.options.get(CONF_EXPOSED_ENTITIES, []))
+    current_set = set(current)
+    added: list[str] = []
+
+    for eid in msg["entity_ids"]:
+        if eid not in current_set:
+            current.append(eid)
+            current_set.add(eid)
+            added.append(eid)
+
+    if added:
+        new_options = dict(entry.options)
+        new_options[CONF_EXPOSED_ENTITIES] = current
+        hass.config_entries.async_update_entry(entry, options=new_options)
+        await hass.config_entries.async_reload(entry.entry_id)
+
+    connection.send_result(msg["id"], {"added": added, "total": len(current)})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/remove_entities",
+        vol.Required("entity_ids"): [str],
+    }
+)
+@websocket_api.async_response
+async def ws_remove_entities(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Remove entities from the exposed list and reload the integration.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message with ``entity_ids`` list.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None:
+        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
+        return
+
+    to_remove = set(msg["entity_ids"])
+    current: list[str] = list(entry.options.get(CONF_EXPOSED_ENTITIES, []))
+    new_list = [eid for eid in current if eid not in to_remove]
+    removed = len(current) - len(new_list)
+
+    # Also clean up type overrides for removed entities
+    overrides: dict[str, str] = dict(entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}))
+    for eid in to_remove:
+        overrides.pop(eid, None)
+
+    if removed > 0:
+        new_options = dict(entry.options)
+        new_options[CONF_EXPOSED_ENTITIES] = new_list
+        new_options[CONF_ENTITY_TYPE_OVERRIDES] = overrides
+        hass.config_entries.async_update_entry(entry, options=new_options)
+        await hass.config_entries.async_reload(entry.entry_id)
+
+    connection.send_result(msg["id"], {"removed": removed, "total": len(new_list)})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/set_override",
+        vol.Required("entity_id"): str,
+        vol.Required("category"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_set_type_override(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Set or clear the Sber category override for an entity.
+
+    Pass ``category`` as ``"auto"`` to remove the override and use
+    automatic detection.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message with ``entity_id`` and ``category``.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None:
+        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
+        return
+
+    entity_id: str = msg["entity_id"]
+    category: str = msg["category"]
+
+    overrides: dict[str, str] = dict(entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}))
+
+    if category == "auto":
+        overrides.pop(entity_id, None)
+    else:
+        overrides[entity_id] = category
+
+    new_options = dict(entry.options)
+    new_options[CONF_ENTITY_TYPE_OVERRIDES] = overrides
+    hass.config_entries.async_update_entry(entry, options=new_options)
+    await hass.config_entries.async_reload(entry.entry_id)
+
+    connection.send_result(msg["id"], {"entity_id": entity_id, "category": category})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/bulk_add",
+        vol.Optional("domains", default=[]): [str],
+    }
+)
+@websocket_api.async_response
+async def ws_bulk_add(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Bulk add entities by domain or all supported domains.
+
+    If ``domains`` is empty, all entities from SUPPORTED_DOMAINS are added.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message with optional ``domains`` list.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None:
+        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
+        return
+
+    target_domains = msg.get("domains") or list(SUPPORTED_DOMAINS)
+    target_domains_set = set(target_domains)
+
+    current: list[str] = list(entry.options.get(CONF_EXPOSED_ENTITIES, []))
+    current_set = set(current)
+
+    registry = er.async_get(hass)
+    added: list[str] = []
+
+    for entity_entry in registry.entities.values():
+        if entity_entry.disabled:
+            continue
+        if entity_entry.domain not in target_domains_set:
+            continue
+        if entity_entry.entity_id in current_set:
+            continue
+        current.append(entity_entry.entity_id)
+        current_set.add(entity_entry.entity_id)
+        added.append(entity_entry.entity_id)
+
+    if added:
+        new_options = dict(entry.options)
+        new_options[CONF_EXPOSED_ENTITIES] = current
+        hass.config_entries.async_update_entry(entry, options=new_options)
+        await hass.config_entries.async_reload(entry.entry_id)
+
+    connection.send_result(msg["id"], {"added": len(added), "total": len(current)})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/clear_all",
+    }
+)
+@websocket_api.async_response
+async def ws_clear_all(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Remove all entities from the exposed list and clear overrides.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None:
+        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
+        return
+
+    new_options = dict(entry.options)
+    previous_count = len(new_options.get(CONF_EXPOSED_ENTITIES, []))
+    new_options[CONF_EXPOSED_ENTITIES] = []
+    new_options[CONF_ENTITY_TYPE_OVERRIDES] = {}
+    hass.config_entries.async_update_entry(entry, options=new_options)
+    await hass.config_entries.async_reload(entry.entry_id)
+
+    connection.send_result(msg["id"], {"removed": previous_count})

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-03-23
+
+### Added
+- **SPA Panel decomposition**: split monolithic `sber-panel.js` into 6 component files (`sber-device-table`, `sber-status-card`, `sber-stats-grid`, `sber-add-dialog`, `sber-entity-row`, `sber-toolbar`)
+- **WebSocket API — entity management**: 6 new WS commands for full device lifecycle from the panel
+  - `sber_mqtt_bridge/available_entities` — list HA entities available for export
+  - `sber_mqtt_bridge/add_entities` — add entities to exposed list
+  - `sber_mqtt_bridge/remove_entities` — remove entities from exposed list
+  - `sber_mqtt_bridge/set_override` — set/clear Sber category override per entity
+  - `sber_mqtt_bridge/bulk_add` — bulk add entities by domain or all
+  - `sber_mqtt_bridge/clear_all` — remove all entities and overrides
+- **Device table**: sortable columns, text search/filter, bulk selection with checkboxes, inline delete and category override dropdown
+- **Add dialog**: modal for selecting entities with domain grouping, search filter, multi-select, "Add All" / "Add Selected" actions
+- **Toolbar**: action bar with Refresh, Re-publish, Add Devices, Bulk Actions dropdown, live connection indicator and device counter
+
 ## [1.1.0] - 2026-03-23
 
 ### Added
