@@ -1,7 +1,7 @@
 """Config flow for Sber Smart Home MQTT Bridge.
 
 Provides UI-based configuration for Sber MQTT credentials
-and entity selection via Options Flow.
+and entity selection via Options Flow with bulk-add support.
 """
 
 from __future__ import annotations
@@ -17,10 +17,15 @@ from homeassistant.config_entries import (
     OptionsFlowWithReload,
 )
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     EntityFilterSelectorConfig,
     EntitySelector,
     EntitySelectorConfig,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
 )
 
 from .const import (
@@ -48,6 +53,21 @@ USER_DATA_SCHEMA = vol.Schema(
     }
 )
 
+# Human-readable domain labels for the domain selector
+DOMAIN_LABELS: dict[str, str] = {
+    "light": "Lights",
+    "switch": "Switches",
+    "cover": "Covers (curtains, blinds)",
+    "climate": "Climate (HVAC, radiators)",
+    "sensor": "Sensors (temperature, humidity)",
+    "binary_sensor": "Binary sensors (motion, door, leak)",
+    "humidifier": "Humidifiers",
+    "valve": "Valves",
+    "input_boolean": "Input booleans (scenario buttons)",
+    "script": "Scripts",
+    "button": "Buttons",
+}
+
 
 def create_ssl_context(verify: bool = True) -> ssl.SSLContext:
     """Create an SSL context for Sber MQTT broker connection.
@@ -70,9 +90,6 @@ async def _validate_sber_connection(
     hass: HomeAssistant, login: str, password: str, broker: str, port: int, *, verify_ssl: bool = True
 ) -> str | None:
     """Validate Sber MQTT credentials by attempting a connection.
-
-    The SSL context is created in an executor thread because
-    ``ssl.create_default_context()`` performs blocking I/O (loads CA certs).
 
     Args:
         hass: Home Assistant instance (used for executor offloading).
@@ -108,21 +125,35 @@ async def _validate_sber_connection(
         return None
 
 
-class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Sber MQTT Bridge.
+def _get_entities_by_domains(hass: HomeAssistant, domains: list[str]) -> list[str]:
+    """Return all entity IDs from the registry matching the given domains.
 
-    Provides the initial setup step for entering Sber MQTT credentials
-    and an options flow for selecting which HA entities to expose.
+    Args:
+        hass: Home Assistant instance.
+        domains: List of HA domains to filter.
+
+    Returns:
+        Sorted list of entity IDs.
     """
+    entity_reg = er.async_get(hass)
+    result: list[str] = []
+    for entry in entity_reg.entities.values():
+        if entry.disabled_by is not None:
+            continue
+        domain = entry.entity_id.split(".", 1)[0]
+        if domain in domains:
+            result.append(entry.entity_id)
+    return sorted(result)
+
+
+class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Sber MQTT Bridge."""
 
     VERSION = 1
     MINOR_VERSION = 1
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Handle the initial user configuration step.
-
-        Validates MQTT connection before creating the config entry.
-        """
+        """Handle the initial user configuration step."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -152,19 +183,11 @@ class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_reauth(self, entry_data: dict[str, Any]) -> ConfigFlowResult:
-        """Handle re-authentication when credentials become invalid.
-
-        Args:
-            entry_data: Existing config entry data.
-        """
+        """Handle re-authentication when credentials become invalid."""
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Show re-authentication form and validate new credentials.
-
-        Args:
-            user_input: New credentials submitted by user, or None to show form.
-        """
+        """Show re-authentication form and validate new credentials."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -203,17 +226,49 @@ class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
 class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
     """Handle options flow for Sber MQTT Bridge.
 
-    Allows selecting which HA entities to expose to Sber Smart Home.
-    Uses OptionsFlowWithReload for automatic integration reload on change.
+    Provides three modes for entity selection:
+    - Manual: pick individual entities from a selector
+    - Add all: add all supported entities at once
+    - By domain: select domains and add all entities from those domains
     """
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Manage entity selection options."""
+        """Choose entity selection mode."""
+        if user_input is not None:
+            mode = user_input.get("selection_mode", "manual")
+            if mode == "add_all":
+                all_ids = _get_entities_by_domains(self.hass, SUPPORTED_DOMAINS)
+                _LOGGER.info("Adding all %d supported entities", len(all_ids))
+                return self.async_create_entry(data={CONF_EXPOSED_ENTITIES: all_ids})
+            if mode == "by_domain":
+                return await self.async_step_select_domains()
+            return await self.async_step_select_entities()
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("selection_mode", default="manual"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                SelectOptionDict(value="manual", label="Select entities manually"),
+                                SelectOptionDict(value="by_domain", label="Add all entities by domain"),
+                                SelectOptionDict(value="add_all", label="Add ALL supported entities"),
+                            ],
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_select_entities(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Manual entity selection step."""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
         return self.async_show_form(
-            step_id="init",
+            step_id="select_entities",
             data_schema=self.add_suggested_values_to_schema(
                 vol.Schema(
                     {
@@ -228,5 +283,55 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                     }
                 ),
                 self.config_entry.options,
+            ),
+        )
+
+    async def async_step_select_domains(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Domain-based entity selection step."""
+        if user_input is not None:
+            selected_domains = user_input.get("domains", [])
+            if selected_domains:
+                domain_ids = _get_entities_by_domains(self.hass, selected_domains)
+                # Merge with existing entities (keep manual selections)
+                existing = list(self.config_entry.options.get(CONF_EXPOSED_ENTITIES, []))
+                merged = sorted(set(existing) | set(domain_ids))
+                _LOGGER.info(
+                    "Adding %d entities from domains %s (total: %d)",
+                    len(domain_ids), selected_domains, len(merged),
+                )
+                return self.async_create_entry(data={CONF_EXPOSED_ENTITIES: merged})
+            return self.async_create_entry(data=self.config_entry.options)
+
+        # Build domain options with entity counts
+        domain_options = []
+        entity_reg = er.async_get(self.hass)
+        domain_counts: dict[str, int] = {}
+        for entry in entity_reg.entities.values():
+            if entry.disabled_by is not None:
+                continue
+            d = entry.entity_id.split(".", 1)[0]
+            if d in SUPPORTED_DOMAINS:
+                domain_counts[d] = domain_counts.get(d, 0) + 1
+
+        for domain in SUPPORTED_DOMAINS:
+            count = domain_counts.get(domain, 0)
+            if count > 0:
+                label = DOMAIN_LABELS.get(domain, domain)
+                domain_options.append(
+                    SelectOptionDict(value=domain, label=f"{label} ({count})")
+                )
+
+        return self.async_show_form(
+            step_id="select_domains",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("domains"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=domain_options,
+                            multiple=True,
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    ),
+                }
             ),
         )

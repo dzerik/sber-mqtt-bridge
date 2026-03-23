@@ -40,12 +40,25 @@
   "options": {
     "step": {
       "init": {
-        "title": "Настройки Sber Bridge",
+        "title": "Режим выбора сущностей",
+        "data": {
+          "selection_mode": "Как выбрать сущности"
+        }
+      },
+      "select_entities": {
+        "title": "Выбор сущностей",
         "data": {
           "exposed_entities": "Сущности для экспорта в Sber"
         },
         "data_description": {
           "exposed_entities": "Выберите, какие сущности Home Assistant сделать доступными в Sber Smart Home"
+        }
+      },
+      "select_domains": {
+        "title": "Выбор по категориям",
+        "description": "Выберите категории для добавления всех их сущностей в Sber. Существующий выбор будет сохранён.",
+        "data": {
+          "domains": "Категории для добавления"
         }
       }
     }
