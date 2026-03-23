@@ -1,4 +1,5 @@
 import logging
+
 from .base_entity import BaseEntity
 
 logger = logging.getLogger(__name__)

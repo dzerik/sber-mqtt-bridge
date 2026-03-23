@@ -1,9 +1,9 @@
 # devices/light.py
 import logging
 
+from .base_entity import BaseEntity
 from .utils.color_converter import ColorConverter
 from .utils.linear_converter import LinearConverter
-from .base_entity import BaseEntity
 
 LIGHT_ENTITY_CATEGORY = "light"
 logger = logging.getLogger(__name__)

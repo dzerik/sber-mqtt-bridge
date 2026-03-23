@@ -13,11 +13,9 @@ import json
 import logging
 import ssl
 from collections.abc import Callable
-from typing import Any
 
 import aiomqtt
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_state_change_event
 

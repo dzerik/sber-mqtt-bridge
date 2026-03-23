@@ -1,8 +1,9 @@
 # devices/base.py
-from abc import abstractmethod
 import copy
+from abc import abstractmethod
 
 from .device_data import DeviceData
+
 
 class EntityContext:
     id: str
