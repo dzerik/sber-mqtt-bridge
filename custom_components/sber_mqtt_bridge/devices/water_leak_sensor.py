@@ -6,7 +6,7 @@ import logging
 
 from .simple_sensor import SimpleReadOnlySensor
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 WATER_LEAK_SENSOR_CATEGORY = "sensor_water_leak"
 """Sber device category for water leak sensor entities."""

@@ -6,7 +6,7 @@ import logging
 
 from .simple_sensor import SimpleReadOnlySensor
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 DOOR_SENSOR_CATEGORY = "sensor_door"
 """Sber device category for door/window contact sensor entities."""

@@ -19,9 +19,6 @@ CONF_SBER_BROKER = "sber_broker"
 CONF_SBER_PORT = "sber_port"
 """Config key for the Sber MQTT broker port number."""
 
-CONF_SBER_HTTP_ENDPOINT = "sber_http_endpoint"
-"""Config key for the Sber HTTP API endpoint URL."""
-
 CONF_SBER_VERIFY_SSL = "sber_verify_ssl"
 """Config key for enabling/disabling SSL certificate verification."""
 
@@ -37,9 +34,6 @@ SBER_BROKER_DEFAULT = "mqtt-partners.iot.sberdevices.ru"
 
 SBER_PORT_DEFAULT = 8883
 """Default Sber MQTT broker port (TLS)."""
-
-SBER_HTTP_ENDPOINT_DEFAULT = "https://mqtt-partners.iot.sberdevices.ru"
-"""Default Sber HTTP API endpoint URL."""
 
 # MQTT topics
 

@@ -6,7 +6,7 @@ import logging
 
 from .simple_sensor import SimpleReadOnlySensor
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 MOTION_SENSOR_CATEGORY = "sensor_pir"
 """Sber device category for PIR / motion sensor entities."""

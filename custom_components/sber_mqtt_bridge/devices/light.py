@@ -15,7 +15,7 @@ from .utils.linear_converter import LinearConverter
 LIGHT_ENTITY_CATEGORY = "light"
 """Sber device category for light entities."""
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class LightEntity(BaseEntity):
@@ -268,6 +268,6 @@ class LightEntity(BaseEntity):
                         }
                     )
 
-        logger.debug("(LightEntity.process_cmd) processing res: %s", processing_result)
+        _LOGGER.debug("(LightEntity.process_cmd) processing res: %s", processing_result)
         return processing_result
 

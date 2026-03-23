@@ -9,7 +9,7 @@ from .base_entity import BaseEntity
 CURTAIN_ENTITY_CATEGORY = "curtain"
 """Sber device category for curtain/cover entities."""
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class CurtainEntity(BaseEntity):
@@ -35,13 +35,14 @@ class CurtainEntity(BaseEntity):
 
     # _supported_features = []
 
-    def __init__(self, entity_data: dict) -> None:
+    def __init__(self, entity_data: dict, category: str = CURTAIN_ENTITY_CATEGORY) -> None:
         """Initialize curtain entity.
 
         Args:
             entity_data: HA entity registry dict containing entity metadata.
+            category: Sber device category (override in subclasses).
         """
-        super().__init__(CURTAIN_ENTITY_CATEGORY, entity_data)
+        super().__init__(category, entity_data)
         self.current_position = 0  # Текущая позиция (0-100%)
         self._battery_level = 100  # Уровень заряда (0-100%)
 
@@ -71,7 +72,7 @@ class CurtainEntity(BaseEntity):
         # battery = ha_state["attributes"].get("battery_level")
         # if battery is not None:
         #     self._battery_level = battery
-        # logger.debug(f"Обновлено состояние {self.entity_id}: "
+        # _LOGGER.debug(f"Обновлено состояние {self.entity_id}: "
         #             f"открыто={self._is_open}, позиция={self._position}%, "
         #             f"батарея={self._battery_level}%")
 

@@ -7,7 +7,6 @@ from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import DOMAIN as DOMAIN
 from .sber_bridge import SberBridge
@@ -33,23 +32,19 @@ type SberBridgeConfigEntry = ConfigEntry[SberBridgeData]
 async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> bool:
     """Set up Sber MQTT Bridge from a config entry.
 
+    The bridge starts in background-reconnect mode: entity loading and HA event
+    subscription happen immediately, while the MQTT connection is established
+    asynchronously. Connection failures are logged and retried with backoff.
+
     Args:
         hass: Home Assistant core instance.
         entry: Config entry with Sber broker credentials and options.
 
     Returns:
         True if setup succeeded.
-
-    Raises:
-        ConfigEntryNotReady: If the MQTT broker connection fails.
     """
     bridge = SberBridge(hass, entry)
-
-    try:
-        await bridge.async_start()
-    except Exception as err:
-        await bridge.async_stop()
-        raise ConfigEntryNotReady(f"Failed to connect to Sber MQTT broker: {err}") from err
+    await bridge.async_start()
 
     entry.runtime_data = SberBridgeData(bridge=bridge)
     return True

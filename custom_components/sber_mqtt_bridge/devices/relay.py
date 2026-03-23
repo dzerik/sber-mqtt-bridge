@@ -6,7 +6,7 @@ import logging
 
 from .on_off_entity import OnOffEntity
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 RELAY_CATEGORY = "relay"
 """Sber device category for relay/switch entities."""
@@ -19,13 +19,14 @@ class RelayEntity(OnOffEntity):
     Supports basic on/off toggling via the ``on_off`` Sber feature.
     """
 
-    def __init__(self, entity_data: dict) -> None:
+    def __init__(self, entity_data: dict, category: str = RELAY_CATEGORY) -> None:
         """Initialize relay entity.
 
         Args:
             entity_data: HA entity registry dict containing entity metadata.
+            category: Sber device category (override in subclasses).
         """
-        super().__init__(RELAY_CATEGORY, entity_data)
+        super().__init__(category, entity_data)
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:
         """Process Sber on/off command and produce HA service calls.

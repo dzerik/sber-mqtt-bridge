@@ -6,7 +6,7 @@ import logging
 
 from .simple_sensor import SimpleReadOnlySensor
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 HUMIDITY_SENSOR_CATEGORY = "sensor_temp"
 """Sber device category for humidity sensor entities (shares sensor_temp category)."""
