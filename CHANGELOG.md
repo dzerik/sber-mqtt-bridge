@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-03-23
+
+### Added
+- **Config entry migration v1 to v2**: adds `entity_type_overrides` to options on upgrade
+- **Snapshot tests**: syrupy-based snapshot tests for Sber protocol JSON responses
+- **Strict mypy config**: enabled `disallow_untyped_defs`, `warn_return_any` and other strict checks
+
 ## [0.5.0] - 2026-03-23
 
 ### Added

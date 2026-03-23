@@ -1,0 +1,163 @@
+# serializer version: 1
+# name: test_devices_list_multiple_entities
+  dict({
+    'devices': list([
+      dict({
+        'hw_version': '0.5.1',
+        'id': 'root',
+        'model': dict({
+          'category': 'hub',
+          'description': 'HA MQTT Sber Bridge HUB',
+          'features': list([
+            'online',
+          ]),
+          'id': 'ID_root_hub',
+          'manufacturer': 'HA-SberBridge',
+          'model': 'VHub',
+        }),
+        'name': 'Home Assistant Bridge',
+        'sw_version': '0.5.1',
+      }),
+      dict({
+        'default_name': 'switch.lamp',
+        'hw_version': 'Unknown',
+        'id': 'switch.lamp',
+        'model': dict({
+          'category': 'relay',
+          'description': 'Lamp',
+          'features': list([
+            'online',
+            'on_off',
+          ]),
+          'id': 'Mdl_relay',
+          'manufacturer': 'Unknown',
+          'model': 'Unknown',
+        }),
+        'model_id': '',
+        'name': 'Lamp',
+        'room': 'room1',
+        'sw_version': 'Unknown',
+      }),
+    ]),
+  })
+# ---
+# name: test_devices_list_with_redefinitions
+  dict({
+    'devices': list([
+      dict({
+        'hw_version': '0.5.1',
+        'id': 'root',
+        'model': dict({
+          'category': 'hub',
+          'description': 'HA MQTT Sber Bridge HUB',
+          'features': list([
+            'online',
+          ]),
+          'id': 'ID_root_hub',
+          'manufacturer': 'HA-SberBridge',
+          'model': 'VHub',
+        }),
+        'name': 'Home Assistant Bridge',
+        'sw_version': '0.5.1',
+      }),
+      dict({
+        'default_name': 'switch.lamp',
+        'home': 'My Home',
+        'hw_version': 'Unknown',
+        'id': 'switch.lamp',
+        'model': dict({
+          'category': 'relay',
+          'description': 'Lamp',
+          'features': list([
+            'online',
+            'on_off',
+          ]),
+          'id': 'Mdl_relay',
+          'manufacturer': 'Unknown',
+          'model': 'Unknown',
+        }),
+        'model_id': '',
+        'name': 'New Lamp',
+        'room': 'Kitchen',
+        'sw_version': 'Unknown',
+      }),
+    ]),
+  })
+# ---
+# name: test_hub_device_snapshot
+  dict({
+    'hw_version': '1.0.0',
+    'id': 'root',
+    'model': dict({
+      'category': 'hub',
+      'description': 'HA MQTT Sber Bridge HUB',
+      'features': list([
+        'online',
+      ]),
+      'id': 'ID_root_hub',
+      'manufacturer': 'HA-SberBridge',
+      'model': 'VHub',
+    }),
+    'name': 'Home Assistant Bridge',
+    'sw_version': '1.0.0',
+  })
+# ---
+# name: test_states_list_empty_fallback_root
+  dict({
+    'devices': dict({
+      'root': dict({
+        'states': list([
+          dict({
+            'key': 'online',
+            'value': dict({
+              'bool_value': False,
+              'type': 'BOOL',
+            }),
+          }),
+        ]),
+      }),
+    }),
+  })
+# ---
+# name: test_states_list_multiple_entities
+  dict({
+    'devices': dict({
+      'sensor.temp': dict({
+        'states': list([
+          dict({
+            'key': 'online',
+            'value': dict({
+              'bool_value': True,
+              'type': 'BOOL',
+            }),
+          }),
+          dict({
+            'key': 'temperature',
+            'value': dict({
+              'integer_value': 225,
+              'type': 'INTEGER',
+            }),
+          }),
+        ]),
+      }),
+      'switch.lamp': dict({
+        'states': list([
+          dict({
+            'key': 'online',
+            'value': dict({
+              'bool_value': True,
+              'type': 'BOOL',
+            }),
+          }),
+          dict({
+            'key': 'on_off',
+            'value': dict({
+              'bool_value': True,
+              'type': 'BOOL',
+            }),
+          }),
+        ]),
+      }),
+    }),
+  })
+# ---

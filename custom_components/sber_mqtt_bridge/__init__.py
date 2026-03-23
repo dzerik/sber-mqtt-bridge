@@ -62,3 +62,30 @@ async def async_unload_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) 
     """
     await entry.runtime_data.bridge.async_stop()
     return True
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate config entry to a newer version.
+
+    Version 1 → 2: ensure ``entity_type_overrides`` key exists in options.
+
+    Args:
+        hass: Home Assistant core instance.
+        entry: Config entry being migrated.
+
+    Returns:
+        True if migration succeeded.
+    """
+    if entry.version == 1:
+        _LOGGER.info(
+            "Migrating config entry %s from version %s to 2",
+            entry.entry_id,
+            entry.version,
+        )
+        new_options = dict(entry.options)
+        if "entity_type_overrides" not in new_options:
+            new_options["entity_type_overrides"] = {}
+        hass.config_entries.async_update_entry(entry, options=new_options, version=2)
+        _LOGGER.info("Migration of config entry %s to version 2 complete", entry.entry_id)
+
+    return True
