@@ -326,10 +326,10 @@ class SberBridge:
                     if yaml_cfg.sber_partner_meta is not None:
                         sber_entity.partner_meta = yaml_cfg.sber_partner_meta
                     if yaml_cfg.sber_features_add is not None:
-                        sber_entity._extra_features = yaml_cfg.sber_features_add
+                        sber_entity.extra_features = yaml_cfg.sber_features_add
                         _LOGGER.debug("YAML sber_features_add for %s: %s", entity_id, yaml_cfg.sber_features_add)
                     if yaml_cfg.sber_features_remove is not None:
-                        sber_entity._removed_features = yaml_cfg.sber_features_remove
+                        sber_entity.removed_features = yaml_cfg.sber_features_remove
                         _LOGGER.debug("YAML sber_features_remove for %s: %s", entity_id, yaml_cfg.sber_features_remove)
 
                 # Link device registry data for entities that belong to a device
@@ -780,6 +780,18 @@ class SberBridge:
         self._pending_publish_ids.clear()
         if ids:
             self._hass.async_create_task(self._publish_states(ids))
+
+    async def async_publish_entity_status(self, entity_id: str) -> None:
+        """Publish the current state of a single entity to Sber cloud.
+
+        Args:
+            entity_id: HA entity identifier.
+        """
+        await self._publish_states([entity_id])
+
+    async def async_republish(self) -> None:
+        """Force republish full device config to Sber cloud."""
+        await self._publish_config()
 
     async def _publish_states(self, entity_ids: list[str] | None = None) -> None:
         """Publish entity states to Sber MQTT."""

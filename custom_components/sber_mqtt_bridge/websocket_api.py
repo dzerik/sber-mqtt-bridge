@@ -30,33 +30,41 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-def _get_bridge(hass: HomeAssistant) -> SberBridge | None:
-    """Get the active SberBridge instance from hass.data.
-
-    Returns:
-        The SberBridge instance, or None if not available.
-    """
-    data = hass.data.get(DOMAIN, {})
-    return data.get("bridge")
-
-
 def _get_config_entry(hass: HomeAssistant) -> ConfigEntry | None:
-    """Get the first config entry for the Sber MQTT Bridge domain.
+    """Get the first loaded config entry for the Sber MQTT Bridge domain.
 
     Returns:
         The ConfigEntry instance, or None if not found.
     """
-    entries = hass.config_entries.async_entries(DOMAIN)
+    entries = hass.config_entries.async_loaded_entries(DOMAIN)
     return entries[0] if entries else None
+
+
+def _get_bridge(hass: HomeAssistant) -> SberBridge | None:
+    """Get the active SberBridge instance from config entry runtime_data.
+
+    Returns:
+        The SberBridge instance, or None if not available.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None or not hasattr(entry, "runtime_data") or entry.runtime_data is None:
+        return None
+    return entry.runtime_data.bridge
 
 
 @callback
 def async_setup_websocket_api(hass: HomeAssistant) -> None:
     """Register WebSocket API commands for the Sber MQTT Bridge panel.
 
+    Idempotent — skips registration if already done for this HA instance.
+
     Args:
         hass: Home Assistant core instance.
     """
+    if hass.data.get(f"{DOMAIN}_ws_registered"):
+        return
+    hass.data[f"{DOMAIN}_ws_registered"] = True
+
     websocket_api.async_register_command(hass, ws_get_devices)
     websocket_api.async_register_command(hass, ws_get_status)
     websocket_api.async_register_command(hass, ws_republish)
@@ -120,14 +128,17 @@ async def ws_get_devices(
             }
         )
 
-    acknowledged = bridge.stats.get("acknowledged_entities", [])
+    enabled_ids = set(bridge.enabled_entity_ids)
+    acknowledged_all = bridge.stats.get("acknowledged_entities", [])
+    # Only count acknowledged entities that are still in the enabled list
+    acknowledged = [eid for eid in acknowledged_all if eid in enabled_ids]
     unacknowledged = bridge.unacknowledged_entities
 
     connection.send_result(
         msg["id"],
         {
             "devices": devices,
-            "total": len(devices),
+            "total": len(enabled_ids),
             "acknowledged_count": len(acknowledged),
             "unacknowledged_count": len(unacknowledged),
             "unacknowledged": unacknowledged,
@@ -192,7 +203,7 @@ async def ws_republish(
         connection.send_error(msg["id"], "bridge_not_found", "Sber bridge not available")
         return
 
-    await bridge._publish_config()
+    await bridge.async_republish()
     connection.send_result(msg["id"], {"success": True})
 
 
@@ -249,7 +260,7 @@ async def ws_get_available_entities(
             {
                 "entity_id": entity_entry.entity_id,
                 "domain": domain,
-                "device_class": entity_entry.device_class or entity_entry.original_device_class or "",
+                "device_class": entity_entry.original_device_class or "",
                 "friendly_name": friendly_name or entity_entry.name or entity_entry.original_name or "",
             }
         )
@@ -549,7 +560,7 @@ async def ws_publish_one_status(
         connection.send_error(msg["id"], "bridge_not_found", "Sber bridge not available")
         return
 
-    await bridge._publish_states([msg["entity_id"]])
+    await bridge.async_publish_entity_status(msg["entity_id"])
     connection.send_result(msg["id"], {"success": True})
 
 

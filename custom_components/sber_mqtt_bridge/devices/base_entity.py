@@ -68,8 +68,8 @@ class BaseEntity(ABC):
         self.groups: list[str] = []
         self.parent_entity_id: str | None = None
         self.partner_meta: dict[str, str] = {}
-        self._extra_features: list[str] = []
-        self._removed_features: list[str] = []
+        self.extra_features: list[str] = []
+        self.removed_features: list[str] = []
 
         if entity_data:
             self.area_id = entity_data.get("area_id", "")
@@ -123,18 +123,18 @@ class BaseEntity(ABC):
     def get_final_features_list(self) -> list[str]:
         """Return features list with user overrides applied.
 
-        Removes features from ``_removed_features`` and appends features
-        from ``_extra_features``.  Duplicate-safe.
+        Removes features from ``removed_features`` and appends features
+        from ``extra_features``.  Duplicate-safe.
 
         Returns:
             Final list of Sber feature names.
         """
         features = self.create_features_list()
-        if self._removed_features:
-            features = [f for f in features if f not in self._removed_features]
-        if self._extra_features:
+        if self.removed_features:
+            features = [f for f in features if f not in self.removed_features]
+        if self.extra_features:
             existing = set(features)
-            features.extend(f for f in self._extra_features if f not in existing)
+            features.extend(f for f in self.extra_features if f not in existing)
         return features
 
     def link_device(self, device_data: DeviceData) -> None:
@@ -186,16 +186,19 @@ class BaseEntity(ABC):
         else:
             if self.linked_device is None:
                 raise RuntimeError(f"Entity {self.entity_id}: linked_device required when device_id is set")
+            # Use overridden name (e.g. sber_name from YAML) if set, otherwise device name
+            device_name = self.linked_device.get("name", self.original_name)
+            display_name = self.name if self.name != self.original_name else device_name
             res = {
                 "id": self.entity_id,
-                "name": self.linked_device.get("name", self.original_name),
+                "name": display_name,
                 "default_name": self.original_name,
                 "room": self.linked_device.get("area_id", self.area_id),
                 "model": {
                     "id": self.linked_device["model_id"],
                     "manufacturer": self.linked_device["manufacturer"],
                     "model": self.linked_device["model"],
-                    "description": self.linked_device["name"],
+                    "description": display_name,
                     "category": self.category,
                     "features": self.get_final_features_list(),
                 },

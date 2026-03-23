@@ -1,7 +1,7 @@
 /**
  * Sber MQTT Bridge — DevTools component for MQTT protocol debugging.
  *
- * Three sections:
+ * Three collapsible sections:
  * 1. Raw Config Payload — JSON sent to up/config
  * 2. Raw State Payload — JSON sent to up/status
  * 3. MQTT Message Log — real-time ring buffer of last 50 messages
@@ -26,6 +26,8 @@ class SberDevtools extends LitElement {
       _configError: { type: String },
       _statesError: { type: String },
       _logError: { type: String },
+      _configOpen: { type: Boolean },
+      _statesOpen: { type: Boolean },
     };
   }
 
@@ -41,6 +43,8 @@ class SberDevtools extends LitElement {
     this._statesError = "";
     this._logError = "";
     this._autoRefresh = null;
+    this._configOpen = false;
+    this._statesOpen = false;
   }
 
   connectedCallback() {
@@ -65,6 +69,7 @@ class SberDevtools extends LitElement {
     try {
       const result = await this.hass.callWS({ type: "sber_mqtt_bridge/raw_config" });
       this._configPayload = this._formatJson(result.payload);
+      this._configOpen = true;
     } catch (e) {
       this._configError = e.message || String(e);
     } finally {
@@ -78,6 +83,7 @@ class SberDevtools extends LitElement {
     try {
       const result = await this.hass.callWS({ type: "sber_mqtt_bridge/raw_states" });
       this._statesPayload = this._formatJson(result.payload);
+      this._statesOpen = true;
     } catch (e) {
       this._statesError = e.message || String(e);
     } finally {
@@ -116,16 +122,37 @@ class SberDevtools extends LitElement {
   }
 
   _copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(
-      () => this.dispatchEvent(new CustomEvent("devtools-toast", {
-        bubbles: true, composed: true,
-        detail: { message: "Copied to clipboard", type: "success" },
-      })),
-      () => this.dispatchEvent(new CustomEvent("devtools-toast", {
-        bubbles: true, composed: true,
-        detail: { message: "Copy failed", type: "error" },
-      })),
-    );
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => this._toast("Copied to clipboard", "success"),
+        () => this._fallbackCopy(text),
+      );
+    } else {
+      this._fallbackCopy(text);
+    }
+  }
+
+  _fallbackCopy(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand("copy");
+      this._toast("Copied to clipboard", "success");
+    } catch {
+      this._toast("Copy failed", "error");
+    }
+    document.body.removeChild(ta);
+  }
+
+  _toast(message, type) {
+    this.dispatchEvent(new CustomEvent("devtools-toast", {
+      bubbles: true, composed: true,
+      detail: { message, type },
+    }));
   }
 
   _formatTime(ts) {
@@ -167,6 +194,24 @@ class SberDevtools extends LitElement {
         margin: 0;
         font-size: 18px;
         font-weight: 500;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .collapse-icon {
+        transition: transform 0.2s;
+        font-size: 18px;
+        color: var(--secondary-text-color);
+      }
+
+      .collapse-icon.open {
+        transform: rotate(90deg);
       }
 
       .btn-group {
@@ -235,6 +280,11 @@ class SberDevtools extends LitElement {
         content: "Click the button above to load data...";
         color: #666;
         font-style: italic;
+      }
+
+      .collapsible-content {
+        overflow: hidden;
+        transition: max-height 0.3s ease;
       }
 
       .error-text {
@@ -345,7 +395,10 @@ class SberDevtools extends LitElement {
     return html`
       <div class="section">
         <div class="section-header">
-          <h2>Raw Config Payload</h2>
+          <div class="section-title" @click=${() => { this._configOpen = !this._configOpen; }}>
+            <span class="collapse-icon ${this._configOpen ? "open" : ""}">&#9654;</span>
+            <h2>Raw Config Payload</h2>
+          </div>
           <div class="btn-group">
             <button class="btn-primary"
               ?disabled=${this._configLoading}
@@ -361,7 +414,7 @@ class SberDevtools extends LitElement {
           </div>
         </div>
         ${this._configError ? html`<div class="error-text">${this._configError}</div>` : ""}
-        <div class="json-viewer">${this._configPayload}</div>
+        ${this._configOpen ? html`<div class="json-viewer">${this._configPayload}</div>` : ""}
       </div>
     `;
   }
@@ -370,7 +423,10 @@ class SberDevtools extends LitElement {
     return html`
       <div class="section">
         <div class="section-header">
-          <h2>Raw State Payload</h2>
+          <div class="section-title" @click=${() => { this._statesOpen = !this._statesOpen; }}>
+            <span class="collapse-icon ${this._statesOpen ? "open" : ""}">&#9654;</span>
+            <h2>Raw State Payload</h2>
+          </div>
           <div class="btn-group">
             <button class="btn-primary"
               ?disabled=${this._statesLoading}
@@ -386,7 +442,7 @@ class SberDevtools extends LitElement {
           </div>
         </div>
         ${this._statesError ? html`<div class="error-text">${this._statesError}</div>` : ""}
-        <div class="json-viewer">${this._statesPayload}</div>
+        ${this._statesOpen ? html`<div class="json-viewer">${this._statesPayload}</div>` : ""}
       </div>
     `;
   }

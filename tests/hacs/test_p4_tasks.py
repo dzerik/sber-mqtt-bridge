@@ -78,7 +78,7 @@ class TestRepairsEntityNotFound:
         bridge.enabled_entity_ids = ["light.missing", "light.found"]
         bridge.entities = {"light.found": _make_entity("light.found")}
         bridge.is_connected = True
-        bridge.stats = MagicMock(reconnect_count=0)
+        bridge.stats = {"reconnect_count": 0}
 
         with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create, \
              patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue") as mock_delete:
@@ -100,7 +100,7 @@ class TestRepairsEntityNotFound:
         bridge.enabled_entity_ids = ["light.a"]
         bridge.entities = {"light.a": _make_entity("light.a")}
         bridge.is_connected = True
-        bridge.stats = MagicMock(reconnect_count=0)
+        bridge.stats = {"reconnect_count": 0}
 
         with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create, \
              patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue"):
@@ -123,7 +123,7 @@ class TestRepairsEntitiesWithoutState:
         bridge.enabled_entity_ids = ["light.no_state"]
         bridge.entities = {"light.no_state": unfilled}
         bridge.is_connected = True
-        bridge.stats = MagicMock(reconnect_count=0)
+        bridge.stats = {"reconnect_count": 0}
 
         with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create, \
              patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue"):
@@ -140,7 +140,7 @@ class TestRepairsEntitiesWithoutState:
         bridge.enabled_entity_ids = ["light.ok"]
         bridge.entities = {"light.ok": _make_entity("light.ok", filled=True)}
         bridge.is_connected = True
-        bridge.stats = MagicMock(reconnect_count=0)
+        bridge.stats = {"reconnect_count": 0}
 
         with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue"), \
              patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue") as mock_delete:
@@ -161,7 +161,7 @@ class TestRepairsConnectionIssues:
         bridge.enabled_entity_ids = []
         bridge.entities = {}
         bridge.is_connected = False
-        bridge.stats = MagicMock(reconnect_count=10)
+        bridge.stats = {"reconnect_count": 10}
 
         with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create, \
              patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue"):
@@ -178,7 +178,7 @@ class TestRepairsConnectionIssues:
         bridge.enabled_entity_ids = []
         bridge.entities = {}
         bridge.is_connected = True
-        bridge.stats = MagicMock(reconnect_count=10)
+        bridge.stats = {"reconnect_count": 10}
 
         with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue"), \
              patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue") as mock_delete:
@@ -204,36 +204,36 @@ class TestFeaturesOverride:
     def test_get_final_features_list_with_add(self):
         """Extra features are appended."""
         entity = _make_entity()
-        entity._extra_features = ["light_brightness", "light_colour"]
+        entity.extra_features = ["light_brightness", "light_colour"]
         result = entity.get_final_features_list()
         assert result == ["online", "light_brightness", "light_colour"]
 
     def test_get_final_features_list_with_remove(self):
         """Removed features are excluded."""
         entity = _make_entity()
-        entity._removed_features = ["online"]
+        entity.removed_features = ["online"]
         result = entity.get_final_features_list()
         assert result == []
 
     def test_get_final_features_list_add_and_remove(self):
         """Both add and remove work together."""
         entity = _make_entity()
-        entity._extra_features = ["light_brightness"]
-        entity._removed_features = ["online"]
+        entity.extra_features = ["light_brightness"]
+        entity.removed_features = ["online"]
         result = entity.get_final_features_list()
         assert result == ["light_brightness"]
 
     def test_get_final_features_no_duplicates(self):
         """Adding a feature that already exists does not duplicate."""
         entity = _make_entity()
-        entity._extra_features = ["online", "light_brightness"]
+        entity.extra_features = ["online", "light_brightness"]
         result = entity.get_final_features_list()
         assert result == ["online", "light_brightness"]
 
     def test_to_sber_state_uses_final_features(self):
         """to_sber_state uses get_final_features_list instead of create_features_list."""
         entity = _make_entity()
-        entity._extra_features = ["light_brightness"]
+        entity.extra_features = ["light_brightness"]
         state = entity.to_sber_state()
         assert "light_brightness" in state["model"]["features"]
         assert "online" in state["model"]["features"]

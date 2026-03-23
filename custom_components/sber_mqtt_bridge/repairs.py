@@ -96,7 +96,8 @@ def _check_connection_issues(hass: HomeAssistant, bridge: SberBridge) -> None:
         hass: Home Assistant core instance.
         bridge: The active SberBridge instance.
     """
-    if not bridge.is_connected and bridge.stats.reconnect_count > 5:
+    stats = bridge.stats
+    if not bridge.is_connected and stats.get("reconnect_count", 0) > 5:
         async_create_issue(
             hass,
             DOMAIN,
@@ -105,7 +106,7 @@ def _check_connection_issues(hass: HomeAssistant, bridge: SberBridge) -> None:
             severity=IssueSeverity.ERROR,
             translation_key="connection_issues",
             translation_placeholders={
-                "reconnect_count": str(bridge.stats.reconnect_count),
+                "reconnect_count": str(stats.get("reconnect_count", 0)),
             },
         )
     else:

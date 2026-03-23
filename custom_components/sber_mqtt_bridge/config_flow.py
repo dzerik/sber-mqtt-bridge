@@ -13,6 +13,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import (
+    ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
     OptionsFlowWithReload,
@@ -238,7 +239,7 @@ def _get_entities_by_labels(hass: HomeAssistant, labels: list[str]) -> list[str]
         domain = entry.entity_id.split(".", 1)[0]
         if domain not in SUPPORTED_DOMAINS:
             continue
-        if hasattr(entry, "labels") and label_set & set(entry.labels):
+        if label_set & set(entry.labels):
             result.append(entry.entity_id)
 
     return sorted(result)
@@ -315,7 +316,7 @@ class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(
-        config_entry,
+        config_entry: ConfigEntry,
     ) -> SberMqttBridgeOptionsFlow:
         """Get the options flow handler."""
         return SberMqttBridgeOptionsFlow()

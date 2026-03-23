@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-03-24
+
+### Fixed
+- **failed_unload crash**: replaced deprecated `hass.components.frontend.async_remove_panel` with proper import
+- **repairs.py crash**: `bridge.stats` returns dict, not object — fixed attribute access
+- **sber_name ignored for linked devices**: YAML name override now applies to devices with device registry entries
+- **Disconnected status after reload**: fixed `failed_unload` state caused by panel removal error
+- **DevTools clipboard crash**: fallback copy method for non-secure contexts (no `navigator.clipboard`)
+- **Unacknowledged count mismatch**: acknowledged count now filters to current exposed entities only
+
+### Changed
+- **Removed `hass.data[DOMAIN]["bridge"]`**: WebSocket API now uses `entry.runtime_data` exclusively
+- **WebSocket idempotent registration**: guard prevents duplicate command registration on reload
+- **Public bridge API**: added `async_republish()` and `async_publish_entity_status()` — WebSocket API no longer calls private methods
+- **Public feature attributes**: renamed `_extra_features`/`_removed_features` to public attributes
+- **`device_class` → `original_device_class`**: fixed deprecated attribute usage in available entities list
+- **Removed `hasattr(entry, "labels")`**: unnecessary compatibility guard for HA 2023.4+
+- **Config flow**: added `ConfigEntry` type annotation to `async_get_options_flow`
+- **DevTools payloads collapsible**: Raw Config/State sections now collapse/expand on click
+
 ## [1.5.0] - 2026-03-23
 
 ### Added

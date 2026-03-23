@@ -7,7 +7,7 @@ import pathlib
 from dataclasses import dataclass
 from typing import Any
 
-from homeassistant.components.frontend import async_register_built_in_panel
+from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -80,11 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
 
     entry.runtime_data = SberBridgeData(bridge=bridge)
 
-    # Store bridge reference for WebSocket API access
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN]["bridge"] = bridge
-
-    # Register WebSocket API
+    # Register WebSocket API (idempotent — skips if already registered)
     async_setup_websocket_api(hass)
 
     # Register frontend panel (static path + sidebar entry)
@@ -124,11 +120,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) 
     await entry.runtime_data.bridge.async_stop()
 
     # Remove panel from sidebar
-    hass.components.frontend.async_remove_panel("sber-mqtt-bridge")
-
-    # Clean up bridge reference
-    if DOMAIN in hass.data:
-        hass.data[DOMAIN].pop("bridge", None)
+    try:
+        async_remove_panel(hass, "sber-mqtt-bridge")
+    except KeyError:
+        _LOGGER.debug("Panel 'sber-mqtt-bridge' already removed")
 
     return True
 
