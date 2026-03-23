@@ -1,71 +1,127 @@
-﻿# MQTT-SberGate
-## MQTT SberGate SberDevice IoT Agent for Home Assistant
+# Sber Smart Home MQTT Bridge
 
-Агент представляет собой прослойку между облаком Sber и HomeAssistant (HA).
-Его задача взять из HA нужные устройства, отобразить их в облаке Sber и отслеживать
-изменения в облаке с последующей передачей в HA.
-На данный момент агент выбирает сущности switch и script и отображает их как relay в облаке Sber.
+[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
+[![GitHub Release](https://img.shields.io/github/v/release/mberezovsky/MQTT-SberGate)](https://github.com/mberezovsky/MQTT-SberGate/releases)
+[![Tests](https://img.shields.io/badge/tests-219%20passed-brightgreen)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-82%25-green)](tests/)
 
-## Первоначальные настройки.
+Home Assistant custom integration for bridging HA entities to [Sber Smart Home](https://developers.sber.ru/docs/ru/smarthome) cloud via MQTT.
 
-Для работы агента необходима [регистрация в Studio](https://developers.sber.ru/studio/workspaces/).
+Control your Home Assistant devices through Sber voice assistants (Salut) and the Sber Smart Home app.
 
-Требуется создать интеграцию и получить регистрационные данные для агента (sber-mqtt_login, sber-mqtt_password).
+## Features
 
-Также необходим токен для управления HA. Очень рекомендую завести для этого отдельного пользователя.
-Для получения заходим в профиль пользователя и создаём долгосрочный токен доступа (ha-api_token)
+- Native HA integration (not an addon) — installs via HACS
+- Config Flow UI for Sber MQTT credentials
+- Entity selection — choose which HA entities to expose to Sber
+- Real-time state sync — HA state changes instantly reflected in Sber
+- Voice control through Sber assistants (Salut)
+- 15 device types supported
+- Automatic MQTT reconnection with exponential backoff
+- Optional SSL certificate verification (for custom CA)
+- Translations: English and Russian
 
-## Изменения.
-1.0.5 Добавлена возможность выбирать датчики температуры. 
-      Мелкие правки панели управления.
-      Проверка кода возврата при запросе списка устройств из HA.
+## Supported Device Types
 
-1.0.4 Эксперименты с HA WebSocket API
+| HA Domain | Sber Category | Description |
+|-----------|---------------|-------------|
+| `light` | light | Brightness, color, color temperature |
+| `switch` | relay | On/off control |
+| `switch` (outlet) | socket | Smart socket |
+| `script` | relay | Script execution |
+| `button` | relay | Button press |
+| `cover` | curtain | Curtains, position control |
+| `cover` (blind/shade) | window_blind | Blinds, roller shutters |
+| `climate` | hvac_ac | Air conditioner, HVAC |
+| `climate` (radiator) | hvac_radiator | Radiator thermostat |
+| `sensor` (temperature) | sensor_temp | Temperature sensor |
+| `sensor` (humidity) | sensor_temp | Humidity sensor |
+| `binary_sensor` (motion) | sensor_pir | Motion sensor |
+| `binary_sensor` (door) | sensor_door | Door/window sensor |
+| `binary_sensor` (moisture) | sensor_water_leak | Water leak sensor |
+| `input_boolean` | scenario_button | Scenario button |
+| `valve` | valve | Motorized water valve |
+| `humidifier` | hvac_humidifier | Air humidifier |
 
-Теперь появилась какая-никакая обратная связь. То есть если в HA трогаем выключатель, его состояние передаётся в облако Сбера.
-Функция не особо нужная, добавлена по большей части из любопытства, когда случайно заметил, что оказвается в HA есть WebSocket API.
-Добавлено опять же на скорую руку, поэтому возможно всё стало менее стабильным.
+## Prerequisites
 
-## Немного истории.
+1. [Register in Sber Studio](https://developers.sber.ru/studio/workspaces/)
+2. Create an integration project and obtain MQTT credentials (login + password)
+3. See [Sber MQTT-to-Cloud documentation](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy)
 
-Проект начался незадолго до нового года, когда подключенную к HomeAsistant ёлочку захотелось включать голосом.
-Надо сказать у Салюта "Раз-два-три ёлочка гори" очень здорово получилось.
+## Installation
 
-Благо к тому времени у Sberа уже был [MQTT-to-Cloud для DIY](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy).
-Правда список поддерживаемых контроллеров ограничивается всеголишь двумя: LogicMachine и Wiren Board. Таким образом имеется только два официальных агента под указанные контроллеры.
+### HACS (recommended)
 
-Экспериментов было масса. Изначально даже проект начинался на php, но со временем пришло понимание, что быстрее и проще всё реализовать
-на родном для HomeAssistant python и завернуть в виде аддона. Возможно лучше было бы в виде интеграции, но проблема со свободным временем
-не даёт возможности разбираться и двигаться в этом направлении, да и поставленные задачи решины...
+1. Open HACS in Home Assistant
+2. Click "Custom repositories" (three dots menu)
+3. Add `https://github.com/mberezovsky/MQTT-SberGate` as "Integration"
+4. Search for "Sber Smart Home MQTT Bridge" and install
+5. Restart Home Assistant
 
-Изначально было реализовано два MQTT подключения. Первое смотрело в облако Sber, а второе в локальный MQTT брокер HomeAssistant.
-Было очень неудобно, так как приходилось городить огород чтобы HomeAssistant реагировал на данные внутреннего MQTT.
-Но, мне подсказали, что у HomeAssistant есть замечательный REST API с помощью которого можно очень просто им управлять.
-Поэтому подключение к внутреннему MQTT HomeAssistant было отключено (код до сих пор ещё болтается в недрах агента, возможно для чего-нибудь ещё пригодится),
-а управление переведено на REST API.
+### Manual
 
-Также в ходе экспериментов с оригинальным агентом в проект был включен его web-интерфейс, но до конца правильная работа так и не реализована, чисто на посмотреть.
+1. Copy `custom_components/sber_mqtt_bridge/` to your HA `config/custom_components/`
+2. Restart Home Assistant
 
-Также подсмотрел замечательную идею управления AndroidTV через adb. Поэтому кроме switch дабавились script.
-Теперь стало возможно сказать ассистенту: "Включи камеру на улице". После чего отрабатывает скрипт HA который отправляет в VLC нужный поток.
-Попытки прокинуть script как камеру не увенчались успехом, даже писал в поддержку. Получил ответ, что-то вроде "пока не реализовано".
+## Configuration
 
-## Ссылки.
+1. Go to **Settings** > **Devices & Services** > **Add Integration**
+2. Search for "Sber Smart Home MQTT Bridge"
+3. Enter your Sber MQTT credentials:
+   - **MQTT Login** — from your Sber Studio integration project
+   - **MQTT Password** — from your Sber Studio integration project
+   - **MQTT Broker** — `mqtt-partners.iot.sberdevices.ru` (default)
+   - **MQTT Port** — `8883` (default)
+   - **Verify SSL** — enable (recommended); disable only if broker uses a custom CA
+4. After adding, go to integration options to select which entities to expose to Sber
 
-Для работы с MQTT используется [Eclipse Paho™ MQTT Python Client](https://github.com/eclipse/paho.mqtt.python)
+### Configuration Parameters
 
-[Регистрация пространства в Studio](https://developers.sber.ru/docs/ru/smarthome/space/registration)
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| MQTT Login | Yes | — | Sber Studio integration login |
+| MQTT Password | Yes | — | Sber Studio integration password |
+| MQTT Broker | No | `mqtt-partners.iot.sberdevices.ru` | Sber MQTT broker address |
+| MQTT Port | No | `8883` | Sber MQTT broker port |
+| Verify SSL | No | `true` | Verify broker SSL certificate |
 
-[Создание проекта интеграции в Studio](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/create-mqtt-diy-integration-project)
+### Options
 
-[Авторизация контроллера в облаке Sber](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/controller-authorization)
+| Parameter | Description |
+|-----------|-------------|
+| Exposed Entities | Select which HA entities to make available in Sber Smart Home |
 
-[Как работает интеграция Sber](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/integration-scheme)
+## Removal
 
-[Создание интеграции Sber](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/create-mqtt-diy-integration)
+1. Go to **Settings** > **Devices & Services**
+2. Find "Sber Smart Home MQTT Bridge"
+3. Click the three dots menu and select "Delete"
 
-[HA REST API](https://developers.home-assistant.io/docs/api/rest)
+## Troubleshooting
 
-[HA WebSocket API](https://developers.home-assistant.io/docs/api/websocket)
+- **Cannot connect**: Verify your Sber MQTT credentials in Sber Studio
+- **SSL errors**: Try disabling SSL verification in the integration options (for brokers with custom CA)
+- **Entities not appearing in Sber**: Check that entities are selected in integration options
+- **Enable debug logging**: Add to `configuration.yaml`:
+  ```yaml
+  logger:
+    logs:
+      custom_components.sber_mqtt_bridge: debug
+  ```
 
-[Telegram](https://t.me/+k_w9uO0h73FkNjJi)
+## Links
+
+- [Sber Smart Home Developer Portal](https://developers.sber.ru/docs/ru/smarthome)
+- [Register in Sber Studio](https://developers.sber.ru/docs/ru/smarthome/space/registration)
+- [MQTT-to-Cloud Integration](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy)
+- [Supported Device Categories](https://developers.sber.ru/docs/ru/smarthome/c2c/devices)
+- [Telegram Community](https://t.me/+k_w9uO0h73FkNjJi)
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+
+## License
+
+[MIT](LICENSE.txt)
