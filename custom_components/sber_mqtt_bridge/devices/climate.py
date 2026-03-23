@@ -184,7 +184,13 @@ class ClimateEntity(BaseEntity):
                 }
             )
         if self.fan_mode:
-            states.append({"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": self.fan_mode}})
+            fan_value = self.fan_mode
+            # Map HA preset modes to Sber air flow power values
+            if self._preset_mode == "boost":
+                fan_value = "turbo"
+            elif self._preset_mode == "sleep" and "quiet" not in (self.fan_modes or []):
+                fan_value = "quiet"
+            states.append({"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": fan_value}})
         if self.swing_mode:
             states.append({"key": "hvac_air_flow_direction", "value": {"type": "ENUM", "enum_value": self.swing_mode}})
         if self.hvac_mode:
@@ -254,6 +260,30 @@ class ClimateEntity(BaseEntity):
                                 "domain": "climate",
                                 "service": "set_fan_mode",
                                 "service_data": {"fan_mode": mode},
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
+                elif mode == "turbo" and "boost" in (self._preset_modes or []):
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "climate",
+                                "service": "set_preset_mode",
+                                "service_data": {"preset_mode": "boost"},
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
+                elif mode == "quiet" and "sleep" in (self._preset_modes or []):
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "climate",
+                                "service": "set_preset_mode",
+                                "service_data": {"preset_mode": "sleep"},
                                 "target": {"entity_id": self.entity_id},
                             }
                         }

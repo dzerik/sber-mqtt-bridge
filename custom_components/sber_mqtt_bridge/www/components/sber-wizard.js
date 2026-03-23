@@ -67,6 +67,7 @@ class SberWizard extends LitElement {
   static get properties() {
     return {
       hass: { type: Object },
+      exposedIds: { type: Array },
       open: { type: Boolean, reflect: true },
       _step: { type: Number },
       _selectedType: { type: String },
@@ -334,6 +335,12 @@ class SberWizard extends LitElement {
       .entity-item:hover { background: var(--secondary-background-color, #f9f9f9); }
       .entity-item.selected { background: color-mix(in srgb, var(--primary-color) 10%, transparent); }
       .entity-item.already-added { opacity: 0.5; }
+      .badge-used {
+        display: inline-block; padding: 1px 6px; border-radius: 4px;
+        font-size: 10px; font-weight: 600;
+        background: var(--warning-color, #ff9800); color: #fff;
+        vertical-align: middle; margin-left: 6px;
+      }
       .entity-info { flex: 1; min-width: 0; }
       .entity-id { font-family: monospace; font-size: 12px; color: var(--secondary-text-color); }
       .entity-name { font-size: 13px; color: var(--primary-text-color); }
@@ -473,17 +480,19 @@ class SberWizard extends LitElement {
           ? html`<div class="empty-state">No matching entities found</div>`
           : html`
               <div class="entity-list">
-                ${filtered.map((e) => html`
+                ${filtered.map((e) => {
+                  const isUsed = this.exposedIds?.includes(e.entity_id);
+                  return html`
                   <div
-                    class="entity-item ${this._selectedEntity === e.entity_id ? "selected" : ""}"
+                    class="entity-item ${this._selectedEntity === e.entity_id ? "selected" : ""} ${isUsed ? "already-added" : ""}"
                     @click=${() => this._selectEntity(e.entity_id)}
                   >
                     <div class="entity-info">
-                      <div class="entity-name">${e.friendly_name || e.entity_id}</div>
+                      <div class="entity-name">${e.friendly_name || e.entity_id}${isUsed ? html` <span class="badge-used">already added</span>` : ""}</div>
                       <div class="entity-id">${e.entity_id}</div>
                     </div>
                   </div>
-                `)}
+                `})}
               </div>
             `}
 

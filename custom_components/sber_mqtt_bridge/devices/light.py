@@ -15,6 +15,9 @@ from .utils.linear_converter import LinearConverter
 LIGHT_ENTITY_CATEGORY = "light"
 """Sber device category for light entities."""
 
+COLOR_MODES = {"hs", "rgb", "rgbw", "rgbww", "xy"}
+"""HA color modes that map to Sber colour features."""
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -102,7 +105,7 @@ class LightEntity(BaseEntity):
         """
         features = [*super().create_features_list(), "on_off"]
 
-        if "xy" in self.supported_color_modes:
+        if COLOR_MODES & set(self.supported_color_modes):
             features += ["light_colour", "light_mode", "light_brightness"]
         if "color_temp" in self.supported_color_modes:
             features.append("light_colour_temp")
@@ -117,7 +120,7 @@ class LightEntity(BaseEntity):
         """
         allowed_values: dict[str, dict] = {}
 
-        if "xy" in self.supported_color_modes:
+        if COLOR_MODES & set(self.supported_color_modes):
             allowed_values["light_brightness"] = {"type": "INTEGER", "integer_values": {"min": 50, "max": 1000}}
             allowed_values["light_colour"] = {"type": "COLOUR"}
             allowed_values["light_mode"] = {"type": "ENUM", "enum_values": {"values": ["white", "colour"]}}
@@ -158,7 +161,7 @@ class LightEntity(BaseEntity):
         Returns:
             True if the light is in a color mode (not white/color_temp).
         """
-        return self.current_color_mode not in ["white", "color_temp"]
+        return self.current_color_mode in ("hs", "rgb", "rgbw", "rgbww", "xy")
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with all light attributes.

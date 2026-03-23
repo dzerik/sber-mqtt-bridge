@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-03-23
+
+### Fixed
+- **Light color mode mapping**: support hs/rgb/rgbw/rgbww color modes (not just xy) for Sber colour features
+- **Climate turbo/quiet preset**: map Sber turbo/quiet air flow power to HA boost/sleep preset modes
+- **Cover opening/closing states**: correctly map HA transitional states (opening/closing) to Sber open_state
+- **Wizard "already added" badge**: entities already exposed to Sber are visually marked in the Add Device wizard
+
 ## [1.4.0] - 2026-03-23
 
 ### Added

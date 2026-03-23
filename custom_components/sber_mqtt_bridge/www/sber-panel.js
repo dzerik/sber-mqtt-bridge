@@ -432,6 +432,7 @@ class SberMqttPanel extends LitElement {
 
       <sber-wizard
         .hass=${this.hass}
+        .exposedIds=${this._devices.map(d => d.entity_id)}
         @wizard-complete=${this._onWizardComplete}
       ></sber-wizard>
 

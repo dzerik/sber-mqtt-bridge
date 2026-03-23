@@ -257,10 +257,12 @@ class CurtainEntity(BaseEntity):
             }
         )
 
+        state_map = {"open": "open", "opening": "open", "closed": "close", "closing": "close"}
+        open_state = state_map.get(self.state, "close" if self.current_position == 0 else "open")
         states.append(
             {
                 "key": "open_state",
-                "value": {"type": "ENUM", "enum_value": "open" if self.current_position > 0 else "close"},
+                "value": {"type": "ENUM", "enum_value": open_state},
             }
         )
 
