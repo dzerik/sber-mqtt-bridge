@@ -12,6 +12,8 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+import voluptuous as vol
+
 from .const import DOMAIN as DOMAIN
 from .sber_protocol import VERSION as INTEGRATION_VERSION
 from .custom_capabilities import parse_yaml_config
@@ -19,6 +21,11 @@ from .sber_bridge import SberBridge
 from .websocket_api import async_setup_websocket_api
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = vol.Schema(
+    {DOMAIN: vol.Schema({}, extra=vol.ALLOW_EXTRA)},
+    extra=vol.ALLOW_EXTRA,
+)
 
 
 @dataclass

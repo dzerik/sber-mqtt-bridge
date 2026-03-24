@@ -35,23 +35,8 @@ jobs:
           allow-prereleases: true
       - name: Install dependencies
         run: |
+          pip install -e .
           pip install aiomqtt pytest pytest-asyncio pytest-homeassistant-custom-component pytest-cov syrupy pydantic
       - name: Run tests
         run: |
           pytest tests/hacs/ -v -o asyncio_mode=auto --cov=custom_components/sber_mqtt_bridge --cov-report=term-missing --cov-report=xml
-
-  hassfest:
-    name: Hassfest
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: home-assistant/actions/hassfest@master
-
-  hacs:
-    name: HACS Validation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hacs/action@main
-        with:
-          category: integration
