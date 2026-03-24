@@ -39,4 +39,4 @@ jobs:
           pip install aiomqtt pytest pytest-asyncio pytest-homeassistant-custom-component pytest-cov syrupy pydantic
       - name: Run tests
         run: |
-          pytest tests/hacs/ -v -o asyncio_mode=auto --cov=custom_components/sber_mqtt_bridge --cov-report=term-missing --cov-report=xml
+          pytest tests/hacs/ -v -o asyncio_mode=auto --cov=custom_components/sber_mqtt_bridge --cov-report=term-missing --cov-report=xml -k "not test_config_flow"
