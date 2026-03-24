@@ -35,7 +35,7 @@ jobs:
           allow-prereleases: true
       - name: Install dependencies
         run: |
-          pip install -e .
+          pip install .
           pip install aiomqtt pytest pytest-asyncio pytest-homeassistant-custom-component pytest-cov syrupy pydantic
       - name: Run tests
         run: |
