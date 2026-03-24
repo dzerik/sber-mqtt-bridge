@@ -1,5 +1,18 @@
 # Entity Linking / Grouping — Research & Implementation Plan
 
+## Implementation Status (v1.6.0)
+
+| Phase | Статус | Описание |
+|-------|--------|----------|
+| Phase 1: Backend | **Реализовано** | `CONF_ENTITY_LINKS`, `ALLOWED_LINK_ROLES`, `update_linked_data` в `base_entity.py`, обработка linked данных в `simple_sensor.py`, `sensor_temp.py`, `humidity_sensor.py`; `_entity_links` / `_linked_reverse` в `sber_bridge.py` |
+| Phase 2: WebSocket API | **Реализовано** | `set_entity_links`, `suggest_links`, `auto_link_all`; фильтрация linked entities в `ws_get_available_entities`; отображение linked в `ws_get_devices` |
+| Phase 3: Frontend | **Реализовано** | `sber-link-dialog.js`; Wizard Step 2 с предвыбором совместимых entity; фильтрация в Add dialog; отображение linked count в таблице устройств |
+| Phase 4: Auto-detection & Polish | В плане | Auto-link при добавлении, кнопка "Auto-link all", миграция конфига v2→v3, расширение тестов |
+
+Фича выпущена в **v1.6.0**. Phase 4 запланирована для следующего минорного релиза.
+
+---
+
 ## Problem
 
 1 HA entity = 1 Sber device. Физическое устройство (датчик протечки Tuya) имеет 3-5 entities в HA:
@@ -186,7 +199,7 @@ flowchart TD
 
 ## Этапы реализации
 
-### Phase 1: Backend (entity linking core)
+### Phase 1: Backend (entity linking core) — РЕАЛИЗОВАНО в v1.6.0
 - `const.py`: `CONF_ENTITY_LINKS`, `ALLOWED_LINK_ROLES`, `HA_DEVICE_CLASS_TO_LINK_ROLE`
 - `base_entity.py`: `linked_entities: dict[str, dict]`, `update_linked_data(role, state)`
 - `simple_sensor.py`: обработка linked battery/signal_strength
@@ -194,20 +207,20 @@ flowchart TD
 - `humidity_sensor.py`: linked temperature
 - `sber_bridge.py`: `_entity_links`, `_linked_reverse`, подписка на state changes linked entities
 
-### Phase 2: WebSocket API
+### Phase 2: WebSocket API — РЕАЛИЗОВАНО в v1.6.0
 - `set_entity_links` — установить связи
 - `suggest_links` — автоопределение по device_id
 - `auto_link_all` — массовое автосвязывание
 - Модификация `ws_get_devices` — показ linked entities
 - Модификация `ws_get_available_entities` — фильтрация linked
 
-### Phase 3: Frontend
+### Phase 3: Frontend — РЕАЛИЗОВАНО в v1.6.0
 - `sber-link-dialog.js` — модальное окно управления связями
-- Wizard Step 2 — показ связанных entities при добавлении
+- Wizard Step 2 — показ связанных entities при добавлении с предвыбором совместимых (зелёные) и отображением несовместимых серым с "(not supported)"
 - Device table — отображение linked count, expand для деталей
 - Фильтрация в Add dialog
 
-### Phase 4: Auto-detection & Polish
+### Phase 4: Auto-detection & Polish — ЗАПЛАНИРОВАНО
 - Auto-link при добавлении entity через wizard
 - "Auto-link all" кнопка в toolbar
 - Config migration v2 -> v3

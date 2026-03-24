@@ -13,6 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN as DOMAIN
+from .sber_protocol import VERSION as INTEGRATION_VERSION
 from .custom_capabilities import parse_yaml_config
 from .sber_bridge import SberBridge
 from .websocket_api import async_setup_websocket_api
@@ -98,7 +99,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
         config={
             "_panel_custom": {
                 "name": "sber-mqtt-panel",
-                "module_url": "/sber_mqtt_bridge/panel/sber-panel.js",
+                "module_url": f"/sber_mqtt_bridge/panel/sber-panel.js?v={INTEGRATION_VERSION}",
             }
         },
         require_admin=False,

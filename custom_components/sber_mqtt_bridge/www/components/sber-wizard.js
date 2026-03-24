@@ -8,7 +8,7 @@
  * Fires "wizard-complete" with full payload for the parent panel.
  */
 
-import { slugify, isValidSalutName } from "../utils.js";
+import { slugify, isValidSalutName } from "../utils.js?v=1.6.0";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
@@ -139,6 +139,7 @@ class SberWizard extends LitElement {
       const result = await this.hass.callWS({
         type: "sber_mqtt_bridge/suggest_links",
         entity_id: entityId,
+        category: this._selectedType,
       });
       this._relatedSensors = result.candidates || [];
       this._allowedRoles = result.allowed_roles || [];

@@ -1,28 +1,40 @@
 # Поддерживаемые устройства
 
-Интеграция поддерживает 15 типов устройств с автоматическим маппингом между доменами Home Assistant и категориями Sber Smart Home.
+Интеграция поддерживает 27 типов устройств с автоматическим маппингом между доменами Home Assistant и категориями Sber Smart Home.
 
 ## Таблица соответствий
 
-| Домен HA | Device class | Категория Sber | Класс | Возможности |
-|----------|-------------|----------------|-------|-------------|
-| `light` | -- | light | LightEntity | Вкл/выкл, яркость, цвет (HSV), цветовая температура |
-| `switch` | -- | relay | RelayEntity | Вкл/выкл |
-| `switch` | `outlet` | socket | SocketEntity | Вкл/выкл (иконка розетки в Сбер) |
-| `script` | -- | relay | RelayEntity | Запуск скрипта |
-| `button` | -- | relay | RelayEntity | Нажатие кнопки |
-| `cover` | -- | curtain | CurtainEntity | Открыть/закрыть/стоп, позиция 0-100% |
-| `cover` | `blind` / `shade` | window_blind | WindowBlindEntity | Открыть/закрыть/стоп, позиция 0-100% |
-| `climate` | -- | hvac_ac | ClimateEntity | Вкл/выкл, температура, вентилятор, качание, режим HVAC |
-| `climate` | `radiator` | hvac_radiator | HvacRadiatorEntity | Вкл/выкл, температура (25-40 C) |
-| `sensor` | `temperature` | sensor_temp | SensorTempEntity | Показания температуры (точность 0.1 C) |
-| `sensor` | `humidity` | sensor_temp | HumiditySensorEntity | Показания влажности (0-100%) |
-| `binary_sensor` | `motion` | sensor_pir | MotionSensorEntity | Обнаружение движения |
-| `binary_sensor` | `door` / `window` | sensor_door | DoorSensorEntity | Состояние открыто/закрыто |
-| `binary_sensor` | `moisture` | sensor_water_leak | WaterLeakSensorEntity | Обнаружение протечки |
-| `input_boolean` | -- | scenario_button | ScenarioButtonEntity | Клик / двойной клик |
-| `valve` | -- | valve | ValveEntity | Открыть/закрыть вентиль |
-| `humidifier` | -- | hvac_humidifier | HumidifierEntity | Вкл/выкл, влажность, режим работы |
+| Домен HA | Device class | Категория Sber | Класс | Возможности | Роли связывания |
+|----------|-------------|----------------|-------|-------------|-----------------|
+| `light` | -- | light | LightEntity | Вкл/выкл, яркость, цвет (HSV), цветовая температура | -- |
+| `light` | -- (LED) | led_strip | LedStripEntity | LED-лента с цветом/яркостью | -- |
+| `switch` | -- | relay | RelayEntity | Вкл/выкл | -- |
+| `switch` | `outlet` | socket | SocketEntity | Вкл/выкл (иконка розетки в Сбер) | -- |
+| `script` | -- | relay | RelayEntity | Запуск скрипта | -- |
+| `button` | -- | relay | RelayEntity | Нажатие кнопки | -- |
+| `cover` | -- | curtain | CurtainEntity | Открыть/закрыть/стоп, позиция 0-100% | -- |
+| `cover` | `blind` / `shade` | window_blind | WindowBlindEntity | Открыть/закрыть/стоп, позиция 0-100% | -- |
+| `climate` | -- | hvac_ac | ClimateEntity | Вкл/выкл, температура, вентилятор, качание, режим HVAC | temperature |
+| `climate` | `radiator` | hvac_radiator | HvacRadiatorEntity | Вкл/выкл, температура (25-40 C) | -- |
+| `climate` | `heater` | hvac_heater | HvacHeaterEntity | Обогреватель | -- |
+| `climate` | -- | hvac_underfloor_heating | HvacUnderfloorHeatingEntity | Тёплый пол | -- |
+| `sensor` | `temperature` | sensor_temp | SensorTempEntity | Показания температуры (точность 0.1 C) | battery, signal_strength, humidity |
+| `sensor` | `humidity` | sensor_humidity | HumiditySensorEntity | Показания влажности (0-100%) | battery, signal_strength, temperature |
+| `binary_sensor` | `motion` / `occupancy` / `presence` | sensor_pir | MotionSensorEntity | Обнаружение движения | battery, signal_strength |
+| `binary_sensor` | `door` / `window` | sensor_door | DoorSensorEntity | Состояние открыто/закрыто | battery, signal_strength |
+| `binary_sensor` | `moisture` | sensor_water_leak | WaterLeakSensorEntity | Обнаружение протечки | battery, signal_strength |
+| `binary_sensor` | `smoke` | sensor_smoke | SmokeSensorEntity | Датчик дыма | battery, signal_strength |
+| `binary_sensor` | `gas` | sensor_gas | GasSensorEntity | Датчик утечки газа | battery, signal_strength |
+| `input_boolean` | -- | scenario_button | ScenarioButtonEntity | Клик / двойной клик | -- |
+| `valve` | -- | valve | ValveEntity | Открыть/закрыть вентиль | -- |
+| `humidifier` | -- | hvac_humidifier | HumidifierEntity | Вкл/выкл, влажность, режим работы | humidity |
+| `fan` | -- | hvac_fan | HvacFanEntity | Вентилятор | -- |
+| `fan` | `air_purifier` | hvac_air_purifier | HvacAirPurifierEntity | Очиститель воздуха | -- |
+| `water_heater` | -- | hvac_boiler | HvacBoilerEntity | Бойлер/водонагреватель | -- |
+| `water_heater` | `kettle` | kettle | KettleEntity | Умный чайник | -- |
+| `media_player` | -- | tv | TvEntity | Телевизор | -- |
+| `vacuum` | -- | vacuum_cleaner | VacuumCleanerEntity | Робот-пылесос | -- |
+| -- | -- (override only) | intercom | -- | Домофон | -- |
 
 ## Освещение (light)
 
@@ -68,9 +80,11 @@
 
 - **on_off** -- включение/выключение
 - **temperature** -- целевая температура
-- **fan_speed** -- скорость вентилятора
-- **hvac_swing** -- качание
-- **hvac_mode** -- режим (охлаждение, нагрев, авто и т.д.)
+- **fan_speed** -- скорость вентилятора (turbo, high, medium, low, quiet, auto)
+- **hvac_swing** -- качание (on/off)
+- **hvac_work_mode** -- режим работы: cooling, heating, ventilation, dehumidification, auto
+
+**Роли связывания**: `temperature` — внешний датчик температуры может быть привязан для передачи фактической температуры в помещении.
 
 ### Радиатор (hvac_radiator)
 
@@ -85,17 +99,23 @@
 
 Передаёт показания температуры с точностью до 0.1 C (значение умножается на 10 для протокола Sber).
 
+**Роли связывания**: `battery`, `signal_strength`, `humidity` — уровень заряда батареи, уровень сигнала и показания влажности могут быть привязаны к этому устройству через Entity Linking.
+
 ### Датчик влажности (sensor с device_class=humidity)
 
-**Категория Sber**: `sensor_temp`
+**Категория Sber**: `sensor_humidity`
 
 Передаёт показания влажности в процентах (0-100%). Целочисленное значение.
 
-### Датчик движения (binary_sensor с device_class=motion)
+**Роли связывания**: `battery`, `signal_strength`, `temperature` — уровень заряда, уровень сигнала и показания температуры могут быть привязаны к этому устройству через Entity Linking.
+
+### Датчик движения (binary_sensor с device_class=motion/occupancy/presence)
 
 **Категория Sber**: `sensor_pir`
 
-Передаёт boolean-значение: движение обнаружено / не обнаружено.
+Передаёт boolean-значение: движение обнаружено / не обнаружено. Поддерживает device_class: `motion`, `occupancy`, `presence`.
+
+**Роли связывания**: `battery`, `signal_strength`.
 
 ### Датчик двери/окна (binary_sensor с device_class=door/window)
 
@@ -103,11 +123,15 @@
 
 Передаёт состояние: открыто / закрыто.
 
+**Роли связывания**: `battery`, `signal_strength`.
+
 ### Датчик протечки (binary_sensor с device_class=moisture)
 
 **Категория Sber**: `sensor_water_leak`
 
 Передаёт boolean-значение: протечка обнаружена / не обнаружена.
+
+**Роли связывания**: `battery`, `signal_strength`.
 
 ## Сценарная кнопка (input_boolean)
 
@@ -129,4 +153,33 @@
 
 - **on_off** -- включение/выключение
 - **humidity** -- целевая влажность (0-100%)
-- **work_mode** -- режим работы (берётся из доступных режимов HA-сущности)
+- **hvac_air_flow_power** -- мощность потока воздуха (режим работы из доступных режимов HA-сущности)
+
+**Роли связывания**: `humidity` — внешний датчик влажности может быть привязан для передачи фактического уровня влажности в помещении.
+
+## Связывание entity (Entity Linking)
+
+Entity Linking позволяет объединить несколько HA-сущностей в одно устройство Sber. Это решает проблему, когда одно физическое устройство (например, Zigbee-датчик) создаёт несколько entity в HA: основную (leak, motion, temperature) и вспомогательные (battery, signal).
+
+### Принцип работы
+
+Привязанные entity не публикуются как отдельные устройства Sber. Вместо этого их данные включаются в состояние основного устройства при каждой публикации. При изменении состояния привязанной entity немедленно выполняется повторная публикация основного устройства.
+
+Привязанные entity скрываются из списка доступных entity в панели управления — ими управляет основное устройство.
+
+### Хранение конфигурации
+
+Связи хранятся в `config_entry.options` под ключом `entity_links`:
+
+```
+{
+  "binary_sensor.water_leak": {
+    "battery": "sensor.water_leak_battery",
+    "signal_strength": "sensor.water_leak_signal"
+  }
+}
+```
+
+### Автоопределение в мастере
+
+При добавлении нового устройства через мастер интеграция автоматически ищет entity с тем же `device_id` в HA и предлагает совместимые для привязки. Несовместимые entity отображаются серым с пояснением "(not supported)".

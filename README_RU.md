@@ -3,7 +3,7 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 [![GitHub Release](https://img.shields.io/github/v/release/dzerik/sber-mqtt-bridge)](https://github.com/dzerik/sber-mqtt-bridge/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
-[![Tests](https://img.shields.io/badge/tests-498-brightgreen)](tests/hacs/)
+[![Tests](https://img.shields.io/badge/tests-498+-brightgreen)](tests/hacs/)
 [![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions)
 
 **[English documentation](README.md)**
@@ -25,6 +25,8 @@ Home Assistant  <->  Эта интеграция  <->  Облако Sber MQTT  <
 - Настройка через UI -- полностью из интерфейса Home Assistant
 - Массовый выбор устройств -- добавить все, по категориям, по меткам (labels), или поштучно
 - Переопределение типов устройств -- смена категории Sber для каждого entity через UI или YAML
+- **Связывание entity (Entity Linking)** -- привязка датчиков батареи, влажности, температуры к основному устройству: одно физическое устройство = одно устройство в Сбер
+- Автоопределение связанных entity по общему `device_id` в мастере добавления
 - Умная дедупликация -- если устройство имеет и `light` и `switch`, выбирается более функциональный вариант
 - Синхронизация в реальном времени -- изменения в HA мгновенно видны в Сбер (debounce 100мс)
 - Голосовое управление через всех ассистентов Сбер (Салют, Афина, Джой)
@@ -41,41 +43,41 @@ Home Assistant  <->  Эта интеграция  <->  Облако Sber MQTT  <
 - SSL сертификат (настраивается)
 - Переводы: английский и русский
 - CI/CD: ruff, pytest, HACS validation, hassfest
-- **498 тестов**
+- **498+ тестов**
 
 ## Поддерживаемые типы устройств
 
-| Домен HA | Категория Sber | Возможности |
-|----------|----------------|-------------|
-| `light` | light | Вкл/выкл, яркость, цвет (HSV), цветовая температура |
-| `light` (LED-лента) | led_strip | LED-лента с цветом/яркостью |
-| `switch` | relay | Вкл/выкл |
-| `switch` (розетка) | socket | Вкл/выкл (иконка розетки в Сбер) |
-| `script` | relay | Запуск скрипта |
-| `button` | relay | Нажатие кнопки |
-| `cover` | curtain | Открыть/закрыть/стоп, позиция 0-100% |
-| `cover` (жалюзи) | window_blind | Открыть/закрыть/стоп, позиция 0-100% |
-| `climate` | hvac_ac | Вкл/выкл, температура, вентилятор, качание, режим |
-| `climate` (радиатор) | hvac_radiator | Вкл/выкл, температура (25-40C) |
-| `climate` (обогреватель) | hvac_heater | Обогреватель |
-| `climate` (тёплый пол) | hvac_underfloor_heating | Тёплый пол |
-| `sensor` (температура) | sensor_temp | Показания температуры (точность 0.1C) |
-| `sensor` (влажность) | sensor_temp | Показания влажности (0-100%) |
-| `binary_sensor` (движение) | sensor_pir | Обнаружение движения |
-| `binary_sensor` (дверь) | sensor_door | Состояние открыто/закрыто |
-| `binary_sensor` (протечка) | sensor_water_leak | Обнаружение протечки |
-| `binary_sensor` (дым) | sensor_smoke | Датчик дыма |
-| `binary_sensor` (газ) | sensor_gas | Датчик утечки газа |
-| `input_boolean` | scenario_button | Клик / двойной клик |
-| `valve` | valve | Открыть/закрыть вентиль |
-| `humidifier` | hvac_humidifier | Вкл/выкл, влажность, режим работы |
-| `fan` | hvac_fan | Вентилятор |
-| `fan` (очиститель воздуха) | hvac_air_purifier | Очиститель воздуха |
-| `water_heater` | hvac_boiler | Бойлер/водонагреватель |
-| `water_heater` (чайник) | kettle | Умный чайник |
-| `media_player` | tv | Телевизор |
-| `vacuum` | vacuum_cleaner | Робот-пылесос |
-| -- (только через override) | intercom | Домофон |
+| Домен HA | Категория Sber | Возможности | Роли связывания |
+|----------|----------------|-------------|-----------------|
+| `light` | light | Вкл/выкл, яркость, цвет (HSV), цветовая температура | -- |
+| `light` (LED-лента) | led_strip | LED-лента с цветом/яркостью | -- |
+| `switch` | relay | Вкл/выкл | -- |
+| `switch` (розетка) | socket | Вкл/выкл (иконка розетки в Сбер) | -- |
+| `script` | relay | Запуск скрипта | -- |
+| `button` | relay | Нажатие кнопки | -- |
+| `cover` | curtain | Открыть/закрыть/стоп, позиция 0-100% | -- |
+| `cover` (жалюзи) | window_blind | Открыть/закрыть/стоп, позиция 0-100% | -- |
+| `climate` | hvac_ac | Вкл/выкл, температура, вентилятор, качание, режим | temperature |
+| `climate` (радиатор) | hvac_radiator | Вкл/выкл, температура (25-40C) | -- |
+| `climate` (обогреватель) | hvac_heater | Обогреватель | -- |
+| `climate` (тёплый пол) | hvac_underfloor_heating | Тёплый пол | -- |
+| `sensor` (температура) | sensor_temp | Показания температуры (точность 0.1C) | battery, signal_strength, humidity |
+| `sensor` (влажность) | sensor_humidity | Показания влажности (0-100%) | battery, signal_strength, temperature |
+| `binary_sensor` (движение) | sensor_pir | Обнаружение движения | battery, signal_strength |
+| `binary_sensor` (дверь) | sensor_door | Состояние открыто/закрыто | battery, signal_strength |
+| `binary_sensor` (протечка) | sensor_water_leak | Обнаружение протечки | battery, signal_strength |
+| `binary_sensor` (дым) | sensor_smoke | Датчик дыма | battery, signal_strength |
+| `binary_sensor` (газ) | sensor_gas | Датчик утечки газа | battery, signal_strength |
+| `input_boolean` | scenario_button | Клик / двойной клик | -- |
+| `valve` | valve | Открыть/закрыть вентиль | -- |
+| `humidifier` | hvac_humidifier | Вкл/выкл, влажность, режим работы | humidity |
+| `fan` | hvac_fan | Вентилятор | -- |
+| `fan` (очиститель воздуха) | hvac_air_purifier | Очиститель воздуха | -- |
+| `water_heater` | hvac_boiler | Бойлер/водонагреватель | -- |
+| `water_heater` (чайник) | kettle | Умный чайник | -- |
+| `media_player` | tv | Телевизор | -- |
+| `vacuum` | vacuum_cleaner | Робот-пылесос | -- |
+| -- (только через override) | intercom | Домофон | -- |
 
 ## Подготовка -- Настройка Sber Studio
 
@@ -193,6 +195,35 @@ sber_mqtt_bridge:
 | `sber_features_remove` | Возможности Sber для отключения |
 | `sber_partner_meta` | Пользовательские метаданные, передаваемые в Sber |
 | `sber_parent_id` | Entity ID родительского устройства для иерархической группировки |
+
+### Связывание entity (Entity Linking)
+
+Связывание entity позволяет привязать вспомогательные HA-сущности (датчик батареи, уровень сигнала, влажность, температура) к основному устройству Sber. Это отражает физическую реальность: один Zigbee-датчик создаёт несколько entity в HA, но должен выглядеть как одно устройство в приложении Сбер.
+
+**Без связывания**: датчик протечки с датчиком батареи создаёт два отдельных устройства Sber.
+**Со связыванием**: уровень заряда батареи автоматически включается в состояние датчика протечки — одно устройство, полные данные.
+
+#### Поддерживаемые роли по категории Sber
+
+| Категория Sber | Доступные роли |
+|----------------|----------------|
+| sensor_water_leak | battery, signal_strength |
+| sensor_pir | battery, signal_strength |
+| sensor_door | battery, signal_strength |
+| sensor_temp | battery, signal_strength, humidity |
+| sensor_humidity | battery, signal_strength, temperature |
+| hvac_ac | temperature |
+| hvac_humidifier | humidity |
+
+#### Процесс в мастере добавления
+
+1. Выберите тип устройства и основную entity.
+2. Мастер автоматически определяет связанные entity, разделяющие один `device_id` в HA.
+3. Совместимые entity предвыбраны (отображаются зелёными). Несовместимые отображаются серым с пометкой "(not supported)".
+4. Укажите имя и подтвердите.
+5. Привязанные entity исчезают из списка доступных entity — ими управляет основное устройство.
+
+Данные привязанных entity (уровень батареи, уровень сигнала и т.д.) включаются в каждую публикацию состояния основного устройства в Sber. Изменение состояния привязанной entity вызывает немедленную повторную публикацию состояния основного устройства.
 
 ### Управление устройствами в приложении Сбер
 

@@ -1,6 +1,6 @@
 # Roadmap — Sber Smart Home MQTT Bridge
 
-Обновлено: 2026-03-23, версия: 0.9.0
+Обновлено: 2026-03-24, версия: 1.6.0
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Метрика | Значение |
 |---------|----------|
-| Версия | 0.9.0 |
+| Версия | 1.6.0 |
 | Sber категории | **27/27 (100%)** |
 | HA домены | 15 |
-| Тесты | 396 |
+| Тесты | 498+ |
 | Ruff errors | 0 |
 
 ### Реализованные категории (27/27)
@@ -91,15 +91,43 @@
 
 | # | Задача | Описание |
 |---|--------|----------|
-| 21 | HA Repairs | Автоматические HA Issues при проблемах (unexposed entities и т.д.) |
+| 21 | ~~HA Repairs~~ | ~~Автоматические HA Issues~~ — **СДЕЛАНО** |
 | 22 | Custom capabilities через YAML | Расширение custom_capabilities: custom modes, ranges, toggles |
 | 23 | Entity customization UI | Настройка features per entity через Options Flow |
-| 24 | Автоматический re-publish config | После получения state для entity без config |
-| 25 | Persist redefinitions | Сохранять rename/room из Sber app в entry.data |
+| 24 | ~~Автоматический re-publish config~~ | ~~После получения state для entity без config~~ — **СДЕЛАНО** |
+| 25 | ~~Persist redefinitions~~ | ~~Сохранять rename/room из Sber app~~ — **СДЕЛАНО** |
+| 26 | Entity Linking Phase 4 | Auto-link all кнопка, config migration v2→v3, расширение тестов |
 
 ---
 
 ## Выполненные задачи (для справки)
+
+### v1.6.0 — Entity Linking
+- Entity Linking: привязка battery, signal_strength, humidity, temperature сенсоров к основному устройству
+- Wizard Step 2: автоопределение связанных entity по device_id, предвыбор совместимых
+- WebSocket API: `set_entity_links`, `suggest_links`, `auto_link_all`
+- Frontend: `sber-link-dialog.js`, фильтрация linked entities в Add dialog
+- Cache-busting для панельных JS-файлов
+
+### v1.5.3 — HA 2026.3 Compatibility
+- Устранение deprecated API (HA 2026.3)
+- Занято: binary_sensor occupancy/presence → sensor_pir
+- DevTools: сворачиваемые payloads, исправление clipboard
+
+### v1.5.2 — Climate & Humidifier Improvements
+- Climate hvac_work_mode маппинг: cooling, heating, ventilation, dehumidification, auto
+- Climate swing_mode маппинг
+- Humidifier использует hvac_air_flow_power (вместо hvac_work_mode)
+- Отображение версии в заголовке панели
+
+### v1.5.0 — DevTools Tab
+- Вкладка DevTools: raw config/states, MQTT message log
+
+### v1.4.0 — Wizard & Device Management
+- Мастер добавления устройств
+- Автоопределение сенсоров
+- Экспорт/импорт конфигурации
+- Toast-уведомления
 
 ### v0.3.0 — Deep Audit
 - 10 critical bugs fixed, deduplication, new base classes (OnOffEntity, SimpleReadOnlySensor)

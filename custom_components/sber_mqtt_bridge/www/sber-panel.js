@@ -8,14 +8,14 @@
  * No build step required.
  */
 
-import "./components/sber-device-table.js";
-import "./components/sber-status-card.js";
-import "./components/sber-stats-grid.js";
-import "./components/sber-add-dialog.js";
-import "./components/sber-toolbar.js";
-import "./components/sber-wizard.js";
-import "./components/sber-toast.js";
-import "./components/sber-devtools.js";
+import "./components/sber-device-table.js?v=1.6.0";
+import "./components/sber-status-card.js?v=1.6.0";
+import "./components/sber-stats-grid.js?v=1.6.0";
+import "./components/sber-add-dialog.js?v=1.6.0";
+import "./components/sber-toolbar.js?v=1.6.0";
+import "./components/sber-wizard.js?v=1.6.0";
+import "./components/sber-toast.js?v=1.6.0";
+import "./components/sber-devtools.js?v=1.6.0";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
@@ -406,7 +406,7 @@ class SberMqttPanel extends LitElement {
 
     return html`
       <div class="header">
-        <h1>Sber MQTT Bridge</h1>
+        <h1>Sber MQTT Bridge ${this._status?.version ? html`<span style="font-size:13px;font-weight:400;color:var(--secondary-text-color);margin-left:8px">v${this._status.version}</span>` : ""}</h1>
       </div>
 
       ${this._error ? html`<div class="error-banner">${this._error}</div>` : ""}

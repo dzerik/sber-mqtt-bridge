@@ -176,6 +176,8 @@ async def ws_get_status(
         connection.send_error(msg["id"], "bridge_not_found", "Sber bridge not available")
         return
 
+    from .sber_protocol import VERSION
+
     connection.send_result(
         msg["id"],
         {
@@ -183,6 +185,7 @@ async def ws_get_status(
             "stats": bridge.stats,
             "entities_count": bridge.entities_count,
             "unacknowledged": bridge.unacknowledged_entities,
+            "version": VERSION,
         },
     )
 
@@ -836,6 +839,7 @@ async def ws_set_entity_links(
     {
         vol.Required("type"): "sber_mqtt_bridge/suggest_links",
         vol.Required("entity_id"): str,
+        vol.Optional("category"): str,
     }
 )
 @websocket_api.async_response
@@ -861,12 +865,22 @@ async def ws_suggest_links(
         connection.send_result(msg["id"], {"candidates": []})
         return
 
-    # Determine primary category
-    primary_category = ""
-    if bridge:
+    # Determine primary category: explicit param > bridge > auto-detect
+    primary_category = msg.get("category", "")
+    if not primary_category and bridge:
         primary_entity = bridge.entities.get(msg["entity_id"])
         if primary_entity:
             primary_category = primary_entity.category
+    if not primary_category:
+        from .sber_entity_map import create_sber_entity
+
+        entity_data = {
+            "entity_id": primary_entry.entity_id,
+            "original_device_class": primary_entry.original_device_class or "",
+        }
+        test_entity = create_sber_entity(msg["entity_id"], entity_data)
+        if test_entity:
+            primary_category = test_entity.category
 
     allowed_roles = ALLOWED_LINK_ROLES.get(primary_category, [])
 

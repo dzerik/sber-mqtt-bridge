@@ -3,7 +3,7 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 [![GitHub Release](https://img.shields.io/github/v/release/dzerik/sber-mqtt-bridge)](https://github.com/dzerik/sber-mqtt-bridge/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
-[![Tests](https://img.shields.io/badge/tests-498-brightgreen)](tests/hacs/)
+[![Tests](https://img.shields.io/badge/tests-498+-brightgreen)](tests/hacs/)
 [![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions)
 
 **[Документация на русском / Russian documentation](README_RU.md)**
@@ -25,6 +25,8 @@ The integration connects to the Sber MQTT broker, publishes your HA devices as S
 - Config Flow UI -- set up entirely from the HA interface
 - Bulk entity selection -- add all entities, by domain, by label, or pick individually
 - Entity type overrides -- change Sber category per entity via UI or YAML
+- **Entity Linking** -- link battery, humidity, temperature sensors to a primary device so one physical device = one Sber device
+- Auto-detection of related entities by shared `device_id` in the wizard
 - Smart deduplication -- when a device has both `light` and `switch` entities, only the richer one is exposed
 - Real-time state sync -- HA changes are instantly reflected in Sber (with 100ms debounce)
 - Voice control through all Sber assistants (Salut, Athena, Joy)
@@ -41,41 +43,41 @@ The integration connects to the Sber MQTT broker, publishes your HA devices as S
 - SSL certificate verification (configurable)
 - Translations: English and Russian
 - CI/CD: ruff, pytest, HACS validation, hassfest
-- **498 tests**
+- **498+ tests**
 
 ## Supported Device Types
 
-| HA Domain | Sber Category | Capabilities |
-|-----------|---------------|--------------|
-| `light` | light | On/off, brightness, color (HSV), color temperature |
-| `light` (LED strip) | led_strip | LED strip with color/brightness |
-| `switch` | relay | On/off |
-| `switch` (outlet) | socket | On/off (smart socket icon in Sber) |
-| `script` | relay | Execute script |
-| `button` | relay | Press button |
-| `cover` | curtain | Open/close/stop, position 0-100% |
-| `cover` (blind/shade) | window_blind | Open/close/stop, position 0-100% |
-| `climate` | hvac_ac | On/off, temperature, fan mode, swing, HVAC mode |
-| `climate` (radiator) | hvac_radiator | On/off, temperature (25-40C default) |
-| `climate` (heater) | hvac_heater | Heater |
-| `climate` (floor heating) | hvac_underfloor_heating | Underfloor heating |
-| `sensor` (temperature) | sensor_temp | Temperature reading (x10 precision) |
-| `sensor` (humidity) | sensor_temp | Humidity reading (0-100%) |
-| `binary_sensor` (motion) | sensor_pir | Motion detected (boolean) |
-| `binary_sensor` (door) | sensor_door | Open/close state |
-| `binary_sensor` (moisture) | sensor_water_leak | Leak detected (boolean) |
-| `binary_sensor` (smoke) | sensor_smoke | Smoke detector |
-| `binary_sensor` (gas) | sensor_gas | Gas leak detector |
-| `input_boolean` | scenario_button | Click / double click events |
-| `valve` | valve | Open/close valve |
-| `humidifier` | hvac_humidifier | On/off, target humidity, work mode |
-| `fan` | hvac_fan | Fan/ventilator |
-| `fan` (purifier) | hvac_air_purifier | Air purifier |
-| `water_heater` | hvac_boiler | Boiler/water heater |
-| `water_heater` (kettle) | kettle | Smart kettle |
-| `media_player` | tv | Television |
-| `vacuum` | vacuum_cleaner | Robot vacuum |
-| -- (override only) | intercom | Intercom |
+| HA Domain | Sber Category | Capabilities | Linkable roles |
+|-----------|---------------|--------------|----------------|
+| `light` | light | On/off, brightness, color (HSV), color temperature | -- |
+| `light` (LED strip) | led_strip | LED strip with color/brightness | -- |
+| `switch` | relay | On/off | -- |
+| `switch` (outlet) | socket | On/off (smart socket icon in Sber) | -- |
+| `script` | relay | Execute script | -- |
+| `button` | relay | Press button | -- |
+| `cover` | curtain | Open/close/stop, position 0-100% | -- |
+| `cover` (blind/shade) | window_blind | Open/close/stop, position 0-100% | -- |
+| `climate` | hvac_ac | On/off, temperature, fan mode, swing, HVAC mode | temperature |
+| `climate` (radiator) | hvac_radiator | On/off, temperature (25-40C default) | -- |
+| `climate` (heater) | hvac_heater | Heater | -- |
+| `climate` (floor heating) | hvac_underfloor_heating | Underfloor heating | -- |
+| `sensor` (temperature) | sensor_temp | Temperature reading (x10 precision) | battery, signal_strength, humidity |
+| `sensor` (humidity) | sensor_humidity | Humidity reading (0-100%) | battery, signal_strength, temperature |
+| `binary_sensor` (motion) | sensor_pir | Motion detected (boolean) | battery, signal_strength |
+| `binary_sensor` (door) | sensor_door | Open/close state | battery, signal_strength |
+| `binary_sensor` (moisture) | sensor_water_leak | Leak detected (boolean) | battery, signal_strength |
+| `binary_sensor` (smoke) | sensor_smoke | Smoke detector | battery, signal_strength |
+| `binary_sensor` (gas) | sensor_gas | Gas leak detector | battery, signal_strength |
+| `input_boolean` | scenario_button | Click / double click events | -- |
+| `valve` | valve | Open/close valve | -- |
+| `humidifier` | hvac_humidifier | On/off, target humidity, work mode | humidity |
+| `fan` | hvac_fan | Fan/ventilator | -- |
+| `fan` (purifier) | hvac_air_purifier | Air purifier | -- |
+| `water_heater` | hvac_boiler | Boiler/water heater | -- |
+| `water_heater` (kettle) | kettle | Smart kettle | -- |
+| `media_player` | tv | Television | -- |
+| `vacuum` | vacuum_cleaner | Robot vacuum | -- |
+| -- (override only) | intercom | Intercom | -- |
 
 ## Prerequisites -- Setting Up Sber Studio
 
@@ -193,6 +195,37 @@ sber_mqtt_bridge:
 | `sber_features_remove` | Sber features to suppress |
 | `sber_partner_meta` | Custom metadata passed to Sber |
 | `sber_parent_id` | Parent device entity ID for hierarchical grouping |
+
+### Entity Linking
+
+Entity Linking lets you attach auxiliary HA entities (battery sensor, signal strength, humidity, temperature) to a primary Sber device. This models the physical reality: one Zigbee sensor produces several HA entities but should appear as a single device in the Sber app.
+
+**Without linking**: a leak sensor with a battery sensor creates two separate Sber devices.
+**With linking**: the battery level is automatically included in the leak sensor's Sber state — one device, full data.
+
+#### Supported link roles by Sber category
+
+| Sber Category | Linkable roles |
+|---------------|----------------|
+| sensor_water_leak | battery, signal_strength |
+| sensor_pir | battery, signal_strength |
+| sensor_door | battery, signal_strength |
+| sensor_temp | battery, signal_strength, humidity |
+| sensor_humidity | battery, signal_strength, temperature |
+| hvac_ac | temperature |
+| hvac_humidifier | humidity |
+
+#### Wizard flow
+
+When adding a new device through the panel wizard:
+
+1. Select device type and primary entity.
+2. The wizard automatically detects related entities that share the same HA `device_id`.
+3. Compatible entities are pre-checked (shown in green). Incompatible ones are shown greyed out with "(not supported)".
+4. Set a name and confirm.
+5. Linked entities disappear from the available entities list — they are managed through the primary device.
+
+Linked entity data (battery level, signal strength, etc.) is included in every Sber state publish for the primary device. State changes of a linked entity trigger an immediate republish of the primary device's state.
 
 ### Managing Devices in Sber App
 

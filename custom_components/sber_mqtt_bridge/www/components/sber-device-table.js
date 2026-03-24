@@ -5,7 +5,7 @@
  * inline delete and category override controls.
  */
 
-import "./sber-entity-row.js";
+import "./sber-entity-row.js?v=1.6.0";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
