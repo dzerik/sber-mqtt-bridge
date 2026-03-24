@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-03-24
+
+### Added
+- **Link Dialog** for existing devices — chain icon button in device table opens link management
+- **Auto-Link All** button in toolbar dropdown — auto-links battery/signal/humidity for all exposed devices
+- **Auto-republish** config when features list changes due to linked entity state update
+- **Broken link detection** — HA Repairs issue for linked entities that no longer exist
+- **Circular link validation** — prevents linking entity to itself or to another primary
+- **Config migration v2→v3** — initializes `entity_links: {}` on upgrade
+- **13 entity linking tests** — coverage for linked battery, humidity, temperature, signal, features change
+
+### Fixed
+- `suggest_links` now accepts explicit `category` from wizard (entity not yet in bridge)
+
 ## [1.6.0] - 2026-03-24
 
 ### Added

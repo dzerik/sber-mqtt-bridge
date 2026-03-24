@@ -166,6 +166,11 @@ class SberToolbar extends LitElement {
     this._dispatch("toolbar-bulk-add");
   }
 
+  _onAutoLink() {
+    this._closeBulk();
+    this._dispatch("toolbar-auto-link");
+  }
+
   _onClearAll() {
     this._closeBulk();
     if (confirm("Remove ALL exposed entities? This cannot be undone.")) {
@@ -240,6 +245,9 @@ class SberToolbar extends LitElement {
               <div class="dropdown-menu">
                 <button class="dropdown-item" @click=${this._onBulkAddAll}>
                   Add All Entities
+                </button>
+                <button class="dropdown-item" @click=${this._onAutoLink}>
+                  Auto-Link Sensors
                 </button>
                 <button class="dropdown-item danger" @click=${this._onClearAll}>
                   Clear All

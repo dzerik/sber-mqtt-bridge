@@ -142,15 +142,19 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         True if migration succeeded.
     """
     if entry.version == 1:
-        _LOGGER.info(
-            "Migrating config entry %s from version %s to 2",
-            entry.entry_id,
-            entry.version,
-        )
+        _LOGGER.info("Migrating config entry %s from version 1 to 2", entry.entry_id)
         new_options = dict(entry.options)
         if "entity_type_overrides" not in new_options:
             new_options["entity_type_overrides"] = {}
         hass.config_entries.async_update_entry(entry, options=new_options, version=2)
-        _LOGGER.info("Migration of config entry %s to version 2 complete", entry.entry_id)
+        _LOGGER.info("Migration to version 2 complete")
+
+    if entry.version == 2:
+        _LOGGER.info("Migrating config entry %s from version 2 to 3", entry.entry_id)
+        new_options = dict(entry.options)
+        if "entity_links" not in new_options:
+            new_options["entity_links"] = {}
+        hass.config_entries.async_update_entry(entry, options=new_options, version=3)
+        _LOGGER.info("Migration to version 3 complete")
 
     return True

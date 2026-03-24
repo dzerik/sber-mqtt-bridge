@@ -37,6 +37,7 @@ async def check_and_create_issues(hass: HomeAssistant, bridge: SberBridge) -> No
     _check_entity_not_found(hass, bridge)
     _check_entities_without_state(hass, bridge)
     _check_connection_issues(hass, bridge)
+    _check_broken_links(hass, bridge)
 
 
 def _check_entity_not_found(hass: HomeAssistant, bridge: SberBridge) -> None:
@@ -111,3 +112,34 @@ def _check_connection_issues(hass: HomeAssistant, bridge: SberBridge) -> None:
         )
     else:
         async_delete_issue(hass, DOMAIN, "connection_issues")
+
+
+def _check_broken_links(hass: HomeAssistant, bridge: SberBridge) -> None:
+    """Create/delete issue for broken entity links.
+
+    Args:
+        hass: Home Assistant core instance.
+        bridge: The active SberBridge instance.
+    """
+    broken: list[str] = []
+    for primary_id, roles in bridge.entity_links.items():
+        for role, linked_id in roles.items():
+            state = hass.states.get(linked_id)
+            if state is None:
+                broken.append(f"{linked_id} ({role} → {primary_id})")
+
+    if broken:
+        async_create_issue(
+            hass,
+            DOMAIN,
+            "broken_entity_links",
+            is_fixable=False,
+            severity=IssueSeverity.WARNING,
+            translation_key="broken_entity_links",
+            translation_placeholders={
+                "count": str(len(broken)),
+                "links": ", ".join(broken[:5]),
+            },
+        )
+    else:
+        async_delete_issue(hass, DOMAIN, "broken_entity_links")

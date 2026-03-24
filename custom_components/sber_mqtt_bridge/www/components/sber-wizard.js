@@ -8,7 +8,7 @@
  * Fires "wizard-complete" with full payload for the parent panel.
  */
 
-import { slugify, isValidSalutName } from "../utils.js?v=1.6.0";
+import { slugify, isValidSalutName } from "../utils.js?v=1.6.1";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")

@@ -8,14 +8,15 @@
  * No build step required.
  */
 
-import "./components/sber-device-table.js?v=1.6.0";
-import "./components/sber-status-card.js?v=1.6.0";
-import "./components/sber-stats-grid.js?v=1.6.0";
-import "./components/sber-add-dialog.js?v=1.6.0";
-import "./components/sber-toolbar.js?v=1.6.0";
-import "./components/sber-wizard.js?v=1.6.0";
-import "./components/sber-toast.js?v=1.6.0";
-import "./components/sber-devtools.js?v=1.6.0";
+import "./components/sber-device-table.js?v=1.6.1";
+import "./components/sber-status-card.js?v=1.6.1";
+import "./components/sber-stats-grid.js?v=1.6.1";
+import "./components/sber-add-dialog.js?v=1.6.1";
+import "./components/sber-toolbar.js?v=1.6.1";
+import "./components/sber-wizard.js?v=1.6.1";
+import "./components/sber-toast.js?v=1.6.1";
+import "./components/sber-devtools.js?v=1.6.1";
+import "./components/sber-link-dialog.js?v=1.6.1";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
@@ -202,6 +203,24 @@ class SberMqttPanel extends LitElement {
     this._clearAll();
   }
 
+  async _onToolbarAutoLink() {
+    this._loading = true;
+    try {
+      const result = await this.hass.callWS({ type: "sber_mqtt_bridge/auto_link_all" });
+      await new Promise((r) => setTimeout(r, 1500));
+      await this._fetchAll();
+      if (result.linked_count > 0) {
+        this._showToast(`Auto-linked ${result.linked_count} sensor(s) to ${result.devices_affected} device(s)`, "success");
+      } else {
+        this._showToast("No new links found — all devices already linked or no siblings", "info");
+      }
+    } catch (e) {
+      this._showToast("Auto-link failed: " + (e.message || e), "error");
+    } finally {
+      this._loading = false;
+    }
+  }
+
   _onAddEntities(e) {
     this._addEntities(e.detail.entityIds);
   }
@@ -255,6 +274,17 @@ class SberMqttPanel extends LitElement {
     } finally {
       this._loading = false;
     }
+  }
+
+  _onLinkEntity(e) {
+    const dialog = this.shadowRoot.querySelector("sber-link-dialog");
+    if (dialog) dialog.show(e.detail.entityId);
+  }
+
+  async _onLinksSaved() {
+    await new Promise((r) => setTimeout(r, 1500));
+    await this._fetchAll();
+    this._showToast("Entity links updated", "success");
   }
 
   async _onSyncEntity(e) {
@@ -425,6 +455,7 @@ class SberMqttPanel extends LitElement {
           @toolbar-import=${this._onToolbarImport}
           @toolbar-bulk-add=${this._onToolbarBulkAdd}
           @toolbar-clear-all=${this._onToolbarClearAll}
+          @toolbar-auto-link=${this._onToolbarAutoLink}
         ></sber-toolbar>
       </div>
 
@@ -453,6 +484,12 @@ class SberMqttPanel extends LitElement {
         @wizard-complete=${this._onWizardComplete}
       ></sber-wizard>
 
+      <sber-link-dialog
+        .hass=${this.hass}
+        @links-saved=${this._onLinksSaved}
+        @links-error=${(e) => this._showToast("Link failed: " + e.detail.message, "error")}
+      ></sber-link-dialog>
+
       <sber-toast></sber-toast>
     `;
   }
@@ -467,6 +504,7 @@ class SberMqttPanel extends LitElement {
         @remove-entities=${this._onRemoveEntities}
         @set-override=${this._onSetOverride}
         @sync-entity=${this._onSyncEntity}
+        @link-entity=${this._onLinkEntity}
       ></sber-device-table>
     `;
   }

@@ -6,207 +6,207 @@
 [![Tests](https://img.shields.io/badge/tests-498+-brightgreen)](tests/hacs/)
 [![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions)
 
-**[Документация на русском / Russian documentation](README_RU.md)**
+**[English documentation](README_ENG.md)**
 
-Home Assistant custom integration for bridging HA entities to [Sber Smart Home](https://developers.sber.ru/docs/ru/smarthome) cloud via MQTT. Control your Home Assistant devices through Sber voice assistants (**Salut**) and the **Sber Smart Home** mobile app.
+Интеграция Home Assistant для управления устройствами HA через голосовых помощников **Салют** и приложение **Сбер Умный дом**. Работает через MQTT-подключение к облаку Sber.
 
-## How It Works
+## Как это работает
 
 ```
-Home Assistant  <->  This Integration  <->  Sber MQTT Cloud  <->  Sber App / Salut
-     (your devices)      (bridge)          (mqtt-partners.iot)     (voice control)
+Home Assistant  <->  Эта интеграция  <->  Облако Sber MQTT  <->  Приложение Сбер / Салют
+  (ваши устройства)     (мост)       (mqtt-partners.iot)    (голосовое управление)
 ```
 
-The integration connects to the Sber MQTT broker, publishes your HA devices as Sber Smart Home devices, and translates commands back to HA service calls. State changes in HA are instantly reflected in the Sber app.
+Интеграция подключается к MQTT-брокеру Sber, публикует ваши устройства HA как устройства Сбер Умного дома, и транслирует команды обратно в HA. Изменения состояний в HA мгновенно отражаются в приложении Сбер.
 
-## Features
+## Возможности
 
-- Native HA integration -- installs via HACS, no addons required
-- Config Flow UI -- set up entirely from the HA interface
-- Bulk entity selection -- add all entities, by domain, by label, or pick individually
-- Entity type overrides -- change Sber category per entity via UI or YAML
-- **Entity Linking** -- link battery, humidity, temperature sensors to a primary device so one physical device = one Sber device
-- Auto-detection of related entities by shared `device_id` in the wizard
-- Smart deduplication -- when a device has both `light` and `switch` entities, only the richer one is exposed
-- Real-time state sync -- HA changes are instantly reflected in Sber (with 100ms debounce)
-- Voice control through all Sber assistants (Salut, Athena, Joy)
-- **27 device types** with automatic mapping
-- YAML customization -- sber_type, sber_name, sber_room, sber_nicknames, sber_groups, sber_features, and more
-- Label-based entity filtering -- expose entities by HA labels
-- HA Repairs integration -- automatic issue detection (missing entities, connection problems)
-- Persist redefinitions -- Sber app renames/rooms survive HA restart
-- Auto re-publish config when Sber asks about unknown entities
-- Pydantic protocol validation -- strict typing for Sber JSON messages
-- Connection health monitoring and diagnostics
-- Device acknowledgment tracking -- see which devices Sber has confirmed
-- Automatic MQTT reconnection with exponential backoff (5s -> 5min)
-- SSL certificate verification (configurable)
-- Translations: English and Russian
+- Нативная интеграция HA -- устанавливается через HACS, без дополнительных аддонов
+- Настройка через UI -- полностью из интерфейса Home Assistant
+- Массовый выбор устройств -- добавить все, по категориям, по меткам (labels), или поштучно
+- Переопределение типов устройств -- смена категории Sber для каждого entity через UI или YAML
+- **Связывание entity (Entity Linking)** -- привязка датчиков батареи, влажности, температуры к основному устройству: одно физическое устройство = одно устройство в Сбер
+- Автоопределение связанных entity по общему `device_id` в мастере добавления
+- Умная дедупликация -- если устройство имеет и `light` и `switch`, выбирается более функциональный вариант
+- Синхронизация в реальном времени -- изменения в HA мгновенно видны в Сбер (debounce 100мс)
+- Голосовое управление через всех ассистентов Сбер (Салют, Афина, Джой)
+- **27 типов устройств** с автоматическим маппингом
+- YAML-кастомизация -- sber_type, sber_name, sber_room, sber_nicknames, sber_groups, sber_features и другое
+- Фильтрация по меткам (labels) -- экспорт entity по меткам HA
+- Интеграция с HA Repairs -- автоматическое обнаружение проблем (отсутствующие entity, проблемы подключения)
+- Сохранение переопределений -- переименования и комнаты из приложения Сбер переживают перезапуск HA
+- Автоматическая повторная публикация конфигурации, когда Sber запрашивает неизвестные entity
+- Валидация протокола через Pydantic -- строгая типизация JSON-сообщений Sber
+- Мониторинг подключения и диагностика
+- Отслеживание подтверждения устройств -- видно, какие устройства Sber подтвердил
+- Автоматическое переподключение с экспоненциальной задержкой (5сек -> 5мин)
+- SSL сертификат (настраивается)
+- Переводы: английский и русский
 - CI/CD: ruff, pytest, HACS validation, hassfest
-- **498+ tests**
+- **498+ тестов**
 
-## Supported Device Types
+## Поддерживаемые типы устройств
 
-| HA Domain | Sber Category | Capabilities | Linkable roles |
-|-----------|---------------|--------------|----------------|
-| `light` | light | On/off, brightness, color (HSV), color temperature | -- |
-| `light` (LED strip) | led_strip | LED strip with color/brightness | -- |
-| `switch` | relay | On/off | -- |
-| `switch` (outlet) | socket | On/off (smart socket icon in Sber) | -- |
-| `script` | relay | Execute script | -- |
-| `button` | relay | Press button | -- |
-| `cover` | curtain | Open/close/stop, position 0-100% | -- |
-| `cover` (blind/shade) | window_blind | Open/close/stop, position 0-100% | -- |
-| `climate` | hvac_ac | On/off, temperature, fan mode, swing, HVAC mode | temperature |
-| `climate` (radiator) | hvac_radiator | On/off, temperature (25-40C default) | -- |
-| `climate` (heater) | hvac_heater | Heater | -- |
-| `climate` (floor heating) | hvac_underfloor_heating | Underfloor heating | -- |
-| `sensor` (temperature) | sensor_temp | Temperature reading (x10 precision) | battery, signal_strength, humidity |
-| `sensor` (humidity) | sensor_humidity | Humidity reading (0-100%) | battery, signal_strength, temperature |
-| `binary_sensor` (motion) | sensor_pir | Motion detected (boolean) | battery, signal_strength |
-| `binary_sensor` (door) | sensor_door | Open/close state | battery, signal_strength |
-| `binary_sensor` (moisture) | sensor_water_leak | Leak detected (boolean) | battery, signal_strength |
-| `binary_sensor` (smoke) | sensor_smoke | Smoke detector | battery, signal_strength |
-| `binary_sensor` (gas) | sensor_gas | Gas leak detector | battery, signal_strength |
-| `input_boolean` | scenario_button | Click / double click events | -- |
-| `valve` | valve | Open/close valve | -- |
-| `humidifier` | hvac_humidifier | On/off, target humidity, work mode | humidity |
-| `fan` | hvac_fan | Fan/ventilator | -- |
-| `fan` (purifier) | hvac_air_purifier | Air purifier | -- |
-| `water_heater` | hvac_boiler | Boiler/water heater | -- |
-| `water_heater` (kettle) | kettle | Smart kettle | -- |
-| `media_player` | tv | Television | -- |
-| `vacuum` | vacuum_cleaner | Robot vacuum | -- |
-| -- (override only) | intercom | Intercom | -- |
+| Домен HA | Категория Sber | Возможности | Роли связывания |
+|----------|----------------|-------------|-----------------|
+| `light` | light | Вкл/выкл, яркость, цвет (HSV), цветовая температура | -- |
+| `light` (LED-лента) | led_strip | LED-лента с цветом/яркостью | -- |
+| `switch` | relay | Вкл/выкл | -- |
+| `switch` (розетка) | socket | Вкл/выкл (иконка розетки в Сбер) | -- |
+| `script` | relay | Запуск скрипта | -- |
+| `button` | relay | Нажатие кнопки | -- |
+| `cover` | curtain | Открыть/закрыть/стоп, позиция 0-100% | -- |
+| `cover` (жалюзи) | window_blind | Открыть/закрыть/стоп, позиция 0-100% | -- |
+| `climate` | hvac_ac | Вкл/выкл, температура, вентилятор, качание, режим | temperature |
+| `climate` (радиатор) | hvac_radiator | Вкл/выкл, температура (25-40C) | -- |
+| `climate` (обогреватель) | hvac_heater | Обогреватель | -- |
+| `climate` (тёплый пол) | hvac_underfloor_heating | Тёплый пол | -- |
+| `sensor` (температура) | sensor_temp | Показания температуры (точность 0.1C) | battery, signal_strength, humidity |
+| `sensor` (влажность) | sensor_humidity | Показания влажности (0-100%) | battery, signal_strength, temperature |
+| `binary_sensor` (движение) | sensor_pir | Обнаружение движения | battery, signal_strength |
+| `binary_sensor` (дверь) | sensor_door | Состояние открыто/закрыто | battery, signal_strength |
+| `binary_sensor` (протечка) | sensor_water_leak | Обнаружение протечки | battery, signal_strength |
+| `binary_sensor` (дым) | sensor_smoke | Датчик дыма | battery, signal_strength |
+| `binary_sensor` (газ) | sensor_gas | Датчик утечки газа | battery, signal_strength |
+| `input_boolean` | scenario_button | Клик / двойной клик | -- |
+| `valve` | valve | Открыть/закрыть вентиль | -- |
+| `humidifier` | hvac_humidifier | Вкл/выкл, влажность, режим работы | humidity |
+| `fan` | hvac_fan | Вентилятор | -- |
+| `fan` (очиститель воздуха) | hvac_air_purifier | Очиститель воздуха | -- |
+| `water_heater` | hvac_boiler | Бойлер/водонагреватель | -- |
+| `water_heater` (чайник) | kettle | Умный чайник | -- |
+| `media_player` | tv | Телевизор | -- |
+| `vacuum` | vacuum_cleaner | Робот-пылесос | -- |
+| -- (только через override) | intercom | Домофон | -- |
 
-## Prerequisites -- Setting Up Sber Studio
+## Подготовка -- Настройка Sber Studio
 
-Before installing the integration, you need MQTT credentials from Sber:
+Перед установкой интеграции нужно получить MQTT-учётные данные от Sber.
 
-### Step 1: Register in Sber Studio
+### Шаг 1: Регистрация в Sber Studio
 
-1. Go to [Sber Studio](https://developers.sber.ru/studio/workspaces/)
-2. Sign in with your Sber ID (same account as Sber Smart Home app)
-3. Create a new workspace if you don't have one
+1. Перейдите на [Sber Studio](https://developers.sber.ru/studio/workspaces/)
+2. Войдите с вашим Sber ID (тот же аккаунт, что и в приложении Сбер Умный дом)
+3. Создайте рабочее пространство, если его ещё нет
 
-### Step 2: Create an Integration Project
+### Шаг 2: Создание проекта интеграции
 
-1. In Sber Studio, go to **Smart Home** section
-2. Click **Create Project** (or **Создать проект**)
-3. Select **MQTT Integration** type
-4. Give it a name (e.g. "Home Assistant Bridge")
+1. В Sber Studio перейдите в раздел **Умный дом**
+2. Нажмите **Создать проект**
+3. Выберите тип **MQTT-интеграция**
+4. Дайте проекту имя (например, "Home Assistant Bridge")
 
-### Step 3: Get MQTT Credentials
+### Шаг 3: Получение MQTT-учётных данных
 
-1. Open your project settings
-2. Find the **MQTT Connection** section
-3. Copy **Login** and **Password** -- you will need these in HA
-4. The broker address is `mqtt-partners.iot.sberdevices.ru`, port `8883`
+1. Откройте настройки проекта
+2. Найдите раздел **MQTT-подключение**
+3. Скопируйте **Логин** и **Пароль** -- они понадобятся в HA
+4. Адрес брокера: `mqtt-partners.iot.sberdevices.ru`, порт: `8883`
 
-For detailed instructions, see [Sber MQTT-to-Cloud documentation](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy).
+Подробная инструкция: [Документация Sber MQTT-to-Cloud](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy)
 
-### Step 4: Link Sber App
+### Шаг 4: Привязка в приложении Сбер
 
-1. Open the **Sber Smart Home** app on your phone
-2. Go to **Settings** > **Connected Services** (or **Подключенные сервисы**)
-3. Your MQTT integration should appear -- enable it
-4. Devices will appear in the app after the bridge connects
+1. Откройте приложение **Сбер Умный дом** на телефоне
+2. Перейдите в **Настройки** > **Подключенные сервисы**
+3. Ваша MQTT-интеграция должна появиться -- включите её
+4. Устройства появятся в приложении после подключения моста
 
-## Installation
+## Установка
 
-### HACS (recommended)
+### HACS (рекомендуется)
 
-1. Open **HACS** in Home Assistant
-2. Click the three dots menu > **Custom repositories**
-3. Add `https://github.com/dzerik/sber-mqtt-bridge` with category **Integration**
-4. Search for **"Sber Smart Home MQTT Bridge"** and click **Install**
-5. **Restart Home Assistant**
+1. Откройте **HACS** в Home Assistant
+2. Нажмите меню (три точки) > **Пользовательские репозитории**
+3. Добавьте `https://github.com/dzerik/sber-mqtt-bridge` с категорией **Интеграция**
+4. Найдите **"Sber Smart Home MQTT Bridge"** и нажмите **Установить**
+5. **Перезагрузите Home Assistant**
 
-### Manual
+### Ручная установка
 
-1. Download the [latest release](https://github.com/dzerik/sber-mqtt-bridge/releases)
-2. Copy `custom_components/sber_mqtt_bridge/` to your HA `config/custom_components/`
-3. Restart Home Assistant
+1. Скачайте [последний релиз](https://github.com/dzerik/sber-mqtt-bridge/releases)
+2. Скопируйте папку `custom_components/sber_mqtt_bridge/` в `config/custom_components/` вашего HA
+3. Перезагрузите Home Assistant
 
-## Configuration
+## Настройка
 
-### Initial Setup
+### Первоначальная настройка
 
-1. Go to **Settings** > **Devices & Services** > **Add Integration**
-2. Search for **"Sber Smart Home MQTT Bridge"**
-3. Enter your Sber MQTT credentials:
+1. Перейдите в **Настройки** > **Устройства и службы** > **Добавить интеграцию**
+2. Найдите **"Sber Smart Home MQTT Bridge"**
+3. Введите учётные данные MQTT:
 
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| MQTT Login | Yes | -- | Login from Sber Studio project |
-| MQTT Password | Yes | -- | Password from Sber Studio project |
-| MQTT Broker | No | `mqtt-partners.iot.sberdevices.ru` | Broker address |
-| MQTT Port | No | `8883` | Broker port (TLS) |
-| Verify SSL | No | `true` | Verify broker certificate |
+| Параметр | Обязательный | По умолчанию | Описание |
+|----------|-------------|--------------|----------|
+| MQTT Логин | Да | -- | Логин из проекта Sber Studio |
+| MQTT Пароль | Да | -- | Пароль из проекта Sber Studio |
+| MQTT Брокер | Нет | `mqtt-partners.iot.sberdevices.ru` | Адрес брокера |
+| MQTT Порт | Нет | `8883` | Порт брокера (TLS) |
+| Проверять SSL | Нет | `true` | Проверка сертификата брокера |
 
-### Selecting Entities
+### Выбор устройств
 
-After setup, go to integration options to choose which entities to expose to Sber. Five modes are available:
+После настройки перейдите в параметры интеграции для выбора устройств. Доступны пять режимов:
 
-| Mode | Description |
-|------|-------------|
-| **Select manually** | Pick individual entities from a searchable list. You can also remove entities here. |
-| **Add by domain** | Select domains (Lights, Switches, etc.) with entity counts. Adds all entities from chosen domains. Preserves existing selection. |
-| **Add by label** | Select HA labels to expose all entities with those labels. |
-| **Add ALL** | One-click: add every supported entity to Sber. |
-| **Remove ALL** | Clear the entire exposed list. |
+| Режим | Описание |
+|-------|----------|
+| **Выбрать вручную** | Выбрать отдельные устройства из списка с поиском. Здесь же можно удалять. |
+| **Добавить по категории** | Выбрать категории (Свет, Переключатели и т.д.) с количеством устройств. Добавляет все устройства из выбранных категорий. Существующий выбор сохраняется. |
+| **Добавить по метке** | Выбрать метки (labels) HA для экспорта всех entity с этими метками. |
+| **Добавить ВСЕ** | Один клик: добавить все поддерживаемые устройства в Sber. |
+| **Удалить ВСЕ** | Очистить весь список. |
 
-**Entity type overrides**: In the Options menu you can override the Sber category for any entity. For example, change a `switch` from `relay` to `socket` so it appears as a smart outlet in the Sber app.
+**Переопределение типов устройств**: В меню Параметры можно переопределить категорию Sber для любого entity. Например, изменить `switch` с `relay` на `socket`, чтобы он отображался как умная розетка в приложении Сбер.
 
-**Smart deduplication**: When a Zigbee device registers both `light.kitchen` and `switch.kitchen`, only `light` is included (richer API with brightness/color). Priority: light > cover > climate > humidifier > valve > sensor > switch > script > button.
+**Умная дедупликация**: Если Zigbee-устройство регистрирует и `light.кухня` и `switch.кухня`, включается только `light` (более богатый API с яркостью/цветом). Приоритет: light > cover > climate > humidifier > valve > sensor > switch > script > button.
 
-### YAML Customization
+### YAML-кастомизация
 
-You can fine-tune how entities appear in Sber by adding customization in `configuration.yaml`:
+Вы можете точно настроить отображение entity в Sber через `configuration.yaml`:
 
 ```yaml
 sber_mqtt_bridge:
   entity_config:
     light.kitchen:
-      sber_type: light           # Override Sber category
-      sber_name: "Kitchen Light" # Custom name in Sber app
-      sber_room: "Kitchen"       # Room assignment
-      sber_nicknames:            # Voice command aliases
-        - "main light"
-        - "ceiling light"
-      sber_groups:               # Group membership
+      sber_type: light           # Переопределить категорию Sber
+      sber_name: "Свет на кухне" # Имя в приложении Сбер
+      sber_room: "Кухня"         # Назначение комнаты
+      sber_nicknames:            # Альтернативные имена для голосового управления
+        - "основной свет"
+        - "потолочный свет"
+      sber_groups:               # Группы устройств
         - "kitchen_lights"
-      sber_features_add:         # Add Sber features
+      sber_features_add:         # Добавить возможности Sber
         - "colour_setting"
-      sber_features_remove:      # Remove Sber features
+      sber_features_remove:      # Убрать возможности Sber
         - "colour_temp"
-      sber_partner_meta: {}      # Custom partner metadata
-      sber_parent_id: "light.living_room"  # Parent device ID
+      sber_partner_meta: {}      # Пользовательские метаданные партнёра
+      sber_parent_id: "light.living_room"  # ID родительского устройства
 ```
 
-| Parameter | Description |
-|-----------|-------------|
-| `sber_type` | Override the automatically detected Sber category (e.g., `relay` -> `socket`) |
-| `sber_name` | Custom device name shown in Sber app and used for voice commands |
-| `sber_room` | Room assignment in Sber (overrides app-assigned room) |
-| `sber_nicknames` | Alternative names for voice control |
-| `sber_groups` | Group IDs for device grouping in Sber |
-| `sber_features_add` | Additional Sber features to advertise |
-| `sber_features_remove` | Sber features to suppress |
-| `sber_partner_meta` | Custom metadata passed to Sber |
-| `sber_parent_id` | Parent device entity ID for hierarchical grouping |
+| Параметр | Описание |
+|----------|----------|
+| `sber_type` | Переопределить автоматически определённую категорию Sber (например, `relay` -> `socket`) |
+| `sber_name` | Пользовательское имя устройства в приложении Сбер и для голосовых команд |
+| `sber_room` | Комната в Sber (переопределяет назначение из приложения) |
+| `sber_nicknames` | Альтернативные имена для голосового управления |
+| `sber_groups` | ID групп для объединения устройств в Sber |
+| `sber_features_add` | Дополнительные возможности Sber для публикации |
+| `sber_features_remove` | Возможности Sber для отключения |
+| `sber_partner_meta` | Пользовательские метаданные, передаваемые в Sber |
+| `sber_parent_id` | Entity ID родительского устройства для иерархической группировки |
 
-### Entity Linking
+### Связывание entity (Entity Linking)
 
-Entity Linking lets you attach auxiliary HA entities (battery sensor, signal strength, humidity, temperature) to a primary Sber device. This models the physical reality: one Zigbee sensor produces several HA entities but should appear as a single device in the Sber app.
+Связывание entity позволяет привязать вспомогательные HA-сущности (датчик батареи, уровень сигнала, влажность, температура) к основному устройству Sber. Это отражает физическую реальность: один Zigbee-датчик создаёт несколько entity в HA, но должен выглядеть как одно устройство в приложении Сбер.
 
-**Without linking**: a leak sensor with a battery sensor creates two separate Sber devices.
-**With linking**: the battery level is automatically included in the leak sensor's Sber state — one device, full data.
+**Без связывания**: датчик протечки с датчиком батареи создаёт два отдельных устройства Sber.
+**Со связыванием**: уровень заряда батареи автоматически включается в состояние датчика протечки — одно устройство, полные данные.
 
-#### Supported link roles by Sber category
+#### Поддерживаемые роли по категории Sber
 
-| Sber Category | Linkable roles |
-|---------------|----------------|
+| Категория Sber | Доступные роли |
+|----------------|----------------|
 | sensor_water_leak | battery, signal_strength |
 | sensor_pir | battery, signal_strength |
 | sensor_door | battery, signal_strength |
@@ -215,52 +215,58 @@ Entity Linking lets you attach auxiliary HA entities (battery sensor, signal str
 | hvac_ac | temperature |
 | hvac_humidifier | humidity |
 
-#### Wizard flow
+#### Процесс в мастере добавления
 
-When adding a new device through the panel wizard:
+1. Выберите тип устройства и основную entity.
+2. Мастер автоматически определяет связанные entity, разделяющие один `device_id` в HA.
+3. Совместимые entity предвыбраны (отображаются зелёными). Несовместимые отображаются серым с пометкой "(not supported)".
+4. Укажите имя и подтвердите.
+5. Привязанные entity исчезают из списка доступных entity — ими управляет основное устройство.
 
-1. Select device type and primary entity.
-2. The wizard automatically detects related entities that share the same HA `device_id`.
-3. Compatible entities are pre-checked (shown in green). Incompatible ones are shown greyed out with "(not supported)".
-4. Set a name and confirm.
-5. Linked entities disappear from the available entities list — they are managed through the primary device.
+Данные привязанных entity (уровень батареи, уровень сигнала и т.д.) включаются в каждую публикацию состояния основного устройства в Sber. Изменение состояния привязанной entity вызывает немедленную повторную публикацию состояния основного устройства.
 
-Linked entity data (battery level, signal strength, etc.) is included in every Sber state publish for the primary device. State changes of a linked entity trigger an immediate republish of the primary device's state.
+### Управление устройствами в приложении Сбер
 
-### Managing Devices in Sber App
+После добавления устройств:
 
-After entities are exposed:
+1. Откройте приложение **Сбер Умный дом**
+2. Устройства появятся автоматически (может занять 10-30 секунд)
+3. **Переименовать устройство**: нажмите на устройство > иконка настроек > измените имя
+4. **Назначить комнату**: нажмите на устройство > иконка настроек > выберите комнату
+5. **Голосовое управление**: скажите *"Салют, включи свет на кухне"*
 
-1. Open the **Sber Smart Home** app
-2. Devices appear automatically (may take 10-30 seconds)
-3. **Rename devices**: tap the device > settings icon > change name
-4. **Assign rooms**: tap the device > settings icon > select room
-5. **Voice control**: say *"Салют, включи свет на кухне"* (Salut, turn on kitchen light)
+**Примеры голосовых команд:**
+- *"Салют, включи свет в гостиной"*
+- *"Салют, выключи все розетки"*
+- *"Салют, какая температура в спальне?"*
+- *"Салют, закрой шторы"*
+- *"Салют, установи температуру 23 градуса"*
+- *"Салют, включи увлажнитель"*
 
-**Note**: Room assignments and renames made in the Sber app are stored locally in the integration and will be included in future config publishes. These persist across HA restarts.
+**Примечание**: Переименования и назначения комнат, сделанные в приложении Сбер, сохраняются локально в интеграции и будут включены в будущие публикации конфигурации. Эти данные сохраняются при перезапуске HA.
 
-## Troubleshooting
+## Устранение неполадок
 
-| Problem | Solution |
-|---------|----------|
-| Cannot connect | Verify credentials in Sber Studio. Check that your project is active. |
-| SSL errors | Try disabling "Verify SSL" in integration settings (for custom CA). |
-| Entities not in Sber | Check Options > select entities. Check HA logs for mapping warnings. |
-| Devices appear/disappear | Check HA logs for reconnection messages. Ensure stable internet. |
-| Duplicate devices | Remove duplicates in Options > manual mode. Or use "Remove ALL" then "Add ALL" for clean reset. |
-| Sensors show wrong values | Enable debug logging and check entity mapping in logs. |
-| Missing entities or connection issues | Check **Settings > Repairs** -- the integration creates repair issues automatically for common problems. |
+| Проблема | Решение |
+|----------|---------|
+| Не удаётся подключиться | Проверьте учётные данные в Sber Studio. Убедитесь, что проект активен. |
+| Ошибки SSL | Попробуйте отключить "Проверять SSL" в настройках интеграции (для нестандартных CA). |
+| Устройства не появляются в Сбер | Проверьте Параметры > выберите устройства. Проверьте логи HA на предупреждения маппинга. |
+| Устройства появляются и исчезают | Проверьте логи HA на сообщения о переподключении. Убедитесь в стабильности интернета. |
+| Дублирование устройств | Удалите дубли в Параметры > ручной режим. Или "Удалить ВСЕ", затем "Добавить ВСЕ" для чистого сброса. |
+| Датчики показывают неверные значения | Включите отладочные логи и проверьте маппинг entity в логах. |
+| Пропавшие entity или проблемы подключения | Проверьте **Настройки > Ремонт** -- интеграция автоматически создаёт уведомления о типичных проблемах. |
 
-### HA Repairs
+### HA Repairs (Ремонт)
 
-The integration uses Home Assistant's Repairs system to notify you about problems. Go to **Settings** > **Repairs** to see any active issues, such as:
-- Missing entities that were previously exposed
-- MQTT connection failures
-- Configuration problems
+Интеграция использует систему Repairs в Home Assistant для уведомления о проблемах. Перейдите в **Настройки** > **Ремонт** для просмотра активных проблем:
+- Отсутствующие entity, которые были ранее экспортированы
+- Ошибки подключения MQTT
+- Проблемы конфигурации
 
-### Debug Logging
+### Отладочные логи
 
-Add to `configuration.yaml`:
+Добавьте в `configuration.yaml`:
 
 ```yaml
 logger:
@@ -268,49 +274,48 @@ logger:
     custom_components.sber_mqtt_bridge: debug
 ```
 
-This will show:
-- `MQTT <- topic (N bytes)` -- every incoming message
-- `Sber -> HA command: entity_id [keys]` -- command details
-- `HA -> Sber state: entity_id = state` -- state publishes
-- `Entity xxx -> Sber category (domain, device_class)` -- mapping decisions
-- `Sber error (#N): {...}` -- errors from Sber cloud
+Увидите:
+- `MQTT <- topic (N bytes)` -- каждое входящее MQTT сообщение
+- `Sber -> HA command: entity_id [ключи]` -- детали команды
+- `HA -> Sber state: entity_id = состояние` -- публикация состояний
+- `Entity xxx -> Sber категория (домен, device_class)` -- решения маппинга
+- `Sber error (#N): {...}` -- ошибки от облака Sber
 
-### Diagnostics
+### Диагностика
 
-Go to **Settings** > **Devices & Services** > **Sber Smart Home MQTT Bridge** > **three dots** > **Download diagnostics**. The file contains:
-- Connection status and uptime
-- Message counters (received, sent, errors)
-- List of acknowledged/unacknowledged entities
-- Entity configuration
+Перейдите в **Настройки** > **Устройства и службы** > **Sber Smart Home MQTT Bridge** > **три точки** > **Скачать диагностику**. Файл содержит:
+- Статус подключения и время работы
+- Счётчики сообщений (получено, отправлено, ошибки)
+- Список подтверждённых/неподтверждённых устройств
+- Конфигурацию устройств
 
-## Acknowledgments
+## Благодарности
 
-This project is a fork and evolution of [MQTT-SberGate](https://gitverse.ru/mberezovsky/MQTT-SberGate) by [@mberezovsky](https://gitverse.ru/mberezovsky). The original project provided the Sber Smart Home MQTT protocol implementation as a Home Assistant addon. This version has been rewritten as a native HACS custom integration with full async support, Config Flow UI, and comprehensive test coverage.
+Этот проект является форком и развитием [MQTT-SberGate](https://gitverse.ru/mberezovsky/MQTT-SberGate) от [@mberezovsky](https://gitverse.ru/mberezovsky). Оригинальный проект предоставил реализацию MQTT-протокола Sber Smart Home в виде аддона Home Assistant. Эта версия переписана как нативная HACS-интеграция с полной асинхронной поддержкой, Config Flow UI и комплексным покрытием тестами.
 
-Thank you to the original author for the foundational work and Sber protocol reverse-engineering.
+Спасибо оригинальному автору за базовую работу и реверс-инжиниринг протокола Sber.
 
-## Trademarks & Legal Notice
+## Торговые марки и правовая информация
 
-All product names, logos, and brands mentioned in this project are property of their respective owners:
+Все названия продуктов, логотипы и бренды, упомянутые в этом проекте, являются собственностью их владельцев:
 
-- **Sber**, **SberDevices**, **Salut**, **Sber Smart Home** are trademarks of [Sber](https://www.sber.ru/) (PAO Sberbank).
-- **Home Assistant** is a trademark of the [Home Assistant](https://www.home-assistant.io/) project.
-- **HACS** (Home Assistant Community Store) is an independent community project.
+- **Сбер**, **SberDevices**, **Салют**, **Сбер Умный дом** -- торговые марки [Сбер](https://www.sber.ru/) (ПАО Сбербанк).
+- **Home Assistant** -- торговая марка проекта [Home Assistant](https://www.home-assistant.io/).
+- **HACS** (Home Assistant Community Store) -- независимый проект сообщества.
 
-This project is not affiliated with, endorsed by, or sponsored by Sber, SberDevices, or the Home Assistant project. It is an independent open-source community integration.
+Этот проект не связан, не одобрен и не спонсирован Сбером, SberDevices или проектом Home Assistant. Это независимая интеграция с открытым исходным кодом.
 
-## Links
+## Ссылки
 
-- [Sber Smart Home Developer Portal](https://developers.sber.ru/docs/ru/smarthome)
-- [Register in Sber Studio](https://developers.sber.ru/docs/ru/smarthome/space/registration)
-- [MQTT-to-Cloud Integration Guide](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy)
-- [Supported Device Categories](https://developers.sber.ru/docs/ru/smarthome/c2c/devices)
-- [Telegram Community](https://t.me/+k_w9uO0h73FkNjJi)
+- [Портал разработчиков Sber Smart Home](https://developers.sber.ru/docs/ru/smarthome)
+- [Регистрация в Sber Studio](https://developers.sber.ru/docs/ru/smarthome/space/registration)
+- [Руководство MQTT-to-Cloud](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy)
+- [Поддерживаемые категории устройств](https://developers.sber.ru/docs/ru/smarthome/c2c/devices)
 
-## Contributing
+## Участие в разработке
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+Смотрите [CONTRIBUTING.md](CONTRIBUTING.md) для настройки среды разработки и рекомендаций.
 
-## License
+## Лицензия
 
 [MIT](LICENSE.txt)

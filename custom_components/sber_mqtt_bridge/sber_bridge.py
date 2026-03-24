@@ -810,8 +810,13 @@ class SberBridge:
             primary_id, role = self._linked_reverse[entity_id]
             primary_entity = self._entities.get(primary_id)
             if primary_entity is not None and hasattr(primary_entity, "update_linked_data"):
+                features_before = primary_entity.get_final_features_list()
                 primary_entity.update_linked_data(role, ha_state_dict)
+                features_after = primary_entity.get_final_features_list()
                 _LOGGER.debug("Linked %s (%s) → primary %s", entity_id, role, primary_id)
+                if features_before != features_after:
+                    _LOGGER.info("Features changed for %s after linked update — republishing config", primary_id)
+                    self._hass.async_create_task(self._publish_config())
                 self._schedule_debounced_publish(primary_id)
             return
 

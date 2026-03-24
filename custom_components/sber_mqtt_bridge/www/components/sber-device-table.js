@@ -5,7 +5,7 @@
  * inline delete and category override controls.
  */
 
-import "./sber-entity-row.js?v=1.6.0";
+import "./sber-entity-row.js?v=1.6.1";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
@@ -259,6 +259,16 @@ class SberDeviceTable extends LitElement {
     );
   }
 
+  _onLinkEntity(e) {
+    this.dispatchEvent(
+      new CustomEvent("link-entity", {
+        detail: { entityId: e.detail.entityId },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
   _onSyncEntity(e) {
     this.dispatchEvent(
       new CustomEvent("sync-entity", {
@@ -391,6 +401,7 @@ class SberDeviceTable extends LitElement {
                             @delete-entity=${this._onDeleteEntity}
                             @override-changed=${this._onOverrideChanged}
                             @sync-entity=${this._onSyncEntity}
+                            @link-entity=${this._onLinkEntity}
                           ></sber-entity-row>
                         </tr>
                       `

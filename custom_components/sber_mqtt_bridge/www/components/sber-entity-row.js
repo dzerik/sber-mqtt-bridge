@@ -168,6 +168,16 @@ class SberEntityRow extends LitElement {
     );
   }
 
+  _onLink() {
+    this.dispatchEvent(
+      new CustomEvent("link-entity", {
+        detail: { entityId: this.device.entity_id },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
   _onSync() {
     this.dispatchEvent(
       new CustomEvent("sync-entity", {
@@ -233,6 +243,9 @@ class SberEntityRow extends LitElement {
               `
             )}
           </select>
+          <button class="icon-btn" @click=${this._onLink} title="Link entities">
+            \u{1F517}
+          </button>
           <button class="icon-btn sync" @click=${this._onSync} title="Sync to Sber">
             \u{1F504}
           </button>

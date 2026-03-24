@@ -85,6 +85,7 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_raw_states)
     websocket_api.async_register_command(hass, ws_set_entity_links)
     websocket_api.async_register_command(hass, ws_suggest_links)
+    websocket_api.async_register_command(hass, ws_auto_link_all)
     websocket_api.async_register_command(hass, ws_message_log)
     websocket_api.async_register_command(hass, ws_clear_message_log)
     _LOGGER.debug("Sber MQTT Bridge WebSocket API registered")
@@ -820,6 +821,19 @@ async def ws_set_entity_links(
         connection.send_error(msg["id"], "not_exposed", f"{entity_id} is not in exposed entities")
         return
 
+    # Validate no circular links (linked entity cannot be a primary with its own links)
+    existing_links = dict(entry.options.get(CONF_ENTITY_LINKS, {}))
+    for role, linked_id in new_links.items():
+        if linked_id in existing_links:
+            connection.send_error(
+                msg["id"], "circular_link",
+                f"{linked_id} is already a primary entity with links — cannot link it"
+            )
+            return
+        if linked_id == entity_id:
+            connection.send_error(msg["id"], "self_link", "Cannot link entity to itself")
+            return
+
     # Save links
     all_links = dict(entry.options.get(CONF_ENTITY_LINKS, {}))
     if new_links:
@@ -922,4 +936,79 @@ async def ws_suggest_links(
         "candidates": candidates,
         "allowed_roles": allowed_roles,
         "category": primary_category,
+    })
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/auto_link_all",
+    }
+)
+@websocket_api.async_response
+async def ws_auto_link_all(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Auto-link all exposed entities by shared device_id.
+
+    Groups exposed entities by device_id, finds auxiliary sensors
+    (battery, humidity, temperature, signal), and links them to
+    the primary entity in each group.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message.
+    """
+    entry = _get_config_entry(hass)
+    bridge = _get_bridge(hass)
+    if entry is None or bridge is None:
+        connection.send_error(msg["id"], "not_found", "Bridge or config entry not found")
+        return
+
+    entity_reg = er.async_get(hass)
+    all_links: dict[str, dict[str, str]] = dict(entry.options.get(CONF_ENTITY_LINKS, {}))
+    linked_count = 0
+
+    # Group exposed entities by device_id
+    for primary_id, primary_entity in bridge.entities.items():
+        primary_reg = entity_reg.async_get(primary_id)
+        if not primary_reg or not primary_reg.device_id:
+            continue
+        if primary_id in all_links:
+            continue  # Already has links
+
+        category = primary_entity.category
+        allowed_roles = ALLOWED_LINK_ROLES.get(category, [])
+        if not allowed_roles:
+            continue
+
+        # Find siblings on same device
+        new_links: dict[str, str] = {}
+        for e in entity_reg.entities.values():
+            if e.device_id != primary_reg.device_id:
+                continue
+            if e.entity_id == primary_id:
+                continue
+            if e.disabled:
+                continue
+            dc = e.original_device_class or ""
+            role = HA_DEVICE_CLASS_TO_LINK_ROLE.get(dc, "")
+            if role and role in allowed_roles and role not in new_links:
+                new_links[role] = e.entity_id
+
+        if new_links:
+            all_links[primary_id] = new_links
+            linked_count += len(new_links)
+
+    if linked_count > 0:
+        new_options = dict(entry.options)
+        new_options[CONF_ENTITY_LINKS] = all_links
+        hass.config_entries.async_update_entry(entry, options=new_options)
+        await hass.config_entries.async_reload(entry.entry_id)
+
+    connection.send_result(msg["id"], {
+        "linked_count": linked_count,
+        "devices_affected": sum(1 for v in all_links.values() if v),
     })
