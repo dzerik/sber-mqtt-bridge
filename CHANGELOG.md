@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-03-24
+
+### Changed
+- **Atomic wizard endpoint** `add_device_wizard` — single WS call replaces triple add+override+links (one reload instead of three)
+- **Shared utils** — `filterEntities()` and `DIALOG_STYLES_CSS` extracted to `utils.js`, used by wizard and add-dialog
+- **`ws_bulk_add` deduplication** — now uses same device_id deduplication as Options Flow (light > switch priority)
+- **`ws_clear_all` cleanup** — now also clears `entity_links`
+- **Cleaned .gitignore** — removed duplicates, added egg-info exclusion
+
 ## [1.6.1] - 2026-03-24
 
 ### Added

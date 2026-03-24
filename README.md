@@ -1,4 +1,4 @@
-# Sber Smart Home MQTT Bridge
+# Sber Smart Home ⟷ Home Assistant MQTT Bridge
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 [![GitHub Release](https://img.shields.io/github/v/release/dzerik/sber-mqtt-bridge)](https://github.com/dzerik/sber-mqtt-bridge/releases)
@@ -6,18 +6,31 @@
 [![Tests](https://img.shields.io/badge/tests-498+-brightgreen)](tests/hacs/)
 [![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions)
 
-**[English documentation](README_ENG.md)**
+**[English documentation](README_ENG.md)** | **[Документация (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)**
 
-Интеграция Home Assistant для управления устройствами HA через голосовых помощников **Салют** и приложение **Сбер Умный дом**. Работает через MQTT-подключение к облаку Sber.
+---
+
+> *«Салют, включи свет на кухне»* — и ваш Zigbee-выключатель, подключённый к Home Assistant, послушно выполняет команду.
+
+Если вы собирали умный дом на Home Assistant, вы знаете это чувство: всё работает, автоматизации летают, дашборд выглядит идеально — но стоит кому-то из домашних попросить Салют выключить свет, и выясняется, что два мира ничего друг о друге не знают.
+
+**Sber Smart Home MQTT Bridge** решает ровно эту проблему. Это нативная интеграция Home Assistant, которая делает ваши устройства HA видимыми для экосистемы Сбер — голосовых ассистентов Салют, приложения Сбер Умный дом — без отдельных серверов, аддонов или костылей. Один компонент, одна настройка через UI, и два мира начинают работать как один.
+
+Идея простая: взять лучшее от каждой экосистемы. Home Assistant — это тысячи интеграций, гибкие автоматизации и сильное сообщество. Сбер — это голосовые ассистенты, удобное мобильное приложение и растущая линейка умных устройств. Этот мост позволяет использовать оба мира одновременно, не выбирая между ними.
 
 ## Как это работает
 
-```
-Home Assistant  <->  Эта интеграция  <->  Облако Sber MQTT  <->  Приложение Сбер / Салют
-  (ваши устройства)     (мост)       (mqtt-partners.iot)    (голосовое управление)
-```
+Интеграция устанавливает MQTT-соединение с облаком Sber, транслирует ваши HA-устройства в формат Сбер Умного дома и мгновенно синхронизирует состояния в обе стороны. Команды от Салют превращаются в вызовы HA-сервисов, а изменения в HA моментально отражаются в приложении Сбер.
 
-Интеграция подключается к MQTT-брокеру Sber, публикует ваши устройства HA как устройства Сбер Умного дома, и транслирует команды обратно в HA. Изменения состояний в HA мгновенно отражаются в приложении Сбер.
+```mermaid
+flowchart LR
+    HA["🏠 Home Assistant\n(ваши устройства)"]
+    Bridge["🔌 Sber MQTT Bridge\n(эта интеграция)"]
+    Cloud["☁️ Облако Sber\n(MQTT broker)"]
+    App["🗣️ Салют / Приложение Сбер\n(голос и мобильное управление)"]
+
+    HA <--> Bridge <--> Cloud <--> App
+```
 
 ## Возможности
 
@@ -307,6 +320,8 @@ logger:
 
 ## Ссылки
 
+- [Документация проекта (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)
+- [API Reference](https://dzerik.github.io/sber-mqtt-bridge/api/)
 - [Портал разработчиков Sber Smart Home](https://developers.sber.ru/docs/ru/smarthome)
 - [Регистрация в Sber Studio](https://developers.sber.ru/docs/ru/smarthome/space/registration)
 - [Руководство MQTT-to-Cloud](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy)

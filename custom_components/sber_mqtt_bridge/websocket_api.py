@@ -86,6 +86,7 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_set_entity_links)
     websocket_api.async_register_command(hass, ws_suggest_links)
     websocket_api.async_register_command(hass, ws_auto_link_all)
+    websocket_api.async_register_command(hass, ws_add_device_wizard)
     websocket_api.async_register_command(hass, ws_message_log)
     websocket_api.async_register_command(hass, ws_clear_message_log)
     _LOGGER.debug("Sber MQTT Bridge WebSocket API registered")
@@ -448,24 +449,20 @@ async def ws_bulk_add(
         return
 
     target_domains = msg.get("domains") or list(SUPPORTED_DOMAINS)
-    target_domains_set = set(target_domains)
 
     current: list[str] = list(entry.options.get(CONF_EXPOSED_ENTITIES, []))
     current_set = set(current)
 
-    registry = er.async_get(hass)
-    added: list[str] = []
+    # Use deduplication by device_id (same logic as config_flow)
+    from .config_flow import _get_entities_by_domains
 
-    for entity_entry in registry.entities.values():
-        if entity_entry.disabled:
-            continue
-        if entity_entry.domain not in target_domains_set:
-            continue
-        if entity_entry.entity_id in current_set:
-            continue
-        current.append(entity_entry.entity_id)
-        current_set.add(entity_entry.entity_id)
-        added.append(entity_entry.entity_id)
+    domain_ids = _get_entities_by_domains(hass, target_domains)
+    added: list[str] = []
+    for eid in domain_ids:
+        if eid not in current_set:
+            current.append(eid)
+            current_set.add(eid)
+            added.append(eid)
 
     if added:
         new_options = dict(entry.options)
@@ -503,6 +500,7 @@ async def ws_clear_all(
     previous_count = len(new_options.get(CONF_EXPOSED_ENTITIES, []))
     new_options[CONF_EXPOSED_ENTITIES] = []
     new_options[CONF_ENTITY_TYPE_OVERRIDES] = {}
+    new_options[CONF_ENTITY_LINKS] = {}
     hass.config_entries.async_update_entry(entry, options=new_options)
     await hass.config_entries.async_reload(entry.entry_id)
 
@@ -1011,4 +1009,71 @@ async def ws_auto_link_all(
     connection.send_result(msg["id"], {
         "linked_count": linked_count,
         "devices_affected": sum(1 for v in all_links.values() if v),
+    })
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/add_device_wizard",
+        vol.Required("entity_id"): str,
+        vol.Required("category"): str,
+        vol.Optional("entity_links", default={}): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_add_device_wizard(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Atomic wizard action: add entity + set category override + set links in one reload.
+
+    Combines add_entities, set_type_override, and set_entity_links into a single
+    options update and reload to avoid triple-reload race conditions.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Message with ``entity_id``, ``category``, and optional ``entity_links``.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None:
+        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
+        return
+
+    entity_id: str = msg["entity_id"]
+    category: str = msg["category"]
+    entity_links: dict[str, str] = msg.get("entity_links", {})
+
+    new_options = dict(entry.options)
+
+    # 1. Add entity to exposed list
+    exposed: list[str] = list(new_options.get(CONF_EXPOSED_ENTITIES, []))
+    if entity_id not in exposed:
+        exposed.append(entity_id)
+    new_options[CONF_EXPOSED_ENTITIES] = exposed
+
+    # 2. Set category override
+    overrides: dict[str, str] = dict(new_options.get(CONF_ENTITY_TYPE_OVERRIDES, {}))
+    if category and category != "auto":
+        overrides[entity_id] = category
+    else:
+        overrides.pop(entity_id, None)
+    new_options[CONF_ENTITY_TYPE_OVERRIDES] = overrides
+
+    # 3. Set entity links
+    if entity_links:
+        all_links: dict[str, dict] = dict(new_options.get(CONF_ENTITY_LINKS, {}))
+        all_links[entity_id] = entity_links
+        new_options[CONF_ENTITY_LINKS] = all_links
+
+    # Single atomic update + reload
+    hass.config_entries.async_update_entry(entry, options=new_options)
+    await hass.config_entries.async_reload(entry.entry_id)
+
+    connection.send_result(msg["id"], {
+        "success": True,
+        "entity_id": entity_id,
+        "category": category,
+        "links_count": len(entity_links),
     })

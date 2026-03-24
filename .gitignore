@@ -1,40 +1,42 @@
-
-.idea/*
+# Python
 __pycache__/
 *.pyc
 .venv/
 .env
 .env.*
+.coverage
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/launch.json
+
+# Secrets
 *.pem
 *.key
 *.secret
 secrets.yaml
 credentials.*
-*.json.ORIG
-SberGate.log
-.gitignore
 ha_dev.json
+
+# Project-specific
+SberGate.log
 devices.json
 store_devices.json
-mqtt_sber_gate/rootfs/app/categories.json
-mqtt_sber_gate/rootfs/app/models.json
-.gitignore
-.vscode/launch.json
 options.json
-mqtt_sber_gate/rootfs/app/data/debug-data/*.json
-mqtt_sber_gate/rootfs/app/*.json
-mqtt_sber_gate/rootfs/app/entity_registry.json
-mqtt_sber_gate/rootfs/app/ha_entity_states.json
-mqtt_sber_gate/rootfs/app/new_devices_list.json
-mqtt_sber_gate/rootfs/app/sber-gate.py
-mqtt_sber_gate/rootfs/app/Request.sh
-mqtt_sber_gate/tests/data/devices/lights/Color_Tuning/*
+
+# Legacy addon data
+mqtt_sber_gate/
+
+# Build artifacts
+/site/
+/scripts/
+
+# MCP / tools
 /.mcp.json
 /.serena/
-/.idea/
-/site/
-/docs/audit/
-/mqtt_sber_gate/
-/scripts/
-docs/ENTITY_LINKING_PLAN.md
 .playwright-mcp
+
+# Internal docs (not published)
+docs/ENTITY_LINKING_PLAN.md
+docs/audit/

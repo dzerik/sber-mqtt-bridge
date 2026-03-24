@@ -8,7 +8,7 @@
  * Fires "wizard-complete" with full payload for the parent panel.
  */
 
-import { slugify, isValidSalutName } from "../utils.js?v=1.6.1";
+import { slugify, isValidSalutName, filterEntities } from "../utils.js?v=1.6.2";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
@@ -458,14 +458,7 @@ class SberWizard extends LitElement {
 
   /* Step 2 */
   _renderStep2() {
-    const q = this._entityFilter.toLowerCase();
-    const filtered = q
-      ? this._entities.filter(
-          (e) =>
-            e.entity_id.toLowerCase().includes(q) ||
-            (e.friendly_name || "").toLowerCase().includes(q)
-        )
-      : this._entities;
+    const filtered = filterEntities(this._entities, this._entityFilter);
 
     return html`
       <input

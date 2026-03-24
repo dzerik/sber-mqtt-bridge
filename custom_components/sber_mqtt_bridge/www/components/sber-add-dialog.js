@@ -5,6 +5,8 @@
  * with search, domain grouping and multi-select.
  */
 
+import { filterEntities } from "../utils.js?v=1.6.2";
+
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
 );
@@ -282,12 +284,7 @@ class SberAddDialog extends LitElement {
     }
 
     if (this._filter) {
-      const q = this._filter.toLowerCase();
-      list = list.filter(
-        (e) =>
-          e.entity_id.toLowerCase().includes(q) ||
-          (e.friendly_name || "").toLowerCase().includes(q)
-      );
+      list = filterEntities(list, this._filter);
     }
 
     return list;

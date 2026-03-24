@@ -1,4 +1,4 @@
-# Sber Smart Home MQTT Bridge
+# Sber Smart Home ⟷ Home Assistant MQTT Bridge
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 [![GitHub Release](https://img.shields.io/github/v/release/dzerik/sber-mqtt-bridge)](https://github.com/dzerik/sber-mqtt-bridge/releases)
@@ -6,18 +6,31 @@
 [![Tests](https://img.shields.io/badge/tests-498+-brightgreen)](tests/hacs/)
 [![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions)
 
-**[Документация на русском / Russian documentation](README.md)**
+**[Документация на русском / Russian documentation](README.md)** | **[Documentation (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)**
 
-Home Assistant custom integration for bridging HA entities to [Sber Smart Home](https://developers.sber.ru/docs/ru/smarthome) cloud via MQTT. Control your Home Assistant devices through Sber voice assistants (**Salut**) and the **Sber Smart Home** mobile app.
+---
+
+> *"Salut, turn on the kitchen light"* — and your Zigbee switch, connected through Home Assistant, obeys.
+
+If you've built a smart home on Home Assistant, you know the feeling: everything works, automations are humming, your dashboard looks perfect — but the moment someone in your household asks Salut to turn off the lights, the two worlds have no idea each other exist.
+
+**Sber Smart Home MQTT Bridge** solves exactly this. It's a native Home Assistant integration that makes your HA devices visible to the Sber ecosystem — Salut voice assistants, the Sber Smart Home app — without extra servers, addons, or duct tape. One component, one UI setup, and two worlds start working as one.
+
+The idea is simple: take the best of both ecosystems. Home Assistant brings thousands of integrations, flexible automations, and a strong community. Sber brings voice assistants, a polished mobile app, and a growing lineup of smart devices. This bridge lets you use both worlds at once, without choosing between them.
 
 ## How It Works
 
-```
-Home Assistant  <->  This Integration  <->  Sber MQTT Cloud  <->  Sber App / Salut
-     (your devices)      (bridge)          (mqtt-partners.iot)     (voice control)
-```
+The integration establishes an MQTT connection to the Sber cloud, translates your HA devices into the Sber Smart Home format, and synchronizes state changes in both directions in real time. Commands from Salut become HA service calls; changes in HA are instantly reflected in the Sber app.
 
-The integration connects to the Sber MQTT broker, publishes your HA devices as Sber Smart Home devices, and translates commands back to HA service calls. State changes in HA are instantly reflected in the Sber app.
+```mermaid
+flowchart LR
+    HA["🏠 Home Assistant\n(your devices)"]
+    Bridge["🔌 Sber MQTT Bridge\n(this integration)"]
+    Cloud["☁️ Sber Cloud\n(MQTT broker)"]
+    App["🗣️ Salut / Sber App\n(voice & mobile control)"]
+
+    HA <--> Bridge <--> Cloud <--> App
+```
 
 ## Features
 
@@ -301,6 +314,8 @@ This project is not affiliated with, endorsed by, or sponsored by Sber, SberDevi
 
 ## Links
 
+- [Project Documentation (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)
+- [API Reference](https://dzerik.github.io/sber-mqtt-bridge/api/)
 - [Sber Smart Home Developer Portal](https://developers.sber.ru/docs/ru/smarthome)
 - [Register in Sber Studio](https://developers.sber.ru/docs/ru/smarthome/space/registration)
 - [MQTT-to-Cloud Integration Guide](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy)

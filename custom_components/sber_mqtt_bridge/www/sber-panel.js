@@ -8,15 +8,15 @@
  * No build step required.
  */
 
-import "./components/sber-device-table.js?v=1.6.1";
-import "./components/sber-status-card.js?v=1.6.1";
-import "./components/sber-stats-grid.js?v=1.6.1";
-import "./components/sber-add-dialog.js?v=1.6.1";
-import "./components/sber-toolbar.js?v=1.6.1";
-import "./components/sber-wizard.js?v=1.6.1";
-import "./components/sber-toast.js?v=1.6.1";
-import "./components/sber-devtools.js?v=1.6.1";
-import "./components/sber-link-dialog.js?v=1.6.1";
+import "./components/sber-device-table.js?v=1.6.2";
+import "./components/sber-status-card.js?v=1.6.2";
+import "./components/sber-stats-grid.js?v=1.6.2";
+import "./components/sber-add-dialog.js?v=1.6.2";
+import "./components/sber-toolbar.js?v=1.6.2";
+import "./components/sber-wizard.js?v=1.6.2";
+import "./components/sber-toast.js?v=1.6.2";
+import "./components/sber-devtools.js?v=1.6.2";
+import "./components/sber-link-dialog.js?v=1.6.2";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
@@ -303,33 +303,17 @@ class SberMqttPanel extends LitElement {
     const d = e.detail;
     this._loading = true;
     try {
-      /* Add the main entity */
-      await this.hass.callWS({
-        type: "sber_mqtt_bridge/add_entities",
-        entity_ids: [d.entity_id],
-      });
-      /* Set category override */
-      await this.hass.callWS({
-        type: "sber_mqtt_bridge/set_override",
+      /* Single atomic call — add + override + links + one reload */
+      const result = await this.hass.callWS({
+        type: "sber_mqtt_bridge/add_device_wizard",
         entity_id: d.entity_id,
         category: d.category,
+        entity_links: d.entity_links || {},
       });
-      /* Set entity links if any */
-      if (d.entity_links && Object.keys(d.entity_links).length > 0) {
-        await this.hass.callWS({
-          type: "sber_mqtt_bridge/set_entity_links",
-          entity_id: d.entity_id,
-          links: d.entity_links,
-        });
-      } else {
-        /* Re-publish config */
-        await this.hass.callWS({ type: "sber_mqtt_bridge/republish" });
-      }
       await new Promise((r) => setTimeout(r, 1500));
       await this._fetchAll();
-      const linkCount = d.entity_links ? Object.keys(d.entity_links).length : 0;
-      const msg = linkCount > 0
-        ? `Device added with ${linkCount} linked sensor(s)`
+      const msg = result.links_count > 0
+        ? `Device added with ${result.links_count} linked sensor(s)`
         : "Device added via wizard";
       this._showToast(msg, "success");
     } catch (err) {
