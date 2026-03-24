@@ -821,11 +821,10 @@ async def ws_set_entity_links(
 
     # Validate no circular links (linked entity cannot be a primary with its own links)
     existing_links = dict(entry.options.get(CONF_ENTITY_LINKS, {}))
-    for role, linked_id in new_links.items():
+    for linked_id in new_links.values():
         if linked_id in existing_links:
             connection.send_error(
-                msg["id"], "circular_link",
-                f"{linked_id} is already a primary entity with links — cannot link it"
+                msg["id"], "circular_link", f"{linked_id} is already a primary entity with links — cannot link it"
             )
             return
         if linked_id == entity_id:
@@ -919,22 +918,27 @@ async def ws_suggest_links(
         if state and state.attributes:
             friendly_name = state.attributes.get("friendly_name", "")
 
-        candidates.append({
-            "entity_id": e.entity_id,
-            "domain": e.domain,
-            "device_class": dc,
-            "friendly_name": friendly_name or e.name or e.original_name or e.entity_id,
-            "suggested_role": suggested_role,
-            "compatible": compatible,
-            "currently_linked": e.entity_id in existing_links.values(),
-            "linked_role": next((r for r, eid in existing_links.items() if eid == e.entity_id), ""),
-        })
+        candidates.append(
+            {
+                "entity_id": e.entity_id,
+                "domain": e.domain,
+                "device_class": dc,
+                "friendly_name": friendly_name or e.name or e.original_name or e.entity_id,
+                "suggested_role": suggested_role,
+                "compatible": compatible,
+                "currently_linked": e.entity_id in existing_links.values(),
+                "linked_role": next((r for r, eid in existing_links.items() if eid == e.entity_id), ""),
+            }
+        )
 
-    connection.send_result(msg["id"], {
-        "candidates": candidates,
-        "allowed_roles": allowed_roles,
-        "category": primary_category,
-    })
+    connection.send_result(
+        msg["id"],
+        {
+            "candidates": candidates,
+            "allowed_roles": allowed_roles,
+            "category": primary_category,
+        },
+    )
 
 
 @websocket_api.websocket_command(
@@ -1006,10 +1010,13 @@ async def ws_auto_link_all(
         hass.config_entries.async_update_entry(entry, options=new_options)
         await hass.config_entries.async_reload(entry.entry_id)
 
-    connection.send_result(msg["id"], {
-        "linked_count": linked_count,
-        "devices_affected": sum(1 for v in all_links.values() if v),
-    })
+    connection.send_result(
+        msg["id"],
+        {
+            "linked_count": linked_count,
+            "devices_affected": sum(1 for v in all_links.values() if v),
+        },
+    )
 
 
 @websocket_api.websocket_command(
@@ -1071,9 +1078,12 @@ async def ws_add_device_wizard(
     hass.config_entries.async_update_entry(entry, options=new_options)
     await hass.config_entries.async_reload(entry.entry_id)
 
-    connection.send_result(msg["id"], {
-        "success": True,
-        "entity_id": entity_id,
-        "category": category,
-        "links_count": len(entity_links),
-    })
+    connection.send_result(
+        msg["id"],
+        {
+            "success": True,
+            "entity_id": entity_id,
+            "category": category,
+            "links_count": len(entity_links),
+        },
+    )

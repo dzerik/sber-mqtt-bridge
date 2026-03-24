@@ -104,7 +104,10 @@ class HumidifierEntity(BaseEntity):
         if self.available_modes:
             sber_modes = [HA_TO_SBER_HUMIDIFIER_MODE.get(m.lower(), m.lower()) for m in self.available_modes]
             # Deduplicate while preserving order
-            allowed["hvac_air_flow_power"] = {"type": "ENUM", "enum_values": {"values": list(dict.fromkeys(sber_modes))}}
+            allowed["hvac_air_flow_power"] = {
+                "type": "ENUM",
+                "enum_values": {"values": list(dict.fromkeys(sber_modes))},
+            }
         allowed["hvac_humidity_set"] = {
             "type": "INTEGER",
             "integer_values": {"min": "0", "max": "100", "step": "1"},
@@ -145,7 +148,10 @@ class HumidifierEntity(BaseEntity):
             )
         if self.target_humidity is not None:
             states.append(
-                {"key": "hvac_humidity_set", "value": {"type": "INTEGER", "integer_value": str(round(self.target_humidity))}}
+                {
+                    "key": "hvac_humidity_set",
+                    "value": {"type": "INTEGER", "integer_value": str(round(self.target_humidity))},
+                }
             )
         if self.mode:
             sber_mode = HA_TO_SBER_HUMIDIFIER_MODE.get(self.mode.lower(), self.mode.lower())

@@ -640,12 +640,14 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             display_name = entry.name or entry.original_name or entity_id
             key = f"override_{entity_id}"
 
-            schema_dict[vol.Optional(key, default=current, description={"suffix": f" [{auto_cat}] {display_name}{features_str}"})] = (
-                SelectSelector(
-                    SelectSelectorConfig(
-                        options=category_options,
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
+            schema_dict[
+                vol.Optional(
+                    key, default=current, description={"suffix": f" [{auto_cat}] {display_name}{features_str}"}
+                )
+            ] = SelectSelector(
+                SelectSelectorConfig(
+                    options=category_options,
+                    mode=SelectSelectorMode.DROPDOWN,
                 )
             )
 

@@ -70,9 +70,7 @@ def _check_entities_without_state(hass: HomeAssistant, bridge: SberBridge) -> No
         hass: Home Assistant core instance.
         bridge: The active SberBridge instance.
     """
-    unfilled = [
-        eid for eid, e in bridge.entities.items() if not e.is_filled_by_state
-    ]
+    unfilled = [eid for eid, e in bridge.entities.items() if not e.is_filled_by_state]
     if unfilled:
         async_create_issue(
             hass,

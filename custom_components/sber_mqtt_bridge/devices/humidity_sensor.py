@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from .simple_sensor import SimpleReadOnlySensor
@@ -55,10 +56,8 @@ class HumiditySensorEntity(SimpleReadOnlySensor):
         if role == "temperature":
             state_val = ha_state.get("state")
             if state_val not in (None, "unknown", "unavailable"):
-                try:
+                with contextlib.suppress(TypeError, ValueError):
                     self._linked_temperature = float(state_val)
-                except (TypeError, ValueError):
-                    pass
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list including temperature when linked.
@@ -80,7 +79,10 @@ class HumiditySensorEntity(SimpleReadOnlySensor):
         result = super().to_sber_current_state()
         if self._linked_temperature is not None:
             result[self.entity_id]["states"].append(
-                {"key": "temperature", "value": {"type": "INTEGER", "integer_value": str(int(self._linked_temperature * 10))}}
+                {
+                    "key": "temperature",
+                    "value": {"type": "INTEGER", "integer_value": str(int(self._linked_temperature * 10))},
+                }
             )
         return result
 

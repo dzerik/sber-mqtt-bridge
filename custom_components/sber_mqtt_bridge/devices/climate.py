@@ -162,7 +162,10 @@ class ClimateEntity(BaseEntity):
             allowed["hvac_air_flow_power"] = {"type": "ENUM", "enum_values": {"values": self.fan_modes}}
         if self.swing_modes:
             sber_swings = [HA_TO_SBER_SWING.get(m, m) for m in self.swing_modes]
-            allowed["hvac_air_flow_direction"] = {"type": "ENUM", "enum_values": {"values": list(dict.fromkeys(sber_swings))}}
+            allowed["hvac_air_flow_direction"] = {
+                "type": "ENUM",
+                "enum_values": {"values": list(dict.fromkeys(sber_swings))},
+            }
         if self.hvac_modes:
             sber_modes = [HA_TO_SBER_WORK_MODE[m] for m in self.hvac_modes if m in HA_TO_SBER_WORK_MODE]
             if sber_modes:

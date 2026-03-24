@@ -7,17 +7,16 @@ import pathlib
 from dataclasses import dataclass
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-import voluptuous as vol
-
 from .const import DOMAIN as DOMAIN
-from .sber_protocol import VERSION as INTEGRATION_VERSION
 from .custom_capabilities import parse_yaml_config
 from .sber_bridge import SberBridge
+from .sber_protocol import VERSION as INTEGRATION_VERSION
 from .websocket_api import async_setup_websocket_api
 
 _LOGGER = logging.getLogger(__name__)

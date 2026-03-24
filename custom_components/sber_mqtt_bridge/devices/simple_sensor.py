@@ -11,6 +11,7 @@ reports battery level via attributes.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from abc import abstractmethod
 from typing import ClassVar
@@ -77,15 +78,11 @@ class SimpleReadOnlySensor(BaseEntity):
         if state_val in (None, "unknown", "unavailable"):
             return
         if role == "battery":
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 self._battery_level = int(float(state_val))
-            except (TypeError, ValueError):
-                pass
         elif role == "signal_strength":
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 self._signal_strength_raw = int(float(state_val))
-            except (TypeError, ValueError):
-                pass
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update internal state including battery and signal.

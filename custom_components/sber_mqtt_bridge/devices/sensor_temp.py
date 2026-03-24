@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from .simple_sensor import SimpleReadOnlySensor
@@ -67,10 +68,8 @@ class SensorTempEntity(SimpleReadOnlySensor):
         if role == "humidity":
             state_val = ha_state.get("state")
             if state_val not in (None, "unknown", "unavailable"):
-                try:
+                with contextlib.suppress(TypeError, ValueError):
                     self._linked_humidity = round(float(state_val))
-                except (TypeError, ValueError):
-                    pass
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list including humidity and air_pressure when available.
