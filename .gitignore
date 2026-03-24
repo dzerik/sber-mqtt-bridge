@@ -37,3 +37,4 @@ mqtt_sber_gate/tests/data/devices/lights/Color_Tuning/*
 /mqtt_sber_gate/
 /scripts/
 docs/ENTITY_LINKING_PLAN.md
+.playwright-mcp
