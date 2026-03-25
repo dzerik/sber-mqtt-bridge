@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-03-25
+
+### Added
+- **sber_constants.py**: new module with StrEnum typed constants — `SberValueType`, `SberFeature` (61 feature keys), `HAState`, `MqttTopicSuffix`; eliminates raw string literals, enables IDE autocomplete
+- **HA Context propagation**: Sber commands now include HA `Context` in service calls — proper logbook attribution ("triggered by Sber Smart Home")
+- **Echo loop prevention**: state changes caused by Sber commands detected via context ID and not re-published back (bounded set, max 200)
+- **Value change diffing**: `BaseEntity.has_significant_change()` compares current Sber state with last published — skips unnecessary MQTT publishes when only irrelevant HA attributes changed; `force=True` for status_request responses
+
+### Changed
+- **All 20 device files**: migrated to Pydantic helpers (`make_state`, `make_bool_value`, `make_integer_value`, `make_enum_value`, `make_colour_value`) with `SberFeature` constants instead of inline dicts
+- **sber_models.py**: `make_integer_value()` now outputs `str(value)` per Sber C2C specification
+- **sber_bridge.py**: MQTT topic routing uses `MqttTopicSuffix` constants instead of hardcoded strings
+
 ## [1.9.1] - 2026-03-25
 
 ### Fixed

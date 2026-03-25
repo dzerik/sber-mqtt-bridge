@@ -43,6 +43,7 @@ from .const import (
 from .custom_capabilities import get_custom_config
 from .devices.base_entity import BaseEntity
 from .repairs import check_and_create_issues
+from .sber_constants import MqttTopicSuffix
 from .sber_entity_map import create_sber_entity
 from .sber_protocol import (
     build_devices_list_json,
@@ -591,17 +592,17 @@ class SberBridge:
             )
             return
 
-        if topic.endswith("/down/commands"):
+        if topic.endswith(f"/down/{MqttTopicSuffix.COMMANDS}"):
             await self._handle_sber_command(payload)
-        elif topic.endswith("/down/status_request"):
+        elif topic.endswith(f"/down/{MqttTopicSuffix.STATUS_REQUEST}"):
             await self._handle_sber_status_request(payload)
-        elif topic.endswith("/down/config_request"):
+        elif topic.endswith(f"/down/{MqttTopicSuffix.CONFIG_REQUEST}"):
             await self._handle_sber_config_request()
-        elif topic.endswith("/down/errors"):
+        elif topic.endswith(f"/down/{MqttTopicSuffix.ERRORS}"):
             self._handle_sber_error(payload)
-        elif topic.endswith("/down/change_group_device_request"):
+        elif topic.endswith(f"/down/{MqttTopicSuffix.CHANGE_GROUP}"):
             await self._handle_change_group(payload)
-        elif topic.endswith("/down/rename_device_request"):
+        elif topic.endswith(f"/down/{MqttTopicSuffix.RENAME_DEVICE}"):
             await self._handle_rename_device(payload)
         elif topic == SBER_GLOBAL_CONFIG_TOPIC:
             self._handle_global_config(payload)

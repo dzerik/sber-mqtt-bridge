@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_state
 from .on_off_entity import OnOffEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -73,9 +75,9 @@ class IntercomEntity(OnOffEntity):
         states = base[self.entity_id]["states"]
         states.extend(
             [
-                {"key": "incoming_call", "value": {"type": "BOOL", "bool_value": self._incoming_call}},
-                {"key": "reject_call", "value": {"type": "BOOL", "bool_value": self._reject_call}},
-                {"key": "unlock", "value": {"type": "BOOL", "bool_value": self._unlock}},
+                make_state(SberFeature.INCOMING_CALL, make_bool_value(self._incoming_call)),
+                make_state(SberFeature.REJECT_CALL, make_bool_value(self._reject_call)),
+                make_state(SberFeature.UNLOCK, make_bool_value(self._unlock)),
             ]
         )
         return base
