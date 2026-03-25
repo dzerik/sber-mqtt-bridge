@@ -50,16 +50,10 @@ class KettleEntity(BaseEntity):
         self.current_state = state_str not in ("off", "idle", "unavailable", "unknown")
         attrs = ha_state.get("attributes", {})
 
-        raw_temp = attrs.get("current_temperature")
-        self._current_temperature = int(raw_temp) if raw_temp is not None else None
-
-        raw_target = attrs.get("temperature")
-        self._target_temperature = int(raw_target) if raw_target is not None else None
-
+        self._current_temperature = self._safe_int(attrs.get("current_temperature"))
+        self._target_temperature = self._safe_int(attrs.get("temperature"))
         self._child_lock = bool(attrs.get("child_lock", False))
-
-        raw_level = attrs.get("water_level")
-        self._water_level = int(raw_level) if raw_level is not None else None
+        self._water_level = self._safe_int(attrs.get("water_level"))
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for kettle capabilities.

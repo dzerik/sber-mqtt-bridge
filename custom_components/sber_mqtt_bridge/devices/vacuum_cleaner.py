@@ -68,8 +68,7 @@ class VacuumCleanerEntity(BaseEntity):
         attrs = ha_state.get("attributes", {})
         self._fan_speed = attrs.get("fan_speed")
         self._fan_speed_list = attrs.get("fan_speed_list") or []
-        raw_battery = attrs.get("battery_level")
-        self._battery_level = int(raw_battery) if raw_battery is not None else None
+        self._battery_level = self._safe_int(attrs.get("battery_level"))
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for vacuum capabilities.

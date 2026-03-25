@@ -9,46 +9,12 @@ from __future__ import annotations
 import logging
 
 from .base_entity import BaseEntity
+from .hvac_fan import _SBER_SPEED_TO_PERCENTAGE, SBER_SPEED_VALUES, _percentage_to_sber_speed
 
 _LOGGER = logging.getLogger(__name__)
 
 HVAC_AIR_PURIFIER_CATEGORY = "hvac_air_purifier"
 """Sber device category for air purifier entities."""
-
-SBER_SPEED_VALUES = ["auto", "high", "low", "medium", "turbo"]
-"""Allowed Sber ENUM values for hvac_air_flow_power."""
-
-_SBER_SPEED_TO_PERCENTAGE: dict[str, int] = {
-    "low": 25,
-    "medium": 50,
-    "high": 75,
-    "turbo": 100,
-    "auto": 0,
-}
-"""Reverse mapping: Sber speed ENUM to HA percentage. 'auto' maps to 0 (turn_on)."""
-
-_PERCENTAGE_TO_SPEED = [
-    (0, "low"),
-    (34, "medium"),
-    (67, "high"),
-    (100, "turbo"),
-]
-"""Mapping thresholds from HA percentage to Sber speed ENUM."""
-
-
-def _percentage_to_sber_speed(percentage: int) -> str:
-    """Convert HA fan percentage (0-100) to Sber speed ENUM.
-
-    Args:
-        percentage: Fan speed percentage (0-100).
-
-    Returns:
-        Sber speed ENUM string.
-    """
-    for threshold, speed in reversed(_PERCENTAGE_TO_SPEED):
-        if percentage >= threshold:
-            return speed
-    return "low"
 
 
 class HvacAirPurifierEntity(BaseEntity):

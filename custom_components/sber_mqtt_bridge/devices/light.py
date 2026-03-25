@@ -268,7 +268,7 @@ class LightEntity(BaseEntity):
                 )
 
             elif cmd_key == "light_brightness":
-                sber_br_value = int(cmd_value.get("integer_value", 50))
+                sber_br_value = self._safe_int(cmd_value.get("integer_value")) or 50
                 ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
                 brightness = max(0, min(int(ha_br_value), 255))
                 processing_result.append(
