@@ -140,6 +140,7 @@ class SberWizard extends LitElement {
         type: "sber_mqtt_bridge/suggest_links",
         entity_id: entityId,
         category: this._selectedType,
+        same_device_only: true,
       });
       this._relatedSensors = result.candidates || [];
       this._allowedRoles = result.allowed_roles || [];

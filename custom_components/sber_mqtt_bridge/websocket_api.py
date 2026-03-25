@@ -851,6 +851,7 @@ async def ws_set_entity_links(
         vol.Required("type"): "sber_mqtt_bridge/suggest_links",
         vol.Required("entity_id"): str,
         vol.Optional("category"): str,
+        vol.Optional("same_device_only", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -905,6 +906,7 @@ async def ws_suggest_links(
     # Build candidates: siblings first, then compatible from other devices
     candidates: list[dict[str, Any]] = []
     primary_device_id = primary_entry.device_id
+    same_device_only = msg.get("same_device_only", False)
 
     for e in entity_reg.entities.values():
         if e.entity_id == msg["entity_id"]:
@@ -923,6 +925,11 @@ async def ws_suggest_links(
             continue
 
         same_device = bool(primary_device_id and e.device_id == primary_device_id)
+
+        # When same_device_only is set (wizard mode), skip entities from other devices
+        if same_device_only and not same_device:
+            continue
+
         compatible = suggested_role in allowed_roles if suggested_role else False
 
         state = hass.states.get(e.entity_id)
