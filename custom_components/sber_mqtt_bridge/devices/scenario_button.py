@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_enum_value, make_state
 from .base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,8 +71,8 @@ class ScenarioButtonEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
-            {"key": "button_event", "value": {"type": "ENUM", "enum_value": self.button_event}},
+            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+            make_state(SberFeature.BUTTON_EVENT, make_enum_value(self.button_event)),
         ]
         return {self.entity_id: {"states": states}}
 

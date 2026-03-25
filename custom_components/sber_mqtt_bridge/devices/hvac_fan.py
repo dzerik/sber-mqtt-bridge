@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_enum_value, make_state
 from .base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -128,12 +130,12 @@ class HvacFanEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
-            {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.current_state}},
+            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+            make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
         speed = self._get_sber_speed()
         if speed:
-            states.append({"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": speed}})
+            states.append(make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(speed)))
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:

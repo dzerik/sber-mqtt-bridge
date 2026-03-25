@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_integer_value, make_state
 from .base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -115,15 +117,15 @@ class OnOffEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
-            {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.current_state}},
+            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+            make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
         if self._power is not None:
-            states.append({"key": "power", "value": {"type": "INTEGER", "integer_value": str(self._power)}})
+            states.append(make_state(SberFeature.POWER, make_integer_value(self._power)))
         if self._voltage is not None:
-            states.append({"key": "voltage", "value": {"type": "INTEGER", "integer_value": str(self._voltage)}})
+            states.append(make_state(SberFeature.VOLTAGE, make_integer_value(self._voltage)))
         if self._current is not None:
-            states.append({"key": "current", "value": {"type": "INTEGER", "integer_value": str(self._current)}})
+            states.append(make_state(SberFeature.CURRENT, make_integer_value(self._current)))
         if self._child_lock is not None:
-            states.append({"key": "child_lock", "value": {"type": "BOOL", "bool_value": self._child_lock}})
+            states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}

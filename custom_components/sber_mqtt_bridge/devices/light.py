@@ -8,6 +8,14 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import (
+    make_bool_value,
+    make_colour_value,
+    make_enum_value,
+    make_integer_value,
+    make_state,
+)
 from .base_entity import BaseEntity
 from .utils.color_converter import ColorConverter
 from .utils.linear_converter import LinearConverter
@@ -179,16 +187,13 @@ class LightEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
-            {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.current_state}},
+            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+            make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
 
         if self.current_sber_brightness != 0:
             states.append(
-                {
-                    "key": "light_brightness",
-                    "value": {"type": "INTEGER", "integer_value": str(self.current_sber_brightness)},
-                }
+                make_state(SberFeature.LIGHT_BRIGHTNESS, make_integer_value(self.current_sber_brightness))
             )
 
         if self.current_state:
@@ -197,28 +202,18 @@ class LightEntity(BaseEntity):
                     self.hs_color[0], self.hs_color[1], self.current_sber_brightness
                 )
                 states.append(
-                    {
-                        "key": "light_colour",
-                        "value": {
-                            "type": "COLOUR",
-                            "colour_value": {
-                                "h": current_color_sber[0],
-                                "s": current_color_sber[1],
-                                "v": current_color_sber[2],
-                            },
-                        },
-                    }
+                    make_state(
+                        SberFeature.LIGHT_COLOUR,
+                        make_colour_value(current_color_sber[0], current_color_sber[1], current_color_sber[2]),
+                    )
                 )
-                states.append({"key": "light_mode", "value": {"type": "ENUM", "enum_value": "colour"}})
+                states.append(make_state(SberFeature.LIGHT_MODE, make_enum_value("colour")))
             else:
                 if self.current_sber_color_temp is not None:
                     states.append(
-                        {
-                            "key": "light_colour_temp",
-                            "value": {"type": "INTEGER", "integer_value": str(self.current_sber_color_temp)},
-                        }
+                        make_state(SberFeature.LIGHT_COLOUR_TEMP, make_integer_value(self.current_sber_color_temp))
                     )
-                states.append({"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}})
+                states.append(make_state(SberFeature.LIGHT_MODE, make_enum_value("white")))
 
         return {self.entity_id: {"states": states}}
 

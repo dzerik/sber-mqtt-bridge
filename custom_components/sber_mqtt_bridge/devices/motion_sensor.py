@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_state
 from .simple_sensor import SimpleReadOnlySensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,9 +71,7 @@ class MotionSensorEntity(SimpleReadOnlySensor):
         """
         result = super().to_sber_current_state()
         if self._tamper is not None:
-            result[self.entity_id]["states"].append(
-                {"key": "tamper_alarm", "value": {"type": "BOOL", "bool_value": self._tamper}}
-            )
+            result[self.entity_id]["states"].append(make_state(SberFeature.TAMPER_ALARM, make_bool_value(self._tamper)))
         return result
 
     def _get_sber_value(self) -> str:

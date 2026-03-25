@@ -5,6 +5,8 @@ from __future__ import annotations
 import contextlib
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_integer_value, make_state
 from .simple_sensor import SimpleReadOnlySensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -93,11 +95,11 @@ class SensorTempEntity(SimpleReadOnlySensor):
         result = super().to_sber_current_state()
         if self._linked_humidity is not None:
             result[self.entity_id]["states"].append(
-                {"key": "humidity", "value": {"type": "INTEGER", "integer_value": str(self._linked_humidity)}}
+                make_state(SberFeature.HUMIDITY, make_integer_value(self._linked_humidity))
             )
         if self._air_pressure is not None:
             result[self.entity_id]["states"].append(
-                {"key": "air_pressure", "value": {"type": "INTEGER", "integer_value": str(self._air_pressure)}}
+                make_state(SberFeature.AIR_PRESSURE, make_integer_value(self._air_pressure))
             )
         return result
 

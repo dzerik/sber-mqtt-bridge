@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -117,14 +119,14 @@ class VacuumCleanerEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
-            {"key": "vacuum_cleaner_status", "value": {"type": "ENUM", "enum_value": self._status}},
+            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+            make_state(SberFeature.VACUUM_CLEANER_STATUS, make_enum_value(self._status)),
         ]
         if self._fan_speed:
-            states.append({"key": "vacuum_cleaner_program", "value": {"type": "ENUM", "enum_value": self._fan_speed}})
+            states.append(make_state(SberFeature.VACUUM_CLEANER_PROGRAM, make_enum_value(self._fan_speed)))
         if self._battery_level is not None:
             states.append(
-                {"key": "battery_percentage", "value": {"type": "INTEGER", "integer_value": str(self._battery_level)}}
+                make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level))
             )
         return {self.entity_id: {"states": states}}
 

@@ -181,13 +181,15 @@ def make_bool_value(value: bool) -> dict[str, Any]:
 def make_integer_value(value: int) -> dict[str, Any]:
     """Create a Sber INTEGER value dict.
 
+    Per Sber C2C specification, ``integer_value`` is serialized as a string.
+
     Args:
         value: Integer value.
 
     Returns:
         Dict ready for inclusion in a Sber state payload.
     """
-    return {"type": "INTEGER", "integer_value": value}
+    return {"type": "INTEGER", "integer_value": str(value)}
 
 
 def make_enum_value(value: str) -> dict[str, Any]:

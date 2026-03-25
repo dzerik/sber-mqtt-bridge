@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,13 +89,13 @@ class TvEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
-            {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.current_state}},
-            {"key": "volume_int", "value": {"type": "INTEGER", "integer_value": str(self._volume)}},
-            {"key": "mute", "value": {"type": "BOOL", "bool_value": self._is_muted}},
+            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+            make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
+            make_state(SberFeature.VOLUME_INT, make_integer_value(self._volume)),
+            make_state(SberFeature.MUTE, make_bool_value(self._is_muted)),
         ]
         if self._source:
-            states.append({"key": "source", "value": {"type": "ENUM", "enum_value": self._source}})
+            states.append(make_state(SberFeature.SOURCE, make_enum_value(self._source)))
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:

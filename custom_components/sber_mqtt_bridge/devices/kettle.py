@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_integer_value, make_state
 from .base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -89,31 +91,25 @@ class KettleEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
-            {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.current_state}},
+            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+            make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
         if self._current_temperature is not None:
             states.append(
-                {
-                    "key": "kitchen_water_temperature",
-                    "value": {"type": "INTEGER", "integer_value": str(self._current_temperature)},
-                }
+                make_state(SberFeature.KITCHEN_WATER_TEMPERATURE, make_integer_value(self._current_temperature))
             )
             # Low water level heuristic: temperature below 30 indicates no/little water
             low_level = self._current_temperature < 30
-            states.append({"key": "kitchen_water_low_level", "value": {"type": "BOOL", "bool_value": low_level}})
+            states.append(make_state(SberFeature.KITCHEN_WATER_LOW_LEVEL, make_bool_value(low_level)))
         if self._water_level is not None:
             states.append(
-                {"key": "kitchen_water_level", "value": {"type": "INTEGER", "integer_value": str(self._water_level)}}
+                make_state(SberFeature.KITCHEN_WATER_LEVEL, make_integer_value(self._water_level))
             )
         if self._target_temperature is not None:
             states.append(
-                {
-                    "key": "kitchen_water_temperature_set",
-                    "value": {"type": "INTEGER", "integer_value": str(self._target_temperature)},
-                }
+                make_state(SberFeature.KITCHEN_WATER_TEMPERATURE_SET, make_integer_value(self._target_temperature))
             )
-        states.append({"key": "child_lock", "value": {"type": "BOOL", "bool_value": self._child_lock}})
+        states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:

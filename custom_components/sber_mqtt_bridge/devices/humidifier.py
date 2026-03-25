@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -124,26 +126,23 @@ class HumidifierEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
-            {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.current_state}},
+            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+            make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
         if self.current_humidity is not None:
             states.append(
-                {"key": "humidity", "value": {"type": "INTEGER", "integer_value": str(round(self.current_humidity))}}
+                make_state(SberFeature.HUMIDITY, make_integer_value(round(self.current_humidity)))
             )
         if self.target_humidity is not None:
             states.append(
-                {
-                    "key": "hvac_humidity_set",
-                    "value": {"type": "INTEGER", "integer_value": str(round(self.target_humidity))},
-                }
+                make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(round(self.target_humidity)))
             )
         if self.mode:
             sber_mode = HA_TO_SBER_HUMIDIFIER_MODE.get(self.mode.lower(), self.mode.lower())
-            states.append({"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": sber_mode}})
+            states.append(make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(sber_mode)))
         if self._has_night_mode:
             is_night = self.mode in ("sleep", "night")
-            states.append({"key": "hvac_night_mode", "value": {"type": "BOOL", "bool_value": is_night}})
+            states.append(make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(is_night)))
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:

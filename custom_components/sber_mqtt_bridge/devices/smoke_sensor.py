@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_state
 from .simple_sensor import SimpleReadOnlySensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,7 +66,7 @@ class SmokeSensorEntity(SimpleReadOnlySensor):
         result = super().to_sber_current_state()
         if self._alarm_mute is not None:
             result[self.entity_id]["states"].append(
-                {"key": "alarm_mute", "value": {"type": "BOOL", "bool_value": self._alarm_mute}}
+                make_state(SberFeature.ALARM_MUTE, make_bool_value(self._alarm_mute))
             )
         return result
 

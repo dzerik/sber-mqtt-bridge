@@ -10,6 +10,8 @@ from __future__ import annotations
 import contextlib
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import BaseEntity
 from .utils.signal import rssi_to_signal_strength
 
@@ -119,27 +121,24 @@ class ValveEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
-            {"key": "open_state", "value": {"type": "ENUM", "enum_value": "open" if self.is_open else "close"}},
+            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+            make_state(SberFeature.OPEN_STATE, make_enum_value("open" if self.is_open else "close")),
         ]
         if self._battery_level is not None:
             states.append(
-                {"key": "battery_percentage", "value": {"type": "INTEGER", "integer_value": str(self._battery_level)}}
+                make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level))
             )
             battery_low = self._battery_low if self._battery_low is not None else self._battery_level < 20
             states.append(
-                {"key": "battery_low_power", "value": {"type": "BOOL", "bool_value": battery_low}}
+                make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(battery_low))
             )
         elif self._battery_low is not None:
             states.append(
-                {"key": "battery_low_power", "value": {"type": "BOOL", "bool_value": self._battery_low}}
+                make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(self._battery_low))
             )
         if self._signal_strength_raw is not None:
             states.append(
-                {
-                    "key": "signal_strength",
-                    "value": {"type": "ENUM", "enum_value": rssi_to_signal_strength(self._signal_strength_raw)},
-                }
+                make_state(SberFeature.SIGNAL_STRENGTH, make_enum_value(rssi_to_signal_strength(self._signal_strength_raw)))
             )
         return {self.entity_id: {"states": states}}
 

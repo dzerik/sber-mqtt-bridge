@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -262,19 +264,16 @@ class ClimateEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
-            {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.current_state}},
+            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+            make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
         if self.temperature is not None:
             states.append(
-                {"key": "temperature", "value": {"type": "INTEGER", "integer_value": str(int(self.temperature * 10))}}
+                make_state(SberFeature.TEMPERATURE, make_integer_value(int(self.temperature * 10)))
             )
         if self.target_temperature is not None:
             states.append(
-                {
-                    "key": "hvac_temp_set",
-                    "value": {"type": "INTEGER", "integer_value": str(round(self.target_temperature))},
-                }
+                make_state(SberFeature.HVAC_TEMP_SET, make_integer_value(round(self.target_temperature)))
             )
         if self._supports_fan and self.fan_mode:
             fan_value = HA_TO_SBER_FAN_MODE.get(self.fan_mode, self.fan_mode)
@@ -283,25 +282,25 @@ class ClimateEntity(BaseEntity):
                 fan_value = "turbo"
             elif self._preset_mode == "sleep" and "quiet" not in (self.fan_modes or []):
                 fan_value = "quiet"
-            states.append({"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": fan_value}})
+            states.append(make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(fan_value)))
         if self._supports_swing and self.swing_mode:
             sber_swing = HA_TO_SBER_SWING.get(self.swing_mode, self.swing_mode)
-            states.append({"key": "hvac_air_flow_direction", "value": {"type": "ENUM", "enum_value": sber_swing}})
+            states.append(make_state(SberFeature.HVAC_AIR_FLOW_DIRECTION, make_enum_value(sber_swing)))
         if self._supports_work_mode and self.hvac_mode and self.hvac_mode != "off":
             sber_mode = HA_TO_SBER_WORK_MODE.get(self.hvac_mode)
             if sber_mode:
-                states.append({"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": sber_mode}})
+                states.append(make_state(SberFeature.HVAC_WORK_MODE, make_enum_value(sber_mode)))
         if self._supports_thermostat_mode and self.hvac_mode and self.hvac_mode != "off":
             sber_mode = HA_TO_SBER_THERMOSTAT_MODE.get(self.hvac_mode)
             if sber_mode:
-                states.append({"key": "hvac_thermostat_mode", "value": {"type": "ENUM", "enum_value": sber_mode}})
+                states.append(make_state(SberFeature.HVAC_THERMOSTAT_MODE, make_enum_value(sber_mode)))
         if self._target_humidity is not None:
             states.append(
-                {"key": "hvac_humidity_set", "value": {"type": "INTEGER", "integer_value": str(self._target_humidity)}}
+                make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(self._target_humidity))
             )
         if self._has_night_mode:
             is_night = self._preset_mode in ("sleep", "night")
-            states.append({"key": "hvac_night_mode", "value": {"type": "BOOL", "bool_value": is_night}})
+            states.append(make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(is_night)))
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:

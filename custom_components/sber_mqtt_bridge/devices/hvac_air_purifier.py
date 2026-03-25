@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberFeature
+from ..sber_models import make_bool_value, make_enum_value, make_state
 from .base_entity import BaseEntity
 from .hvac_fan import _SBER_SPEED_TO_PERCENTAGE, SBER_SPEED_VALUES, _percentage_to_sber_speed
 
@@ -120,23 +122,23 @@ class HvacAirPurifierEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            {"key": "online", "value": {"type": "BOOL", "bool_value": self._is_online}},
-            {"key": "on_off", "value": {"type": "BOOL", "bool_value": self.current_state}},
+            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+            make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
         speed = self._get_sber_speed()
         if speed:
-            states.append({"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": speed}})
+            states.append(make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(speed)))
         states.extend(
             [
-                {"key": "hvac_ionization", "value": {"type": "BOOL", "bool_value": self._ionization}},
-                {"key": "hvac_night_mode", "value": {"type": "BOOL", "bool_value": self._night_mode}},
-                {"key": "hvac_aromatization", "value": {"type": "BOOL", "bool_value": self._aromatization}},
-                {"key": "hvac_replace_filter", "value": {"type": "BOOL", "bool_value": self._replace_filter}},
-                {"key": "hvac_replace_ionizator", "value": {"type": "BOOL", "bool_value": self._replace_ionizator}},
+                make_state(SberFeature.HVAC_IONIZATION, make_bool_value(self._ionization)),
+                make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(self._night_mode)),
+                make_state(SberFeature.HVAC_AROMATIZATION, make_bool_value(self._aromatization)),
+                make_state(SberFeature.HVAC_REPLACE_FILTER, make_bool_value(self._replace_filter)),
+                make_state(SberFeature.HVAC_REPLACE_IONIZATOR, make_bool_value(self._replace_ionizator)),
             ]
         )
         if self._decontaminate:
-            states.append({"key": "hvac_decontaminate", "value": {"type": "BOOL", "bool_value": self._decontaminate}})
+            states.append(make_state(SberFeature.HVAC_DECONTAMINATE, make_bool_value(self._decontaminate)))
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:
