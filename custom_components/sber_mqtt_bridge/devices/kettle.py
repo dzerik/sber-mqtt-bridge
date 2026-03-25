@@ -37,6 +37,7 @@ class KettleEntity(BaseEntity):
         self._current_temperature: int | None = None
         self._target_temperature: int | None = None
         self._child_lock: bool = False
+        self._water_level: int | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update kettle attributes.
@@ -57,6 +58,9 @@ class KettleEntity(BaseEntity):
 
         self._child_lock = bool(attrs.get("child_lock", False))
 
+        raw_level = attrs.get("water_level")
+        self._water_level = int(raw_level) if raw_level is not None else None
+
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for kettle capabilities.
 
@@ -66,6 +70,7 @@ class KettleEntity(BaseEntity):
         features = [*super().create_features_list(), "on_off"]
         features.append("kitchen_water_temperature")
         features.append("kitchen_water_temperature_set")
+        features.append("kitchen_water_level")
         features.append("kitchen_water_low_level")
         features.append("child_lock")
         return features
@@ -113,6 +118,10 @@ class KettleEntity(BaseEntity):
             # Low water level heuristic: temperature below 30 indicates no/little water
             low_level = self._current_temperature < 30
             states.append({"key": "kitchen_water_low_level", "value": {"type": "BOOL", "bool_value": low_level}})
+        if self._water_level is not None:
+            states.append(
+                {"key": "kitchen_water_level", "value": {"type": "INTEGER", "integer_value": str(self._water_level)}}
+            )
         if self._target_temperature is not None:
             states.append(
                 {

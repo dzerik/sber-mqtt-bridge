@@ -19,13 +19,14 @@ class HvacHeaterEntity(ClimateEntity):
     'hvac_heater' category with heater-appropriate temperature
     defaults (5-40 C).
 
-    Heaters use simpler feature set: no fan, no swing, no work mode.
+    Per Sber spec, heaters support: hvac_air_flow_power, hvac_temp_set,
+    hvac_thermostat_mode, on_off, online, temperature. No swing, no work mode.
     """
 
-    _supports_fan = False
+    _supports_fan = True
     _supports_swing = False
     _supports_work_mode = False
-    _supports_thermostat_mode = False
+    _supports_thermostat_mode = True
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize HVAC heater entity.

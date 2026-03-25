@@ -387,9 +387,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             return "No entities exposed yet"
 
         entity_reg = er.async_get(self.hass)
-        overrides = dict(
-            self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
-        )
+        overrides = dict(self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}))
 
         cat_counts: dict[str, int] = {}
         for entity_id in exposed:
@@ -417,9 +415,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             return "No entities exposed yet. Add entities first."
 
         entity_reg = er.async_get(self.hass)
-        overrides = dict(
-            self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
-        )
+        overrides = dict(self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}))
 
         by_category: dict[str, list[str]] = {}
         for entity_id in sorted(exposed):
@@ -449,9 +445,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
 
         return "\n".join(lines)
 
-    async def async_step_entity_preview(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_entity_preview(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Show entity → Sber device type preview."""
         if user_input is not None:
             return await self.async_step_init()

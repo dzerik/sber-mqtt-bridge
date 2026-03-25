@@ -53,7 +53,7 @@ class LightEntity(BaseEntity):
 
         self.brightness_converter = LinearConverter()
         self.brightness_converter.set_ha_limits(0, 255)
-        self.brightness_converter.set_sber_limits(50, 1000)
+        self.brightness_converter.set_sber_limits(100, 900)
 
         self.color_temp_converter = LinearConverter()
         self.color_temp_converter.set_reversed(True)
@@ -107,6 +107,8 @@ class LightEntity(BaseEntity):
 
         if COLOR_MODES & set(self.supported_color_modes):
             features += ["light_colour", "light_mode", "light_brightness"]
+        elif "brightness" in self.supported_color_modes:
+            features.append("light_brightness")
         if "color_temp" in self.supported_color_modes:
             features.append("light_colour_temp")
 
@@ -121,12 +123,23 @@ class LightEntity(BaseEntity):
         allowed_values: dict[str, dict] = {}
 
         if COLOR_MODES & set(self.supported_color_modes):
-            allowed_values["light_brightness"] = {"type": "INTEGER", "integer_values": {"min": 50, "max": 1000}}
+            allowed_values["light_brightness"] = {
+                "type": "INTEGER",
+                "integer_values": {"min": "100", "max": "900", "step": "1"},
+            }
             allowed_values["light_colour"] = {"type": "COLOUR"}
             allowed_values["light_mode"] = {"type": "ENUM", "enum_values": {"values": ["white", "colour"]}}
+        elif "brightness" in self.supported_color_modes:
+            allowed_values["light_brightness"] = {
+                "type": "INTEGER",
+                "integer_values": {"min": "100", "max": "900", "step": "1"},
+            }
 
         if "color_temp" in self.supported_color_modes:
-            allowed_values["light_colour_temp"] = {"type": "INTEGER", "integer_values": {"min": 0, "max": 1000}}
+            allowed_values["light_colour_temp"] = {
+                "type": "INTEGER",
+                "integer_values": {"min": "0", "max": "1000", "step": "1"},
+            }
 
         return allowed_values
 
@@ -149,7 +162,7 @@ class LightEntity(BaseEntity):
             res["model"]["dependencies"] = {
                 "light_colour": {
                     "key": "light_mode",
-                    "values": [{"type": "ENUM", "enum_value": "colour"}],
+                    "value": [{"type": "ENUM", "enum_value": "colour"}],
                 },
             }
 

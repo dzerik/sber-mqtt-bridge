@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-03-25
+
+### Fixed
+- **light**: `light_brightness` allowed_values now `min=100, max=900, step=1` per Sber spec (was `min=50, max=1000`, no step)
+- **light**: dependencies key `"values"` renamed to `"value"` per Sber C2C specification
+- **light**: brightness-only lamps (no color) now correctly report `light_brightness` feature
+- **hvac_heater**: restored `hvac_air_flow_power` and `hvac_thermostat_mode` features per Sber spec (were incorrectly disabled)
+- **hvac_radiator/boiler/underfloor**: temperature step now matches Sber spec (`step=5` instead of `step=1`)
+- **kettle**: added missing `kitchen_water_level` feature per Sber spec
+- **climate**: `temp_step` parameter added to `ClimateEntity.__init__` for per-category temperature step
+
 ## [1.8.0] - 2026-03-25
 
 ### Fixed

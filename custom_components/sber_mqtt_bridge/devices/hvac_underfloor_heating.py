@@ -39,4 +39,5 @@ class HvacUnderfloorEntity(ClimateEntity):
             category=HVAC_UNDERFLOOR_CATEGORY,
             min_temp=25.0,
             max_temp=50.0,
+            temp_step=5,
         )

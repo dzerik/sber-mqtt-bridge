@@ -87,6 +87,7 @@ class ClimateEntity(BaseEntity):
         category: str = CLIMATE_CATEGORY,
         min_temp: float = 16.0,
         max_temp: float = 32.0,
+        temp_step: int = 1,
     ) -> None:
         """Initialize climate entity.
 
@@ -95,8 +96,10 @@ class ClimateEntity(BaseEntity):
             category: Sber device category (override in subclasses).
             min_temp: Minimum temperature default.
             max_temp: Maximum temperature default.
+            temp_step: Temperature step for allowed_values (Sber spec varies by category).
         """
         super().__init__(category, entity_data)
+        self.temp_step = temp_step
         self.current_state = False
         self.temperature = None
         self.target_temperature = None
@@ -200,13 +203,16 @@ class ClimateEntity(BaseEntity):
         if self._supports_thermostat_mode and self.hvac_modes:
             sber_modes = [HA_TO_SBER_THERMOSTAT_MODE[m] for m in self.hvac_modes if m in HA_TO_SBER_THERMOSTAT_MODE]
             if sber_modes:
-                allowed["hvac_thermostat_mode"] = {"type": "ENUM", "enum_values": {"values": list(dict.fromkeys(sber_modes))}}
+                allowed["hvac_thermostat_mode"] = {
+                    "type": "ENUM",
+                    "enum_values": {"values": list(dict.fromkeys(sber_modes))},
+                }
         allowed["hvac_temp_set"] = {
             "type": "INTEGER",
             "integer_values": {
                 "min": str(int(self.min_temp)),
                 "max": str(int(self.max_temp)),
-                "step": "1",
+                "step": str(self.temp_step),
             },
         }
         return allowed
@@ -369,47 +375,47 @@ class ClimateEntity(BaseEntity):
                 sber_swing = value.get("enum_value")
                 ha_swing = SBER_TO_HA_SWING.get(sber_swing or "") if sber_swing else None
                 if ha_swing and (not self.swing_modes or ha_swing in self.swing_modes):
-                        results.append(
-                            {
-                                "url": {
-                                    "type": "call_service",
-                                    "domain": "climate",
-                                    "service": "set_swing_mode",
-                                    "service_data": {"swing_mode": ha_swing},
-                                    "target": {"entity_id": self.entity_id},
-                                }
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "climate",
+                                "service": "set_swing_mode",
+                                "service_data": {"swing_mode": ha_swing},
+                                "target": {"entity_id": self.entity_id},
                             }
-                        )
+                        }
+                    )
             elif key == "hvac_work_mode":
                 sber_mode = value.get("enum_value")
                 ha_mode = SBER_TO_HA_WORK_MODE.get(sber_mode or "") if sber_mode else None
                 if ha_mode and (not self.hvac_modes or ha_mode in self.hvac_modes):
-                        results.append(
-                            {
-                                "url": {
-                                    "type": "call_service",
-                                    "domain": "climate",
-                                    "service": "set_hvac_mode",
-                                    "service_data": {"hvac_mode": ha_mode},
-                                    "target": {"entity_id": self.entity_id},
-                                }
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "climate",
+                                "service": "set_hvac_mode",
+                                "service_data": {"hvac_mode": ha_mode},
+                                "target": {"entity_id": self.entity_id},
                             }
-                        )
+                        }
+                    )
             elif key == "hvac_thermostat_mode":
                 sber_mode = value.get("enum_value")
                 ha_mode = SBER_TO_HA_THERMOSTAT_MODE.get(sber_mode or "") if sber_mode else None
                 if ha_mode and (not self.hvac_modes or ha_mode in self.hvac_modes):
-                        results.append(
-                            {
-                                "url": {
-                                    "type": "call_service",
-                                    "domain": "climate",
-                                    "service": "set_hvac_mode",
-                                    "service_data": {"hvac_mode": ha_mode},
-                                    "target": {"entity_id": self.entity_id},
-                                }
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "climate",
+                                "service": "set_hvac_mode",
+                                "service_data": {"hvac_mode": ha_mode},
+                                "target": {"entity_id": self.entity_id},
                             }
-                        )
+                        }
+                    )
             elif key == "hvac_humidity_set":
                 humidity = self._safe_int(value.get("integer_value"))
                 if humidity is None:

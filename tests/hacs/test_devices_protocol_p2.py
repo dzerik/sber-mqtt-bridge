@@ -115,7 +115,7 @@ class TestLightDependencies(unittest.TestCase):
         self.assertIn("light_colour", deps)
         self.assertEqual(deps["light_colour"]["key"], "light_mode")
         self.assertEqual(
-            deps["light_colour"]["values"],
+            deps["light_colour"]["value"],
             [{"type": "ENUM", "enum_value": "colour"}],
         )
 

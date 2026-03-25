@@ -39,4 +39,5 @@ class HvacBoilerEntity(ClimateEntity):
             category=HVAC_BOILER_CATEGORY,
             min_temp=25.0,
             max_temp=80.0,
+            temp_step=5,
         )

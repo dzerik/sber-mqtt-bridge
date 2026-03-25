@@ -83,8 +83,8 @@ class TestLightFillByHaState(unittest.TestCase):
         """None brightness is treated as 0."""
         entity = LightEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(brightness=None))
-        # brightness=0 => sber_brightness should be min (50)
-        self.assertEqual(entity.current_sber_brightness, 50)
+        # brightness=0 => sber_brightness should be min (100)
+        self.assertEqual(entity.current_sber_brightness, 100)
 
     def test_fill_none_color_temp(self):
         """None color_temp sets sber_color_temp to None."""
