@@ -70,6 +70,7 @@ class BaseEntity(ABC):
         self.partner_meta: dict[str, str] = {}
         self.extra_features: list[str] = []
         self.removed_features: list[str] = []
+        self._linked_entities: dict[str, str] = {}
 
         if entity_data:
             self.area_id = entity_data.get("area_id", "")
@@ -280,6 +281,40 @@ class BaseEntity(ABC):
             True if the entity state indicates it is reachable.
         """
         return self.state not in ("unavailable", "unknown", None)
+
+    @staticmethod
+    def _safe_float(value: object) -> float | None:
+        """Safely convert a value to float.
+
+        Args:
+            value: Value to convert (can be str, int, float, or None).
+
+        Returns:
+            Float value, or None if conversion fails.
+        """
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _safe_int(value: object) -> int | None:
+        """Safely convert a value to int (via float to handle "22.5" strings).
+
+        Args:
+            value: Value to convert (can be str, int, float, or None).
+
+        Returns:
+            Integer value, or None if conversion fails.
+        """
+        if value is None:
+            return None
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return None
 
     def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
         """Handle a state change event from Home Assistant.

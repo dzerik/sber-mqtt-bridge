@@ -134,7 +134,10 @@ class TvEntity(BaseEntity):
                 raw = value.get("integer_value")
                 if raw is None:
                     continue
-                ha_volume = int(raw) / 100.0
+                vol = self._safe_int(raw)
+                if vol is None:
+                    continue
+                ha_volume = vol / 100.0
                 results.append(
                     {
                         "url": {

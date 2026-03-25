@@ -295,7 +295,7 @@ class TestClimateProcessCmd(unittest.TestCase):
     def test_cmd_hvac_mode_valid(self):
         entity = self._make_entity()
         result = entity.process_cmd({
-            "states": [{"key": "hvac_work_mode", "value": {"enum_value": "heat"}}]
+            "states": [{"key": "hvac_work_mode", "value": {"enum_value": "heating"}}]
         })
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_hvac_mode")

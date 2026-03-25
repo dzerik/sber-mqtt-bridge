@@ -157,7 +157,7 @@ class KettleEntity(BaseEntity):
                             "type": "call_service",
                             "domain": domain,
                             "service": "set_temperature",
-                            "service_data": {"temperature": int(raw)},
+                            "service_data": {"temperature": self._safe_int(raw) or 0},
                             "target": {"entity_id": self.entity_id},
                         }
                     }

@@ -66,7 +66,7 @@ class HumidifierEntity(BaseEntity):
         attrs = ha_state.get("attributes", {})
         self.target_humidity = attrs.get("humidity")
         self.current_humidity = attrs.get("current_humidity")
-        self.available_modes = attrs.get("available_modes", [])
+        self.available_modes = attrs.get("available_modes") or []
         self.mode = attrs.get("mode")
 
     def create_features_list(self) -> list[str]:
@@ -197,7 +197,7 @@ class HumidifierEntity(BaseEntity):
                             "type": "call_service",
                             "domain": "humidifier",
                             "service": "set_humidity",
-                            "service_data": {"humidity": int(raw_humidity)},
+                            "service_data": {"humidity": self._safe_int(raw_humidity) or 0},
                             "target": {"entity_id": self.entity_id},
                         }
                     }

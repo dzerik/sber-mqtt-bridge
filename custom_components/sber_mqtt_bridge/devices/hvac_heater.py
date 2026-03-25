@@ -15,10 +15,17 @@ HVAC_HEATER_CATEGORY = "hvac_heater"
 class HvacHeaterEntity(ClimateEntity):
     """Sber HVAC heater entity for space heater devices.
 
-    Inherits all climate behavior but registers under the Sber
+    Inherits climate behavior but registers under the Sber
     'hvac_heater' category with heater-appropriate temperature
     defaults (5-40 C).
+
+    Heaters use simpler feature set: no fan, no swing, no work mode.
     """
+
+    _supports_fan = False
+    _supports_swing = False
+    _supports_work_mode = False
+    _supports_thermostat_mode = False
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize HVAC heater entity.

@@ -45,6 +45,20 @@ HA_TO_SBER_SWING: dict[str, str] = {
 SBER_TO_HA_SWING: dict[str, str] = {v: k for k, v in HA_TO_SBER_SWING.items()}
 """Reverse mapping: Sber swing → HA swing_mode."""
 
+# HA hvac_mode → Sber hvac_thermostat_mode mapping (for boiler, underfloor, heater)
+HA_TO_SBER_THERMOSTAT_MODE: dict[str, str] = {
+    "heat": "heating",
+    "auto": "auto",
+    "heat_cool": "auto",
+}
+"""Map HA HVAC modes to Sber thermostat mode enum values (simpler devices)."""
+
+SBER_TO_HA_THERMOSTAT_MODE: dict[str, str] = {
+    "heating": "heat",
+    "auto": "auto",
+}
+"""Reverse mapping: Sber thermostat mode → HA hvac_mode."""
+
 
 class ClimateEntity(BaseEntity):
     """Sber climate entity for air conditioner control.
@@ -54,7 +68,18 @@ class ClimateEntity(BaseEntity):
     - Temperature reading and target temperature setting
     - Fan mode, swing mode, and HVAC work mode selection
     - Allowed values for dynamic enum features
+
+    Subclasses override class-level flags to restrict features per Sber spec:
+    - ``_supports_fan``: include hvac_air_flow_power (default True for AC)
+    - ``_supports_swing``: include hvac_air_flow_direction (default True for AC)
+    - ``_supports_work_mode``: include hvac_work_mode (default True for AC)
+    - ``_supports_thermostat_mode``: include hvac_thermostat_mode (default False)
     """
+
+    _supports_fan: bool = True
+    _supports_swing: bool = True
+    _supports_work_mode: bool = True
+    _supports_thermostat_mode: bool = False
 
     def __init__(
         self,
@@ -99,16 +124,16 @@ class ClimateEntity(BaseEntity):
         super().fill_by_ha_state(ha_state)
         self.current_state = ha_state.get("state", "off") != "off"
         attrs = ha_state.get("attributes", {})
-        self.temperature = attrs.get("current_temperature")
-        self.target_temperature = attrs.get("temperature")
-        self.fan_modes = attrs.get("fan_modes", [])
-        self.swing_modes = attrs.get("swing_modes", [])
-        self.hvac_modes = attrs.get("hvac_modes", [])
+        self.temperature = self._safe_float(attrs.get("current_temperature"))
+        self.target_temperature = self._safe_float(attrs.get("temperature"))
+        self.fan_modes = attrs.get("fan_modes") or []
+        self.swing_modes = attrs.get("swing_modes") or []
+        self.hvac_modes = attrs.get("hvac_modes") or []
         self.fan_mode = attrs.get("fan_mode")
         self.swing_mode = attrs.get("swing_mode")
         self.hvac_mode = ha_state.get("state")
-        self.min_temp = attrs.get("min_temp", 16.0)
-        self.max_temp = attrs.get("max_temp", 32.0)
+        self.min_temp = self._safe_float(attrs.get("min_temp")) or 16.0
+        self.max_temp = self._safe_float(attrs.get("max_temp")) or 32.0
         target_humidity = attrs.get("target_humidity")
         if target_humidity is not None:
             try:
@@ -130,12 +155,14 @@ class ClimateEntity(BaseEntity):
             List of Sber feature strings supported by this entity.
         """
         features = [*super().create_features_list(), "on_off", "temperature", "hvac_temp_set"]
-        if self.swing_modes:
+        if self._supports_swing and self.swing_modes:
             features.append("hvac_air_flow_direction")
-        if self.fan_modes:
+        if self._supports_fan and self.fan_modes:
             features.append("hvac_air_flow_power")
-        if self.hvac_modes:
+        if self._supports_work_mode and self.hvac_modes:
             features.append("hvac_work_mode")
+        if self._supports_thermostat_mode and self.hvac_modes:
+            features.append("hvac_thermostat_mode")
         if self._target_humidity is not None:
             features.append("hvac_humidity_set")
         if self._has_night_mode:
@@ -158,19 +185,22 @@ class ClimateEntity(BaseEntity):
             Dict mapping feature key to its allowed values descriptor.
         """
         allowed: dict[str, dict] = {}
-        if self.fan_modes:
+        if self._supports_fan and self.fan_modes:
             allowed["hvac_air_flow_power"] = {"type": "ENUM", "enum_values": {"values": self.fan_modes}}
-        if self.swing_modes:
+        if self._supports_swing and self.swing_modes:
             sber_swings = [HA_TO_SBER_SWING.get(m, m) for m in self.swing_modes]
             allowed["hvac_air_flow_direction"] = {
                 "type": "ENUM",
                 "enum_values": {"values": list(dict.fromkeys(sber_swings))},
             }
-        if self.hvac_modes:
+        if self._supports_work_mode and self.hvac_modes:
             sber_modes = [HA_TO_SBER_WORK_MODE[m] for m in self.hvac_modes if m in HA_TO_SBER_WORK_MODE]
             if sber_modes:
-                # Deduplicate (heat_cool and auto both map to "auto")
                 allowed["hvac_work_mode"] = {"type": "ENUM", "enum_values": {"values": list(dict.fromkeys(sber_modes))}}
+        if self._supports_thermostat_mode and self.hvac_modes:
+            sber_modes = [HA_TO_SBER_THERMOSTAT_MODE[m] for m in self.hvac_modes if m in HA_TO_SBER_THERMOSTAT_MODE]
+            if sber_modes:
+                allowed["hvac_thermostat_mode"] = {"type": "ENUM", "enum_values": {"values": list(dict.fromkeys(sber_modes))}}
         allowed["hvac_temp_set"] = {
             "type": "INTEGER",
             "integer_values": {
@@ -224,7 +254,7 @@ class ClimateEntity(BaseEntity):
                     "value": {"type": "INTEGER", "integer_value": str(round(self.target_temperature))},
                 }
             )
-        if self.fan_mode:
+        if self._supports_fan and self.fan_mode:
             fan_value = self.fan_mode
             # Map HA preset modes to Sber air flow power values
             if self._preset_mode == "boost":
@@ -232,12 +262,17 @@ class ClimateEntity(BaseEntity):
             elif self._preset_mode == "sleep" and "quiet" not in (self.fan_modes or []):
                 fan_value = "quiet"
             states.append({"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": fan_value}})
-        if self.swing_mode:
+        if self._supports_swing and self.swing_mode:
             sber_swing = HA_TO_SBER_SWING.get(self.swing_mode, self.swing_mode)
             states.append({"key": "hvac_air_flow_direction", "value": {"type": "ENUM", "enum_value": sber_swing}})
-        if self.hvac_mode and self.hvac_mode != "off":
-            sber_mode = HA_TO_SBER_WORK_MODE.get(self.hvac_mode, self.hvac_mode)
-            states.append({"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": sber_mode}})
+        if self._supports_work_mode and self.hvac_mode and self.hvac_mode != "off":
+            sber_mode = HA_TO_SBER_WORK_MODE.get(self.hvac_mode)
+            if sber_mode:
+                states.append({"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": sber_mode}})
+        if self._supports_thermostat_mode and self.hvac_mode and self.hvac_mode != "off":
+            sber_mode = HA_TO_SBER_THERMOSTAT_MODE.get(self.hvac_mode)
+            if sber_mode:
+                states.append({"key": "hvac_thermostat_mode", "value": {"type": "ENUM", "enum_value": sber_mode}})
         if self._target_humidity is not None:
             states.append(
                 {"key": "hvac_humidity_set", "value": {"type": "INTEGER", "integer_value": str(self._target_humidity)}}
@@ -278,10 +313,9 @@ class ClimateEntity(BaseEntity):
                 results.append(self._build_on_off_service_call(self.entity_id, "climate", on))
             elif key == "hvac_temp_set":
                 raw_temp = value.get("integer_value")
-                if raw_temp is None:
+                temp = self._safe_float(raw_temp)
+                if temp is None:
                     continue
-                # Sber sends hvac_temp_set as whole degrees (no x10 scaling)
-                temp = float(int(raw_temp))
                 results.append(
                     {
                         "url": {
@@ -333,9 +367,8 @@ class ClimateEntity(BaseEntity):
                     )
             elif key == "hvac_air_flow_direction":
                 sber_swing = value.get("enum_value")
-                if sber_swing:
-                    ha_swing = SBER_TO_HA_SWING.get(sber_swing, sber_swing)
-                    if not self.swing_modes or ha_swing in self.swing_modes:
+                ha_swing = SBER_TO_HA_SWING.get(sber_swing or "") if sber_swing else None
+                if ha_swing and (not self.swing_modes or ha_swing in self.swing_modes):
                         results.append(
                             {
                                 "url": {
@@ -349,9 +382,23 @@ class ClimateEntity(BaseEntity):
                         )
             elif key == "hvac_work_mode":
                 sber_mode = value.get("enum_value")
-                if sber_mode:
-                    ha_mode = SBER_TO_HA_WORK_MODE.get(sber_mode, sber_mode)
-                    if not self.hvac_modes or ha_mode in self.hvac_modes:
+                ha_mode = SBER_TO_HA_WORK_MODE.get(sber_mode or "") if sber_mode else None
+                if ha_mode and (not self.hvac_modes or ha_mode in self.hvac_modes):
+                        results.append(
+                            {
+                                "url": {
+                                    "type": "call_service",
+                                    "domain": "climate",
+                                    "service": "set_hvac_mode",
+                                    "service_data": {"hvac_mode": ha_mode},
+                                    "target": {"entity_id": self.entity_id},
+                                }
+                            }
+                        )
+            elif key == "hvac_thermostat_mode":
+                sber_mode = value.get("enum_value")
+                ha_mode = SBER_TO_HA_THERMOSTAT_MODE.get(sber_mode or "") if sber_mode else None
+                if ha_mode and (not self.hvac_modes or ha_mode in self.hvac_modes):
                         results.append(
                             {
                                 "url": {
@@ -364,8 +411,8 @@ class ClimateEntity(BaseEntity):
                             }
                         )
             elif key == "hvac_humidity_set":
-                raw_humidity = value.get("integer_value")
-                if raw_humidity is None:
+                humidity = self._safe_int(value.get("integer_value"))
+                if humidity is None:
                     continue
                 results.append(
                     {
@@ -373,7 +420,7 @@ class ClimateEntity(BaseEntity):
                             "type": "call_service",
                             "domain": "climate",
                             "service": "set_humidity",
-                            "service_data": {"humidity": int(raw_humidity)},
+                            "service_data": {"humidity": humidity},
                             "target": {"entity_id": self.entity_id},
                         }
                     }

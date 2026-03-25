@@ -8,15 +8,15 @@
  * No build step required.
  */
 
-import "./components/sber-device-table.js?v=1.6.2";
-import "./components/sber-status-card.js?v=1.6.2";
-import "./components/sber-stats-grid.js?v=1.6.2";
-import "./components/sber-add-dialog.js?v=1.6.2";
-import "./components/sber-toolbar.js?v=1.6.2";
-import "./components/sber-wizard.js?v=1.6.2";
-import "./components/sber-toast.js?v=1.6.2";
-import "./components/sber-devtools.js?v=1.6.2";
-import "./components/sber-link-dialog.js?v=1.6.2";
+import "./components/sber-device-table.js?v=1.8.0";
+import "./components/sber-status-card.js?v=1.8.0";
+import "./components/sber-stats-grid.js?v=1.8.0";
+import "./components/sber-add-dialog.js?v=1.8.0";
+import "./components/sber-toolbar.js?v=1.8.0";
+import "./components/sber-wizard.js?v=1.8.0";
+import "./components/sber-toast.js?v=1.8.0";
+import "./components/sber-devtools.js?v=1.8.0";
+import "./components/sber-link-dialog.js?v=1.8.0";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")

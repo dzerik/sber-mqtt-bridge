@@ -15,10 +15,18 @@ HVAC_BOILER_CATEGORY = "hvac_boiler"
 class HvacBoilerEntity(ClimateEntity):
     """Sber HVAC boiler entity for water heater devices.
 
-    Inherits all climate behavior but registers under the Sber
+    Inherits climate behavior but registers under the Sber
     'hvac_boiler' category with boiler-appropriate temperature
     defaults (25-80 C).
+
+    Per Sber spec, boilers use ``hvac_thermostat_mode`` (NOT ``hvac_work_mode``).
+    Fan and swing features are disabled.
     """
+
+    _supports_fan = False
+    _supports_swing = False
+    _supports_work_mode = False
+    _supports_thermostat_mode = True
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize HVAC boiler entity.

@@ -2,7 +2,7 @@
  * Sber MQTT Bridge — Entity Link Dialog.
  *
  * Modal dialog for managing entity links on an existing exposed device.
- * Shows related entities from the same physical device with compatibility info.
+ * Shows related entities grouped by same-device / other devices with compatibility info.
  * Fires "links-saved" event when links are updated.
  */
 
@@ -24,6 +24,7 @@ class SberLinkDialog extends LitElement {
       _selected: { type: Object },
       _loading: { type: Boolean },
       _saving: { type: Boolean },
+      _error: { type: String },
     };
   }
 
@@ -41,6 +42,7 @@ class SberLinkDialog extends LitElement {
     this._selected = {};
     this._loading = false;
     this._saving = false;
+    this._error = "";
   }
 
   async show(entityId) {
@@ -57,6 +59,7 @@ class SberLinkDialog extends LitElement {
   async _loadCandidates() {
     if (!this.hass || !this._entityId) return;
     this._loading = true;
+    this._error = "";
     try {
       const result = await this.hass.callWS({
         type: "sber_mqtt_bridge/suggest_links",
@@ -73,8 +76,9 @@ class SberLinkDialog extends LitElement {
         }
       }
       this._selected = sel;
-    } catch {
+    } catch (e) {
       this._candidates = [];
+      this._error = e.message || "Failed to load candidates";
     } finally {
       this._loading = false;
     }
@@ -121,6 +125,45 @@ class SberLinkDialog extends LitElement {
     }
   }
 
+  _renderCandidateRow(c) {
+    return html`
+      <div class="candidate-row ${!c.compatible ? 'incompatible' : ''}">
+        <input
+          type="checkbox"
+          .checked=${!!this._selected[c.entity_id]}
+          ?disabled=${!c.compatible}
+          @change=${() => this._toggle(c.entity_id)}
+        />
+        <div class="candidate-info">
+          <div class="candidate-name">${c.friendly_name}</div>
+          <div class="candidate-id">${c.entity_id}</div>
+        </div>
+        <span class="role-badge ${c.compatible ? 'compatible' : ''}">${c.suggested_role || c.device_class || "?"}</span>
+        ${!c.compatible && c.device_class ? html`<span class="not-supported">not supported</span>` : ""}
+      </div>
+    `;
+  }
+
+  _renderCandidates() {
+    if (this._loading) return html`<div class="empty">Loading...</div>`;
+    if (this._error) return html`<div class="empty error-text">${this._error}</div>`;
+    if (this._candidates.length === 0) return html`<div class="empty">No compatible entities found.</div>`;
+
+    const sameDevice = this._candidates.filter(c => c.same_device);
+    const otherDevices = this._candidates.filter(c => !c.same_device);
+
+    return html`
+      ${sameDevice.length > 0 ? html`
+        <div class="section-label">Same device</div>
+        ${sameDevice.map(c => this._renderCandidateRow(c))}
+      ` : ""}
+      ${otherDevices.length > 0 ? html`
+        <div class="section-label">${sameDevice.length > 0 ? "Other devices" : "Available entities"}</div>
+        ${otherDevices.map(c => this._renderCandidateRow(c))}
+      ` : ""}
+    `;
+  }
+
   static get styles() {
     return css`
       :host { display: none; }
@@ -152,6 +195,11 @@ class SberLinkDialog extends LitElement {
       .info {
         font-size: 13px; color: var(--secondary-text-color); margin-bottom: 12px;
       }
+      .section-label {
+        font-size: 11px; font-weight: 600; text-transform: uppercase;
+        color: var(--secondary-text-color); margin: 12px 0 4px; letter-spacing: 0.5px;
+      }
+      .section-label:first-child { margin-top: 0; }
       .candidate-row {
         display: flex; align-items: center; gap: 10px;
         padding: 8px 0; border-bottom: 1px solid var(--divider-color, #f0f0f0);
@@ -175,6 +223,7 @@ class SberLinkDialog extends LitElement {
       .not-supported {
         font-size: 11px; color: var(--error-color, #f44336);
       }
+      .error-text { color: var(--error-color, #f44336); }
       .empty { text-align: center; padding: 24px; color: var(--secondary-text-color); font-style: italic; }
       .dialog-footer {
         display: flex; align-items: center; justify-content: flex-end;
@@ -209,24 +258,7 @@ class SberLinkDialog extends LitElement {
               Select related entities to link as features of this device.
             </div>
 
-            ${this._loading ? html`<div class="empty">Loading...</div>`
-              : this._candidates.length === 0 ? html`<div class="empty">No related entities found on this device.</div>`
-              : this._candidates.map((c) => html`
-                <div class="candidate-row ${!c.compatible ? 'incompatible' : ''}">
-                  <input
-                    type="checkbox"
-                    .checked=${!!this._selected[c.entity_id]}
-                    ?disabled=${!c.compatible}
-                    @change=${() => this._toggle(c.entity_id)}
-                  />
-                  <div class="candidate-info">
-                    <div class="candidate-name">${c.friendly_name}</div>
-                    <div class="candidate-id">${c.entity_id}</div>
-                  </div>
-                  <span class="role-badge ${c.compatible ? 'compatible' : ''}">${c.suggested_role || c.device_class || "?"}</span>
-                  ${!c.compatible && c.device_class ? html`<span class="not-supported">not supported</span>` : ""}
-                </div>
-              `)}
+            ${this._renderCandidates()}
           </div>
 
           <div class="dialog-footer">

@@ -15,10 +15,18 @@ HVAC_RADIATOR_CATEGORY = "hvac_radiator"
 class HvacRadiatorEntity(ClimateEntity):
     """Sber HVAC radiator entity for heating devices.
 
-    Inherits all climate behavior but registers under the Sber
+    Inherits climate behavior but registers under the Sber
     'hvac_radiator' category with radiator-appropriate temperature
     defaults (25-40 C).
+
+    Per Sber spec, radiators only support: on_off, online, temperature, hvac_temp_set.
+    Fan, swing, and work mode features are disabled.
     """
+
+    _supports_fan = False
+    _supports_swing = False
+    _supports_work_mode = False
+    _supports_thermostat_mode = False
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize HVAC radiator entity.

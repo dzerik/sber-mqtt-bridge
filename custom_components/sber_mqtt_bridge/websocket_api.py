@@ -859,21 +859,23 @@ async def ws_suggest_links(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Suggest linkable entities for a primary entity based on shared device_id.
+    """Suggest linkable entities for a primary entity.
 
-    Returns candidates with their device_class, suggested role, and compatibility.
+    First returns siblings on the same HA device, then compatible entities
+    from other devices (marked ``same_device: false``) so users can link
+    battery/signal sensors even when HA splits them into separate devices.
 
     Args:
         hass: Home Assistant core instance.
         connection: Active WebSocket connection.
-        msg: Message with ``entity_id`` (primary).
+        msg: Message with ``entity_id`` (primary) and optional ``category``.
     """
     bridge = _get_bridge(hass)
     entity_reg = er.async_get(hass)
     primary_entry = entity_reg.async_get(msg["entity_id"])
 
-    if not primary_entry or not primary_entry.device_id:
-        connection.send_result(msg["id"], {"candidates": []})
+    if not primary_entry:
+        connection.send_result(msg["id"], {"candidates": [], "allowed_roles": [], "category": ""})
         return
 
     # Determine primary category: explicit param > bridge > auto-detect
@@ -895,15 +897,16 @@ async def ws_suggest_links(
 
     allowed_roles = ALLOWED_LINK_ROLES.get(primary_category, [])
 
-    # Find siblings on the same device
-    candidates: list[dict[str, Any]] = []
-    existing_links = {}
+    # Collect existing links for pre-selection
+    existing_links: dict[str, str] = {}
     if bridge:
         existing_links = bridge.entity_links.get(msg["entity_id"], {})
 
+    # Build candidates: siblings first, then compatible from other devices
+    candidates: list[dict[str, Any]] = []
+    primary_device_id = primary_entry.device_id
+
     for e in entity_reg.entities.values():
-        if e.device_id != primary_entry.device_id:
-            continue
         if e.entity_id == msg["entity_id"]:
             continue
         if e.disabled:
@@ -911,6 +914,11 @@ async def ws_suggest_links(
 
         dc = e.original_device_class or ""
         suggested_role = HA_DEVICE_CLASS_TO_LINK_ROLE.get(dc, "")
+        # Skip entities that don't map to any link role (unless already linked)
+        if not suggested_role and e.entity_id not in existing_links.values():
+            continue
+
+        same_device = bool(primary_device_id and e.device_id == primary_device_id)
         compatible = suggested_role in allowed_roles if suggested_role else False
 
         state = hass.states.get(e.entity_id)
@@ -926,10 +934,14 @@ async def ws_suggest_links(
                 "friendly_name": friendly_name or e.name or e.original_name or e.entity_id,
                 "suggested_role": suggested_role,
                 "compatible": compatible,
+                "same_device": same_device,
                 "currently_linked": e.entity_id in existing_links.values(),
                 "linked_role": next((r for r, eid in existing_links.items() if eid == e.entity_id), ""),
             }
         )
+
+    # Sort: same-device first, then compatible first, then by name
+    candidates.sort(key=lambda c: (not c["same_device"], not c["compatible"], c["friendly_name"]))
 
     connection.send_result(
         msg["id"],

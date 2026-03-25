@@ -15,10 +15,18 @@ HVAC_UNDERFLOOR_CATEGORY = "hvac_underfloor_heating"
 class HvacUnderfloorEntity(ClimateEntity):
     """Sber HVAC underfloor heating entity.
 
-    Inherits all climate behavior but registers under the Sber
+    Inherits climate behavior but registers under the Sber
     'hvac_underfloor_heating' category with underfloor-appropriate
     temperature defaults (25-50 C).
+
+    Per Sber spec, underfloor heating uses ``hvac_thermostat_mode`` (NOT ``hvac_work_mode``).
+    Fan and swing features are disabled.
     """
+
+    _supports_fan = False
+    _supports_swing = False
+    _supports_work_mode = False
+    _supports_thermostat_mode = True
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize HVAC underfloor heating entity.

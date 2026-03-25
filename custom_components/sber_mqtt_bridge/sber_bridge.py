@@ -744,10 +744,10 @@ class SberBridge:
         # which is entity_id (e.g. "light.living_room").
         entity_id = data.get("device_id")
         if entity_id:
-            self._redefinitions[entity_id] = {
-                "home": data.get("home"),
-                "room": data.get("room"),
-            }
+            existing = self._redefinitions.get(entity_id, {})
+            existing["home"] = data.get("home")
+            existing["room"] = data.get("room")
+            self._redefinitions[entity_id] = existing
             self._persist_redefinitions()
             _LOGGER.info("Sber group change stored: %s → room=%s", entity_id, data.get("room"))
 

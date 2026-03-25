@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-03-25
+
+### Fixed
+- **HVAC radiator/boiler/underfloor**: removed incorrect `hvac_work_mode` and `hvac_air_flow_power` features per Sber spec; boiler and underfloor now use `hvac_thermostat_mode` instead of `hvac_work_mode`
+- **Entity linking**: `suggest_links` now returns candidates from ALL devices (not just same device), grouped by `same_device` flag; fixes linking battery/signal sensors from different HA devices
+- **Link dialog**: error messages now shown instead of silent "No related entities" on WS failure
+- **Type safety**: all `int()`/`float()` conversions in `process_cmd` wrapped with `_safe_int()`/`_safe_float()` — prevents crashes on malformed Sber payloads (light, curtain, climate, humidifier, tv, kettle)
+- **None-safety**: `attrs.get("fan_modes", [])` → `or []` pattern across climate, light, humidifier — prevents crash when HA sends explicit `null`
+- **Enum passthrough**: `hvac_work_mode`, `hvac_air_flow_direction` no longer pass unknown values to Sber/HA — only mapped enums accepted
+- **sber_protocol.py**: `parse_sber_status_request` handles `devices: null` without crash
+- **sber_bridge.py**: `_linked_entities` moved to BaseEntity — prevents AttributeError when linking non-sensor entities
+- **sber_bridge.py**: `_handle_change_group` now merges redefinitions instead of overwriting (preserves device name)
+- **Test fix**: `test_cmd_hvac_mode_valid` now sends Sber enum `"heating"` instead of HA value `"heat"`
+
+### Added
+- `BaseEntity._safe_float()` and `BaseEntity._safe_int()` static helper methods for defensive type conversion
+- Class-level feature flags on ClimateEntity: `_supports_fan`, `_supports_swing`, `_supports_work_mode`, `_supports_thermostat_mode`
+- `HA_TO_SBER_THERMOSTAT_MODE` / `SBER_TO_HA_THERMOSTAT_MODE` mapping dicts in climate.py
+- `_create_media_player()` factory function in sber_entity_map.py (documents speaker/receiver → tv mapping)
+- Link dialog: "Same device" / "Other devices" section grouping for candidates
+- `docs/ENTITY_REGISTRY.md` — full entity reference
+- `docs/AUDIT_REPORT.md` — Sber protocol compliance audit
+
 ## [1.7.0] - 2026-03-25
 
 ### Added

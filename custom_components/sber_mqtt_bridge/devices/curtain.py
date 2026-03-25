@@ -116,7 +116,7 @@ class CurtainEntity(BaseEntity):
                 continue
 
             if key in ("open_percentage", "cover_position"):
-                ha_position = int(value.get("integer_value", 0))
+                ha_position = self._safe_int(value.get("integer_value")) or 0
                 ha_position = max(0, min(100, ha_position))
                 processing_result.append(
                     {

@@ -15,7 +15,7 @@ from .sber_models import validate_config_payload, validate_status_payload
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.7.0"
+VERSION = "1.8.0"
 """Protocol version string included in the hub device descriptor."""
 
 
@@ -165,10 +165,12 @@ def parse_sber_status_request(payload: bytes | str) -> list[str]:
     Returns list of requested entity_ids (empty = all).
     """
     try:
-        data = json.loads(payload).get("devices", [])
-    except (json.JSONDecodeError, AttributeError):
+        data = json.loads(payload).get("devices") or []
+    except (json.JSONDecodeError, AttributeError, TypeError):
         return []
     else:
+        if not isinstance(data, list):
+            return []
         if len(data) == 1 and data[0] == "":
             return []
         return data

@@ -226,6 +226,26 @@ def _create_fan(entity_data: dict) -> BaseEntity:
     return HvacFanEntity(entity_data)
 
 
+def _create_media_player(entity_data: dict) -> BaseEntity:
+    """Create a Sber media player entity.
+
+    All HA media_player device classes (tv, speaker, receiver) map to Sber 'tv'
+    category — Sber protocol has no separate speaker/receiver categories.
+    Smart speakers (e.g. Yandex Station) get the same on_off/volume/mute/source
+    features as TVs.
+
+    Args:
+        entity_data: HA entity registry dict with 'original_device_class' key.
+
+    Returns:
+        TvEntity for all media player types.
+    """
+    dc = entity_data.get("original_device_class", "")
+    if dc and dc != "tv":
+        _LOGGER.debug("Media player device_class=%s maps to Sber 'tv' category", dc)
+    return TvEntity(entity_data)
+
+
 ENTITY_CONSTRUCTORS: dict[str, Callable] = {
     "light": lambda data: LightEntity(data),
     "cover": _create_cover,
@@ -240,7 +260,7 @@ ENTITY_CONSTRUCTORS: dict[str, Callable] = {
     "humidifier": lambda data: HumidifierEntity(data),
     "fan": _create_fan,
     "water_heater": _create_water_heater,
-    "media_player": lambda data: TvEntity(data),
+    "media_player": _create_media_player,
     "vacuum": lambda data: VacuumCleanerEntity(data),
 }
 """Mapping of HA domain names to Sber entity constructor callables."""

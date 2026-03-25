@@ -40,3 +40,4 @@ mqtt_sber_gate/
 # Internal docs (not published)
 docs/ENTITY_LINKING_PLAN.md
 docs/audit/
+/build/

@@ -88,7 +88,7 @@ class LightEntity(BaseEntity):
 
         self.current_color_mode = attrs.get("color_mode")
         self.supported_features = attrs.get("supported_features", 0)
-        self.supported_color_modes = attrs.get("supported_color_modes", [])
+        self.supported_color_modes = attrs.get("supported_color_modes") or []
 
         self.hs_color = attrs.get("hs_color")
         self.rgb_color = attrs.get("rgb_color")
@@ -313,7 +313,7 @@ class LightEntity(BaseEntity):
                 processing_result.append({"update_state": True})
 
             elif cmd_key == "light_colour_temp":
-                sber_color_temp = int(cmd_value.get("integer_value") or 0)
+                sber_color_temp = self._safe_int(cmd_value.get("integer_value")) or 0
                 ha_color_temp = self.color_temp_converter.sber_to_ha(sber_color_temp)
                 processing_result.append(
                     {
