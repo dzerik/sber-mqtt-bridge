@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from .base_entity import BaseEntity
@@ -43,7 +44,8 @@ class CurtainEntity(BaseEntity):
         """
         super().__init__(category, entity_data)
         self.current_position = 0
-        self._battery_level = 100
+        self._battery_level: int | None = None
+        self._battery_low: bool | None = None
         self._signal_strength_raw: int | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
@@ -65,6 +67,13 @@ class CurtainEntity(BaseEntity):
         else:
             self.current_position = 100 if self.state == "opened" else 0
 
+        battery = attrs.get("battery") or attrs.get("battery_level")
+        if battery is not None:
+            try:
+                self._battery_level = int(battery)
+            except (TypeError, ValueError):
+                self._battery_level = None
+
         rssi = attrs.get("signal_strength") or attrs.get("rssi") or attrs.get("linkquality")
         if rssi is not None:
             try:
@@ -73,6 +82,25 @@ class CurtainEntity(BaseEntity):
                 self._signal_strength_raw = None
         else:
             self._signal_strength_raw = None
+
+    def update_linked_data(self, role: str, ha_state: dict) -> None:
+        """Inject data from a linked entity (battery, battery_low, signal).
+
+        Args:
+            role: Link role name.
+            ha_state: HA state dict with 'state'.
+        """
+        state_val = ha_state.get("state")
+        if state_val in (None, "unknown", "unavailable"):
+            return
+        if role == "battery":
+            with contextlib.suppress(TypeError, ValueError):
+                self._battery_level = int(float(state_val))
+        elif role == "battery_low":
+            self._battery_low = state_val == "on"
+        elif role == "signal_strength":
+            with contextlib.suppress(TypeError, ValueError):
+                self._signal_strength_raw = int(float(state_val))
 
     def _convert_position(self, ha_position: int) -> int:
         """Convert HA position (0-100) to Sber position (0-100).
@@ -183,6 +211,9 @@ class CurtainEntity(BaseEntity):
             "open_set",
             "open_state",
         ]
+        if self._battery_level is not None or self._battery_low is not None:
+            features.append("battery_percentage")
+            features.append("battery_low_power")
         if self._signal_strength_raw is not None:
             features.append("signal_strength")
         return features
@@ -240,6 +271,19 @@ class CurtainEntity(BaseEntity):
                 "value": {"type": "ENUM", "enum_value": open_state},
             }
         )
+
+        if self._battery_level is not None:
+            states.append(
+                {"key": "battery_percentage", "value": {"type": "INTEGER", "integer_value": str(self._battery_level)}}
+            )
+            battery_low = self._battery_low if self._battery_low is not None else self._battery_level < 20
+            states.append(
+                {"key": "battery_low_power", "value": {"type": "BOOL", "bool_value": battery_low}}
+            )
+        elif self._battery_low is not None:
+            states.append(
+                {"key": "battery_low_power", "value": {"type": "BOOL", "bool_value": self._battery_low}}
+            )
 
         if self._signal_strength_raw is not None:
             states.append(

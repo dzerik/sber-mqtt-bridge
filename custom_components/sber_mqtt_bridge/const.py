@@ -60,24 +60,27 @@ ALLOWED_LINK_ROLES: dict[str, list[str]] = {
     "sensor_gas": ["battery", "battery_low", "signal_strength"],
     "sensor_temp": ["battery", "battery_low", "signal_strength", "humidity"],
     "sensor_humidity": ["battery", "battery_low", "signal_strength", "temperature"],
+    "curtain": ["battery", "battery_low", "signal_strength"],
+    "window_blind": ["battery", "battery_low", "signal_strength"],
+    "gate": ["battery", "battery_low", "signal_strength"],
+    "valve": ["battery", "battery_low", "signal_strength"],
     "hvac_ac": ["temperature"],
     "hvac_humidifier": ["humidity"],
 }
 """Map Sber category to list of linkable roles."""
 
-# HA device_class → link role (domain-aware: binary_sensor.battery → battery_low)
+# HA device_class → link role (domain-aware overrides in ws_suggest_links)
 HA_DEVICE_CLASS_TO_LINK_ROLE: dict[str, str] = {
     "battery": "battery",
     "temperature": "temperature",
     "humidity": "humidity",
-    "moisture": "humidity",
     "signal_strength": "signal_strength",
 }
 """Map HA sensor device_class to entity link role name.
 
-Note: for binary_sensor domain with battery device_class, the role is
-overridden to 'battery_low' in ws_suggest_links to distinguish from
-sensor.battery (percentage) vs binary_sensor.battery_low (boolean).
+Note: binary_sensor domain overrides are applied in ws_suggest_links:
+- battery → battery_low (binary_sensor is bool, not percentage)
+- moisture is excluded (it's a leak sensor, not humidity)
 """
 
 SUPPORTED_DOMAINS = [
