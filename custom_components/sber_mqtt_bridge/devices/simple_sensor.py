@@ -64,6 +64,7 @@ class SimpleReadOnlySensor(BaseEntity):
         """
         super().__init__(category, entity_data)
         self._battery_level: int | None = None
+        self._battery_low_linked: bool | None = None
         self._signal_strength_raw: int | None = None
         self._linked_entities: dict[str, str] = {}
         """Linked entity IDs by role: {role: entity_id}."""
@@ -72,7 +73,7 @@ class SimpleReadOnlySensor(BaseEntity):
         """Inject data from a linked entity into this sensor.
 
         Args:
-            role: Link role name (battery, signal_strength, humidity, temperature).
+            role: Link role name (battery, battery_low, signal_strength, humidity, temperature).
             ha_state: HA state dict with 'state' and 'attributes'.
         """
         state_val = ha_state.get("state")
@@ -81,6 +82,8 @@ class SimpleReadOnlySensor(BaseEntity):
         if role == "battery":
             with contextlib.suppress(TypeError, ValueError):
                 self._battery_level = int(float(state_val))
+        elif role == "battery_low":
+            self._battery_low_linked = state_val == "on"
         elif role == "signal_strength":
             with contextlib.suppress(TypeError, ValueError):
                 self._signal_strength_raw = int(float(state_val))
@@ -139,7 +142,7 @@ class SimpleReadOnlySensor(BaseEntity):
             List of Sber feature strings supported by this entity.
         """
         features = [*super().create_features_list(), self._sber_value_key]
-        if self._battery_level is not None:
+        if self._battery_level is not None or self._battery_low_linked is not None:
             features.append("battery_percentage")
             features.append("battery_low_power")
         if self._signal_strength_raw is not None:
@@ -160,8 +163,15 @@ class SimpleReadOnlySensor(BaseEntity):
             states.append(
                 {"key": "battery_percentage", "value": {"type": "INTEGER", "integer_value": str(self._battery_level)}}
             )
+            # Use linked binary_sensor if available, otherwise derive from percentage
+            battery_low = self._battery_low_linked if self._battery_low_linked is not None else self._battery_level < 20
             states.append(
-                {"key": "battery_low_power", "value": {"type": "BOOL", "bool_value": self._battery_level < 20}}
+                {"key": "battery_low_power", "value": {"type": "BOOL", "bool_value": battery_low}}
+            )
+        elif self._battery_low_linked is not None:
+            # Only linked battery_low binary_sensor, no percentage sensor
+            states.append(
+                {"key": "battery_low_power", "value": {"type": "BOOL", "bool_value": self._battery_low_linked}}
             )
         if self._signal_strength_raw is not None:
             states.append(

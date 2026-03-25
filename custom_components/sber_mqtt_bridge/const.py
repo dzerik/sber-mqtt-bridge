@@ -53,19 +53,19 @@ CONF_ENTITY_LINKS = "entity_links"
 
 # Allowed link roles per Sber category (based on Sber docs: developers.sber.ru/docs/ru/smarthome/c2c/)
 ALLOWED_LINK_ROLES: dict[str, list[str]] = {
-    "sensor_water_leak": ["battery", "signal_strength"],
-    "sensor_pir": ["battery", "signal_strength"],
-    "sensor_door": ["battery", "signal_strength"],
-    "sensor_smoke": ["battery", "signal_strength"],
-    "sensor_gas": ["battery", "signal_strength"],
-    "sensor_temp": ["battery", "signal_strength", "humidity"],
-    "sensor_humidity": ["battery", "signal_strength", "temperature"],
+    "sensor_water_leak": ["battery", "battery_low", "signal_strength"],
+    "sensor_pir": ["battery", "battery_low", "signal_strength"],
+    "sensor_door": ["battery", "battery_low", "signal_strength"],
+    "sensor_smoke": ["battery", "battery_low", "signal_strength"],
+    "sensor_gas": ["battery", "battery_low", "signal_strength"],
+    "sensor_temp": ["battery", "battery_low", "signal_strength", "humidity"],
+    "sensor_humidity": ["battery", "battery_low", "signal_strength", "temperature"],
     "hvac_ac": ["temperature"],
     "hvac_humidifier": ["humidity"],
 }
 """Map Sber category to list of linkable roles."""
 
-# HA device_class → link role
+# HA device_class → link role (domain-aware: binary_sensor.battery → battery_low)
 HA_DEVICE_CLASS_TO_LINK_ROLE: dict[str, str] = {
     "battery": "battery",
     "temperature": "temperature",
@@ -73,7 +73,12 @@ HA_DEVICE_CLASS_TO_LINK_ROLE: dict[str, str] = {
     "moisture": "humidity",
     "signal_strength": "signal_strength",
 }
-"""Map HA sensor device_class to entity link role name."""
+"""Map HA sensor device_class to entity link role name.
+
+Note: for binary_sensor domain with battery device_class, the role is
+overridden to 'battery_low' in ws_suggest_links to distinguish from
+sensor.battery (percentage) vs binary_sensor.battery_low (boolean).
+"""
 
 SUPPORTED_DOMAINS = [
     "light",

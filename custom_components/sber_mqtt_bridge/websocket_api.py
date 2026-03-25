@@ -914,6 +914,10 @@ async def ws_suggest_links(
 
         dc = e.original_device_class or ""
         suggested_role = HA_DEVICE_CLASS_TO_LINK_ROLE.get(dc, "")
+        # binary_sensor with battery class → battery_low (boolean low-battery flag)
+        # sensor with battery class → battery (percentage level)
+        if suggested_role == "battery" and e.domain == "binary_sensor":
+            suggested_role = "battery_low"
         # Skip entities that don't map to any link role (unless already linked)
         if not suggested_role and e.entity_id not in existing_links.values():
             continue
