@@ -357,7 +357,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                             options=[
                                 SelectOptionDict(
                                     value="preview",
-                                    label=f"🔍 Entity type preview ({exposed_count})",
+                                    label=f"Entity type preview ({exposed_count})",
                                 ),
                                 SelectOptionDict(
                                     value="panel",

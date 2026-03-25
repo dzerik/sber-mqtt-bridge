@@ -30,7 +30,6 @@ SENSOR_ENTITY_DATA = {
     "entity_id": "sensor.temp",
     "name": "Temperature",
     "original_name": "Temp",
-    "device_id": "dev2",
     "area_id": "room1",
 }
 

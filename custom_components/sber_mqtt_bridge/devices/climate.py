@@ -59,6 +59,33 @@ SBER_TO_HA_THERMOSTAT_MODE: dict[str, str] = {
 }
 """Reverse mapping: Sber thermostat mode → HA hvac_mode."""
 
+# HA fan_mode → Sber hvac_air_flow_power mapping
+# Sber standard values: auto, low, medium, high, turbo, quiet
+HA_TO_SBER_FAN_MODE: dict[str, str] = {
+    "auto": "auto",
+    "low": "low",
+    "medium": "medium",
+    "mid": "medium",
+    "high": "high",
+    "turbo": "turbo",
+    "quiet": "quiet",
+    "silent": "quiet",
+    "sleep": "quiet",
+    "strong": "turbo",
+    "boost": "turbo",
+    "max": "turbo",
+    "min": "low",
+    "1": "quiet",
+    "2": "low",
+    "3": "medium",
+    "4": "high",
+    "5": "turbo",
+}
+"""Map HA fan modes to Sber air flow power enum values."""
+
+SBER_TO_HA_FAN_MODE: dict[str, str] = {}
+"""Reverse mapping populated dynamically per-device from available fan_modes."""
+
 
 class ClimateEntity(BaseEntity):
     """Sber climate entity for air conditioner control.
@@ -189,7 +216,11 @@ class ClimateEntity(BaseEntity):
         """
         allowed: dict[str, dict] = {}
         if self._supports_fan and self.fan_modes:
-            allowed["hvac_air_flow_power"] = {"type": "ENUM", "enum_values": {"values": self.fan_modes}}
+            sber_fans = [HA_TO_SBER_FAN_MODE.get(m, m) for m in self.fan_modes]
+            allowed["hvac_air_flow_power"] = {
+                "type": "ENUM",
+                "enum_values": {"values": list(dict.fromkeys(sber_fans))},
+            }
         if self._supports_swing and self.swing_modes:
             sber_swings = [HA_TO_SBER_SWING.get(m, m) for m in self.swing_modes]
             allowed["hvac_air_flow_direction"] = {
@@ -216,19 +247,6 @@ class ClimateEntity(BaseEntity):
             },
         }
         return allowed
-
-    def to_sber_state(self) -> dict:
-        """Build full Sber device descriptor including allowed values.
-
-        Overrides base to inject allowed_values into the model.
-        Features are already populated by ``super().to_sber_state()``.
-
-        Returns:
-            Sber device descriptor dict with model, features, and allowed_values.
-        """
-        res = super().to_sber_state()
-        res["model"]["allowed_values"] = self.create_allowed_values_list()
-        return res
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with all climate attributes.
@@ -261,7 +279,7 @@ class ClimateEntity(BaseEntity):
                 }
             )
         if self._supports_fan and self.fan_mode:
-            fan_value = self.fan_mode
+            fan_value = HA_TO_SBER_FAN_MODE.get(self.fan_mode, self.fan_mode)
             # Map HA preset modes to Sber air flow power values
             if self._preset_mode == "boost":
                 fan_value = "turbo"
@@ -334,20 +352,28 @@ class ClimateEntity(BaseEntity):
                     }
                 )
             elif key == "hvac_air_flow_power":
-                mode = value.get("enum_value")
-                if mode and (not self.fan_modes or mode in self.fan_modes):
+                sber_mode = value.get("enum_value")
+                if not sber_mode:
+                    continue
+                # Reverse map: find HA fan_mode that maps to this Sber mode
+                ha_fan = sber_mode
+                for fm in self.fan_modes:
+                    if HA_TO_SBER_FAN_MODE.get(fm, fm) == sber_mode:
+                        ha_fan = fm
+                        break
+                if ha_fan and (not self.fan_modes or ha_fan in self.fan_modes):
                     results.append(
                         {
                             "url": {
                                 "type": "call_service",
                                 "domain": "climate",
                                 "service": "set_fan_mode",
-                                "service_data": {"fan_mode": mode},
+                                "service_data": {"fan_mode": ha_fan},
                                 "target": {"entity_id": self.entity_id},
                             }
                         }
                     )
-                elif mode == "turbo" and "boost" in (self._preset_modes or []):
+                elif sber_mode == "turbo" and "boost" in (self._preset_modes or []):
                     results.append(
                         {
                             "url": {
@@ -359,7 +385,7 @@ class ClimateEntity(BaseEntity):
                             }
                         }
                     )
-                elif mode == "quiet" and "sleep" in (self._preset_modes or []):
+                elif sber_mode == "quiet" and "sleep" in (self._preset_modes or []):
                     results.append(
                         {
                             "url": {

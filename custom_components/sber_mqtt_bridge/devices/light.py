@@ -26,7 +26,7 @@ class LightEntity(BaseEntity):
 
     Maps HA light entities to the Sber 'light' category with support for:
     - On/off control
-    - Brightness (scaled 0-255 HA ↔ 50-1000 Sber)
+    - Brightness (scaled 0-255 HA ↔ 100-900 Sber)
     - Color temperature (mireds ↔ 0-1000 Sber, reversed)
     - RGB color via HSV conversion
     - Light mode (white / colour)
@@ -143,30 +143,21 @@ class LightEntity(BaseEntity):
 
         return allowed_values
 
-    def to_sber_state(self) -> dict:
-        """Build full Sber device descriptor including allowed values and dependencies.
-
-        Features are already populated by ``super().to_sber_state()``.
-        Adds ``allowed_values`` and ``dependencies`` (light_colour depends on
-        light_mode == "colour") when appropriate.
+    def create_dependencies(self) -> dict[str, dict]:
+        """Return light_colour → light_mode dependency when both features exist.
 
         Returns:
-            Sber device descriptor dict with model, features, allowed_values,
-            and optionally dependencies.
+            Dependencies dict for Sber model descriptor.
         """
-        res = super().to_sber_state()
-        res["model"]["allowed_values"] = self.create_allowed_values_list()
-
-        features = res["model"]["features"]
+        features = self.create_features_list()
         if "light_colour" in features and "light_mode" in features:
-            res["model"]["dependencies"] = {
+            return {
                 "light_colour": {
                     "key": "light_mode",
                     "value": [{"type": "ENUM", "enum_value": "colour"}],
                 },
             }
-
-        return res
+        return {}
 
     def _is_current_color_mode_colored(self) -> bool:
         """Check if the current color mode is a colored (non-white) mode.
@@ -301,7 +292,7 @@ class LightEntity(BaseEntity):
                         max(0, min(hsv_color.get("v", 0), 1000)),
                     )
                 else:
-                    color = ColorConverter.ha_to_sber_hsv(0, 0, 0)
+                    color = (0, 0, 0)
 
                 processing_result.append(
                     {
@@ -320,10 +311,46 @@ class LightEntity(BaseEntity):
 
             elif cmd_key == "light_mode":
                 # light_mode is a Sber-only concept — HA doesn't have it.
-                # Must be tracked locally to report correct state back to Sber.
+                # To actually switch the lamp's mode, send current color or
+                # color_temp to HA so it transitions into the requested mode.
                 mode_value = cmd_value.get("enum_value")
-                self.current_color_mode = "xy" if mode_value == "colour" else "white"
-                processing_result.append({"update_state": True})
+                if mode_value == "colour":
+                    self.current_color_mode = "hs"
+                    # Force HA into color mode by sending current hs_color
+                    if isinstance(self.hs_color, list) and len(self.hs_color) >= 2:
+                        processing_result.append(
+                            {
+                                "url": {
+                                    "type": "call_service",
+                                    "domain": "light",
+                                    "service": "turn_on",
+                                    "service_data": {
+                                        "hs_color": [self.hs_color[0], self.hs_color[1]],
+                                    },
+                                    "target": {"entity_id": self.entity_id},
+                                }
+                            }
+                        )
+                    else:
+                        processing_result.append({"update_state": True})
+                else:
+                    self.current_color_mode = "color_temp"
+                    # Force HA into white mode by sending current color_temp
+                    if self.current_sber_color_temp is not None:
+                        ha_ct = self.color_temp_converter.sber_to_ha(self.current_sber_color_temp)
+                        processing_result.append(
+                            {
+                                "url": {
+                                    "type": "call_service",
+                                    "domain": "light",
+                                    "service": "turn_on",
+                                    "service_data": {"color_temp": ha_ct},
+                                    "target": {"entity_id": self.entity_id},
+                                }
+                            }
+                        )
+                    else:
+                        processing_result.append({"update_state": True})
 
             elif cmd_key == "light_colour_temp":
                 sber_color_temp = self._safe_int(cmd_value.get("integer_value")) or 0

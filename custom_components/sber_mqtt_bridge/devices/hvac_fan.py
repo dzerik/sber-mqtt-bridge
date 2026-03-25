@@ -14,10 +14,11 @@ _LOGGER = logging.getLogger(__name__)
 HVAC_FAN_CATEGORY = "hvac_fan"
 """Sber device category for fan entities."""
 
-SBER_SPEED_VALUES = ["auto", "high", "low", "medium", "turbo"]
-"""Allowed Sber ENUM values for hvac_air_flow_power."""
+SBER_SPEED_VALUES = ["auto", "high", "low", "medium", "quiet", "turbo"]
+"""Allowed Sber ENUM values for hvac_air_flow_power (per Sber C2C spec)."""
 
 _SBER_SPEED_TO_PERCENTAGE: dict[str, int] = {
+    "quiet": 10,
     "low": 25,
     "medium": 50,
     "high": 75,
@@ -27,10 +28,11 @@ _SBER_SPEED_TO_PERCENTAGE: dict[str, int] = {
 """Reverse mapping: Sber speed ENUM to HA percentage. 'auto' maps to 0 (turn_on)."""
 
 _PERCENTAGE_TO_SPEED = [
-    (0, "low"),
-    (34, "medium"),
+    (0, "quiet"),
+    (20, "low"),
+    (40, "medium"),
     (67, "high"),
-    (100, "turbo"),
+    (90, "turbo"),
 ]
 """Mapping thresholds from HA percentage to Sber speed ENUM."""
 
@@ -118,16 +120,6 @@ class HvacFanEntity(BaseEntity):
                 "enum_values": {"values": SBER_SPEED_VALUES},
             }
         }
-
-    def to_sber_state(self) -> dict:
-        """Build full Sber device descriptor including allowed values.
-
-        Returns:
-            Sber device descriptor dict with model, features, and allowed_values.
-        """
-        res = super().to_sber_state()
-        res["model"]["allowed_values"] = self.create_allowed_values_list()
-        return res
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with fan attributes.

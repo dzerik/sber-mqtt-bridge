@@ -322,25 +322,40 @@ class TestLightProcessCmd(unittest.TestCase):
         })
         self.assertEqual(len(result), 1)
 
-    def test_cmd_light_mode_colour(self):
-        """light_mode=colour sets color_mode to xy and returns update_state."""
+    def test_cmd_light_mode_colour_no_hs(self):
+        """light_mode=colour without hs_color returns update_state fallback."""
         entity = self._make_entity()
+        entity.hs_color = None  # Clear hs_color to test fallback
         result = entity.process_cmd({
             "states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "colour"}}]
         })
         self.assertEqual(len(result), 1)
         self.assertIn("update_state", result[0])
-        self.assertTrue(result[0]["update_state"])
-        self.assertEqual(entity.current_color_mode, "xy")
+        self.assertEqual(entity.current_color_mode, "hs")
+
+    def test_cmd_light_mode_colour_with_hs(self):
+        """light_mode=colour with hs_color sends turn_on with hs_color."""
+        entity = self._make_entity()
+        entity.hs_color = [120.0, 80.0]
+        result = entity.process_cmd({
+            "states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "colour"}}]
+        })
+        self.assertEqual(len(result), 1)
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "turn_on")
+        self.assertEqual(url["service_data"]["hs_color"], [120.0, 80.0])
+        self.assertEqual(entity.current_color_mode, "hs")
 
     def test_cmd_light_mode_white(self):
-        """light_mode=white sets color_mode to white."""
+        """light_mode=white sends turn_on with color_temp to switch HA mode."""
         entity = self._make_entity()
         result = entity.process_cmd({
             "states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}}]
         })
-        self.assertEqual(entity.current_color_mode, "white")
-        self.assertIn("update_state", result[0])
+        self.assertEqual(entity.current_color_mode, "color_temp")
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "turn_on")
+        self.assertIn("color_temp", url["service_data"])
 
     def test_cmd_light_colour_temp_when_on(self):
         """light_colour_temp generates turn_on with color_temp."""

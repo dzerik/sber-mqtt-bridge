@@ -121,6 +121,30 @@ class BaseEntity(ABC):
         """
         return ["online"]
 
+    def create_allowed_values_list(self) -> dict[str, dict]:
+        """Return allowed values map for Sber model descriptor.
+
+        Override in subclasses to provide allowed_values for features
+        that require INTEGER ranges or ENUM value lists.
+
+        Returns:
+            Dict mapping feature key to its allowed values descriptor,
+            or empty dict if no allowed values needed.
+        """
+        return {}
+
+    def create_dependencies(self) -> dict[str, dict]:
+        """Return feature dependencies map for Sber model descriptor.
+
+        Override in subclasses to declare feature dependencies
+        (e.g., light_colour depends on light_mode == 'colour').
+
+        Returns:
+            Dict mapping feature key to its dependency descriptor,
+            or empty dict if no dependencies needed.
+        """
+        return {}
+
     def get_final_features_list(self) -> list[str]:
         """Return features list with user overrides applied.
 
@@ -205,6 +229,14 @@ class BaseEntity(ABC):
                 "hw_version": self.linked_device["hw_version"],
                 "sw_version": self.linked_device["sw_version"],
             }
+
+        # Inject allowed_values and dependencies from subclass hooks
+        allowed = self.create_allowed_values_list()
+        if allowed:
+            res["model"]["allowed_values"] = allowed
+        deps = self.create_dependencies()
+        if deps:
+            res["model"]["dependencies"] = deps
 
         if self.nicknames:
             res["nicknames"] = self.nicknames

@@ -17,6 +17,7 @@ from abc import abstractmethod
 from typing import ClassVar
 
 from .base_entity import BaseEntity
+from .utils.signal import rssi_to_signal_strength
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -145,22 +146,6 @@ class SimpleReadOnlySensor(BaseEntity):
             features.append("signal_strength")
         return features
 
-    @staticmethod
-    def _rssi_to_signal_strength(rssi: int) -> str:
-        """Convert raw RSSI/linkquality value to Sber signal_strength enum.
-
-        Args:
-            rssi: Raw RSSI (dBm, typically negative) or linkquality value.
-
-        Returns:
-            Sber enum string: 'high', 'medium', or 'low'.
-        """
-        if rssi > -50:
-            return "high"
-        if rssi > -70:
-            return "medium"
-        return "low"
-
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with online, value, battery, and signal keys.
 
@@ -182,7 +167,7 @@ class SimpleReadOnlySensor(BaseEntity):
             states.append(
                 {
                     "key": "signal_strength",
-                    "value": {"type": "ENUM", "enum_value": self._rssi_to_signal_strength(self._signal_strength_raw)},
+                    "value": {"type": "ENUM", "enum_value": rssi_to_signal_strength(self._signal_strength_raw)},
                 }
             )
         return {self.entity_id: {"states": states}}

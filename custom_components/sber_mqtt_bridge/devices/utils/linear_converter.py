@@ -21,21 +21,13 @@ class LinearConverter:
         is_reversed: Whether the Sber range is inverted relative to the HA range.
     """
 
-    sber_side_min: int = 0
-    sber_side_max: int = 1000
-    ha_side_min: int = 0
-    ha_side_max: int = 255
-
-    is_reversed: bool = False  # Нужна ли инверсия интервала sber относительно интервала ha
-
-    @classmethod
-    def create(cls) -> LinearConverter:
-        """Create a new LinearConverter instance with default ranges.
-
-        Returns:
-            A new LinearConverter with default Sber (0-1000) and HA (0-255) ranges.
-        """
-        return LinearConverter()
+    def __init__(self) -> None:
+        """Initialize with default ranges: Sber 0-1000, HA 0-255."""
+        self.sber_side_min: int = 0
+        self.sber_side_max: int = 1000
+        self.ha_side_min: int = 0
+        self.ha_side_max: int = 255
+        self.is_reversed: bool = False
 
     def set_reversed(self, is_reversed: bool) -> None:
         """Set whether the conversion should reverse the direction.

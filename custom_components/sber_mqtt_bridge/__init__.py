@@ -135,6 +135,19 @@ async def async_unload_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) 
     return True
 
 
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Clean up when a config entry is removed.
+
+    Removes domain data from hass.data if no more entries remain.
+
+    Args:
+        hass: Home Assistant core instance.
+        entry: Config entry being removed.
+    """
+    if not hass.config_entries.async_entries(DOMAIN):
+        hass.data.pop(DOMAIN, None)
+
+
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate config entry to a newer version.
 

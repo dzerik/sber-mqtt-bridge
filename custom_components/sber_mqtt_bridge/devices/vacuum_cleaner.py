@@ -111,16 +111,6 @@ class VacuumCleanerEntity(BaseEntity):
             }
         return allowed
 
-    def to_sber_state(self) -> dict:
-        """Build full Sber device descriptor including allowed values.
-
-        Returns:
-            Sber device descriptor dict with model, features, and allowed_values.
-        """
-        res = super().to_sber_state()
-        res["model"]["allowed_values"] = self.create_allowed_values_list()
-        return res
-
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with vacuum attributes.
 

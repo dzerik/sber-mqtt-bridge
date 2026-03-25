@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-03-25
+
+### Fixed
+- **light**: fixed fallback color conversion in `process_cmd` — was using `ha_to_sber_hsv` instead of zero tuple, causing brightness=100 instead of 0 on malformed commands
+- **light**: `light_mode` command now sends HA service call to actually switch lamp mode (was only updating local state, lamp stayed in previous mode)
+- **light**: fixed docstring brightness range — was "50-1000", corrected to "100-900" per Sber spec
+- **hvac_fan**: added missing `"quiet"` to `SBER_SPEED_VALUES` per Sber C2C specification; adjusted percentage thresholds for 5-speed mapping
+- **climate**: fan modes now mapped through `HA_TO_SBER_FAN_MODE` dict instead of raw passthrough — ensures Sber-standard enum values (auto, low, medium, high, turbo, quiet) in `allowed_values` and state reports
+- **climate**: reverse fan mode mapping in `process_cmd` — finds matching HA fan_mode for Sber enum values
+- **curtain**: enforced open_state ↔ open_percentage consistency — if percentage > 0, state forced to "open"; if 0, forced to "close"
+
+### Added
+- **valve**: battery_percentage, battery_low_power, and signal_strength features — reads from HA attributes (battery, rssi, linkquality)
+- **utils/signal.py**: shared `rssi_to_signal_strength()` function — extracted from duplicated code in simple_sensor.py and curtain.py
+- **base_entity**: `create_allowed_values_list()` and `create_dependencies()` hook methods — unified pattern for all subclasses, eliminates `to_sber_state()` overrides
+- **climate**: `HA_TO_SBER_FAN_MODE` mapping dict with 20+ HA fan mode names → Sber standard values
+- **__init__**: `async_remove_entry()` — cleans up `hass.data[DOMAIN]` when last config entry is removed
+
+### Changed
+- **architecture**: all `to_sber_state()` overrides in subclasses removed — `allowed_values` and `dependencies` now injected via base class hooks
+- **simple_sensor/curtain**: `_rssi_to_signal_strength` static method replaced with shared `utils.signal.rssi_to_signal_strength()`
+- **linear_converter**: class-level attributes moved to `__init__` — prevents potential shared state between instances
+- **config_flow**: removed emoji from Options Flow selector labels — follows HA style guide
+
 ## [1.8.1] - 2026-03-25
 
 ### Fixed

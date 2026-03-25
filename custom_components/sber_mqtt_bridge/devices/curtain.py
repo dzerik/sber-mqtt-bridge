@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from .base_entity import BaseEntity
+from .utils.signal import rssi_to_signal_strength
 
 CURTAIN_ENTITY_CATEGORY = "curtain"
 """Sber device category for curtain/cover entities."""
@@ -167,22 +168,6 @@ class CurtainEntity(BaseEntity):
 
         return processing_result
 
-    @staticmethod
-    def _rssi_to_signal_strength(rssi: int) -> str:
-        """Convert raw RSSI/linkquality value to Sber signal_strength enum.
-
-        Args:
-            rssi: Raw RSSI (dBm, typically negative) or linkquality value.
-
-        Returns:
-            Sber enum string: 'high', 'medium', or 'low'.
-        """
-        if rssi > -50:
-            return "high"
-        if rssi > -70:
-            return "medium"
-        return "low"
-
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for curtain capabilities.
 
@@ -202,17 +187,9 @@ class CurtainEntity(BaseEntity):
             features.append("signal_strength")
         return features
 
-    def to_sber_state(self) -> dict:
-        """Build full Sber device descriptor including allowed values.
-
-        Adds ``allowed_values`` for ``open_set`` (ENUM) and ``open_percentage``
-        (INTEGER 0-100) features.
-
-        Returns:
-            Sber device descriptor dict with model, features, and allowed_values.
-        """
-        res = super().to_sber_state()
-        res["model"]["allowed_values"] = {
+    def create_allowed_values_list(self) -> dict[str, dict]:
+        """Return allowed values for open_set and open_percentage features."""
+        return {
             "open_set": {
                 "type": "ENUM",
                 "enum_values": {"values": ["open", "close", "stop"]},
@@ -222,7 +199,6 @@ class CurtainEntity(BaseEntity):
                 "integer_values": {"min": "0", "max": "100", "step": "1"},
             },
         }
-        return res
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with position, open state, and signal.
@@ -249,8 +225,15 @@ class CurtainEntity(BaseEntity):
             }
         )
 
+        # Enforce consistency: open_state must match open_percentage
+        sber_pos = self._convert_position(self.current_position)
         state_map = {"open": "open", "opening": "open", "closed": "close", "closing": "close"}
-        open_state = state_map.get(self.state, "close" if self.current_position == 0 else "open")
+        open_state = state_map.get(self.state, "close" if sber_pos == 0 else "open")
+        # Force alignment: if percentage > 0, state must be 'open'; if 0, must be 'close'
+        if sber_pos > 0 and open_state == "close":
+            open_state = "open"
+        elif sber_pos == 0 and open_state == "open":
+            open_state = "close"
         states.append(
             {
                 "key": "open_state",
@@ -262,7 +245,7 @@ class CurtainEntity(BaseEntity):
             states.append(
                 {
                     "key": "signal_strength",
-                    "value": {"type": "ENUM", "enum_value": self._rssi_to_signal_strength(self._signal_strength_raw)},
+                    "value": {"type": "ENUM", "enum_value": rssi_to_signal_strength(self._signal_strength_raw)},
                 }
             )
 

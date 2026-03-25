@@ -102,10 +102,10 @@ class TestColorConverterSberToHa(unittest.TestCase):
 # ---- LinearConverter Tests ----
 
 class TestLinearConverterCreate(unittest.TestCase):
-    """Test LinearConverter.create factory."""
+    """Test LinearConverter constructor and defaults."""
 
-    def test_create_returns_instance(self):
-        lc = LinearConverter.create()
+    def test_constructor_returns_instance(self):
+        lc = LinearConverter()
         self.assertIsInstance(lc, LinearConverter)
 
     def test_default_limits(self):

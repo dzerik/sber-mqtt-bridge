@@ -53,23 +53,14 @@ class ScenarioButtonEntity(BaseEntity):
         """
         return [*super().create_features_list(), "button_event"]
 
-    def to_sber_state(self) -> dict:
-        """Build full Sber device descriptor including allowed values.
-
-        Adds ``allowed_values`` for the ``button_event`` feature
-        (ENUM: click/double_click/long_press).
-
-        Returns:
-            Sber device descriptor dict with model, features, and allowed_values.
-        """
-        res = super().to_sber_state()
-        res["model"]["allowed_values"] = {
+    def create_allowed_values_list(self) -> dict[str, dict]:
+        """Return allowed values for button_event feature."""
+        return {
             "button_event": {
                 "type": "ENUM",
                 "enum_values": {"values": ["click", "double_click", "long_press"]},
             },
         }
-        return res
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with online and button_event keys.
