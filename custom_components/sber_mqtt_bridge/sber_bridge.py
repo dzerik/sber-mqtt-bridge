@@ -712,7 +712,7 @@ class SberBridge:
                 len(self._enabled_entity_ids),
             )
 
-        await self._publish_states(requested_ids if requested_ids else None)
+        await self._publish_states(requested_ids if requested_ids else None, force=True)
 
     async def _handle_sber_config_request(self) -> None:
         """Handle config request from Sber cloud — send device list."""
@@ -889,16 +889,37 @@ class SberBridge:
         """Force republish full device config to Sber cloud."""
         await self._publish_config()
 
-    async def _publish_states(self, entity_ids: list[str] | None = None) -> None:
-        """Publish entity states to Sber MQTT."""
+    async def _publish_states(self, entity_ids: list[str] | None = None, *, force: bool = False) -> None:
+        """Publish entity states to Sber MQTT.
+
+        Args:
+            entity_ids: Specific entity IDs to publish, or None for all enabled.
+            force: If True, skip value diffing (used for status_request responses).
+        """
         if not self._connected or self._mqtt_client is None:
             return
+
+        # Value change diffing: skip entities whose Sber state has not changed
+        if not force and entity_ids:
+            changed_ids = [
+                eid for eid in entity_ids
+                if (e := self._entities.get(eid)) is not None and e.has_significant_change()
+            ]
+            if not changed_ids:
+                _LOGGER.debug("All %d entities unchanged, skipping publish", len(entity_ids))
+                return
+            entity_ids = changed_ids
 
         payload = build_states_list_json(self._entities, entity_ids, self._enabled_entity_ids)
         topic = f"{self._root_topic}/up/status"
         try:
             await self._mqtt_client.publish(topic, payload)
             self._stats.messages_sent += 1
+            # Mark published entities so next diff detects changes
+            for eid in (entity_ids or self._enabled_entity_ids):
+                entity = self._entities.get(eid)
+                if entity is not None:
+                    entity.mark_state_published()
             # DevTools: log outgoing message
             self._message_log.append(
                 {

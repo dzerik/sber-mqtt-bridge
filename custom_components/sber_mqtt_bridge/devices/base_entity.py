@@ -70,6 +70,7 @@ class BaseEntity(ABC):
         self.partner_meta: dict[str, str] = {}
         self.extra_features: list[str] = []
         self.removed_features: list[str] = []
+        self._previous_sber_state: dict | None = None
         self._linked_entities: dict[str, str] = {}
 
         if entity_data:
@@ -368,3 +369,30 @@ class BaseEntity(ABC):
             new_state: New HA state dict.
         """
         self.fill_by_ha_state(new_state)
+
+    def has_significant_change(self) -> bool:
+        """Check if current Sber state differs from last published state.
+
+        Used to avoid unnecessary MQTT publishes when only non-relevant
+        HA attributes changed (e.g., last_updated, icon, etc.).
+
+        Returns:
+            True if the state has changed and should be published.
+        """
+        if self._previous_sber_state is None:
+            return True
+        try:
+            current = self.to_sber_current_state()
+        except (RuntimeError, TypeError, ValueError):
+            return True
+        return current != self._previous_sber_state
+
+    def mark_state_published(self) -> None:
+        """Snapshot current Sber state as the last published state.
+
+        Called after successful MQTT publish to enable value diffing.
+        """
+        try:
+            self._previous_sber_state = self.to_sber_current_state()
+        except (RuntimeError, TypeError, ValueError):
+            self._previous_sber_state = None
