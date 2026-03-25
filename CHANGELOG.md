@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-03-25
+
+### Fixed
+- **entity linking**: split battery link role — `sensor.battery` (%) → `battery` role, `binary_sensor.battery_low` (bool) → `battery_low` role; both can now be linked simultaneously
+- **entity linking**: removed incorrect `moisture` → `humidity` mapping (moisture binary_sensor is a leak detector, not a humidity sensor)
+- **entity linking**: added curtain, window_blind, gate, valve to linkable categories for battery/signal from separate HA entities
+
+### Added
+- **curtain**: `update_linked_data` for linked battery, battery_low, signal_strength entities; battery_percentage/battery_low_power features when battery data available
+- **valve**: `update_linked_data` for linked battery, battery_low, signal_strength entities
+- **simple_sensor**: `battery_low` linked role support — uses linked binary_sensor value for `battery_low_power` when available
+
 ## [1.9.0] - 2026-03-25
 
 ### Fixed
