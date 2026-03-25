@@ -656,8 +656,8 @@ class SberBridge:
                         cmd["service"],
                         cmd.get("target", {}).get("entity_id", "?"),
                     )
-                except Exception:
-                    _LOGGER.exception("Error calling HA service for %s", entity_id)
+                except (TimeoutError, KeyError, ValueError, AttributeError) as err:
+                    _LOGGER.warning("Error calling HA service for %s: %s", entity_id, err)
 
         # Batch publish state updates (e.g. light_mode) in a single call
         if update_state_ids:
@@ -826,7 +826,7 @@ class SberBridge:
 
         try:
             entity.process_state_change(event.data.get("old_state"), ha_state_dict)
-        except Exception:
+        except (TypeError, ValueError, KeyError, AttributeError):
             _LOGGER.exception("Error processing state change for %s", entity_id)
             return
 

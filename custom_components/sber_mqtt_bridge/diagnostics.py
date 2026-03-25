@@ -37,7 +37,7 @@ def _build_entity_diagnostics(bridge) -> list[dict[str, Any]]:
         if entity.is_filled_by_state:
             entry["current_state"] = {
                 "state": entity.state,
-                "is_online": entity._is_online,
+                "is_online": entity.is_online,
             }
         else:
             entry["current_state"] = None

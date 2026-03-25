@@ -282,6 +282,15 @@ class BaseEntity(ABC):
         """
         return self.state not in ("unavailable", "unknown", None)
 
+    @property
+    def is_online(self) -> bool:
+        """Public accessor for entity online status.
+
+        Returns:
+            True if the entity state indicates it is reachable.
+        """
+        return self._is_online
+
     @staticmethod
     def _safe_float(value: object) -> float | None:
         """Safely convert a value to float.

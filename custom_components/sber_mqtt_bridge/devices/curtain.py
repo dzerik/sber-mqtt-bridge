@@ -33,8 +33,6 @@ class CurtainEntity(BaseEntity):
     battery_level: int = 0
     """Battery level percentage (0-100%)."""
 
-    # _supported_features = []
-
     def __init__(self, entity_data: dict, category: str = CURTAIN_ENTITY_CATEGORY) -> None:
         """Initialize curtain entity.
 
@@ -43,13 +41,9 @@ class CurtainEntity(BaseEntity):
             category: Sber device category (override in subclasses).
         """
         super().__init__(category, entity_data)
-        self.current_position = 0  # Текущая позиция (0-100%)
-        self._battery_level = 100  # Уровень заряда (0-100%)
+        self.current_position = 0
+        self._battery_level = 100
         self._signal_strength_raw: int | None = None
-
-        # self._supported_features = entity_data.get("supported_features", 0)  # Уровень заряда (0-100%)
-
-        # self._supported_features = entity_data.get("supported_features", 0)
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Update state from Home Assistant data.
@@ -131,7 +125,6 @@ class CurtainEntity(BaseEntity):
                 )
 
             if key == "open_set":
-                # Команда открытия/закрытия
                 action = value.get("enum_value", None)
                 if action is None:
                     continue
@@ -249,7 +242,6 @@ class CurtainEntity(BaseEntity):
             {"key": "online", "value": {"type": "BOOL", "bool_value": True}},
         ]
 
-        # # Добавление позиции
         states.append(
             {
                 "key": "open_percentage",

@@ -17,11 +17,20 @@ HVAC_FAN_CATEGORY = "hvac_fan"
 SBER_SPEED_VALUES = ["auto", "high", "low", "medium", "turbo"]
 """Allowed Sber ENUM values for hvac_air_flow_power."""
 
+_SBER_SPEED_TO_PERCENTAGE: dict[str, int] = {
+    "low": 25,
+    "medium": 50,
+    "high": 75,
+    "turbo": 100,
+    "auto": 0,
+}
+"""Reverse mapping: Sber speed ENUM to HA percentage. 'auto' maps to 0 (turn_on)."""
+
 _PERCENTAGE_TO_SPEED = [
     (0, "low"),
     (34, "medium"),
     (67, "high"),
-    (101, "turbo"),
+    (100, "turbo"),
 ]
 """Mapping thresholds from HA percentage to Sber speed ENUM."""
 
@@ -176,9 +185,7 @@ class HvacFanEntity(BaseEntity):
                         }
                     )
                 else:
-                    # Convert Sber speed to percentage
-                    speed_to_pct = {"low": 25, "medium": 50, "high": 75, "turbo": 100, "auto": 0}
-                    pct = speed_to_pct.get(speed)
+                    pct = _SBER_SPEED_TO_PERCENTAGE.get(speed)
                     if pct is not None:
                         if pct == 0:
                             # 'auto' mode -- turn on without specific speed

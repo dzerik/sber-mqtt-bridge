@@ -18,11 +18,20 @@ HVAC_AIR_PURIFIER_CATEGORY = "hvac_air_purifier"
 SBER_SPEED_VALUES = ["auto", "high", "low", "medium", "turbo"]
 """Allowed Sber ENUM values for hvac_air_flow_power."""
 
+_SBER_SPEED_TO_PERCENTAGE: dict[str, int] = {
+    "low": 25,
+    "medium": 50,
+    "high": 75,
+    "turbo": 100,
+    "auto": 0,
+}
+"""Reverse mapping: Sber speed ENUM to HA percentage. 'auto' maps to 0 (turn_on)."""
+
 _PERCENTAGE_TO_SPEED = [
     (0, "low"),
     (34, "medium"),
     (67, "high"),
-    (101, "turbo"),
+    (100, "turbo"),
 ]
 """Mapping thresholds from HA percentage to Sber speed ENUM."""
 
@@ -111,7 +120,7 @@ class HvacAirPurifierEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        return [
+        features = [
             *super().create_features_list(),
             "on_off",
             "hvac_air_flow_power",
@@ -121,6 +130,9 @@ class HvacAirPurifierEntity(BaseEntity):
             "hvac_replace_filter",
             "hvac_replace_ionizator",
         ]
+        if self._decontaminate:
+            features.append("hvac_decontaminate")
+        return features
 
     def create_allowed_values_list(self) -> dict[str, dict]:
         """Build allowed values map for air flow power feature.
@@ -167,6 +179,8 @@ class HvacAirPurifierEntity(BaseEntity):
                 {"key": "hvac_replace_ionizator", "value": {"type": "BOOL", "bool_value": self._replace_ionizator}},
             ]
         )
+        if self._decontaminate:
+            states.append({"key": "hvac_decontaminate", "value": {"type": "BOOL", "bool_value": self._decontaminate}})
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:
@@ -211,8 +225,7 @@ class HvacAirPurifierEntity(BaseEntity):
                         }
                     )
                 else:
-                    speed_to_pct = {"low": 25, "medium": 50, "high": 75, "turbo": 100, "auto": 0}
-                    pct = speed_to_pct.get(speed)
+                    pct = _SBER_SPEED_TO_PERCENTAGE.get(speed)
                     if pct is not None:
                         if pct == 0:
                             results.append(

@@ -1,45 +1,4 @@
 # serializer version: 1
-# name: test_devices_list_multiple_entities
-  dict({
-    'devices': list([
-      dict({
-        'hw_version': '1.8.1',
-        'id': 'root',
-        'model': dict({
-          'category': 'hub',
-          'description': 'HA MQTT Sber Bridge HUB',
-          'features': list([
-            'online',
-          ]),
-          'id': 'ID_root_hub',
-          'manufacturer': 'HA-SberBridge',
-          'model': 'VHub',
-        }),
-        'name': 'Home Assistant Bridge',
-        'sw_version': '1.8.1',
-      }),
-      dict({
-        'default_name': 'switch.lamp',
-        'hw_version': 'Unknown',
-        'id': 'switch.lamp',
-        'model': dict({
-          'category': 'relay',
-          'description': 'Lamp',
-          'features': list([
-            'online',
-            'on_off',
-          ]),
-          'id': 'Mdl_relay',
-          'manufacturer': 'Unknown',
-          'model': 'Unknown',
-        }),
-        'name': 'Lamp',
-        'room': 'room1',
-        'sw_version': 'Unknown',
-      }),
-    ]),
-  })
-# ---
 # name: test_devices_list_with_redefinitions
   dict({
     'devices': list([

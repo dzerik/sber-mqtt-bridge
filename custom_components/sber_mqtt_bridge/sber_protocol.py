@@ -65,7 +65,7 @@ def build_devices_list_json(
 
         try:
             device_data = entity.to_sber_state()
-        except Exception:
+        except (TypeError, ValueError, KeyError, AttributeError):
             _LOGGER.exception("Error building Sber state for %s", entity_id)
             continue
 
@@ -125,7 +125,7 @@ def build_states_list_json(
             entity_state = entity.to_sber_current_state()
             if entity_state is not None:
                 states["devices"] |= entity_state
-        except Exception:
+        except (TypeError, ValueError, KeyError, AttributeError):
             _LOGGER.exception("Error building Sber current state for %s", entity_id)
 
     if not states["devices"]:
