@@ -334,6 +334,8 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
         """Show panel link with fallback to advanced options."""
         if user_input is not None:
             mode = user_input.get("action", "panel")
+            if mode == "preview":
+                return await self.async_step_entity_preview()
             if mode == "advanced":
                 return self.async_show_menu(
                     step_id="advanced_menu",
@@ -345,13 +347,18 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             # Default: just close (user goes to panel)
             return self.async_create_entry(data=self.config_entry.options)
 
+        exposed_count = len(self.config_entry.options.get(CONF_EXPOSED_ENTITIES, []))
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required("action", default="panel"): SelectSelector(
+                    vol.Required("action", default="preview"): SelectSelector(
                         SelectSelectorConfig(
                             options=[
+                                SelectOptionDict(
+                                    value="preview",
+                                    label=f"🔍 Entity type preview ({exposed_count})",
+                                ),
                                 SelectOptionDict(
                                     value="panel",
                                     label="Open Sber Bridge panel (recommended)",
@@ -366,6 +373,93 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                     ),
                 }
             ),
+            description_placeholders={
+                "entity_summary": self._build_entity_summary(),
+            },
+        )
+
+    # ── Entity Type Preview ──
+
+    def _build_entity_summary(self) -> str:
+        """Build a brief entity count summary grouped by Sber category."""
+        exposed = list(self.config_entry.options.get(CONF_EXPOSED_ENTITIES, []))
+        if not exposed:
+            return "No entities exposed yet"
+
+        entity_reg = er.async_get(self.hass)
+        overrides = dict(
+            self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
+        )
+
+        cat_counts: dict[str, int] = {}
+        for entity_id in exposed:
+            entry = entity_reg.async_get(entity_id)
+            if entry is None:
+                cat_counts["unknown"] = cat_counts.get("unknown", 0) + 1
+                continue
+            entity_data = {
+                "entity_id": entry.entity_id,
+                "original_device_class": entry.original_device_class or "",
+            }
+            override = overrides.get(entity_id)
+            sber_entity = create_sber_entity(entity_id, entity_data, override)
+            cat = sber_entity.category if sber_entity else "unknown"
+            cat_label = CATEGORY_LABELS.get(cat, cat)
+            cat_counts[cat_label] = cat_counts.get(cat_label, 0) + 1
+
+        parts = [f"{label}: {count}" for label, count in sorted(cat_counts.items())]
+        return f"**Exposed: {len(exposed)} entities** ({', '.join(parts)})"
+
+    def _build_preview_text(self) -> str:
+        """Build full entity → Sber type preview grouped by category."""
+        exposed = list(self.config_entry.options.get(CONF_EXPOSED_ENTITIES, []))
+        if not exposed:
+            return "No entities exposed yet. Add entities first."
+
+        entity_reg = er.async_get(self.hass)
+        overrides = dict(
+            self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
+        )
+
+        by_category: dict[str, list[str]] = {}
+        for entity_id in sorted(exposed):
+            entry = entity_reg.async_get(entity_id)
+            if entry is None:
+                by_category.setdefault("⚠️ Not found", []).append(entity_id)
+                continue
+            entity_data = {
+                "entity_id": entry.entity_id,
+                "original_device_class": entry.original_device_class or "",
+            }
+            override = overrides.get(entity_id)
+            sber_entity = create_sber_entity(entity_id, entity_data, override)
+            cat = sber_entity.category if sber_entity else "unknown"
+            cat_label = CATEGORY_LABELS.get(cat, cat)
+            name = entry.name or entry.original_name or entity_id
+            display = f"{name} (`{entity_id}`)"
+            if override:
+                display += " ✏️"
+            by_category.setdefault(cat_label, []).append(display)
+
+        lines: list[str] = []
+        for cat_label, entities in sorted(by_category.items()):
+            lines.append(f"**{cat_label}** ({len(entities)}):")
+            lines.extend(f"  • {e}" for e in entities)
+            lines.append("")
+
+        return "\n".join(lines)
+
+    async def async_step_entity_preview(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show entity → Sber device type preview."""
+        if user_input is not None:
+            return await self.async_step_init()
+
+        return self.async_show_form(
+            step_id="entity_preview",
+            data_schema=vol.Schema({}),
+            description_placeholders={"preview": self._build_preview_text()},
         )
 
     # ── Entity Selection Menu ──

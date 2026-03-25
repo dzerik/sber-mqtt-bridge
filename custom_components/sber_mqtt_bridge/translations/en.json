@@ -41,10 +41,14 @@
     "step": {
       "init": {
         "title": "Sber Bridge Settings",
-        "description": "Use the **Sber Bridge** panel in the sidebar for full device management (recommended).\n\nChoose 'Advanced' below only if you need fallback entity management.",
+        "description": "{entity_summary}\n\n---\n\nUse the **Sber Bridge** panel in the sidebar for full device management (recommended).\n\nChoose 'Advanced' below only if you need fallback entity management.",
         "data": {
           "action": "What would you like to do?"
         }
+      },
+      "entity_preview": {
+        "title": "Entity Type Preview",
+        "description": "{preview}\n\nEntities marked with ✏️ have a manual type override."
       },
       "advanced_menu": {
         "title": "Advanced Options",

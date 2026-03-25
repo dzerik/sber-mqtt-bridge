@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-03-25
+
+### Added
+- **Entity type preview** wizard step in Options Flow — shows all exposed entities grouped by Sber device type before editing
+- Entity count summary with type breakdown displayed on the init step (with `---` divider)
+- Preview is the first (default) option in the settings menu
+- Entities with manual type overrides marked with ✏️ in preview
+- Pre-alpha warning banner in README.md and README_ENG.md
+
 ## [1.6.2] - 2026-03-24
 
 ### Changed
