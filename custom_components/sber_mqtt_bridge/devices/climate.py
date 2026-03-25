@@ -83,8 +83,6 @@ HA_TO_SBER_FAN_MODE: dict[str, str] = {
 }
 """Map HA fan modes to Sber air flow power enum values."""
 
-SBER_TO_HA_FAN_MODE: dict[str, str] = {}
-"""Reverse mapping populated dynamically per-device from available fan_modes."""
 
 
 class ClimateEntity(BaseEntity):

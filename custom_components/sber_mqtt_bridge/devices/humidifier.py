@@ -26,8 +26,6 @@ HA_TO_SBER_HUMIDIFIER_MODE: dict[str, str] = {
 }
 """Map HA humidifier modes to Sber-standard enum values (case-insensitive lookup)."""
 
-SBER_TO_HA_HUMIDIFIER_MODE: dict[str, str] = {}
-"""Reverse mapping populated dynamically per-device from available_modes."""
 
 
 class HumidifierEntity(BaseEntity):

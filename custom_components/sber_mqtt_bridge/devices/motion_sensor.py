@@ -77,7 +77,6 @@ class MotionSensorEntity(SimpleReadOnlySensor):
     def _get_sber_value(self) -> str:
         """Return Sber ENUM value for motion detection.
 
-        Always returns ``"pir"`` as this is an event-based sensor.
-        Sber ignores the value when no motion is detected.
+        Per Sber C2C spec: ``"pir"`` = motion detected, ``"no_pir"`` = no motion.
         """
-        return "pir"
+        return "pir" if self.motion_detected else "no_pir"
