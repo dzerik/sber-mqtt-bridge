@@ -8,6 +8,14 @@
 
 **[Документация на русском / Russian documentation](README.md)** | **[Documentation (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)**
 
+> [!CAUTION]
+> **🚧 PRE-ALPHA — Active Development!**
+>
+> This project is in **pre-alpha** stage. Correct operation and proper entity mapping
+> are **not guaranteed**. API, configuration, and behavior may change without notice.
+> Use at your own risk and please report any issues in
+> [Issues](https://github.com/dzerik/sber-mqtt-bridge/issues).
+
 ---
 
 > *"Salut, turn on the kitchen light"* — and your Zigbee switch, connected through Home Assistant, obeys.
