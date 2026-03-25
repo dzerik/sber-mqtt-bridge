@@ -22,7 +22,7 @@ from typing import Any
 import aiomqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import Context, Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
@@ -158,6 +158,9 @@ class SberBridge:
         # Debounce: coalesce rapid state changes into a single publish
         self._pending_publish_ids: set[str] = set()
         self._publish_timer: asyncio.TimerHandle | None = None
+
+        # Echo loop prevention: context IDs from Sber commands
+        self._sber_context_ids: set[str] = set()
 
         # Ring buffer for MQTT message log (DevTools)
         self._message_log: deque[dict[str, Any]] = deque(maxlen=50)
@@ -619,6 +622,15 @@ class SberBridge:
 
         update_state_ids: list[str] = []
 
+        # Create HA Context for Sber commands — enables logbook attribution
+        # and echo loop prevention (state changes from this context are not
+        # re-published back to Sber)
+        context = Context()
+        self._sber_context_ids.add(context.id)
+        # Bounded cleanup to prevent memory leak
+        if len(self._sber_context_ids) > 200:
+            self._sber_context_ids.clear()
+
         for entity_id, cmd_data in devices.items():
             # Track Sber acknowledgment
             self._stats.acknowledged_entities.add(entity_id)
@@ -649,6 +661,7 @@ class SberBridge:
                         service_data=cmd.get("service_data", {}),
                         target=cmd.get("target", {}),
                         blocking=False,
+                        context=context,
                     )
                     _LOGGER.debug(
                         "HA service called: %s.%s → %s",
@@ -791,9 +804,18 @@ class SberBridge:
     def _on_ha_state_changed(self, event: Event) -> None:
         """Handle HA state change → publish to Sber.
 
+        Skips state changes that originated from our own Sber commands
+        (echo loop prevention via context ID matching).
+
         Also handles linked entity state changes by forwarding data
         to the primary entity and scheduling publish for the primary.
         """
+        # Echo loop prevention: skip state changes caused by our own Sber commands
+        if event.context and event.context.id in self._sber_context_ids:
+            self._sber_context_ids.discard(event.context.id)
+            _LOGGER.debug("Skipping echo for %s (Sber context %s)", event.data.get("entity_id"), event.context.id)
+            return
+
         entity_id = event.data["entity_id"]
         new_state = event.data.get("new_state")
         if new_state is None:

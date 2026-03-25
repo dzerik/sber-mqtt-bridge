@@ -2,7 +2,7 @@
 
 import json
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -148,6 +148,7 @@ class TestSberBridgeCommandHandling:
             service_data={},
             target={"entity_id": "switch.lamp"},
             blocking=False,
+            context=ANY,
         )
 
     @pytest.mark.asyncio
