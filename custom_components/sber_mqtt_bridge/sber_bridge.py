@@ -528,6 +528,12 @@ class SberBridge:
                     await client.subscribe(f"{self._down_topic}/#")
                     await client.subscribe(SBER_GLOBAL_CONFIG_TOPIC)
 
+                    # Proactively publish config + current states on connect
+                    # so Sber cloud has up-to-date data without waiting for
+                    # a config_request/status_request or state change event.
+                    await self._publish_config()
+                    await self._publish_states(force=True)
+
                     async for message in client.messages:
                         if not self._running:
                             break

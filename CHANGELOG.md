@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-03-26
+
+### Added
+- **Proactive state publish on connect**: bridge now publishes device config and all current states immediately after MQTT connection, instead of waiting for Sber to send `config_request`/`status_request` or a state change event — fixes stale states after HA restart
+
 ## [1.11.2] - 2026-03-26
 
 ### Fixed
