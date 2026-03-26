@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-03-26
+
+### Added
+- **Settings Tab**: new 4th tab in panel for bridge operational settings (reconnect intervals, debounce delay, message log size, payload limit, context cleanup threshold, SSL verification) — changes applied immediately where possible
+- **DevTools: Raw JSON Send**: textarea + "Send to Sber" button for config and state payloads — pre-fills with current payload on Load, validates JSON before sending
+- **DevTools: WebSocket Push**: MQTT message log now uses real-time WebSocket subscription instead of 5-second polling — messages appear instantly
+- **WS API**: `get_settings`, `update_settings`, `send_raw_config`, `send_raw_state`, `subscribe_messages` commands
+
+### Changed
+- Bridge operational parameters (reconnect, debounce, log size, payload limit) now read from `config_entry.options` with `SETTINGS_DEFAULTS` fallbacks instead of hardcoded constants
+- `_log_message()` helper centralizes message logging + subscriber notification (replaces 3 inline `_message_log.append()` calls)
+
 ## [1.12.4] - 2026-03-26
 
 ### Changed

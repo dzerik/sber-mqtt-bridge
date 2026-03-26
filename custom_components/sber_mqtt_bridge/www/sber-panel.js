@@ -16,6 +16,7 @@ import "./components/sber-toolbar.js";
 import "./components/sber-wizard.js";
 import "./components/sber-toast.js";
 import "./components/sber-devtools.js";
+import "./components/sber-settings.js";
 import "./components/sber-link-dialog.js";
 
 const LitElement = Object.getPrototypeOf(
@@ -461,9 +462,15 @@ class SberMqttPanel extends LitElement {
         <div class="tab ${this._tab === 2 ? "active" : ""}" @click=${() => this._tab = 2}>
           DevTools
         </div>
+        <div class="tab ${this._tab === 3 ? "active" : ""}" @click=${() => this._tab = 3}>
+          Settings
+        </div>
       </div>
 
-      ${this._tab === 0 ? this._renderDevices() : this._tab === 1 ? this._renderStatus() : this._renderDevtools()}
+      ${this._tab === 0 ? this._renderDevices()
+        : this._tab === 1 ? this._renderStatus()
+        : this._tab === 2 ? this._renderDevtools()
+        : this._renderSettings()}
 
       <sber-add-dialog
         .hass=${this.hass}
@@ -529,6 +536,17 @@ class SberMqttPanel extends LitElement {
         .hass=${this.hass}
         @devtools-toast=${(e) => this._showToast(e.detail.message, e.detail.type)}
       ></sber-devtools>
+    `;
+  }
+
+  /* ---------- tab: settings ---------- */
+
+  _renderSettings() {
+    return html`
+      <sber-settings
+        .hass=${this.hass}
+        @settings-toast=${(e) => this._showToast(e.detail.message, e.detail.type)}
+      ></sber-settings>
     `;
   }
 }

@@ -29,9 +29,15 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from .config_flow import create_ssl_context
 from .const import (
+    CONF_CONTEXT_CLEANUP_THRESHOLD,
+    CONF_DEBOUNCE_DELAY,
     CONF_ENTITY_LINKS,
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
+    CONF_MAX_MQTT_PAYLOAD,
+    CONF_MESSAGE_LOG_SIZE,
+    CONF_RECONNECT_MAX,
+    CONF_RECONNECT_MIN,
     CONF_SBER_BROKER,
     CONF_SBER_LOGIN,
     CONF_SBER_PASSWORD,
@@ -39,6 +45,7 @@ from .const import (
     CONF_SBER_VERIFY_SSL,
     SBER_GLOBAL_CONFIG_TOPIC,
     SBER_TOPIC_PREFIX,
+    SETTINGS_DEFAULTS,
 )
 from .custom_capabilities import get_custom_config
 from .devices.base_entity import BaseEntity
@@ -54,14 +61,14 @@ from .sber_protocol import (
 
 _LOGGER = logging.getLogger(__name__)
 
-RECONNECT_INTERVAL_MIN = 5
-"""Minimum seconds to wait before reconnecting after an MQTT connection loss."""
+RECONNECT_INTERVAL_MIN = SETTINGS_DEFAULTS[CONF_RECONNECT_MIN]
+"""Default minimum seconds to wait before reconnecting after an MQTT connection loss."""
 
-RECONNECT_INTERVAL_MAX = 300
-"""Maximum seconds to wait (5 minutes) with exponential backoff."""
+RECONNECT_INTERVAL_MAX = SETTINGS_DEFAULTS[CONF_RECONNECT_MAX]
+"""Default maximum seconds to wait (5 minutes) with exponential backoff."""
 
-MAX_MQTT_PAYLOAD_SIZE = 1_000_000
-"""Maximum MQTT payload size in bytes (1 MB) to prevent DoS from oversized messages."""
+MAX_MQTT_PAYLOAD_SIZE = SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]
+"""Default maximum MQTT payload size in bytes (1 MB) to prevent DoS from oversized messages."""
 
 
 @dataclass
@@ -131,7 +138,9 @@ class SberBridge:
         self._password: str = entry.data[CONF_SBER_PASSWORD]
         self._broker: str = entry.data[CONF_SBER_BROKER]
         self._port: int = entry.data[CONF_SBER_PORT]
-        self._verify_ssl: bool = entry.data.get(CONF_SBER_VERIFY_SSL, True)
+        self._verify_ssl: bool = entry.options.get(
+            CONF_SBER_VERIFY_SSL, entry.data.get(CONF_SBER_VERIFY_SSL, True)
+        )
 
         self._root_topic = f"{SBER_TOPIC_PREFIX}/{self._login}"
         self._down_topic = f"{self._root_topic}/down"
@@ -148,7 +157,15 @@ class SberBridge:
         self._connection_task: asyncio.Task | None = None
         self._running = False
         self._connected = False
-        self._reconnect_interval = RECONNECT_INTERVAL_MIN
+
+        # Configurable operational settings (from config_entry.options)
+        opts = entry.options
+        self._reconnect_min: int = opts.get(CONF_RECONNECT_MIN, RECONNECT_INTERVAL_MIN)
+        self._reconnect_max: int = opts.get(CONF_RECONNECT_MAX, RECONNECT_INTERVAL_MAX)
+        self._reconnect_interval = self._reconnect_min
+        self._debounce_delay: float = opts.get(CONF_DEBOUNCE_DELAY, 0.1)
+        self._max_payload_size: int = opts.get(CONF_MAX_MQTT_PAYLOAD, MAX_MQTT_PAYLOAD_SIZE)
+        self._context_cleanup_threshold: int = opts.get(CONF_CONTEXT_CLEANUP_THRESHOLD, 200)
 
         self._unsub_state_listeners: list[Callable] = []
         self._unsub_lifecycle_listeners: list[Callable] = []
@@ -168,7 +185,11 @@ class SberBridge:
         self._sber_context_ids: set[str] = set()
 
         # Ring buffer for MQTT message log (DevTools)
-        self._message_log: deque[dict[str, Any]] = deque(maxlen=50)
+        log_size = opts.get(CONF_MESSAGE_LOG_SIZE, 50)
+        self._message_log: deque[dict[str, Any]] = deque(maxlen=log_size)
+
+        # Real-time subscribers for MQTT message log (DevTools WebSocket push)
+        self._message_subscribers: set[Callable[[dict], None]] = set()
 
     @property
     def is_connected(self) -> bool:
@@ -223,6 +244,92 @@ class SberBridge:
     def clear_message_log(self) -> None:
         """Clear the MQTT message log."""
         self._message_log.clear()
+
+    def apply_settings(self, options: dict) -> None:
+        """Apply changed operational settings without full bridge restart.
+
+        Settings that take effect immediately: debounce_delay, context_cleanup_threshold,
+        max_mqtt_payload_size, message_log_size.
+        Settings that take effect on next reconnect: reconnect_min, reconnect_max, verify_ssl.
+
+        Args:
+            options: Config entry options dict.
+        """
+        self._debounce_delay = options.get(CONF_DEBOUNCE_DELAY, 0.1)
+        self._context_cleanup_threshold = options.get(CONF_CONTEXT_CLEANUP_THRESHOLD, 200)
+        self._max_payload_size = options.get(CONF_MAX_MQTT_PAYLOAD, MAX_MQTT_PAYLOAD_SIZE)
+        self._reconnect_min = options.get(CONF_RECONNECT_MIN, RECONNECT_INTERVAL_MIN)
+        self._reconnect_max = options.get(CONF_RECONNECT_MAX, RECONNECT_INTERVAL_MAX)
+        self._verify_ssl = options.get(
+            CONF_SBER_VERIFY_SSL, self._entry.data.get(CONF_SBER_VERIFY_SSL, True)
+        )
+
+        new_log_size = options.get(CONF_MESSAGE_LOG_SIZE, 50)
+        if new_log_size != self._message_log.maxlen:
+            old_messages = list(self._message_log)
+            self._message_log = deque(old_messages[-new_log_size:], maxlen=new_log_size)
+
+        _LOGGER.info("Bridge settings applied (debounce=%.2fs, log=%d)", self._debounce_delay, new_log_size)
+
+    async def async_publish_raw(self, payload: str, target: str) -> None:
+        """Publish arbitrary JSON payload to Sber MQTT for debugging.
+
+        Args:
+            payload: Raw JSON string to publish.
+            target: Topic suffix — either "config" or "status".
+
+        Raises:
+            RuntimeError: If not connected to MQTT broker.
+        """
+        if not self._connected or self._mqtt_client is None:
+            msg = "Not connected to MQTT"
+            raise RuntimeError(msg)
+
+        topic = f"{self._root_topic}/up/{target}"
+        await self._mqtt_client.publish(topic, payload)
+        self._stats.messages_sent += 1
+        self._log_message("out", topic, payload[:500])
+
+    # ---------------------------------------------------------------------------
+    # Message log subscriber management (for real-time DevTools push)
+    # ---------------------------------------------------------------------------
+
+    def subscribe_messages(self, callback_fn: Callable[[dict], None]) -> Callable[[], None]:
+        """Subscribe to new MQTT messages in real time.
+
+        Args:
+            callback_fn: Called with each new message dict.
+
+        Returns:
+            Unsubscribe callable.
+        """
+        self._message_subscribers.add(callback_fn)
+
+        def unsub() -> None:
+            self._message_subscribers.discard(callback_fn)
+
+        return unsub
+
+    def _log_message(self, direction: str, topic: str, payload: str) -> None:
+        """Append message to ring buffer and notify subscribers.
+
+        Args:
+            direction: "in" or "out".
+            topic: MQTT topic.
+            payload: Payload string (may be truncated).
+        """
+        msg_dict = {
+            "time": time.time(),
+            "direction": direction,
+            "topic": topic,
+            "payload": payload,
+        }
+        self._message_log.append(msg_dict)
+        for cb in self._message_subscribers:
+            try:
+                cb(msg_dict)
+            except Exception:
+                _LOGGER.exception("Error in message subscriber callback")
 
     async def async_start(self) -> None:
         """Start the bridge: load entities, subscribe to HA events, connect MQTT.
@@ -602,7 +709,7 @@ class SberBridge:
                 ) as client:
                     self._mqtt_client = client
                     self._connected = True
-                    self._reconnect_interval = RECONNECT_INTERVAL_MIN
+                    self._reconnect_interval = self._reconnect_min
                     self._stats.connected_since = time.monotonic()
                     _LOGGER.info(
                         "Connected to Sber MQTT broker %s:%d (entities: %d)",
@@ -681,7 +788,7 @@ class SberBridge:
             )
         await check_and_create_issues(self._hass, self)
         await asyncio.sleep(self._reconnect_interval)
-        self._reconnect_interval = min(self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX)
+        self._reconnect_interval = min(self._reconnect_interval * 2, self._reconnect_max)
         return True
 
     async def _handle_mqtt_message(self, topic: str, payload: bytes) -> None:
@@ -690,23 +797,15 @@ class SberBridge:
         _LOGGER.debug("MQTT <- %s (%d bytes)", topic, len(payload) if payload else 0)
 
         # DevTools: log incoming message
-        self._message_log.append(
-            {
-                "time": time.time(),
-                "direction": "in",
-                "topic": topic,
-                "payload": payload[:500].decode("utf-8", errors="replace")
-                if isinstance(payload, bytes)
-                else str(payload)[:500],
-            }
-        )
+        decoded = payload[:500].decode("utf-8", errors="replace") if isinstance(payload, bytes) else str(payload)[:500]
+        self._log_message("in", topic, decoded)
 
         # Payload size guard (M2)
-        if payload and len(payload) > MAX_MQTT_PAYLOAD_SIZE:
+        if payload and len(payload) > self._max_payload_size:
             _LOGGER.warning(
                 "MQTT payload too large (%d bytes, max %d), dropping: %s",
                 len(payload),
-                MAX_MQTT_PAYLOAD_SIZE,
+                self._max_payload_size,
                 topic,
             )
             return
@@ -748,7 +847,7 @@ class SberBridge:
         context = Context()
         self._sber_context_ids.add(context.id)
         # Bounded cleanup to prevent memory leak
-        if len(self._sber_context_ids) > 200:
+        if len(self._sber_context_ids) > self._context_cleanup_threshold:
             self._sber_context_ids.clear()
 
         for entity_id, cmd_data in devices.items():
@@ -986,7 +1085,7 @@ class SberBridge:
         if self._publish_timer is not None:
             self._publish_timer.cancel()
         loop = self._hass.loop
-        self._publish_timer = loop.call_later(0.1, self._fire_debounced_publish)
+        self._publish_timer = loop.call_later(self._debounce_delay, self._fire_debounced_publish)
 
     @callback
     def _fire_debounced_publish(self) -> None:
@@ -1041,14 +1140,7 @@ class SberBridge:
                 if entity is not None:
                     entity.mark_state_published()
             # DevTools: log outgoing message
-            self._message_log.append(
-                {
-                    "time": time.time(),
-                    "direction": "out",
-                    "topic": topic,
-                    "payload": payload[:500] if isinstance(payload, str) else "",
-                }
-            )
+            self._log_message("out", topic, payload[:500] if isinstance(payload, str) else "")
         except aiomqtt.MqttError:
             self._stats.publish_errors += 1
             _LOGGER.exception("Error publishing states to Sber")
@@ -1074,14 +1166,7 @@ class SberBridge:
                 ", ".join(ids_to_publish),
             )
             # DevTools: log outgoing message
-            self._message_log.append(
-                {
-                    "time": time.time(),
-                    "direction": "out",
-                    "topic": topic,
-                    "payload": payload[:500] if isinstance(payload, str) else "",
-                }
-            )
+            self._log_message("out", topic, payload[:500] if isinstance(payload, str) else "")
 
             # Log unacknowledged entities for debugging
             unack = self.unacknowledged_entities

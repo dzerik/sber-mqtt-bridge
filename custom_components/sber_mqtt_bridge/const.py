@@ -30,6 +30,37 @@ CONF_EXPOSED_ENTITIES = "exposed_entities"
 CONF_ENTITY_TYPE_OVERRIDES = "entity_type_overrides"
 """Options key for entity type overrides dict (entity_id → sber_category)."""
 
+# Bridge settings keys (stored in config_entry.options)
+
+CONF_RECONNECT_MIN = "reconnect_interval_min"
+"""Options key for minimum MQTT reconnect interval in seconds."""
+
+CONF_RECONNECT_MAX = "reconnect_interval_max"
+"""Options key for maximum MQTT reconnect interval in seconds."""
+
+CONF_DEBOUNCE_DELAY = "debounce_delay"
+"""Options key for state-change publish debounce delay in seconds."""
+
+CONF_MESSAGE_LOG_SIZE = "message_log_size"
+"""Options key for DevTools MQTT message ring buffer size."""
+
+CONF_MAX_MQTT_PAYLOAD = "max_mqtt_payload_size"
+"""Options key for maximum allowed MQTT payload size in bytes."""
+
+CONF_CONTEXT_CLEANUP_THRESHOLD = "context_cleanup_threshold"
+"""Options key for echo-loop context ID set cleanup threshold."""
+
+SETTINGS_DEFAULTS: dict[str, int | float | bool] = {
+    CONF_RECONNECT_MIN: 5,
+    CONF_RECONNECT_MAX: 300,
+    CONF_DEBOUNCE_DELAY: 0.1,
+    CONF_MESSAGE_LOG_SIZE: 50,
+    CONF_MAX_MQTT_PAYLOAD: 1_000_000,
+    CONF_CONTEXT_CLEANUP_THRESHOLD: 200,
+    CONF_SBER_VERIFY_SSL: True,
+}
+"""Default values for bridge operational settings."""
+
 # Defaults
 
 SBER_BROKER_DEFAULT = "mqtt-partners.iot.sberdevices.ru"

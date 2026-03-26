@@ -7,6 +7,7 @@ via Home Assistant native WebSocket commands, including entity management
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -21,8 +22,10 @@ from .const import (
     CONF_ENTITY_LINKS,
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
+    CONF_SBER_VERIFY_SSL,
     DOMAIN,
     HA_DEVICE_CLASS_TO_LINK_ROLE,
+    SETTINGS_DEFAULTS,
     SUPPORTED_DOMAINS,
 )
 
@@ -91,6 +94,11 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_add_device_wizard)
     websocket_api.async_register_command(hass, ws_message_log)
     websocket_api.async_register_command(hass, ws_clear_message_log)
+    websocket_api.async_register_command(hass, ws_get_settings)
+    websocket_api.async_register_command(hass, ws_update_settings)
+    websocket_api.async_register_command(hass, ws_send_raw_config)
+    websocket_api.async_register_command(hass, ws_send_raw_state)
+    websocket_api.async_register_command(hass, ws_subscribe_messages)
     _LOGGER.debug("Sber MQTT Bridge WebSocket API registered")
 
 
@@ -1223,3 +1231,214 @@ async def ws_add_device_wizard(
             "links_count": len(entity_links),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/get_settings",
+    }
+)
+@callback
+def ws_get_settings(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return current bridge operational settings with their defaults.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message dict.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None:
+        connection.send_error(msg["id"], "not_found", "Config entry not found")
+        return
+
+    settings: dict[str, Any] = {}
+    for key, default in SETTINGS_DEFAULTS.items():
+        if key == CONF_SBER_VERIFY_SSL:
+            settings[key] = entry.options.get(key, entry.data.get(key, default))
+        else:
+            settings[key] = entry.options.get(key, default)
+
+    connection.send_result(msg["id"], {"settings": settings, "defaults": dict(SETTINGS_DEFAULTS)})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/update_settings",
+        vol.Required("settings"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_update_settings(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Save bridge operational settings to config entry options.
+
+    Only known keys from SETTINGS_DEFAULTS are accepted. Changes are applied
+    to the running bridge immediately where possible.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message dict with 'settings' payload.
+    """
+    entry = _get_config_entry(hass)
+    if entry is None:
+        connection.send_error(msg["id"], "not_found", "Config entry not found")
+        return
+
+    new_options = dict(entry.options)
+    valid_keys = set(SETTINGS_DEFAULTS.keys())
+    new_options.update({k: v for k, v in msg["settings"].items() if k in valid_keys})
+
+    hass.config_entries.async_update_entry(entry, options=new_options)
+
+    bridge = _get_bridge(hass)
+    if bridge is not None:
+        bridge.apply_settings(new_options)
+
+    connection.send_result(msg["id"], {"success": True})
+
+
+# ---------------------------------------------------------------------------
+# Raw JSON send to Sber (DevTools)
+# ---------------------------------------------------------------------------
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/send_raw_config",
+        vol.Required("payload"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_send_raw_config(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Send arbitrary JSON config payload to Sber MQTT broker.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming message with 'payload' JSON string.
+    """
+    await _send_raw(hass, connection, msg, "config")
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/send_raw_state",
+        vol.Required("payload"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_send_raw_state(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Send arbitrary JSON state payload to Sber MQTT broker.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming message with 'payload' JSON string.
+    """
+    await _send_raw(hass, connection, msg, "status")
+
+
+async def _send_raw(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    target: str,
+) -> None:
+    """Validate and publish raw JSON to Sber MQTT.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming message with 'payload'.
+        target: MQTT topic suffix ("config" or "status").
+    """
+    bridge = _get_bridge(hass)
+    if bridge is None:
+        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
+        return
+
+    try:
+        json.loads(msg["payload"])
+    except json.JSONDecodeError as exc:
+        connection.send_error(msg["id"], "invalid_json", str(exc))
+        return
+
+    try:
+        await bridge.async_publish_raw(msg["payload"], target)
+    except RuntimeError as exc:
+        connection.send_error(msg["id"], "not_connected", str(exc))
+        return
+
+    connection.send_result(msg["id"], {"success": True})
+
+
+# ---------------------------------------------------------------------------
+# WebSocket push for MQTT message log (DevTools)
+# ---------------------------------------------------------------------------
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/subscribe_messages",
+    }
+)
+@callback
+def ws_subscribe_messages(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Subscribe to real-time MQTT message log updates.
+
+    Sends initial snapshot of current log, then pushes each new message
+    as an event. Automatically unsubscribes on WebSocket disconnect.
+
+    Args:
+        hass: Home Assistant core instance.
+        connection: Active WebSocket connection.
+        msg: Incoming WebSocket message dict.
+    """
+    bridge = _get_bridge(hass)
+    if bridge is None:
+        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
+        return
+
+    # ACK subscription
+    connection.send_result(msg["id"])
+
+    # Send initial snapshot as first event
+    connection.send_message(
+        websocket_api.event_message(msg["id"], {"snapshot": bridge.message_log})
+    )
+
+    # Subscribe to new messages
+    @callback
+    def forward_message(message_data: dict) -> None:
+        connection.send_message(
+            websocket_api.event_message(msg["id"], {"message": message_data})
+        )
+
+    unsub = bridge.subscribe_messages(forward_message)
+    connection.subscriptions[msg["id"]] = unsub

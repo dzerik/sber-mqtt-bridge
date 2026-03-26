@@ -28,6 +28,10 @@ class SberDevtools extends LitElement {
       _logError: { type: String },
       _configOpen: { type: Boolean },
       _statesOpen: { type: Boolean },
+      _configEditable: { type: String },
+      _statesEditable: { type: String },
+      _sendingConfig: { type: Boolean },
+      _sendingStates: { type: Boolean },
     };
   }
 
@@ -42,29 +46,54 @@ class SberDevtools extends LitElement {
     this._configError = "";
     this._statesError = "";
     this._logError = "";
-    this._autoRefresh = null;
     this._hassReady = false;
     this._configOpen = false;
     this._statesOpen = false;
+    this._configEditable = "";
+    this._statesEditable = "";
+    this._sendingConfig = false;
+    this._sendingStates = false;
+    this._msgUnsub = null;
   }
 
   connectedCallback() {
     super.connectedCallback();
-    this._autoRefresh = setInterval(() => this._fetchLog(), 5000);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    if (this._autoRefresh) {
-      clearInterval(this._autoRefresh);
-      this._autoRefresh = null;
-    }
+    this._unsubscribeMessages();
   }
 
   updated(changedProps) {
     if (changedProps.has("hass") && this.hass && !this._hassReady) {
       this._hassReady = true;
-      this._fetchLog();
+      this._subscribeMessages();
+    }
+  }
+
+  async _subscribeMessages() {
+    if (this._msgUnsub) return;
+    try {
+      this._msgUnsub = await this.hass.connection.subscribeMessage(
+        (event) => {
+          if (event.snapshot) {
+            this._messages = event.snapshot;
+          } else if (event.message) {
+            this._messages = [...this._messages, event.message];
+          }
+        },
+        { type: "sber_mqtt_bridge/subscribe_messages" }
+      );
+    } catch (e) {
+      this._logError = e.message || String(e);
+    }
+  }
+
+  _unsubscribeMessages() {
+    if (this._msgUnsub) {
+      this._msgUnsub();
+      this._msgUnsub = null;
     }
   }
 
@@ -76,6 +105,7 @@ class SberDevtools extends LitElement {
     try {
       const result = await this.hass.callWS({ type: "sber_mqtt_bridge/raw_config" });
       this._configPayload = this._formatJson(result.payload);
+      this._configEditable = this._configPayload;
       this._configOpen = true;
     } catch (e) {
       this._configError = e.message || String(e);
@@ -90,6 +120,7 @@ class SberDevtools extends LitElement {
     try {
       const result = await this.hass.callWS({ type: "sber_mqtt_bridge/raw_states" });
       this._statesPayload = this._formatJson(result.payload);
+      this._statesEditable = this._statesPayload;
       this._statesOpen = true;
     } catch (e) {
       this._statesError = e.message || String(e);
@@ -116,6 +147,30 @@ class SberDevtools extends LitElement {
       this._logError = "";
     } catch (e) {
       this._logError = e.message || String(e);
+    }
+  }
+
+  async _sendConfig() {
+    this._sendingConfig = true;
+    try {
+      await this.hass.callWS({ type: "sber_mqtt_bridge/send_raw_config", payload: this._configEditable });
+      this._toast("Config sent to Sber", "success");
+    } catch (e) {
+      this._toast("Send failed: " + (e.message || e), "error");
+    } finally {
+      this._sendingConfig = false;
+    }
+  }
+
+  async _sendStates() {
+    this._sendingStates = true;
+    try {
+      await this.hass.callWS({ type: "sber_mqtt_bridge/send_raw_state", payload: this._statesEditable });
+      this._toast("States sent to Sber", "success");
+    } catch (e) {
+      this._toast("Send failed: " + (e.message || e), "error");
+    } finally {
+      this._sendingStates = false;
     }
   }
 
@@ -284,6 +339,30 @@ class SberDevtools extends LitElement {
         word-break: break-all;
       }
 
+      .json-editor {
+        width: 100%;
+        min-height: 120px;
+        max-height: 300px;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        border: 1px solid var(--divider-color, #555);
+        border-radius: 8px;
+        padding: 12px;
+        font-family: "Fira Code", "Consolas", "Monaco", monospace;
+        font-size: 12px;
+        line-height: 1.5;
+        resize: vertical;
+        margin-top: 8px;
+        box-sizing: border-box;
+      }
+
+      .send-bar {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 8px;
+        gap: 8px;
+      }
+
       .json-viewer:empty::before {
         content: "Click the button above to load data...";
         color: #666;
@@ -422,7 +501,20 @@ class SberDevtools extends LitElement {
           </div>
         </div>
         ${this._configError ? html`<div class="error-text">${this._configError}</div>` : ""}
-        ${this._configOpen ? html`<div class="json-viewer">${this._configPayload}</div>` : ""}
+        ${this._configOpen ? html`
+          <div class="json-viewer">${this._configPayload}</div>
+          <textarea class="json-editor"
+            .value=${this._configEditable}
+            @input=${(e) => { this._configEditable = e.target.value; }}
+            placeholder="Edit JSON and click Send to publish to Sber..."></textarea>
+          <div class="send-bar">
+            <button class="btn-danger"
+              ?disabled=${this._sendingConfig || !this._configEditable}
+              @click=${this._sendConfig}>
+              ${this._sendingConfig ? "Sending..." : "Send Config to Sber"}
+            </button>
+          </div>
+        ` : ""}
       </div>
     `;
   }
@@ -450,7 +542,20 @@ class SberDevtools extends LitElement {
           </div>
         </div>
         ${this._statesError ? html`<div class="error-text">${this._statesError}</div>` : ""}
-        ${this._statesOpen ? html`<div class="json-viewer">${this._statesPayload}</div>` : ""}
+        ${this._statesOpen ? html`
+          <div class="json-viewer">${this._statesPayload}</div>
+          <textarea class="json-editor"
+            .value=${this._statesEditable}
+            @input=${(e) => { this._statesEditable = e.target.value; }}
+            placeholder="Edit JSON and click Send to publish to Sber..."></textarea>
+          <div class="send-bar">
+            <button class="btn-danger"
+              ?disabled=${this._sendingStates || !this._statesEditable}
+              @click=${this._sendStates}>
+              ${this._sendingStates ? "Sending..." : "Send States to Sber"}
+            </button>
+          </div>
+        ` : ""}
       </div>
     `;
   }
