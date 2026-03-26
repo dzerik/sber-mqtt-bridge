@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-03-26
+
+### Fixed
+- **Entity links badges**: links now always visible in panel after HA restart — previously `_entity_links` was empty until any link was re-saved because `_load_exposed_entities` skipped links when linked entity state was not yet available
+- **Panel callWS crash**: fixed `Cannot read properties of undefined (reading 'callWS')` in `sber-panel.js` and `sber-devtools.js` — `connectedCallback` called WS before HA set `hass` property; now deferred to `updated()` lifecycle
+
 ## [1.11.0] - 2026-03-26
 
 ### Added

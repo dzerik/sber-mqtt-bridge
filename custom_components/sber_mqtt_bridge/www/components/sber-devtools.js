@@ -43,13 +43,13 @@ class SberDevtools extends LitElement {
     this._statesError = "";
     this._logError = "";
     this._autoRefresh = null;
+    this._hassReady = false;
     this._configOpen = false;
     this._statesOpen = false;
   }
 
   connectedCallback() {
     super.connectedCallback();
-    this._fetchLog();
     this._autoRefresh = setInterval(() => this._fetchLog(), 5000);
   }
 
@@ -58,6 +58,13 @@ class SberDevtools extends LitElement {
     if (this._autoRefresh) {
       clearInterval(this._autoRefresh);
       this._autoRefresh = null;
+    }
+  }
+
+  updated(changedProps) {
+    if (changedProps.has("hass") && this.hass && !this._hassReady) {
+      this._hassReady = true;
+      this._fetchLog();
     }
   }
 
@@ -92,6 +99,7 @@ class SberDevtools extends LitElement {
   }
 
   async _fetchLog() {
+    if (!this.hass) return;
     try {
       const result = await this.hass.callWS({ type: "sber_mqtt_bridge/message_log" });
       this._messages = result.messages || [];

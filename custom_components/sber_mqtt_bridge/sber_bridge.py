@@ -395,9 +395,11 @@ class SberBridge:
             primary_entity = new_entities[primary_id]
             valid_roles: dict[str, str] = {}
             for role, linked_id in roles.items():
+                valid_roles[role] = linked_id
+                new_reverse[linked_id] = (primary_id, role)
                 linked_state = self._hass.states.get(linked_id)
                 if linked_state is None:
-                    _LOGGER.warning("Linked entity %s (role=%s) for %s not found", linked_id, role, primary_id)
+                    _LOGGER.warning("Linked entity %s (role=%s) for %s — state not yet available", linked_id, role, primary_id)
                     continue
                 if hasattr(primary_entity, "update_linked_data"):
                     ha_state_dict = {
@@ -407,8 +409,6 @@ class SberBridge:
                     }
                     primary_entity.update_linked_data(role, ha_state_dict)
                     primary_entity._linked_entities[role] = linked_id
-                valid_roles[role] = linked_id
-                new_reverse[linked_id] = (primary_id, role)
             if valid_roles:
                 new_links[primary_id] = valid_roles
                 _LOGGER.info("Entity links for %s: %s", primary_id, valid_roles)

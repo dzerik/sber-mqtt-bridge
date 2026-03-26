@@ -51,11 +51,11 @@ class SberMqttPanel extends LitElement {
     this._loading = false;
     this._error = "";
     this._autoRefresh = null;
+    this._hassReady = false;
   }
 
   connectedCallback() {
     super.connectedCallback();
-    this._fetchAll();
     this._autoRefresh = setInterval(() => this._fetchAll(), 15000);
   }
 
@@ -67,9 +67,17 @@ class SberMqttPanel extends LitElement {
     }
   }
 
+  updated(changedProps) {
+    if (changedProps.has("hass") && this.hass && !this._hassReady) {
+      this._hassReady = true;
+      this._fetchAll();
+    }
+  }
+
   /* ---------- data ---------- */
 
   async _fetchAll() {
+    if (!this.hass) return;
     try {
       const [devResult, statusResult] = await Promise.all([
         this.hass.callWS({ type: "sber_mqtt_bridge/devices" }),
