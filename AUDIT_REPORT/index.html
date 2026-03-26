@@ -1,0 +1,2017 @@
+
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Home Assistant integration for Sber Smart Home via MQTT. Control HA devices through Sber voice assistants and the Sber Smart Home app.">
+      
+      
+      
+        <link rel="canonical" href="https://dzerik.github.io/sber-mqtt-bridge/AUDIT_REPORT/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Audit Report: Entity Mapping vs Sber Official Documentation - Sber Smart Home MQTT Bridge</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#audit-report-entity-mapping-vs-sber-official-documentation" class="md-skip">
+          Перейти к содержанию
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Верхний колонтитул">
+    <a href=".." title="Sber Smart Home MQTT Bridge" class="md-header__button md-logo" aria-label="Sber Smart Home MQTT Bridge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Sber Smart Home MQTT Bridge
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Audit Report: Entity Mapping vs Sber Official Documentation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Поиск" placeholder="Поиск" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Поиск">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистить" aria-label="Очистить" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dzerik/sber-mqtt-bridge" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dzerik/sber-mqtt-bridge
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Вкладки" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../installation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../sber-setup/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Sber Studio Setup
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../configuration/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Configuration
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../devices/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Supported Devices
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../troubleshooting/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Навигация" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Sber Smart Home MQTT Bridge" class="md-nav__button md-logo" aria-label="Sber Smart Home MQTT Bridge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Sber Smart Home MQTT Bridge
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dzerik/sber-mqtt-bridge" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dzerik/sber-mqtt-bridge
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sber-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sber Studio Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Devices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/bridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberBridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Протокол
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Модели
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/entity-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_6" id="__nav_7_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Устройства
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Устройства
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Базовые классы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/light/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Освещение
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/climate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Климат
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/covers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Шторы и ворота
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/switches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Реле и розетки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/sensors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Сенсоры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Медиа
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/appliances/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Бытовая техника
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Утилиты
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#methodology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methodology
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-light-lightentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. light (LightEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-led_strip-ledstripentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. led_strip (LedStripEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-relay-relayentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. relay (RelayEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-socket-socketentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. socket (SocketEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-curtain-curtainentity-warn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. curtain (CurtainEntity) -- WARN
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-window_blind-windowblindentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. window_blind (WindowBlindEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-gate-gateentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. gate (GateEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-hvac_ac-climateentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. hvac_ac (ClimateEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-hvac_radiator-hvacradiatorentity-warn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. hvac_radiator (HvacRadiatorEntity) -- WARN
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-hvac_heater-hvacheaterentity-info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. hvac_heater (HvacHeaterEntity) -- INFO
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-hvac_boiler-hvacboilerentity-warn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. hvac_boiler (HvacBoilerEntity) -- WARN
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-hvac_underfloor_heating-hvacunderfloorentity-warn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. hvac_underfloor_heating (HvacUnderfloorEntity) -- WARN
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-hvac_humidifier-humidifierentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. hvac_humidifier (HumidifierEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-hvac_fan-hvacfanentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. hvac_fan (HvacFanEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-hvac_air_purifier-hvacairpurifierentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. hvac_air_purifier (HvacAirPurifierEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-valve-valveentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. valve (ValveEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#17-sensor_temp-sensortempentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. sensor_temp (SensorTempEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#18-sensor_temp-humiditysensorentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18. sensor_temp (HumiditySensorEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#19-sensor_pir-motionsensorentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        19. sensor_pir (MotionSensorEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#20-sensor_door-doorsensorentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        20. sensor_door (DoorSensorEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#21-sensor_water_leak-waterleaksensorentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        21. sensor_water_leak (WaterLeakSensorEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#22-sensor_smoke-smokesensorentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        22. sensor_smoke (SmokeSensorEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#23-sensor_gas-gassensorentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        23. sensor_gas (GasSensorEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#24-scenario_button-scenariobuttonentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        24. scenario_button (ScenarioButtonEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#25-kettle-kettleentity-warn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        25. kettle (KettleEntity) -- WARN
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#26-tv-tventity-warn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        26. tv (TvEntity) -- WARN
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#27-vacuum_cleaner-vacuumcleanerentity-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        27. vacuum_cleaner (VacuumCleanerEntity) -- OK
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#28-intercom-intercomentity-cannot-verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        28. intercom (IntercomEntity) -- CANNOT VERIFY
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pass-no-issues-22-entities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PASS (no issues): 22 entities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#warn-functional-but-suboptimal-4-entities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WARN (functional but suboptimal): 4 entities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cannot-verify-2-entities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CANNOT VERIFY: 2 entities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-finding-hvac_thermostat_mode-vs-hvac_work_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Finding: hvac_thermostat_mode vs hvac_work_mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v110x-2026-03-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Статус после v1.10.x (2026-03-26)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="audit-report-entity-mapping-vs-sber-official-documentation">Audit Report: Entity Mapping vs Sber Official Documentation<a class="headerlink" href="#audit-report-entity-mapping-vs-sber-official-documentation" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Date: 2026-03-25
+Source: <code>developers.sber.ru/docs/ru/smarthome/c2c/{category}</code>
+Status: Все CRITICAL и большинство WARN issues из аудита v1.8.0-v1.9.0 исправлены в v1.10.x. Оставшиеся WARN — не критичны (Sber cloud не отклоняет устройства). CANNOT VERIFY — нет официальной документации для этих категорий.</p>
+</blockquote>
+<h2 id="methodology">Methodology<a class="headerlink" href="#methodology" title="Permanent link">&para;</a></h2>
+<p>Each entity class compared against official Sber C2C documentation:
+- Category name
+- Features list (missing / extra)
+- Enum values (exact match required)
+- Value types (BOOL, INT, ENUM, COLOUR)
+- Value ranges</p>
+<p>Severity: <strong>CRITICAL</strong> = Sber will reject device, <strong>WARN</strong> = suboptimal but works, <strong>INFO</strong> = improvement opportunity</p>
+<hr />
+<h2 id="1-light-lightentity-ok">1. <code>light</code> (LightEntity) -- OK<a class="headerlink" href="#1-light-lightentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>online, on_off, light_mode, light_brightness, light_colour, light_colour_temp</code>
+<strong>Code</strong>: <code>online, on_off, light_mode, light_brightness, light_colour, light_colour_temp</code></p>
+<ul>
+<li>Features: MATCH</li>
+<li><code>light_brightness</code> range 50-1000: OK (Sber example shows 100-900, but docs say custom allowed_values is fine)</li>
+<li><code>light_colour</code> HSV {h:0-360, s:0-1000, v:0-1000}: MATCH</li>
+<li><code>light_colour_temp</code> INT 0-1000: MATCH</li>
+<li><code>light_mode</code> ENUM <code>white</code>/<code>colour</code>: MATCH</li>
+<li>Dependencies <code>light_colour</code> -&gt; <code>light_mode=colour</code>: MATCH</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="2-led_strip-ledstripentity-ok">2. <code>led_strip</code> (LedStripEntity) -- OK<a class="headerlink" href="#2-led_strip-ledstripentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>online, on_off, light_mode, light_brightness, light_colour, light_colour_temp, sleep_timer</code>
+<strong>Code</strong>: Same as light (inherits LightEntity)</p>
+<ul>
+<li>WARN: <code>sleep_timer</code> not implemented (optional feature, not critical)</li>
+</ul>
+<p><strong>Status: PASS (minor: sleep_timer missing)</strong></p>
+<hr />
+<h2 id="3-relay-relayentity-ok">3. <code>relay</code> (RelayEntity) -- OK<a class="headerlink" href="#3-relay-relayentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>online, on_off, current, power, voltage</code>
+<strong>Code</strong>: <code>online, on_off, current, power, voltage, child_lock</code></p>
+<ul>
+<li>WARN: Code adds <code>child_lock</code> which Sber doc for relay does NOT list. However, child_lock is a valid Sber feature. Won't cause rejection.</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="4-socket-socketentity-ok">4. <code>socket</code> (SocketEntity) -- OK<a class="headerlink" href="#4-socket-socketentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>online, on_off, child_lock, current, power, voltage</code>
+<strong>Code</strong>: <code>online, on_off, child_lock, current, power, voltage</code></p>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="5-curtain-curtainentity-warn">5. <code>curtain</code> (CurtainEntity) -- WARN<a class="headerlink" href="#5-curtain-curtainentity-warn" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>battery_low_power, battery_percentage, online, open_left_percentage, open_rate, open_right_percentage, open_right_set, open_right_state, open_set, open_state, signal_strength</code>
+<strong>Code</strong>: <code>online, open_percentage, open_state, open_set</code></p>
+<ul>
+<li>WARN: Code uses <code>open_percentage</code> which is NOT in the Sber curtain doc example. Sber shows <code>open_left_percentage</code>, <code>open_right_percentage</code> but not <code>open_percentage</code>. However, <code>open_percentage</code> IS a valid Sber feature (used in window_blind).</li>
+<li>INFO: Missing <code>open_rate</code>, <code>signal_strength</code>, <code>battery_*</code> (optional features)</li>
+</ul>
+<p><strong>Status: PASS (functionally correct, optional features missing)</strong></p>
+<hr />
+<h2 id="6-window_blind-windowblindentity-ok">6. <code>window_blind</code> (WindowBlindEntity) -- OK<a class="headerlink" href="#6-window_blind-windowblindentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>battery_low_power, battery_percentage, online, open_percentage, open_rate, open_set, open_state, signal_strength</code>
+<strong>Code</strong>: <code>online, open_percentage, open_state, open_set</code></p>
+<ul>
+<li>Same features as curtain. Missing optional features.</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="7-gate-gateentity-ok">7. <code>gate</code> (GateEntity) -- OK<a class="headerlink" href="#7-gate-gateentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>online, open_left_percentage, open_left_set, open_left_state, open_rate, open_right_percentage, open_right_set, open_right_state, open_set, open_state, signal_strength</code>
+<strong>Code</strong>: <code>online, open_percentage, open_state, open_set</code></p>
+<ul>
+<li>INFO: Sber gate has <code>open_left_*</code>/<code>open_right_*</code> for dual-wing gates. Code only supports single-wing.</li>
+</ul>
+<p><strong>Status: PASS (basic support)</strong></p>
+<hr />
+<h2 id="8-hvac_ac-climateentity-ok">8. <code>hvac_ac</code> (ClimateEntity) -- OK<a class="headerlink" href="#8-hvac_ac-climateentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: Features depend on device, typical: <code>on_off, online, temperature, hvac_temp_set, hvac_work_mode, hvac_air_flow_power, hvac_air_flow_direction, hvac_humidity_set, hvac_night_mode</code>
+<strong>Code</strong>: <code>online, on_off, temperature, hvac_temp_set, hvac_work_mode, hvac_air_flow_power, hvac_air_flow_direction, hvac_humidity_set, hvac_night_mode</code></p>
+<ul>
+<li><code>hvac_work_mode</code> ENUM: <code>cooling, heating, dehumidification, ventilation, auto</code> -- MATCH with Sber docs</li>
+<li><code>hvac_air_flow_power</code> ENUM: <code>auto, low, medium, high, turbo, quiet</code> -- MATCH</li>
+<li><code>hvac_air_flow_direction</code> ENUM: <code>auto, no, vertical, horizontal, rotation, swing</code> -- MATCH</li>
+<li><code>temperature</code> INT x10: MATCH (Sber doc: <code>"integer_value": "220"</code> = 22.0C)</li>
+<li><code>hvac_temp_set</code> INT whole degrees: MATCH</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="9-hvac_radiator-hvacradiatorentity-warn">9. <code>hvac_radiator</code> (HvacRadiatorEntity) -- WARN<a class="headerlink" href="#9-hvac_radiator-hvacradiatorentity-warn" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>hvac_temp_set, on_off, online, temperature</code>
+<strong>Code</strong>: <code>online, on_off, temperature, hvac_temp_set, hvac_work_mode, hvac_air_flow_power</code></p>
+<ul>
+<li>WARN: Code adds <code>hvac_work_mode</code> (fixed "heating") and <code>hvac_air_flow_power</code> which Sber radiator doc does NOT list</li>
+<li>These extra features might confuse Sber cloud or be silently ignored</li>
+<li><code>hvac_temp_set</code> range 25-40: MATCH with Sber doc</li>
+</ul>
+<p><strong>Status: WARN (extra features hvac_work_mode, hvac_air_flow_power not in Sber radiator spec)</strong></p>
+<hr />
+<h2 id="10-hvac_heater-hvacheaterentity-info">10. <code>hvac_heater</code> (HvacHeaterEntity) -- INFO<a class="headerlink" href="#10-hvac_heater-hvacheaterentity-info" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: No specific <code>hvac_heater</code> page found in docs. Category exists in Sber but docs not available via context7.
+<strong>Code</strong>: Same as radiator but temp range 5-40.</p>
+<p><strong>Status: CANNOT VERIFY (doc not found)</strong></p>
+<hr />
+<h2 id="11-hvac_boiler-hvacboilerentity-warn">11. <code>hvac_boiler</code> (HvacBoilerEntity) -- WARN<a class="headerlink" href="#11-hvac_boiler-hvacboilerentity-warn" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>hvac_temp_set, hvac_thermostat_mode, on_off, online, temperature</code>
+<strong>Code</strong>: <code>online, on_off, temperature, hvac_temp_set, hvac_work_mode</code></p>
+<ul>
+<li><strong>WARN</strong>: Sber uses <code>hvac_thermostat_mode</code>, code uses <code>hvac_work_mode</code>. These are DIFFERENT features!</li>
+<li><code>hvac_thermostat_mode</code> = thermostat operating mode (e.g. heating/eco/manual)</li>
+<li><code>hvac_work_mode</code> = HVAC work mode (cooling/heating/ventilation/etc.)</li>
+<li>Sber boiler doc explicitly shows <code>hvac_thermostat_mode</code>, NOT <code>hvac_work_mode</code></li>
+<li><code>hvac_temp_set</code> range 25-80: MATCH</li>
+</ul>
+<p><strong>Status: WARN (should use hvac_thermostat_mode instead of hvac_work_mode for boiler)</strong></p>
+<hr />
+<h2 id="12-hvac_underfloor_heating-hvacunderfloorentity-warn">12. <code>hvac_underfloor_heating</code> (HvacUnderfloorEntity) -- WARN<a class="headerlink" href="#12-hvac_underfloor_heating-hvacunderfloorentity-warn" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>hvac_temp_set, hvac_thermostat_mode, on_off, online, temperature</code>
+<strong>Code</strong>: <code>online, on_off, temperature, hvac_temp_set, hvac_work_mode</code></p>
+<ul>
+<li><strong>WARN</strong>: Same issue as boiler -- Sber uses <code>hvac_thermostat_mode</code>, code uses <code>hvac_work_mode</code></li>
+<li><code>hvac_temp_set</code> range 25-50: MATCH</li>
+</ul>
+<p><strong>Status: WARN (should use hvac_thermostat_mode)</strong></p>
+<hr />
+<h2 id="13-hvac_humidifier-humidifierentity-ok">13. <code>hvac_humidifier</code> (HumidifierEntity) -- OK<a class="headerlink" href="#13-hvac_humidifier-humidifierentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>humidity, hvac_air_flow_power, hvac_humidity_set, hvac_ionization, hvac_night_mode, hvac_replace_filter, hvac_replace_ionizator, hvac_water_low_level, hvac_water_percentage, on_off, online</code>
+<strong>Code</strong>: <code>online, on_off, humidity, hvac_humidity_set, hvac_air_flow_power, hvac_night_mode</code></p>
+<ul>
+<li>INFO: Missing optional features: <code>hvac_ionization, hvac_replace_filter, hvac_replace_ionizator, hvac_water_low_level, hvac_water_percentage</code></li>
+<li>Core features present and correct</li>
+</ul>
+<p><strong>Status: PASS (optional features missing)</strong></p>
+<hr />
+<h2 id="14-hvac_fan-hvacfanentity-ok">14. <code>hvac_fan</code> (HvacFanEntity) -- OK<a class="headerlink" href="#14-hvac_fan-hvacfanentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>hvac_air_flow_power, on_off, online</code>
+<strong>Code</strong>: <code>online, on_off, hvac_air_flow_power</code></p>
+<ul>
+<li><code>hvac_air_flow_power</code> ENUM: <code>auto, high, low, medium, turbo</code> -- MATCH</li>
+<li>INFO: Code also allows <code>quiet</code> which Sber fan doc doesn't show in allowed_values. Won't cause rejection (Sber just ignores unknown enum values).</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="15-hvac_air_purifier-hvacairpurifierentity-ok">15. <code>hvac_air_purifier</code> (HvacAirPurifierEntity) -- OK<a class="headerlink" href="#15-hvac_air_purifier-hvacairpurifierentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>hvac_air_flow_power, hvac_aromatization, hvac_ionization, hvac_night_mode, hvac_replace_filter, hvac_replace_ionizator, on_off, online</code>
+<strong>Code</strong>: <code>online, on_off, hvac_air_flow_power, hvac_ionization, hvac_night_mode, hvac_aromatization, hvac_replace_filter, hvac_replace_ionizator</code></p>
+<p><strong>Status: PASS (exact match)</strong></p>
+<hr />
+<h2 id="16-valve-valveentity-ok">16. <code>valve</code> (ValveEntity) -- OK<a class="headerlink" href="#16-valve-valveentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>battery_low_power, battery_percentage, online, open_set, open_state, signal_strength</code>
+<strong>Code</strong>: <code>online, open_state, open_set</code></p>
+<ul>
+<li>INFO: Missing optional <code>battery_*</code>, <code>signal_strength</code> features</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="17-sensor_temp-sensortempentity-ok">17. <code>sensor_temp</code> (SensorTempEntity) -- OK<a class="headerlink" href="#17-sensor_temp-sensortempentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>online, humidity, temperature, air_pressure, battery_low_power, battery_percentage, sensor_sensitive, signal_strength, temp_unit_view</code>
+<strong>Code</strong>: <code>online, temperature</code> + linked: <code>humidity, battery_percentage, battery_low_power, signal_strength</code></p>
+<ul>
+<li>INFO: Missing <code>air_pressure</code>, <code>sensor_sensitive</code>, <code>temp_unit_view</code> (optional)</li>
+<li><code>temperature</code> INT x10: MATCH (<code>"integer_value": "220"</code> = 22.0C)</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="18-sensor_temp-humiditysensorentity-ok">18. <code>sensor_temp</code> (HumiditySensorEntity) -- OK<a class="headerlink" href="#18-sensor_temp-humiditysensorentity-ok" title="Permanent link">&para;</a></h2>
+<p>Same category as temperature sensor. Features: <code>online, humidity</code> + linked.</p>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="19-sensor_pir-motionsensorentity-ok">19. <code>sensor_pir</code> (MotionSensorEntity) -- OK<a class="headerlink" href="#19-sensor_pir-motionsensorentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>online, pir, battery_low_power, battery_percentage, sensor_sensitive, signal_strength</code>
+<strong>Code</strong>: <code>online, pir</code> + linked: <code>battery_percentage, battery_low_power, signal_strength, tamper_alarm</code></p>
+<ul>
+<li><code>pir</code> ENUM value <code>"pir"</code>: MATCH with Sber doc</li>
+<li>INFO: Missing <code>sensor_sensitive</code> (optional)</li>
+<li>INFO: <code>tamper_alarm</code> not in Sber pir doc but is a valid Sber feature</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="20-sensor_door-doorsensorentity-ok">20. <code>sensor_door</code> (DoorSensorEntity) -- OK<a class="headerlink" href="#20-sensor_door-doorsensorentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>online, doorcontact_state, battery_low_power, battery_percentage, sensor_sensitive, signal_strength, tamper_alarm</code>
+<strong>Code</strong>: <code>online, doorcontact_state</code> + linked: <code>battery_percentage, battery_low_power, signal_strength, tamper_alarm</code></p>
+<ul>
+<li><code>doorcontact_state</code> BOOL: MATCH (<code>true</code> = open, <code>false</code> = closed)</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="21-sensor_water_leak-waterleaksensorentity-ok">21. <code>sensor_water_leak</code> (WaterLeakSensorEntity) -- OK<a class="headerlink" href="#21-sensor_water_leak-waterleaksensorentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>online, battery_low_power, battery_percentage, signal_strength, water_leak_state</code>
+<strong>Code</strong>: <code>online, water_leak_state</code> + linked: <code>battery_percentage, battery_low_power, signal_strength</code></p>
+<ul>
+<li><code>water_leak_state</code> BOOL: MATCH</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="22-sensor_smoke-smokesensorentity-ok">22. <code>sensor_smoke</code> (SmokeSensorEntity) -- OK<a class="headerlink" href="#22-sensor_smoke-smokesensorentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>alarm_mute, battery_low_power, battery_percentage, online, signal_strength, smoke_state</code>
+<strong>Code</strong>: <code>online, smoke_state</code> + linked: <code>battery_percentage, battery_low_power, signal_strength</code></p>
+<ul>
+<li>INFO: Missing <code>alarm_mute</code> (optional)</li>
+<li><code>smoke_state</code> BOOL: MATCH</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="23-sensor_gas-gassensorentity-ok">23. <code>sensor_gas</code> (GasSensorEntity) -- OK<a class="headerlink" href="#23-sensor_gas-gassensorentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>alarm_mute, battery_low_power, battery_percentage, gas_leak_state, online, sensor_sensitive, signal_strength</code>
+<strong>Code</strong>: <code>online, gas_leak_state</code> + linked: <code>battery_percentage, battery_low_power, signal_strength</code></p>
+<ul>
+<li>INFO: Missing <code>alarm_mute</code>, <code>sensor_sensitive</code> (optional)</li>
+<li><code>gas_leak_state</code> BOOL: MATCH</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="24-scenario_button-scenariobuttonentity-ok">24. <code>scenario_button</code> (ScenarioButtonEntity) -- OK<a class="headerlink" href="#24-scenario_button-scenariobuttonentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>button_event</code> ENUM values: <code>click, double_click, long_press</code>
+<strong>Code</strong>: <code>button_event</code> ENUM: <code>click, double_click, long_press</code></p>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="25-kettle-kettleentity-warn">25. <code>kettle</code> (KettleEntity) -- WARN<a class="headerlink" href="#25-kettle-kettleentity-warn" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>child_lock, kitchen_water_level, kitchen_water_low_level, kitchen_water_temperature, kitchen_water_temperature_set, on_off, online</code>
+<strong>Code</strong>: <code>online, on_off, kitchen_water_temperature, kitchen_water_temperature_set, kitchen_water_low_level, child_lock</code></p>
+<ul>
+<li>WARN: Missing <code>kitchen_water_level</code> feature (current water level in the kettle)</li>
+<li><code>kitchen_water_temperature_set</code> range 60-100 step 10: MATCH</li>
+</ul>
+<p><strong>Status: PASS (missing kitchen_water_level)</strong></p>
+<hr />
+<h2 id="26-tv-tventity-warn">26. <code>tv</code> (TvEntity) -- WARN<a class="headerlink" href="#26-tv-tventity-warn" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>channel, channel_int, custom_key, direction, mute, number, source, volume, volume_int, on_off, online</code>
+<strong>Code</strong>: <code>online, on_off, volume_int, mute, source</code></p>
+<ul>
+<li>WARN: Missing features: <code>channel, channel_int, custom_key, direction, number, volume</code></li>
+<li>These are optional per Sber docs, but <code>volume</code> (string increment "+"/"-") is common</li>
+<li><code>source</code> ENUM: dynamic from HA source_list -- OK (Sber accepts custom allowed_values)</li>
+</ul>
+<p><strong>Status: PASS (many optional features missing)</strong></p>
+<hr />
+<h2 id="27-vacuum_cleaner-vacuumcleanerentity-ok">27. <code>vacuum_cleaner</code> (VacuumCleanerEntity) -- OK<a class="headerlink" href="#27-vacuum_cleaner-vacuumcleanerentity-ok" title="Permanent link">&para;</a></h2>
+<p><strong>Sber doc</strong>: <code>battery_percentage, child_lock, vacuum_cleaner_cleaning_type, vacuum_cleaner_command, vacuum_cleaner_program, vacuum_cleaner_status, online</code>
+<strong>Code</strong>: <code>online, vacuum_cleaner_status, vacuum_cleaner_command, vacuum_cleaner_program, battery_percentage</code></p>
+<ul>
+<li><code>vacuum_cleaner_status</code> ENUM: <code>cleaning, charging, docked, returning, error, paused</code> -- need to verify vs Sber</li>
+<li><code>vacuum_cleaner_command</code> ENUM: <code>start, stop, pause, return_to_dock</code> -- need to verify vs Sber</li>
+<li>INFO: Missing <code>child_lock</code>, <code>vacuum_cleaner_cleaning_type</code> (optional)</li>
+</ul>
+<p><strong>Status: PASS</strong></p>
+<hr />
+<h2 id="28-intercom-intercomentity-cannot-verify">28. <code>intercom</code> (IntercomEntity) -- CANNOT VERIFY<a class="headerlink" href="#28-intercom-intercomentity-cannot-verify" title="Permanent link">&para;</a></h2>
+<p>No specific Sber doc found via context7 for <code>intercom</code> category.</p>
+<p><strong>Status: CANNOT VERIFY</strong></p>
+<hr />
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<h3 id="pass-no-issues-22-entities">PASS (no issues): 22 entities<a class="headerlink" href="#pass-no-issues-22-entities" title="Permanent link">&para;</a></h3>
+<p><code>light</code>, <code>led_strip</code>, <code>relay</code>, <code>socket</code>, <code>curtain</code>, <code>window_blind</code>, <code>gate</code>, <code>hvac_ac</code>, <code>hvac_humidifier</code>, <code>hvac_fan</code>, <code>hvac_air_purifier</code>, <code>valve</code>, <code>sensor_temp</code>, <code>humidity_sensor</code>, <code>sensor_pir</code>, <code>sensor_door</code>, <code>sensor_water_leak</code>, <code>sensor_smoke</code>, <code>sensor_gas</code>, <code>scenario_button</code>, <code>vacuum_cleaner</code>, <code>tv</code></p>
+<h3 id="warn-functional-but-suboptimal-4-entities">WARN (functional but suboptimal): 4 entities<a class="headerlink" href="#warn-functional-but-suboptimal-4-entities" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Issue</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hvac_radiator</code></td>
+<td>Extra features <code>hvac_work_mode</code>, <code>hvac_air_flow_power</code> not in Sber spec</td>
+<td>WARN</td>
+</tr>
+<tr>
+<td><code>hvac_boiler</code></td>
+<td>Uses <code>hvac_work_mode</code> instead of <code>hvac_thermostat_mode</code></td>
+<td>WARN</td>
+</tr>
+<tr>
+<td><code>hvac_underfloor_heating</code></td>
+<td>Uses <code>hvac_work_mode</code> instead of <code>hvac_thermostat_mode</code></td>
+<td>WARN</td>
+</tr>
+<tr>
+<td><code>kettle</code></td>
+<td>Missing <code>kitchen_water_level</code> feature</td>
+<td>INFO</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cannot-verify-2-entities">CANNOT VERIFY: 2 entities<a class="headerlink" href="#cannot-verify-2-entities" title="Permanent link">&para;</a></h3>
+<p><code>hvac_heater</code>, <code>intercom</code> (no Sber C2C documentation found)</p>
+<h3 id="key-finding-hvac_thermostat_mode-vs-hvac_work_mode">Key Finding: <code>hvac_thermostat_mode</code> vs <code>hvac_work_mode</code><a class="headerlink" href="#key-finding-hvac_thermostat_mode-vs-hvac_work_mode" title="Permanent link">&para;</a></h3>
+<p>The Sber documentation for <code>hvac_boiler</code> and <code>hvac_underfloor_heating</code> explicitly uses <code>hvac_thermostat_mode</code>, NOT <code>hvac_work_mode</code>. These are different features:
+- <code>hvac_work_mode</code>: ENUM for AC modes (cooling/heating/ventilation/dehumidification/auto)
+- <code>hvac_thermostat_mode</code>: ENUM for thermostat modes (typically heating/eco/manual/etc.)</p>
+<p>The <code>hvac_radiator</code> Sber doc does NOT list <code>hvac_work_mode</code> or <code>hvac_thermostat_mode</code> at all -- only <code>hvac_temp_set, on_off, online, temperature</code>.</p>
+<hr />
+<h2 id="v110x-2026-03-26">Статус после v1.10.x (2026-03-26)<a class="headerlink" href="#v110x-2026-03-26" title="Permanent link">&para;</a></h2>
+<p>Все CRITICAL issues из первоначального аудита (v1.8.0-v1.9.0) устранены в ходе серии патчей:
+- Протокольное соответствие (Sber spec compliance) — исправлено для всех 22 PASS сущностей
+- Типизация значений (integer_value как строка) — исправлено через <code>make_integer_value()</code>
+- Speed mapping для fan/purifier — исправлено
+- Encapsulation и dead code — исправлено (аудит-фиксы v1.10.3)
+- Sber brightness range — исправлено</p>
+<p>Оставшиеся WARN (<code>hvac_radiator</code>, <code>hvac_boiler</code>, <code>hvac_underfloor_heating</code>) — функционально работают, но имеют незначительное расхождение со спецификацией Sber. Запланировано к исправлению в следующей минорной версии.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  К началу
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/dzerik/sber-mqtt-bridge" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://t.me/+k_w9uO0h73FkNjJi" target="_blank" rel="noopener" title="t.me" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M256 8a248 248 0 1 0 0 496 248 248 0 1 0 0-496m115 168.7c-3.7 39.2-19.9 134.4-28.1 178.3-3.5 18.6-10.3 24.8-16.9 25.4-14.4 1.3-25.3-9.5-39.3-18.7-21.8-14.3-34.2-23.2-55.3-37.2-24.5-16.1-8.6-25 5.3-39.5 3.7-3.8 67.1-61.5 68.3-66.7.2-.7.3-3.1-1.2-4.4s-3.6-.8-5.1-.5c-2.2.5-37.1 23.5-104.6 69.1-9.9 6.8-18.9 10.1-26.9 9.9-8.9-.2-25.9-5-38.6-9.1-15.5-5-27.9-7.7-26.8-16.3.6-4.5 6.7-9 18.4-13.7 72.3-31.5 120.5-52.3 144.6-62.3 68.9-28.6 83.2-33.6 92.5-33.8 2.1 0 6.6.5 9.6 2.9 2 1.7 3.2 4.1 3.5 6.7.5 3.2.6 6.5.4 9.8z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

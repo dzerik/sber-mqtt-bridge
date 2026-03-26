@@ -1,0 +1,3335 @@
+
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Home Assistant integration for Sber Smart Home via MQTT. Control HA devices through Sber voice assistants and the Sber Smart Home app.">
+      
+      
+      
+        <link rel="canonical" href="https://dzerik.github.io/sber-mqtt-bridge/ENTITY_REGISTRY/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Entity Registry — Sber Smart Home MQTT Bridge - Sber Smart Home MQTT Bridge</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#entity-registry-sber-smart-home-mqtt-bridge" class="md-skip">
+          Перейти к содержанию
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Верхний колонтитул">
+    <a href=".." title="Sber Smart Home MQTT Bridge" class="md-header__button md-logo" aria-label="Sber Smart Home MQTT Bridge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Sber Smart Home MQTT Bridge
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Entity Registry — Sber Smart Home MQTT Bridge
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Поиск" placeholder="Поиск" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Поиск">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистить" aria-label="Очистить" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dzerik/sber-mqtt-bridge" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dzerik/sber-mqtt-bridge
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Вкладки" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../installation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../sber-setup/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Sber Studio Setup
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../configuration/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Configuration
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../devices/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Supported Devices
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../troubleshooting/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Навигация" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Sber Smart Home MQTT Bridge" class="md-nav__button md-logo" aria-label="Sber Smart Home MQTT Bridge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Sber Smart Home MQTT Bridge
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dzerik/sber-mqtt-bridge" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dzerik/sber-mqtt-bridge
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sber-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sber Studio Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Devices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/bridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberBridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Протокол
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Модели
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/entity-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_6" id="__nav_7_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Устройства
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Устройства
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Базовые классы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/light/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Освещение
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/climate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Климат
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/covers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Шторы и ворота
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/switches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Реле и розетки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/sensors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Сенсоры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Медиа
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/devices/appliances/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Бытовая техника
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Утилиты
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ha-domain-sber-category-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HA Domain -&gt; Sber Category Mapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overridable-categories-manual-override-in-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overridable Categories (manual override in UI)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#online-status-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Online Status Logic
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feature-registry-by-category" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feature Registry by Category
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Feature Registry by Category">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#light-led_strip-lightentity-ledstripentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        light / led_strip (LightEntity / LedStripEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relay-socket-relayentity-socketentity-extends-onoffentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        relay / socket (RelayEntity / SocketEntity, extends OnOffEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#curtain-window_blind-gate-curtainentity-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        curtain / window_blind / gate (CurtainEntity hierarchy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_ac-climateentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_ac (ClimateEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_radiator-hvacradiatorentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_radiator (HvacRadiatorEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_heater-hvacheaterentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_heater (HvacHeaterEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_boiler-hvacboilerentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_boiler (HvacBoilerEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_underfloor_heating-hvacunderfloorentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_underfloor_heating (HvacUnderfloorEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_humidifier-humidifierentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_humidifier (HumidifierEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_fan-hvacfanentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_fan (HvacFanEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_air_purifier-hvacairpurifierentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_air_purifier (HvacAirPurifierEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#valve-valveentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        valve (ValveEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensor_temp-sensortempentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensor_temp (SensorTempEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensor_temp-humiditysensorentity-same-category" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensor_temp (HumiditySensorEntity, same category)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensor_pir-motionsensorentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensor_pir (MotionSensorEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensor_door-doorsensorentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensor_door (DoorSensorEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensor_water_leak-waterleaksensorentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensor_water_leak (WaterLeakSensorEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensor_smoke-smokesensorentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensor_smoke (SmokeSensorEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensor_gas-gassensorentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensor_gas (GasSensorEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario_button-scenariobuttonentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        scenario_button (ScenarioButtonEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kettle-kettleentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kettle (KettleEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tv-tventity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tv (TvEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vacuum_cleaner-vacuumcleanerentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vacuum_cleaner (VacuumCleanerEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#intercom-intercomentity-extends-onoffentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        intercom (IntercomEntity, extends OnOffEntity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entity-linking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entity Linking
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Entity Linking">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#allowed-link-roles-by-category" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allowed Link Roles by Category
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ha-device_class-link-role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HA device_class -&gt; Link Role
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wizard-vs-link-dialog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wizard vs Link Dialog
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inheritance-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inheritance Hierarchy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-typed-constants-pydantic-helpers-v1100" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture: Typed Constants &amp; Pydantic Helpers (v1.10.0+)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture: Typed Constants &amp; Pydantic Helpers (v1.10.0+)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sber_constantspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sber_constants.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-construction-sber_modelspy-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Construction (sber_models.py helpers)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ha-context-echo-loop-prevention-v1100" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HA Context &amp; Echo Loop Prevention (v1.10.0+)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#value-change-diffing-v1100" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Value Change Diffing (v1.10.0+)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="entity-registry-sber-smart-home-mqtt-bridge">Entity Registry — Sber Smart Home MQTT Bridge<a class="headerlink" href="#entity-registry-sber-smart-home-mqtt-bridge" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Comprehensive reference for all Sber device types, features, allowed values,
+online status logic, entity linking, and HA domain mappings.</p>
+<p>Last updated: v1.10.3 (2026-03-26)</p>
+</blockquote>
+<h2 id="ha-domain-sber-category-mapping">HA Domain -&gt; Sber Category Mapping<a class="headerlink" href="#ha-domain-sber-category-mapping" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>HA Domain</th>
+<th>device_class</th>
+<th>Sber Category</th>
+<th>Class</th>
+<th>File</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>light</td>
+<td>*</td>
+<td><code>light</code></td>
+<td>LightEntity</td>
+<td>light.py</td>
+</tr>
+<tr>
+<td>light</td>
+<td>(led_strip override)</td>
+<td><code>led_strip</code></td>
+<td>LedStripEntity</td>
+<td>led_strip.py</td>
+</tr>
+<tr>
+<td>switch</td>
+<td>* (default)</td>
+<td><code>relay</code></td>
+<td>RelayEntity</td>
+<td>relay.py</td>
+</tr>
+<tr>
+<td>switch</td>
+<td>outlet</td>
+<td><code>socket</code></td>
+<td>SocketEntity</td>
+<td>socket_entity.py</td>
+</tr>
+<tr>
+<td>script</td>
+<td>*</td>
+<td><code>relay</code></td>
+<td>RelayEntity</td>
+<td>relay.py</td>
+</tr>
+<tr>
+<td>button</td>
+<td>*</td>
+<td><code>relay</code></td>
+<td>RelayEntity</td>
+<td>relay.py</td>
+</tr>
+<tr>
+<td>input_boolean</td>
+<td>*</td>
+<td><code>scenario_button</code></td>
+<td>ScenarioButtonEntity</td>
+<td>scenario_button.py</td>
+</tr>
+<tr>
+<td>cover</td>
+<td>* (default)</td>
+<td><code>curtain</code></td>
+<td>CurtainEntity</td>
+<td>curtain.py</td>
+</tr>
+<tr>
+<td>cover</td>
+<td>blind/shade/shutter</td>
+<td><code>window_blind</code></td>
+<td>WindowBlindEntity</td>
+<td>window_blind.py</td>
+</tr>
+<tr>
+<td>cover</td>
+<td>gate/garage_door</td>
+<td><code>gate</code></td>
+<td>GateEntity</td>
+<td>gate.py</td>
+</tr>
+<tr>
+<td>climate</td>
+<td>* (default)</td>
+<td><code>hvac_ac</code></td>
+<td>ClimateEntity</td>
+<td>climate.py</td>
+</tr>
+<tr>
+<td>climate</td>
+<td>radiator</td>
+<td><code>hvac_radiator</code></td>
+<td>HvacRadiatorEntity</td>
+<td>hvac_radiator.py</td>
+</tr>
+<tr>
+<td>climate</td>
+<td>heater</td>
+<td><code>hvac_heater</code></td>
+<td>HvacHeaterEntity</td>
+<td>hvac_heater.py</td>
+</tr>
+<tr>
+<td>climate</td>
+<td>(underfloor override)</td>
+<td><code>hvac_underfloor_heating</code></td>
+<td>HvacUnderfloorEntity</td>
+<td>hvac_underfloor_heating.py</td>
+</tr>
+<tr>
+<td>water_heater</td>
+<td>*</td>
+<td><code>hvac_boiler</code></td>
+<td>HvacBoilerEntity</td>
+<td>hvac_boiler.py</td>
+</tr>
+<tr>
+<td>valve</td>
+<td>*</td>
+<td><code>valve</code></td>
+<td>ValveEntity</td>
+<td>valve.py</td>
+</tr>
+<tr>
+<td>humidifier</td>
+<td>*</td>
+<td><code>hvac_humidifier</code></td>
+<td>HumidifierEntity</td>
+<td>humidifier.py</td>
+</tr>
+<tr>
+<td>fan</td>
+<td>* (default)</td>
+<td><code>hvac_fan</code></td>
+<td>HvacFanEntity</td>
+<td>hvac_fan.py</td>
+</tr>
+<tr>
+<td>fan</td>
+<td>purifier/air_purifier</td>
+<td><code>hvac_air_purifier</code></td>
+<td>HvacAirPurifierEntity</td>
+<td>hvac_air_purifier.py</td>
+</tr>
+<tr>
+<td>sensor</td>
+<td>temperature</td>
+<td><code>sensor_temp</code></td>
+<td>SensorTempEntity</td>
+<td>sensor_temp.py</td>
+</tr>
+<tr>
+<td>sensor</td>
+<td>humidity</td>
+<td><code>sensor_temp</code></td>
+<td>HumiditySensorEntity</td>
+<td>humidity_sensor.py</td>
+</tr>
+<tr>
+<td>binary_sensor</td>
+<td>motion/occupancy/presence</td>
+<td><code>sensor_pir</code></td>
+<td>MotionSensorEntity</td>
+<td>motion_sensor.py</td>
+</tr>
+<tr>
+<td>binary_sensor</td>
+<td>door/window/garage_door/opening</td>
+<td><code>sensor_door</code></td>
+<td>DoorSensorEntity</td>
+<td>door_sensor.py</td>
+</tr>
+<tr>
+<td>binary_sensor</td>
+<td>moisture/water</td>
+<td><code>sensor_water_leak</code></td>
+<td>WaterLeakSensorEntity</td>
+<td>water_leak_sensor.py</td>
+</tr>
+<tr>
+<td>binary_sensor</td>
+<td>smoke</td>
+<td><code>sensor_smoke</code></td>
+<td>SmokeSensorEntity</td>
+<td>smoke_sensor.py</td>
+</tr>
+<tr>
+<td>binary_sensor</td>
+<td>gas</td>
+<td><code>sensor_gas</code></td>
+<td>GasSensorEntity</td>
+<td>gas_sensor.py</td>
+</tr>
+<tr>
+<td>media_player</td>
+<td>*</td>
+<td><code>tv</code></td>
+<td>TvEntity</td>
+<td>tv.py</td>
+</tr>
+<tr>
+<td>vacuum</td>
+<td>*</td>
+<td><code>vacuum_cleaner</code></td>
+<td>VacuumCleanerEntity</td>
+<td>vacuum_cleaner.py</td>
+</tr>
+</tbody>
+</table>
+<h2 id="overridable-categories-manual-override-in-ui">Overridable Categories (manual override in UI)<a class="headerlink" href="#overridable-categories-manual-override-in-ui" title="Permanent link">&para;</a></h2>
+<p><code>light</code>, <code>led_strip</code>, <code>relay</code>, <code>socket</code>, <code>curtain</code>, <code>window_blind</code>, <code>gate</code>,
+<code>hvac_ac</code>, <code>hvac_radiator</code>, <code>hvac_heater</code>, <code>hvac_boiler</code>, <code>hvac_underfloor_heating</code>,
+<code>valve</code>, <code>hvac_humidifier</code>, <code>hvac_fan</code>, <code>hvac_air_purifier</code>, <code>scenario_button</code>,
+<code>kettle</code>, <code>tv</code>, <code>vacuum_cleaner</code>, <code>intercom</code></p>
+<hr />
+<h2 id="online-status-logic">Online Status Logic<a class="headerlink" href="#online-status-logic" title="Permanent link">&para;</a></h2>
+<p>The <code>online</code> feature is reported for every device. The logic varies by entity type:</p>
+<table>
+<thead>
+<tr>
+<th>HA state</th>
+<th>Default behavior</th>
+<th>Event-based binary_sensors</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>None</code> (not loaded)</td>
+<td><strong>offline</strong> (is_filled=false, UI: "Loading...")</td>
+<td><strong>offline</strong></td>
+</tr>
+<tr>
+<td><code>"unavailable"</code></td>
+<td><strong>offline</strong></td>
+<td><strong>offline</strong></td>
+</tr>
+<tr>
+<td><code>"unknown"</code></td>
+<td><strong>offline</strong></td>
+<td><strong>online</strong> (device reachable, no events yet)</td>
+</tr>
+<tr>
+<td><code>"on"/"off"/value/etc.</code></td>
+<td><strong>online</strong></td>
+<td><strong>online</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Event-based sensors</strong> with <code>_unknown_is_online = True</code>:
+<code>MotionSensorEntity</code>, <code>DoorSensorEntity</code>, <code>WaterLeakSensorEntity</code>, <code>SmokeSensorEntity</code>, <code>GasSensorEntity</code></p>
+<p><strong>Value-based sensors</strong> keep <code>unknown</code> = offline to avoid reporting fake 0 values:
+<code>SensorTempEntity</code> (would report 0.0C), <code>HumiditySensorEntity</code> (would report 0%)</p>
+<p><strong>UI badge states:</strong>
+- Green <strong>"Online"</strong> — entity is reachable and reporting state
+- Grey <strong>"Offline"</strong> — entity state is <code>unavailable</code> (device unreachable)
+- Yellow <strong>"Loading..."</strong> — state not yet received (<code>is_filled=false</code>)</p>
+<hr />
+<h2 id="feature-registry-by-category">Feature Registry by Category<a class="headerlink" href="#feature-registry-by-category" title="Permanent link">&para;</a></h2>
+<h3 id="light-led_strip-lightentity-ledstripentity"><code>light</code> / <code>led_strip</code> (LightEntity / LedStripEntity)<a class="headerlink" href="#light-led_strip-lightentity-ledstripentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>on_off</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td>Power state</td>
+</tr>
+<tr>
+<td><code>light_brightness</code></td>
+<td>INTEGER</td>
+<td>100-900, step 1</td>
+<td>R/W</td>
+<td>Mapped from HA 0-255 via LinearConverter</td>
+</tr>
+<tr>
+<td><code>light_colour</code></td>
+<td>COLOUR</td>
+<td><code>{h: 0-360, s: 0-1000, v: 0-1000}</code></td>
+<td>R/W</td>
+<td>HSV; converted via ColorConverter</td>
+</tr>
+<tr>
+<td><code>light_mode</code></td>
+<td>ENUM</td>
+<td><code>white</code>, <code>colour</code></td>
+<td>R/W</td>
+<td>Switching sends HA service call with current color/temp</td>
+</tr>
+<tr>
+<td><code>light_colour_temp</code></td>
+<td>ENUM</td>
+<td>0-1000, step 1</td>
+<td>R/W</td>
+<td>Mapped from HA mireds (reversed)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Dependencies:</strong> <code>light_colour</code> depends on <code>light_mode == "colour"</code></p>
+<h3 id="relay-socket-relayentity-socketentity-extends-onoffentity"><code>relay</code> / <code>socket</code> (RelayEntity / SocketEntity, extends OnOffEntity)<a class="headerlink" href="#relay-socket-relayentity-socketentity-extends-onoffentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>on_off</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td>For button domain uses <code>press</code> service</td>
+</tr>
+<tr>
+<td><code>power</code></td>
+<td>INTEGER</td>
+<td>watts</td>
+<td>R</td>
+<td>Optional, from HA attributes</td>
+</tr>
+<tr>
+<td><code>voltage</code></td>
+<td>INTEGER</td>
+<td>volts</td>
+<td>R</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td><code>current</code></td>
+<td>INTEGER</td>
+<td>milliamps</td>
+<td>R</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td><code>child_lock</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>Optional</td>
+</tr>
+</tbody>
+</table>
+<h3 id="curtain-window_blind-gate-curtainentity-hierarchy"><code>curtain</code> / <code>window_blind</code> / <code>gate</code> (CurtainEntity hierarchy)<a class="headerlink" href="#curtain-window_blind-gate-curtainentity-hierarchy" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>open_percentage</code></td>
+<td>INTEGER</td>
+<td>0-100, step 1</td>
+<td>R/W</td>
+<td>0=closed, 100=open</td>
+</tr>
+<tr>
+<td><code>open_state</code></td>
+<td>ENUM</td>
+<td><code>open</code>, <code>close</code></td>
+<td>R</td>
+<td>Enforced consistent with percentage</td>
+</tr>
+<tr>
+<td><code>open_set</code></td>
+<td>ENUM</td>
+<td><code>open</code>, <code>close</code>, <code>stop</code></td>
+<td>W</td>
+<td>Command</td>
+</tr>
+<tr>
+<td><code>battery_percentage</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td>From attributes or linked entity</td>
+</tr>
+<tr>
+<td><code>battery_low_power</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>From linked binary_sensor or &lt;20%</td>
+</tr>
+<tr>
+<td><code>signal_strength</code></td>
+<td>ENUM</td>
+<td><code>high</code>, <code>medium</code>, <code>low</code></td>
+<td>R</td>
+<td>From RSSI/linkquality attribute or linked</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Consistency enforcement:</strong> if percentage &gt; 0 → open_state forced to "open"; if 0 → "close"</p>
+<h3 id="hvac_ac-climateentity"><code>hvac_ac</code> (ClimateEntity)<a class="headerlink" href="#hvac_ac-climateentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>on_off</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td></td>
+</tr>
+<tr>
+<td><code>temperature</code></td>
+<td>INTEGER</td>
+<td>x10 (e.g. 225 = 22.5C)</td>
+<td>R</td>
+<td>Current temp</td>
+</tr>
+<tr>
+<td><code>hvac_temp_set</code></td>
+<td>INTEGER</td>
+<td>min_temp..max_temp, step configurable</td>
+<td>R/W</td>
+<td>Target temp (whole degrees)</td>
+</tr>
+<tr>
+<td><code>hvac_work_mode</code></td>
+<td>ENUM</td>
+<td><code>cooling</code>, <code>heating</code>, <code>dehumidification</code>, <code>ventilation</code>, <code>auto</code></td>
+<td>R/W</td>
+<td>Mapped from HA hvac_mode</td>
+</tr>
+<tr>
+<td><code>hvac_air_flow_power</code></td>
+<td>ENUM</td>
+<td><code>auto</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>turbo</code>, <code>quiet</code></td>
+<td>R/W</td>
+<td>Mapped via HA_TO_SBER_FAN_MODE (20+ HA names)</td>
+</tr>
+<tr>
+<td><code>hvac_air_flow_direction</code></td>
+<td>ENUM</td>
+<td><code>auto</code>, <code>no</code>, <code>vertical</code>, <code>horizontal</code>, <code>rotation</code>, <code>swing</code></td>
+<td>R/W</td>
+<td>Mapped from HA swing_mode</td>
+</tr>
+<tr>
+<td><code>hvac_humidity_set</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R/W</td>
+<td>If HA entity supports target_humidity</td>
+</tr>
+<tr>
+<td><code>hvac_night_mode</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td>From preset_mode sleep/night</td>
+</tr>
+<tr>
+<td><code>hvac_thermostat_mode</code></td>
+<td>ENUM</td>
+<td><code>heating</code>, <code>auto</code></td>
+<td>R/W</td>
+<td>For boiler/heater/underfloor only</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Fan mode mapping (HA_TO_SBER_FAN_MODE):</strong>
+auto, low, medium/mid, high, turbo/strong/boost/max, quiet/silent/sleep, 1-5 (numeric)</p>
+<h3 id="hvac_radiator-hvacradiatorentity"><code>hvac_radiator</code> (HvacRadiatorEntity)<a class="headerlink" href="#hvac_radiator-hvacradiatorentity" title="Permanent link">&para;</a></h3>
+<p>Inherits ClimateEntity. <code>_supports_fan=False</code>, <code>_supports_swing=False</code>, <code>_supports_work_mode=False</code>.
+Temperature: 25-40C, step 5.</p>
+<h3 id="hvac_heater-hvacheaterentity"><code>hvac_heater</code> (HvacHeaterEntity)<a class="headerlink" href="#hvac_heater-hvacheaterentity" title="Permanent link">&para;</a></h3>
+<p>Inherits ClimateEntity. <code>_supports_fan=True</code>, <code>_supports_thermostat_mode=True</code>, <code>_supports_swing=False</code>, <code>_supports_work_mode=False</code>.
+Temperature: 5-40C.</p>
+<h3 id="hvac_boiler-hvacboilerentity"><code>hvac_boiler</code> (HvacBoilerEntity)<a class="headerlink" href="#hvac_boiler-hvacboilerentity" title="Permanent link">&para;</a></h3>
+<p>Inherits ClimateEntity. <code>_supports_thermostat_mode=True</code>, no fan/swing/work_mode.
+Temperature: 25-80C, step 5.</p>
+<h3 id="hvac_underfloor_heating-hvacunderfloorentity"><code>hvac_underfloor_heating</code> (HvacUnderfloorEntity)<a class="headerlink" href="#hvac_underfloor_heating-hvacunderfloorentity" title="Permanent link">&para;</a></h3>
+<p>Inherits ClimateEntity. <code>_supports_thermostat_mode=True</code>, no fan/swing/work_mode.
+Temperature: 25-50C, step 5.</p>
+<h3 id="hvac_humidifier-humidifierentity"><code>hvac_humidifier</code> (HumidifierEntity)<a class="headerlink" href="#hvac_humidifier-humidifierentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>on_off</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td></td>
+</tr>
+<tr>
+<td><code>humidity</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td>Current humidity</td>
+</tr>
+<tr>
+<td><code>hvac_humidity_set</code></td>
+<td>INTEGER</td>
+<td>0-100, step 1</td>
+<td>R/W</td>
+<td>Target humidity</td>
+</tr>
+<tr>
+<td><code>hvac_air_flow_power</code></td>
+<td>ENUM</td>
+<td>dynamic from HA modes</td>
+<td>R/W</td>
+<td>Mapped via HA_TO_SBER_HUMIDIFIER_MODE</td>
+</tr>
+<tr>
+<td><code>hvac_night_mode</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td>If modes contain sleep/night</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hvac_fan-hvacfanentity"><code>hvac_fan</code> (HvacFanEntity)<a class="headerlink" href="#hvac_fan-hvacfanentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>on_off</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td></td>
+</tr>
+<tr>
+<td><code>hvac_air_flow_power</code></td>
+<td>ENUM</td>
+<td><code>auto</code>, <code>high</code>, <code>low</code>, <code>medium</code>, <code>quiet</code>, <code>turbo</code></td>
+<td>R/W</td>
+<td>From preset_mode or percentage</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Percentage → Speed mapping:</strong> 0-19%=quiet, 20-39%=low, 40-66%=medium, 67-89%=high, 90-100%=turbo</p>
+<h3 id="hvac_air_purifier-hvacairpurifierentity"><code>hvac_air_purifier</code> (HvacAirPurifierEntity)<a class="headerlink" href="#hvac_air_purifier-hvacairpurifierentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>on_off</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td></td>
+</tr>
+<tr>
+<td><code>hvac_air_flow_power</code></td>
+<td>ENUM</td>
+<td><code>auto</code>, <code>high</code>, <code>low</code>, <code>medium</code>, <code>quiet</code>, <code>turbo</code></td>
+<td>R/W</td>
+<td>Shared constants from hvac_fan</td>
+</tr>
+<tr>
+<td><code>hvac_ionization</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>From HA attributes</td>
+</tr>
+<tr>
+<td><code>hvac_night_mode</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>hvac_aromatization</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>hvac_replace_filter</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>Filter replacement needed</td>
+</tr>
+<tr>
+<td><code>hvac_replace_ionizator</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>Ionizer replacement needed</td>
+</tr>
+<tr>
+<td><code>hvac_decontaminate</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>Conditional</td>
+</tr>
+</tbody>
+</table>
+<h3 id="valve-valveentity"><code>valve</code> (ValveEntity)<a class="headerlink" href="#valve-valveentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>open_state</code></td>
+<td>ENUM</td>
+<td><code>open</code>, <code>close</code></td>
+<td>R</td>
+<td>Current state</td>
+</tr>
+<tr>
+<td><code>open_set</code></td>
+<td>ENUM</td>
+<td><code>open</code>, <code>close</code>, <code>stop</code></td>
+<td>W</td>
+<td>Command</td>
+</tr>
+<tr>
+<td><code>battery_percentage</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td>From attributes or linked entity</td>
+</tr>
+<tr>
+<td><code>battery_low_power</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>From linked binary_sensor or &lt;20%</td>
+</tr>
+<tr>
+<td><code>signal_strength</code></td>
+<td>ENUM</td>
+<td><code>high</code>, <code>medium</code>, <code>low</code></td>
+<td>R</td>
+<td>From attributes or linked entity</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sensor_temp-sensortempentity"><code>sensor_temp</code> (SensorTempEntity)<a class="headerlink" href="#sensor_temp-sensortempentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>unknown = <strong>offline</strong> (prevents 0C report)</td>
+</tr>
+<tr>
+<td><code>temperature</code></td>
+<td>INTEGER</td>
+<td>x10 (225 = 22.5C)</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>humidity</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td>From linked humidity entity</td>
+</tr>
+<tr>
+<td><code>air_pressure</code></td>
+<td>INTEGER</td>
+<td>mmHg</td>
+<td>R</td>
+<td>From <code>pressure</code> attribute</td>
+</tr>
+<tr>
+<td><code>battery_percentage</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td>From attributes or linked</td>
+</tr>
+<tr>
+<td><code>battery_low_power</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>signal_strength</code></td>
+<td>ENUM</td>
+<td><code>high</code>/<code>medium</code>/<code>low</code></td>
+<td>R</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="sensor_temp-humiditysensorentity-same-category"><code>sensor_temp</code> (HumiditySensorEntity, same category)<a class="headerlink" href="#sensor_temp-humiditysensorentity-same-category" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>unknown = <strong>offline</strong></td>
+</tr>
+<tr>
+<td><code>humidity</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>temperature</code></td>
+<td>INTEGER</td>
+<td>x10</td>
+<td>R</td>
+<td>From linked temperature entity</td>
+</tr>
+<tr>
+<td><code>battery_percentage</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>battery_low_power</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>signal_strength</code></td>
+<td>ENUM</td>
+<td><code>high</code>/<code>medium</code>/<code>low</code></td>
+<td>R</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="sensor_pir-motionsensorentity"><code>sensor_pir</code> (MotionSensorEntity)<a class="headerlink" href="#sensor_pir-motionsensorentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>unknown = <strong>online</strong> (_unknown_is_online=True)</td>
+</tr>
+<tr>
+<td><code>pir</code></td>
+<td>ENUM</td>
+<td><code>pir</code>, <code>no_pir</code></td>
+<td>R</td>
+<td>Per Sber C2C spec</td>
+</tr>
+<tr>
+<td><code>battery_percentage</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>battery_low_power</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>signal_strength</code></td>
+<td>ENUM</td>
+<td><code>high</code>/<code>medium</code>/<code>low</code></td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>tamper_alarm</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>From <code>tamper</code> attribute</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sensor_door-doorsensorentity"><code>sensor_door</code> (DoorSensorEntity)<a class="headerlink" href="#sensor_door-doorsensorentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>unknown = <strong>online</strong></td>
+</tr>
+<tr>
+<td><code>doorcontact_state</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>true = open</td>
+</tr>
+<tr>
+<td><code>battery_percentage</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>battery_low_power</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>signal_strength</code></td>
+<td>ENUM</td>
+<td><code>high</code>/<code>medium</code>/<code>low</code></td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>tamper_alarm</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="sensor_water_leak-waterleaksensorentity"><code>sensor_water_leak</code> (WaterLeakSensorEntity)<a class="headerlink" href="#sensor_water_leak-waterleaksensorentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>unknown = <strong>online</strong></td>
+</tr>
+<tr>
+<td><code>water_leak_state</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>true = leak detected</td>
+</tr>
+<tr>
+<td><code>battery_percentage</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>battery_low_power</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>signal_strength</code></td>
+<td>ENUM</td>
+<td><code>high</code>/<code>medium</code>/<code>low</code></td>
+<td>R</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="sensor_smoke-smokesensorentity"><code>sensor_smoke</code> (SmokeSensorEntity)<a class="headerlink" href="#sensor_smoke-smokesensorentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>unknown = <strong>online</strong></td>
+</tr>
+<tr>
+<td><code>smoke_state</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>true = smoke detected</td>
+</tr>
+<tr>
+<td><code>alarm_mute</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>From <code>alarm_mute</code> attribute</td>
+</tr>
+<tr>
+<td><code>battery_percentage</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>battery_low_power</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>signal_strength</code></td>
+<td>ENUM</td>
+<td><code>high</code>/<code>medium</code>/<code>low</code></td>
+<td>R</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="sensor_gas-gassensorentity"><code>sensor_gas</code> (GasSensorEntity)<a class="headerlink" href="#sensor_gas-gassensorentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>unknown = <strong>online</strong></td>
+</tr>
+<tr>
+<td><code>gas_leak_state</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>true = gas detected</td>
+</tr>
+<tr>
+<td><code>alarm_mute</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>From <code>alarm_mute</code> attribute</td>
+</tr>
+<tr>
+<td><code>battery_percentage</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>battery_low_power</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>signal_strength</code></td>
+<td>ENUM</td>
+<td><code>high</code>/<code>medium</code>/<code>low</code></td>
+<td>R</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="scenario_button-scenariobuttonentity"><code>scenario_button</code> (ScenarioButtonEntity)<a class="headerlink" href="#scenario_button-scenariobuttonentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>button_event</code></td>
+<td>ENUM</td>
+<td><code>click</code>, <code>double_click</code>, <code>long_press</code></td>
+<td>R</td>
+<td>on=click, off=double_click</td>
+</tr>
+</tbody>
+</table>
+<h3 id="kettle-kettleentity"><code>kettle</code> (KettleEntity)<a class="headerlink" href="#kettle-kettleentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>on_off</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td></td>
+</tr>
+<tr>
+<td><code>kitchen_water_temperature</code></td>
+<td>INTEGER</td>
+<td>degrees (plain, NOT x10)</td>
+<td>R</td>
+<td>Current water temp</td>
+</tr>
+<tr>
+<td><code>kitchen_water_temperature_set</code></td>
+<td>INTEGER</td>
+<td>60-100, step 10</td>
+<td>R/W</td>
+<td>Target temp</td>
+</tr>
+<tr>
+<td><code>kitchen_water_level</code></td>
+<td>INTEGER</td>
+<td></td>
+<td>R</td>
+<td>From <code>water_level</code> attribute</td>
+</tr>
+<tr>
+<td><code>kitchen_water_low_level</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td>Heuristic: temp &lt; 30</td>
+</tr>
+<tr>
+<td><code>child_lock</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="tv-tventity"><code>tv</code> (TvEntity)<a class="headerlink" href="#tv-tventity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>on_off</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td></td>
+</tr>
+<tr>
+<td><code>volume_int</code></td>
+<td>INTEGER</td>
+<td>0-100, step 1</td>
+<td>R/W</td>
+<td>HA 0.0-1.0 -&gt; Sber 0-100</td>
+</tr>
+<tr>
+<td><code>mute</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td></td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td>ENUM</td>
+<td>dynamic (from <code>source_list</code>)</td>
+<td>R/W</td>
+<td>Input source</td>
+</tr>
+</tbody>
+</table>
+<h3 id="vacuum_cleaner-vacuumcleanerentity"><code>vacuum_cleaner</code> (VacuumCleanerEntity)<a class="headerlink" href="#vacuum_cleaner-vacuumcleanerentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>vacuum_cleaner_status</code></td>
+<td>ENUM</td>
+<td><code>cleaning</code>, <code>charging</code>, <code>docked</code>, <code>returning</code>, <code>error</code>, <code>paused</code></td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>vacuum_cleaner_command</code></td>
+<td>ENUM</td>
+<td><code>start</code>, <code>stop</code>, <code>pause</code>, <code>return_to_dock</code></td>
+<td>W</td>
+<td></td>
+</tr>
+<tr>
+<td><code>vacuum_cleaner_program</code></td>
+<td>ENUM</td>
+<td>dynamic (from <code>fan_speed_list</code>)</td>
+<td>R/W</td>
+<td>Cleaning intensity</td>
+</tr>
+<tr>
+<td><code>battery_percentage</code></td>
+<td>INTEGER</td>
+<td>0-100</td>
+<td>R</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="intercom-intercomentity-extends-onoffentity"><code>intercom</code> (IntercomEntity, extends OnOffEntity)<a class="headerlink" href="#intercom-intercomentity-extends-onoffentity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th>Range/Values</th>
+<th>Direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>on_off</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R/W</td>
+<td></td>
+</tr>
+<tr>
+<td><code>incoming_call</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>reject_call</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td><code>unlock</code></td>
+<td>BOOL</td>
+<td>true/false</td>
+<td>R</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="entity-linking">Entity Linking<a class="headerlink" href="#entity-linking" title="Permanent link">&para;</a></h2>
+<h3 id="allowed-link-roles-by-category">Allowed Link Roles by Category<a class="headerlink" href="#allowed-link-roles-by-category" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Primary Category</th>
+<th>Allowed Roles</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sensor_water_leak</code></td>
+<td><code>battery</code>, <code>battery_low</code>, <code>signal_strength</code></td>
+</tr>
+<tr>
+<td><code>sensor_pir</code></td>
+<td><code>battery</code>, <code>battery_low</code>, <code>signal_strength</code></td>
+</tr>
+<tr>
+<td><code>sensor_door</code></td>
+<td><code>battery</code>, <code>battery_low</code>, <code>signal_strength</code></td>
+</tr>
+<tr>
+<td><code>sensor_smoke</code></td>
+<td><code>battery</code>, <code>battery_low</code>, <code>signal_strength</code></td>
+</tr>
+<tr>
+<td><code>sensor_gas</code></td>
+<td><code>battery</code>, <code>battery_low</code>, <code>signal_strength</code></td>
+</tr>
+<tr>
+<td><code>sensor_temp</code></td>
+<td><code>battery</code>, <code>battery_low</code>, <code>signal_strength</code>, <code>humidity</code></td>
+</tr>
+<tr>
+<td><code>sensor_humidity</code></td>
+<td><code>battery</code>, <code>battery_low</code>, <code>signal_strength</code>, <code>temperature</code></td>
+</tr>
+<tr>
+<td><code>curtain</code></td>
+<td><code>battery</code>, <code>battery_low</code>, <code>signal_strength</code></td>
+</tr>
+<tr>
+<td><code>window_blind</code></td>
+<td><code>battery</code>, <code>battery_low</code>, <code>signal_strength</code></td>
+</tr>
+<tr>
+<td><code>gate</code></td>
+<td><code>battery</code>, <code>battery_low</code>, <code>signal_strength</code></td>
+</tr>
+<tr>
+<td><code>valve</code></td>
+<td><code>battery</code>, <code>battery_low</code>, <code>signal_strength</code></td>
+</tr>
+<tr>
+<td><code>hvac_ac</code></td>
+<td><code>temperature</code></td>
+</tr>
+<tr>
+<td><code>hvac_humidifier</code></td>
+<td><code>humidity</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="ha-device_class-link-role">HA device_class -&gt; Link Role<a class="headerlink" href="#ha-device_class-link-role" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>HA device_class</th>
+<th>HA domain</th>
+<th>Link Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>battery</code></td>
+<td><code>sensor</code></td>
+<td><code>battery</code> (percentage level)</td>
+</tr>
+<tr>
+<td><code>battery</code></td>
+<td><code>binary_sensor</code></td>
+<td><code>battery_low</code> (boolean low flag)</td>
+</tr>
+<tr>
+<td><code>temperature</code></td>
+<td><code>sensor</code></td>
+<td><code>temperature</code></td>
+</tr>
+<tr>
+<td><code>humidity</code></td>
+<td><code>sensor</code></td>
+<td><code>humidity</code></td>
+</tr>
+<tr>
+<td><code>signal_strength</code></td>
+<td><code>sensor</code></td>
+<td><code>signal_strength</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Note: <code>moisture</code> binary_sensor is <strong>excluded</strong> — it's a leak detector, not humidity.
+Both <code>battery</code> (sensor) and <code>battery_low</code> (binary_sensor) can be linked simultaneously.</p>
+</blockquote>
+<h3 id="wizard-vs-link-dialog">Wizard vs Link Dialog<a class="headerlink" href="#wizard-vs-link-dialog" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Wizard</strong> (Add Device step 2): shows only <strong>same-device</strong> candidates (<code>same_device_only=true</code>)</li>
+<li><strong>Link Dialog</strong> (edit links): shows all candidates, grouped by same_device / other_devices</li>
+</ul>
+<hr />
+<h2 id="inheritance-hierarchy">Inheritance Hierarchy<a class="headerlink" href="#inheritance-hierarchy" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>BaseEntity (abstract)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  +-- LightEntity (light)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  |     +-- LedStripEntity (led_strip)
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  +-- CurtainEntity (curtain)            [update_linked_data: battery, battery_low, signal]
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  |     +-- WindowBlindEntity (window_blind)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  |     +-- GateEntity (gate)
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  +-- ClimateEntity (hvac_ac)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  |     +-- HvacRadiatorEntity (hvac_radiator, temp 25-40, step 5)
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  |     +-- HvacHeaterEntity (hvac_heater, temp 5-40, fan+thermostat)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  |     +-- HvacBoilerEntity (hvac_boiler, temp 25-80, step 5, thermostat)
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  |     +-- HvacUnderfloorEntity (hvac_underfloor_heating, temp 25-50, step 5)
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  +-- OnOffEntity (abstract)
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  |     +-- RelayEntity (relay)
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  |     |     +-- SocketEntity (socket)
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  |     +-- IntercomEntity (intercom)
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  +-- SimpleReadOnlySensor (abstract)    [_unknown_is_online flag, update_linked_data]
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>  |     +-- SensorTempEntity (sensor_temp)          [unknown=offline]
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>  |     +-- HumiditySensorEntity (sensor_temp)      [unknown=offline]
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>  |     +-- MotionSensorEntity (sensor_pir)         [unknown=ONLINE]
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>  |     +-- DoorSensorEntity (sensor_door)          [unknown=ONLINE]
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>  |     +-- WaterLeakSensorEntity (sensor_water_leak) [unknown=ONLINE]
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>  |     +-- SmokeSensorEntity (sensor_smoke)        [unknown=ONLINE]
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>  |     +-- GasSensorEntity (sensor_gas)            [unknown=ONLINE]
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>  +-- HumidifierEntity (hvac_humidifier)
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>  +-- HvacFanEntity (hvac_fan)
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>  +-- HvacAirPurifierEntity (hvac_air_purifier)     [imports speed constants from hvac_fan]
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>  +-- ScenarioButtonEntity (scenario_button)
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>  +-- KettleEntity (kettle)
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>  +-- TvEntity (tv)
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>  +-- VacuumCleanerEntity (vacuum_cleaner)
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>  +-- ValveEntity (valve)                [update_linked_data: battery, battery_low, signal]
+</code></pre></div>
+<hr />
+<h2 id="architecture-typed-constants-pydantic-helpers-v1100">Architecture: Typed Constants &amp; Pydantic Helpers (v1.10.0+)<a class="headerlink" href="#architecture-typed-constants-pydantic-helpers-v1100" title="Permanent link">&para;</a></h2>
+<h3 id="sber_constantspy">sber_constants.py<a class="headerlink" href="#sber_constantspy" title="Permanent link">&para;</a></h3>
+<p>All string literals replaced with typed StrEnum constants:
+- <code>SberFeature</code> — 61 feature key names
+- <code>SberValueType</code> — BOOL, INTEGER, ENUM, COLOUR, FLOAT
+- <code>HAState</code> — on, off, unavailable, unknown, open, closed, etc.
+- <code>MqttTopicSuffix</code> — commands, status_request, config_request, etc.</p>
+<h3 id="state-construction-sber_modelspy-helpers">State Construction (sber_models.py helpers)<a class="headerlink" href="#state-construction-sber_modelspy-helpers" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># All device files use:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">..sber_constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">SberFeature</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">..sber_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_state</span><span class="p">,</span> <span class="n">make_bool_value</span><span class="p">,</span> <span class="n">make_integer_value</span><span class="p">,</span> <span class="n">make_enum_value</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">states</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">make_state</span><span class="p">(</span><span class="n">SberFeature</span><span class="o">.</span><span class="n">ONLINE</span><span class="p">,</span> <span class="n">make_bool_value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_online</span><span class="p">)),</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">make_state</span><span class="p">(</span><span class="n">SberFeature</span><span class="o">.</span><span class="n">ON_OFF</span><span class="p">,</span> <span class="n">make_bool_value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">)),</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">make_state</span><span class="p">(</span><span class="n">SberFeature</span><span class="o">.</span><span class="n">TEMPERATURE</span><span class="p">,</span> <span class="n">make_integer_value</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">*</span> <span class="mi">10</span><span class="p">))),</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">]</span>
+</code></pre></div>
+<p><code>make_integer_value</code> outputs <code>str(value)</code> per Sber C2C spec.</p>
+<h3 id="ha-context-echo-loop-prevention-v1100">HA Context &amp; Echo Loop Prevention (v1.10.0+)<a class="headerlink" href="#ha-context-echo-loop-prevention-v1100" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Sber commands include HA <code>Context</code> in service calls — logbook attribution</li>
+<li>State changes from Sber context IDs are not re-published (echo loop prevention)</li>
+<li>Bounded context ID set (max 200)</li>
+</ul>
+<h3 id="value-change-diffing-v1100">Value Change Diffing (v1.10.0+)<a class="headerlink" href="#value-change-diffing-v1100" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>BaseEntity.has_significant_change()</code> — compares current Sber state with last published</li>
+<li><code>BaseEntity.mark_state_published()</code> — snapshots state after successful publish</li>
+<li><code>_publish_states(force=True)</code> for Sber status_request responses (always respond)</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  К началу
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/dzerik/sber-mqtt-bridge" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://t.me/+k_w9uO0h73FkNjJi" target="_blank" rel="noopener" title="t.me" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M256 8a248 248 0 1 0 0 496 248 248 0 1 0 0-496m115 168.7c-3.7 39.2-19.9 134.4-28.1 178.3-3.5 18.6-10.3 24.8-16.9 25.4-14.4 1.3-25.3-9.5-39.3-18.7-21.8-14.3-34.2-23.2-55.3-37.2-24.5-16.1-8.6-25 5.3-39.5 3.7-3.8 67.1-61.5 68.3-66.7.2-.7.3-3.1-1.2-4.4s-3.6-.8-5.1-.5c-2.2.5-37.1 23.5-104.6 69.1-9.9 6.8-18.9 10.1-26.9 9.9-8.9-.2-25.9-5-38.6-9.1-15.5-5-27.9-7.7-26.8-16.3.6-4.5 6.7-9 18.4-13.7 72.3-31.5 120.5-52.3 144.6-62.3 68.9-28.6 83.2-33.6 92.5-33.8 2.1 0 6.6.5 9.6 2.9 2 1.7 3.2 4.1 3.5 6.7.5 3.2.6 6.5.4 9.8z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
