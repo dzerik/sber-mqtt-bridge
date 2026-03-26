@@ -22,6 +22,7 @@ class WaterLeakSensorEntity(SimpleReadOnlySensor):
 
     _sber_value_key = "water_leak_state"
     _sber_value_type = "BOOL"
+    _unknown_is_online = True
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize water leak sensor entity.

@@ -41,12 +41,26 @@ class SimpleReadOnlySensor(BaseEntity):
     _sber_value_type: str
     """Sber value type string: 'INTEGER', 'BOOL', or 'ENUM'."""
 
+    _unknown_is_online: bool = False
+    """If True, HA ``unknown`` state is treated as online.
+
+    Override to ``True`` in event-based sensors (binary_sensor) where
+    ``unknown`` means "no event yet" rather than "device unreachable".
+    """
+
     _TYPE_KEY_MAP: ClassVar[dict[str, str]] = {
         "INTEGER": "integer_value",
         "BOOL": "bool_value",
         "ENUM": "enum_value",
     }
     """Mapping from Sber value type to its JSON field name."""
+
+    @property
+    def _is_online(self) -> bool:
+        """Check if sensor is online, respecting ``_unknown_is_online`` flag."""
+        if self._unknown_is_online and self.state == "unknown":
+            return True
+        return super()._is_online
 
     @abstractmethod
     def _get_sber_value(self) -> int | bool | str:

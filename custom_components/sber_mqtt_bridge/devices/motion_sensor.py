@@ -26,6 +26,7 @@ class MotionSensorEntity(SimpleReadOnlySensor):
 
     _sber_value_key = "pir"
     _sber_value_type = "ENUM"
+    _unknown_is_online = True
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize motion sensor entity.

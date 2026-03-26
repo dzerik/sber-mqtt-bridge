@@ -28,6 +28,7 @@ class DoorSensorEntity(SimpleReadOnlySensor):
 
     _sber_value_key = "doorcontact_state"
     _sber_value_type = "BOOL"
+    _unknown_is_online = True
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize door sensor entity.
