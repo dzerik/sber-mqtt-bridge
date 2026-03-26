@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-03-26
+
+### Fixed
+- **entity linking**: links not displayed after HA restart — `EVENT_HOMEASSISTANT_STARTED` listener never fired on integration reload; now checks `hass.is_running` and reloads immediately
+- **UI**: entities show yellow "Loading..." badge instead of grey "Offline" when state not yet received (prevents false alarm during startup/reload)
+- **UI**: row dimming skipped for entities in loading state
+
 ## [1.10.0] - 2026-03-25
 
 ### Added
