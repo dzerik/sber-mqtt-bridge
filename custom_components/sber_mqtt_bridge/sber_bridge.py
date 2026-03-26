@@ -496,10 +496,19 @@ class SberBridge:
 
     @callback
     def _on_homeassistant_started(self, _event: Event) -> None:
-        """Reload exposed entities after HA is fully started."""
-        _LOGGER.debug("HA started — reloading exposed entities")
+        """Reload exposed entities after HA is fully started and republish.
+
+        At async_setup_entry time, many entities are still unavailable/unknown.
+        Once HA is fully started, all integrations have loaded their entities
+        with real states — reload and republish so Sber gets correct data.
+        """
+        _LOGGER.debug("HA started — reloading exposed entities and republishing")
         self._load_exposed_entities()
         self._subscribe_ha_events()
+        # Republish with fresh states now that all entities are fully loaded
+        if self._connected:
+            self._hass.async_create_task(self._publish_config())
+            self._hass.async_create_task(self._publish_states(force=True))
 
     async def _mqtt_connection_loop(self) -> None:
         """Maintain persistent MQTT connection with exponential backoff reconnect."""

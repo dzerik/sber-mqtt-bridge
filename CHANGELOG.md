@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-03-26
+
+### Fixed
+- **Stale states after HA restart**: MQTT could connect and publish states before `EVENT_HOMEASSISTANT_STARTED`, when many entities are still `unavailable`/`unknown`; now `_on_homeassistant_started` also republishes config + states with fresh data once all integrations have fully loaded
+
 ## [1.12.0] - 2026-03-26
 
 ### Added
