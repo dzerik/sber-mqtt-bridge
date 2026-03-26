@@ -104,6 +104,10 @@
     "connection_issues": {
       "title": "MQTT connection issues",
       "description": "Connection to Sber MQTT broker has been lost. Reconnect attempts: {reconnect_count}. Check your credentials and network connectivity."
+    },
+    "broken_entity_links": {
+      "title": "Broken entity links",
+      "description": "{count} linked entities are not available: {links}. Check that the linked entities exist and are not disabled."
     }
   }
 }

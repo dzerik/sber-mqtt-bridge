@@ -57,6 +57,7 @@ class VacuumCleanerEntity(BaseEntity):
         self._fan_speed: str | None = None
         self._fan_speed_list: list[str] = []
         self._battery_level: int | None = None
+        self._cleaning_type: str | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update vacuum cleaner attributes.
@@ -71,6 +72,8 @@ class VacuumCleanerEntity(BaseEntity):
         self._fan_speed = attrs.get("fan_speed")
         self._fan_speed_list = attrs.get("fan_speed_list") or []
         self._battery_level = self._safe_int(attrs.get("battery_level"))
+        # cleaning_type from custom attribute (dry/wet/dry_and_wet)
+        self._cleaning_type = attrs.get("cleaning_type")
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for vacuum capabilities.
@@ -85,6 +88,8 @@ class VacuumCleanerEntity(BaseEntity):
         ]
         if self._fan_speed_list:
             features.append("vacuum_cleaner_program")
+        if self._cleaning_type is not None:
+            features.append("vacuum_cleaner_cleaning_type")
         if self._battery_level is not None:
             features.append("battery_percentage")
         return features
@@ -110,6 +115,11 @@ class VacuumCleanerEntity(BaseEntity):
                 "type": "ENUM",
                 "enum_values": {"values": self._fan_speed_list},
             }
+        if self._cleaning_type is not None:
+            allowed["vacuum_cleaner_cleaning_type"] = {
+                "type": "ENUM",
+                "enum_values": {"values": ["dry", "wet", "dry_and_wet"]},
+            }
         return allowed
 
     def to_sber_current_state(self) -> dict[str, dict]:
@@ -124,6 +134,10 @@ class VacuumCleanerEntity(BaseEntity):
         ]
         if self._fan_speed:
             states.append(make_state(SberFeature.VACUUM_CLEANER_PROGRAM, make_enum_value(self._fan_speed)))
+        if self._cleaning_type:
+            states.append(
+                make_state(SberFeature.VACUUM_CLEANER_CLEANING_TYPE, make_enum_value(self._cleaning_type))
+            )
         if self._battery_level is not None:
             states.append(
                 make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level))

@@ -21,8 +21,14 @@ HA_TO_SBER_WORK_MODE: dict[str, str] = {
     "fan_only": "ventilation",
     "heat_cool": "auto",
     "auto": "auto",
+    "eco": "eco",
 }
-"""Map HA HVAC modes to Sber work mode enum values. 'off' is excluded — use on_off."""
+"""Map HA HVAC modes to Sber work mode enum values.
+
+'off' is excluded — use on_off.
+Sber also supports 'turbo' and 'quiet' work modes; these are mapped
+from HA preset_modes (boost→turbo, sleep→quiet) in to_sber_current_state.
+"""
 
 SBER_TO_HA_WORK_MODE: dict[str, str] = {
     "cooling": "cool",
@@ -30,10 +36,14 @@ SBER_TO_HA_WORK_MODE: dict[str, str] = {
     "dehumidification": "dry",
     "ventilation": "fan_only",
     "auto": "auto",
+    "eco": "eco",
 }
 """Reverse mapping: Sber work mode → HA hvac_mode."""
 
 # HA swing_mode → Sber hvac_air_flow_direction mapping
+# TODO: Sber docs list "up/down/left/right" as default values, but real AC
+# devices use "no/vertical/horizontal/rotation/swing/auto". Verify with
+# actual Sber cloud responses via DevTools raw JSON inspection.
 HA_TO_SBER_SWING: dict[str, str] = {
     "off": "no",
     "vertical": "vertical",
@@ -287,7 +297,13 @@ class ClimateEntity(BaseEntity):
             sber_swing = HA_TO_SBER_SWING.get(self.swing_mode, self.swing_mode)
             states.append(make_state(SberFeature.HVAC_AIR_FLOW_DIRECTION, make_enum_value(sber_swing)))
         if self._supports_work_mode and self.hvac_mode and self.hvac_mode != "off":
-            sber_mode = HA_TO_SBER_WORK_MODE.get(self.hvac_mode)
+            # Map HA preset modes to Sber work modes (turbo/quiet)
+            if self._preset_mode == "boost":
+                sber_mode = "turbo"
+            elif self._preset_mode in ("sleep", "eco"):
+                sber_mode = "quiet"
+            else:
+                sber_mode = HA_TO_SBER_WORK_MODE.get(self.hvac_mode)
             if sber_mode:
                 states.append(make_state(SberFeature.HVAC_WORK_MODE, make_enum_value(sber_mode)))
         if self._supports_thermostat_mode and self.hvac_mode and self.hvac_mode != "off":
@@ -411,19 +427,47 @@ class ClimateEntity(BaseEntity):
                     )
             elif key == "hvac_work_mode":
                 sber_mode = value.get("enum_value")
-                ha_mode = SBER_TO_HA_WORK_MODE.get(sber_mode or "") if sber_mode else None
-                if ha_mode and (not self.hvac_modes or ha_mode in self.hvac_modes):
+                if not sber_mode:
+                    continue
+                # Sber turbo/quiet work modes → HA preset_modes
+                if sber_mode == "turbo" and "boost" in (self._preset_modes or []):
                     results.append(
                         {
                             "url": {
                                 "type": "call_service",
                                 "domain": "climate",
-                                "service": "set_hvac_mode",
-                                "service_data": {"hvac_mode": ha_mode},
+                                "service": "set_preset_mode",
+                                "service_data": {"preset_mode": "boost"},
                                 "target": {"entity_id": self.entity_id},
                             }
                         }
                     )
+                elif sber_mode == "quiet" and "sleep" in (self._preset_modes or []):
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "climate",
+                                "service": "set_preset_mode",
+                                "service_data": {"preset_mode": "sleep"},
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
+                else:
+                    ha_mode = SBER_TO_HA_WORK_MODE.get(sber_mode)
+                    if ha_mode and (not self.hvac_modes or ha_mode in self.hvac_modes):
+                        results.append(
+                            {
+                                "url": {
+                                    "type": "call_service",
+                                    "domain": "climate",
+                                    "service": "set_hvac_mode",
+                                    "service_data": {"hvac_mode": ha_mode},
+                                    "target": {"entity_id": self.entity_id},
+                                }
+                            }
+                        )
             elif key == "hvac_thermostat_mode":
                 sber_mode = value.get("enum_value")
                 ha_mode = SBER_TO_HA_THERMOSTAT_MODE.get(sber_mode or "") if sber_mode else None

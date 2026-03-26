@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.3] - 2026-03-26
+
+### Added
+- **Climate**: `eco` work mode mapping (HA `eco` hvac_mode -> Sber `eco`); `turbo`/`quiet` work modes from HA preset_modes (`boost`->`turbo`, `sleep`->`quiet`)
+- **TV**: `channel` (+/-), `direction` (up/down/left/right/ok) features with channel switching via media_next/previous_track
+- **Vacuum**: `vacuum_cleaner_cleaning_type` feature (dry/wet/dry_and_wet) from HA `cleaning_type` attribute
+- **Humidifier**: `hvac_water_percentage` and `hvac_water_low_level` features from HA attributes
+- **Sensor temp**: `temp_unit_view` feature (c/f) from HA `unit_of_measurement`
+
+### Fixed
+- **Humidifier**: `hvac_humidity_set` range now reads `min_humidity`/`max_humidity` from HA entity (default 35-85 per Sber spec, was 0-100)
+- **Translations**: added missing `broken_entity_links` issue translation key in strings.json, en.json, ru.json
+
 ## [1.12.2] - 2026-03-26
 
 ### Fixed

@@ -94,7 +94,11 @@ class SberFeature(StrEnum):
     VOLUME_INT = "volume_int"
     MUTE = "mute"
     SOURCE = "source"
+    CHANNEL = "channel"
     CHANNEL_INT = "channel_int"
+    DIRECTION = "direction"
+    CUSTOM_KEY = "custom_key"
+    NUMBER = "number"
 
     # Kettle
     KITCHEN_WATER_TEMPERATURE = "kitchen_water_temperature"
@@ -106,6 +110,7 @@ class SberFeature(StrEnum):
     VACUUM_CLEANER_COMMAND = "vacuum_cleaner_command"
     VACUUM_CLEANER_STATUS = "vacuum_cleaner_status"
     VACUUM_CLEANER_PROGRAM = "vacuum_cleaner_program"
+    VACUUM_CLEANER_CLEANING_TYPE = "vacuum_cleaner_cleaning_type"
 
     # Intercom
     INCOMING_CALL = "incoming_call"

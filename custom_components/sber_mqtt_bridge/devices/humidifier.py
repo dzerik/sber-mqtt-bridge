@@ -52,6 +52,10 @@ class HumidifierEntity(BaseEntity):
         self.current_humidity = None
         self.available_modes: list[str] = []
         self.mode: str | None = None
+        self._min_humidity: int = 35
+        self._max_humidity: int = 85
+        self._water_level: int | None = None
+        self._water_low_level: bool | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update all humidifier attributes.
@@ -68,6 +72,18 @@ class HumidifierEntity(BaseEntity):
         self.current_humidity = attrs.get("current_humidity")
         self.available_modes = attrs.get("available_modes") or []
         self.mode = attrs.get("mode")
+        self._min_humidity = self._safe_int(attrs.get("min_humidity")) or 35
+        self._max_humidity = self._safe_int(attrs.get("max_humidity")) or 85
+        water_level = attrs.get("water_level")
+        if water_level is not None:
+            self._water_level = self._safe_int(water_level)
+        else:
+            self._water_level = None
+        water_low = attrs.get("water_low_level")
+        if water_low is not None:
+            self._water_low_level = bool(water_low)
+        else:
+            self._water_low_level = None
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list based on available humidifier capabilities.
@@ -83,6 +99,10 @@ class HumidifierEntity(BaseEntity):
             features.append("hvac_air_flow_power")
         if self._has_night_mode:
             features.append("hvac_night_mode")
+        if self._water_level is not None:
+            features.append("hvac_water_percentage")
+        if self._water_low_level is not None:
+            features.append("hvac_water_low_level")
         return features
 
     @property
@@ -110,7 +130,11 @@ class HumidifierEntity(BaseEntity):
             }
         allowed["hvac_humidity_set"] = {
             "type": "INTEGER",
-            "integer_values": {"min": "0", "max": "100", "step": "1"},
+            "integer_values": {
+                "min": str(self._min_humidity),
+                "max": str(self._max_humidity),
+                "step": "5",
+            },
         }
         return allowed
 
@@ -143,6 +167,14 @@ class HumidifierEntity(BaseEntity):
         if self._has_night_mode:
             is_night = self.mode in ("sleep", "night")
             states.append(make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(is_night)))
+        if self._water_level is not None:
+            states.append(
+                make_state(SberFeature.HVAC_WATER_PERCENTAGE, make_integer_value(self._water_level))
+            )
+        if self._water_low_level is not None:
+            states.append(
+                make_state(SberFeature.HVAC_WATER_LOW_LEVEL, make_bool_value(self._water_low_level))
+            )
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:

@@ -6,7 +6,7 @@ import contextlib
 import logging
 
 from ..sber_constants import SberFeature
-from ..sber_models import make_integer_value, make_state
+from ..sber_models import make_enum_value, make_integer_value, make_state
 from .simple_sensor import SimpleReadOnlySensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ class SensorTempEntity(SimpleReadOnlySensor):
         self.temperature = 0.0
         self._air_pressure: int | None = None
         self._linked_humidity: int | None = None
+        self._temp_unit: str = "c"
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update temperature and air pressure values.
@@ -50,6 +51,8 @@ class SensorTempEntity(SimpleReadOnlySensor):
         except (ValueError, TypeError):
             self.temperature = 0.0
         attrs = ha_state.get("attributes", {})
+        unit = attrs.get("unit_of_measurement", "")
+        self._temp_unit = "f" if unit == "°F" else "c"
         pressure = attrs.get("pressure")
         if pressure is not None:
             try:
@@ -80,6 +83,7 @@ class SensorTempEntity(SimpleReadOnlySensor):
             List of Sber feature strings supported by this entity.
         """
         features = super().create_features_list()
+        features.append("temp_unit_view")
         if self._linked_humidity is not None:
             features.append("humidity")
         if self._air_pressure is not None:
@@ -93,6 +97,9 @@ class SensorTempEntity(SimpleReadOnlySensor):
             Dict mapping entity_id to its Sber state representation.
         """
         result = super().to_sber_current_state()
+        result[self.entity_id]["states"].append(
+            make_state(SberFeature.TEMP_UNIT_VIEW, make_enum_value(self._temp_unit))
+        )
         if self._linked_humidity is not None:
             result[self.entity_id]["states"].append(
                 make_state(SberFeature.HUMIDITY, make_integer_value(self._linked_humidity))

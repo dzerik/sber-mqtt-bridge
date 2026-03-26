@@ -1,6 +1,7 @@
 """Sber TV entity -- maps HA media_player entities to Sber tv category.
 
-Supports on/off, volume, mute, and source selection.
+Supports on/off, volume, mute, source selection, channel switching,
+navigation direction, and custom key commands.
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ class TvEntity(BaseEntity):
     - Volume level (Sber 0-100 integer, HA 0.0-1.0 float)
     - Mute toggle
     - Source (input) selection
+    - Channel switching (+/-)
+    - Navigation direction (up/down/left/right/ok)
     """
 
     def __init__(self, entity_data: dict) -> None:
@@ -39,6 +42,7 @@ class TvEntity(BaseEntity):
         self._is_muted: bool = False
         self._source: str | None = None
         self._source_list: list[str] = []
+        self._media_content_id: str | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update TV attributes.
@@ -54,6 +58,7 @@ class TvEntity(BaseEntity):
         self._is_muted = bool(attrs.get("is_volume_muted", False))
         self._source = attrs.get("source")
         self._source_list = attrs.get("source_list") or []
+        self._media_content_id = attrs.get("media_content_id")
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for TV capabilities.
@@ -61,7 +66,11 @@ class TvEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        return [*super().create_features_list(), "on_off", "volume_int", "mute", "source"]
+        features = [*super().create_features_list(), "on_off", "volume_int", "mute"]
+        if self._source_list:
+            features.append("source")
+        features.extend(["channel", "direction"])
+        return features
 
     def create_allowed_values_list(self) -> dict[str, dict]:
         """Build allowed values map for volume and source features.
@@ -73,6 +82,14 @@ class TvEntity(BaseEntity):
             "volume_int": {
                 "type": "INTEGER",
                 "integer_values": {"min": "0", "max": "100", "step": "1"},
+            },
+            "channel": {
+                "type": "ENUM",
+                "enum_values": {"values": ["+", "-"]},
+            },
+            "direction": {
+                "type": "ENUM",
+                "enum_values": {"values": ["up", "down", "left", "right", "ok"]},
             },
         }
         if self._source_list:
@@ -171,4 +188,30 @@ class TvEntity(BaseEntity):
                         }
                     }
                 )
+
+            elif key == "channel" and value.get("type") == "ENUM":
+                direction = value.get("enum_value")
+                if direction == "+":
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "media_player",
+                                "service": "media_next_track",
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
+                elif direction == "-":
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "media_player",
+                                "service": "media_previous_track",
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
+
         return results

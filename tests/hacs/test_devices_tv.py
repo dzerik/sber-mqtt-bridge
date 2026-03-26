@@ -29,13 +29,23 @@ class TestTvCreate(unittest.TestCase):
 
     def test_features_list(self):
         entity = TvEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state())
+        entity.fill_by_ha_state(_make_ha_state(source_list=["HDMI 1", "TV"]))
         features = entity.create_features_list()
         self.assertIn("online", features)
         self.assertIn("on_off", features)
         self.assertIn("volume_int", features)
         self.assertIn("mute", features)
         self.assertIn("source", features)
+        self.assertIn("channel", features)
+        self.assertIn("direction", features)
+
+    def test_features_no_source_without_list(self):
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state())
+        features = entity.create_features_list()
+        self.assertNotIn("source", features)
+        self.assertIn("channel", features)
+        self.assertIn("direction", features)
 
 
 class TestTvFillState(unittest.TestCase):
