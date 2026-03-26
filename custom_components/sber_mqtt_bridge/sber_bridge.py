@@ -234,9 +234,15 @@ class SberBridge:
 
         # Re-load entities after HA is fully started to pick up any entities
         # that were not yet registered during early async_setup_entry.
-        self._unsub_lifecycle_listeners.append(
-            self._hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, self._on_homeassistant_started)
-        )
+        # If HA is already running (e.g. integration reload), load immediately.
+        if self._hass.is_running:
+            _LOGGER.debug("HA already running — reloading entities immediately")
+            self._load_exposed_entities()
+            self._subscribe_ha_events()
+        else:
+            self._unsub_lifecycle_listeners.append(
+                self._hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, self._on_homeassistant_started)
+            )
 
     async def async_stop(self) -> None:
         """Stop the bridge: disconnect MQTT, unsubscribe from HA events."""
