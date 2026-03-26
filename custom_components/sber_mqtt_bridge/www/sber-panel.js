@@ -491,6 +491,7 @@ class SberMqttPanel extends LitElement {
   _renderDevices() {
     return html`
       <sber-device-table
+        .hass=${this.hass}
         .devices=${this._devices}
         .devicesExtra=${this._devicesExtra}
         @remove-entities=${this._onRemoveEntities}

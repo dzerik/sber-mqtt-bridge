@@ -190,6 +190,7 @@ class SberDetailDialog extends LitElement {
   }
 
   async show(entityId) {
+    if (!this.hass) return;
     this.open = true;
     this._loading = true;
     this._error = "";

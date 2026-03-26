@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.2] - 2026-03-26
+
+### Fixed
+- **Panel detail dialog crash**: fixed persistent `Cannot read properties of undefined (reading 'callWS')` — `sber-device-table` was not receiving `hass` property from parent panel, so `sber-detail-dialog` always had `this.hass === undefined`; added `hass` to device table properties and pass-through from panel
+
 ## [1.11.1] - 2026-03-26
 
 ### Fixed

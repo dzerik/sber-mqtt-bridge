@@ -17,6 +17,7 @@ const css = LitElement?.prototype.css;
 class SberDeviceTable extends LitElement {
   static get properties() {
     return {
+      hass: { type: Object },
       devices: { type: Array },
       devicesExtra: { type: Object },
       _filter: { type: String },
