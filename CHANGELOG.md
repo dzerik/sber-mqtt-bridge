@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.2] - 2026-03-26
+
+### Fixed
+- **online status**: `unknown` state now treated as online — event-based sensors (motion, water_leak, door) no longer falsely show "Offline" when they simply haven't triggered yet; only `unavailable` means truly offline
+
 ## [1.10.1] - 2026-03-26
 
 ### Fixed
