@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.3] - 2026-03-26
+
+### Fixed
+- **online status**: per-sensor-type `unknown` handling — event-based binary_sensors (motion, door, water_leak, smoke, gas) treat `unknown` as online (device reachable, no events yet); value-based sensors (temperature, humidity) and all other entities treat `unknown` as offline (prevents reporting fake 0°C/0% to Sber)
+
 ## [1.10.2] - 2026-03-26
 
 ### Fixed
