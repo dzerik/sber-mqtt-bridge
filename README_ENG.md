@@ -51,7 +51,7 @@ flowchart LR
 - Smart deduplication -- when a device has both `light` and `switch` entities, only the richer one is exposed
 - Real-time state sync -- HA changes are instantly reflected in Sber (with 100ms debounce)
 - Voice control through all Sber assistants (Salut, Athena, Joy)
-- **27 device types** with automatic mapping
+- **28 Sber categories (27 device types + hub)** with automatic mapping
 - YAML customization -- sber_type, sber_name, sber_room, sber_nicknames, sber_groups, sber_features, and more
 - Label-based entity filtering -- expose entities by HA labels
 - HA Repairs integration -- automatic issue detection (missing entities, connection problems)
@@ -65,6 +65,44 @@ flowchart LR
 - Translations: English and Russian
 - CI/CD: ruff, pytest, HACS validation, hassfest
 - **498+ tests**
+
+## Key Features in v1.10
+
+### Typed Constants (sber_constants.py)
+
+The `sber_constants.py` module provides strictly typed `StrEnum` constants for the entire Sber protocol:
+- **SberFeature** — 61 device feature keys (all protocol feature names)
+- **SberValueType** — value types (`BOOL`, `INT`, `ENUM`, `COLOUR`, `FLOAT`)
+- **HAState** — Home Assistant states (`on`, `off`, `open`, `closed`, etc.)
+- **MqttTopicSuffix** — MQTT topic suffixes
+
+### Pydantic Value Helpers
+
+Factory functions for building Sber protocol values:
+- `make_state()` — build a state structure
+- `make_bool_value()` — boolean value
+- `make_integer_value()` — integer value (returns string per Sber spec)
+- `make_enum_value()` — enum value
+- `make_colour_value()` — HSV colour value
+
+### HA Context Propagation
+
+Commands from Sber are dispatched into Home Assistant with a populated `Context`, ensuring correct logbook attribution. HA logs show that a command originated from the Sber integration.
+
+### Echo Loop Prevention
+
+HA state changes caused by Sber commands are not re-published back to Sber. The integration tracks Context IDs of commands and filters out the resulting state-change events.
+
+### Value Change Diffing
+
+The `has_significant_change()` method compares new state against the previous one before each publish. This eliminates unnecessary MQTT publishes when HA polls without an actual value change.
+
+### Online Status Logic
+
+Online status logic is differentiated by sensor type:
+- **Event-based** binary_sensors (motion, door, leak): `unknown` = **online** (sensor is waiting for an event)
+- **Value-based** sensors (temperature, humidity): `unknown` = **offline** (no data = no connection)
+- The **"Loading..."** badge in the panel means HA has not yet received any state from the entity
 
 ## Supported Device Types
 
@@ -248,6 +286,18 @@ When adding a new device through the panel wizard:
 
 Linked entity data (battery level, signal strength, etc.) is included in every Sber state publish for the primary device. State changes of a linked entity trigger an immediate republish of the primary device's state.
 
+### Sidebar Panel
+
+The integration adds a dedicated panel to the Home Assistant sidebar (SPA application):
+
+| Tab | Description |
+|-----|-------------|
+| **Devices** | Table of all exposed devices: name, entity_id, Sber category, online status, Sber acknowledgment |
+| **Add Device Wizard** | Step-by-step wizard: select device type, primary entity, and linked entities (battery, signal, etc.) |
+| **DevTools** | Debug tool: raw config and states in JSON, real-time MQTT message log |
+
+**Entity Preview in wizard**: when selecting a device type, the wizard shows a preview of how the entity will appear in Sber — which features will be published.
+
 ### Managing Devices in Sber App
 
 After entities are exposed:
@@ -271,6 +321,13 @@ After entities are exposed:
 | Duplicate devices | Remove duplicates in Options > manual mode. Or use "Remove ALL" then "Add ALL" for clean reset. |
 | Sensors show wrong values | Enable debug logging and check entity mapping in logs. |
 | Missing entities or connection issues | Check **Settings > Repairs** -- the integration creates repair issues automatically for common problems. |
+
+### Debugging via DevTools (Sidebar Panel)
+
+The **DevTools** tab in the Sidebar Panel provides debugging tools without restarting HA:
+- **Raw Config** — full device configuration in the JSON format sent to Sber
+- **Raw States** — current states of all devices in Sber format
+- **MQTT Log** — real-time log of MQTT messages (incoming and outgoing)
 
 ### HA Repairs
 

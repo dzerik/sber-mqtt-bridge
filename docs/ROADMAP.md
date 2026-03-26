@@ -1,6 +1,6 @@
 # Roadmap — Sber Smart Home MQTT Bridge
 
-Обновлено: 2026-03-24, версия: 1.6.0
+Обновлено: 2026-03-26, версия: 1.10.3
 
 ---
 
@@ -8,13 +8,13 @@
 
 | Метрика | Значение |
 |---------|----------|
-| Версия | 1.6.0 |
-| Sber категории | **27/27 (100%)** |
+| Версия | 1.10.3 |
+| Sber категории | **28/28 (100%)** (27 устройств + hub) |
 | HA домены | 15 |
 | Тесты | 498+ |
 | Ruff errors | 0 |
 
-### Реализованные категории (27/27)
+### Реализованные категории (28/28)
 
 | Категория | Версия | HA Domain |
 |-----------|--------|-----------|
@@ -47,6 +47,7 @@
 | vacuum_cleaner | 0.9.0 | vacuum |
 | intercom | 0.9.0 | (override only) |
 | hub | 0.2.0 | (auto, root device) |
+| **Итого: 28 категорий** | | |
 
 ---
 
@@ -96,13 +97,26 @@
 | 23 | Entity customization UI | Настройка features per entity через Options Flow |
 | 24 | ~~Автоматический re-publish config~~ | ~~После получения state для entity без config~~ — **СДЕЛАНО** |
 | 25 | ~~Persist redefinitions~~ | ~~Сохранять rename/room из Sber app~~ — **СДЕЛАНО** |
-| 26 | Entity Linking Phase 4 | Auto-link all кнопка, config migration v2→v3, расширение тестов |
+| 26 | ~~Entity Linking~~ | ~~Auto-link all кнопка, config migration v2→v3, расширение тестов~~ — **СДЕЛАНО в v1.10** |
 
 ---
 
 ## Выполненные задачи (для справки)
 
-### v1.6.0 — Entity Linking
+### v1.10.0 — Typed Constants, Pydantic Helpers, Context & Echo Prevention
+- `sber_constants.py`: SberFeature (61 ключ), SberValueType, HAState, MqttTopicSuffix — полная типизация протокола через StrEnum
+- Pydantic-хелперы: `make_state()`, `make_bool_value()`, `make_integer_value()` (возвращает str), `make_enum_value()`, `make_colour_value()`
+- HA Context propagation: команды от Sber выполняются с Context для корректной атрибуции в logbook
+- Echo loop prevention: state changes от Sber-команд не переотправляются в Sber
+- Value change diffing: `has_significant_change()` исключает лишние MQTT publish
+- Online status logic: event-based binary_sensors unknown=online, value-based unknown=offline, "Loading..." badge
+
+### v1.10.x — Entity Linking, Sidebar Panel, Entity Preview
+- Entity Linking Phase 4 завершён: battery_low role, расширение тестов, UI polish
+- Sidebar Panel: полный рефакторинг SPA, DevTools tab (сворачиваемые payloads, clipboard)
+- Entity Preview Wizard: предварительный просмотр Sber features при добавлении/изменении типа устройства
+
+### v1.6.0 — Entity Linking (первая реализация)
 - Entity Linking: привязка battery, signal_strength, humidity, temperature сенсоров к основному устройству
 - Wizard Step 2: автоопределение связанных entity по device_id, предвыбор совместимых
 - WebSocket API: `set_entity_links`, `suggest_links`, `auto_link_all`

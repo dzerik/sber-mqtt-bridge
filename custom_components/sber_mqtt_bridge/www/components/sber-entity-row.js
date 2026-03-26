@@ -100,6 +100,14 @@ class SberEntityRow extends LitElement {
       .badge-yellow {
         background: var(--warning-color, #ff9800);
       }
+      .name-link {
+        cursor: pointer;
+        color: var(--primary-color, #03a9f4);
+        text-decoration: none;
+      }
+      .name-link:hover {
+        text-decoration: underline;
+      }
       .actions-cell {
         display: flex;
         gap: 4px;
@@ -181,6 +189,16 @@ class SberEntityRow extends LitElement {
     );
   }
 
+  _onShowDetail() {
+    this.dispatchEvent(
+      new CustomEvent("show-detail", {
+        detail: { entity_id: this.device.entity_id },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
   _onSync() {
     this.dispatchEvent(
       new CustomEvent("sync-entity", {
@@ -216,7 +234,7 @@ class SberEntityRow extends LitElement {
         />
       </td>
       <td><code>${d.entity_id}</code></td>
-      <td>${d.name || "\u2014"}${d.linked_entities ? html` <span class="feature-tag" style="background:var(--info-color,#2196f3);color:#fff">\u{1F517} +${Object.keys(d.linked_entities).length}</span>` : ""}</td>
+      <td><span class="name-link" @click=${this._onShowDetail}>${d.name || "\u2014"}</span>${d.linked_entities ? html` <span class="feature-tag" style="background:var(--info-color,#2196f3);color:#fff">\u{1F517} +${Object.keys(d.linked_entities).length}</span>` : ""}</td>
       <td><code>${d.sber_category}</code></td>
       <td>
         <div class="features">

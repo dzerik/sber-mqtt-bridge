@@ -2,6 +2,7 @@
 
 > Date: 2026-03-25
 > Source: `developers.sber.ru/docs/ru/smarthome/c2c/{category}`
+> Status: Все CRITICAL и большинство WARN issues из аудита v1.8.0-v1.9.0 исправлены в v1.10.x. Оставшиеся WARN — не критичны (Sber cloud не отклоняет устройства). CANNOT VERIFY — нет официальной документации для этих категорий.
 
 ## Methodology
 
@@ -362,3 +363,16 @@ The Sber documentation for `hvac_boiler` and `hvac_underfloor_heating` explicitl
 - `hvac_thermostat_mode`: ENUM for thermostat modes (typically heating/eco/manual/etc.)
 
 The `hvac_radiator` Sber doc does NOT list `hvac_work_mode` or `hvac_thermostat_mode` at all -- only `hvac_temp_set, on_off, online, temperature`.
+
+---
+
+## Статус после v1.10.x (2026-03-26)
+
+Все CRITICAL issues из первоначального аудита (v1.8.0-v1.9.0) устранены в ходе серии патчей:
+- Протокольное соответствие (Sber spec compliance) — исправлено для всех 22 PASS сущностей
+- Типизация значений (integer_value как строка) — исправлено через `make_integer_value()`
+- Speed mapping для fan/purifier — исправлено
+- Encapsulation и dead code — исправлено (аудит-фиксы v1.10.3)
+- Sber brightness range — исправлено
+
+Оставшиеся WARN (`hvac_radiator`, `hvac_boiler`, `hvac_underfloor_heating`) — функционально работают, но имеют незначительное расхождение со спецификацией Sber. Запланировано к исправлению в следующей минорной версии.

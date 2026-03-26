@@ -56,12 +56,52 @@ mypy custom_components/sber_mqtt_bridge/
 
 - Реализуйте все абстрактные методы: `to_sber_current_state`, `process_cmd`
 
+### Использование типизированных констант
+
+При реализации нового устройства **обязательно** используйте типизированные константы из `sber_constants.py`:
+
+```python
+from ..sber_constants import SberFeature, SberValueType, HAState
+
+# Хорошо:
+feature_key = SberFeature.ON_OFF
+value_type = SberValueType.BOOL
+state = HAState.ON
+
+# Плохо (magic strings):
+feature_key = "on_off"
+value_type = "BOOL"
+state = "on"
+```
+
+### Использование Pydantic-хелперов
+
+Для формирования значений в протоколе Sber используйте хелперы из `sber_protocol.py`:
+
+```python
+from ..sber_protocol import make_bool_value, make_integer_value, make_enum_value, make_colour_value
+
+# Булево значение:
+value = make_bool_value(True)
+
+# Целочисленное (integer_value всегда строка по спецификации Sber):
+value = make_integer_value(220)  # → {"integer_value": "220"}
+
+# Enum-значение:
+value = make_enum_value("cooling")
+
+# Цвет HSV:
+value = make_colour_value(h=180, s=500, v=800)
+```
+
 ### Шаги
 
 1. Создайте новый класс в `custom_components/sber_mqtt_bridge/devices/`
-2. Добавьте в фабрику в `sber_entity_map.py`
-3. Напишите тесты в `tests/hacs/`
-4. Используйте `_LOGGER = logging.getLogger(__name__)` для логирования
+2. Используйте `SberFeature`, `SberValueType` и Pydantic-хелперы вместо строк напрямую
+3. Добавьте в фабрику в `sber_entity_map.py`
+4. Напишите тесты в `tests/hacs/`
+5. Используйте `_LOGGER = logging.getLogger(__name__)` для логирования
+6. Сверьтесь с официальной документацией Sber C2C для выбранной категории (см. правило в `CLAUDE.md`)
 
 ## Формат коммитов
 

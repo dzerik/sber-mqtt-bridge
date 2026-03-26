@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
@@ -83,6 +84,7 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_import)
     websocket_api.async_register_command(hass, ws_raw_config)
     websocket_api.async_register_command(hass, ws_raw_states)
+    websocket_api.async_register_command(hass, ws_device_detail)
     websocket_api.async_register_command(hass, ws_set_entity_links)
     websocket_api.async_register_command(hass, ws_suggest_links)
     websocket_api.async_register_command(hass, ws_auto_link_all)
@@ -725,6 +727,117 @@ async def ws_raw_states(
 
     payload = build_states_list_json(bridge.entities, None, bridge.enabled_entity_ids)
     connection.send_result(msg["id"], {"payload": payload})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/device_detail",
+        vol.Required("entity_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_device_detail(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Get full detail for a single Sber device.
+
+    Returns device config, current Sber state, linked entities with their
+    current values, HA entity attributes, and device registry info.
+    """
+    bridge = _get_bridge(hass)
+    if bridge is None:
+        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
+        return
+
+    entity_id: str = msg["entity_id"]
+    entity = bridge.entities.get(entity_id)
+    if entity is None:
+        connection.send_error(msg["id"], "not_found", f"Entity {entity_id} not in bridge")
+        return
+
+    entity_reg = er.async_get(hass)
+    device_reg = dr.async_get(hass)
+    entry = entity_reg.async_get(entity_id)
+
+    # Basic info
+    features = entity.get_final_features_list() if hasattr(entity, "get_final_features_list") else entity.create_features_list()
+    result: dict[str, Any] = {
+        "entity_id": entity_id,
+        "name": entity.name,
+        "sber_category": entity.category,
+        "features": features,
+        "room": getattr(entity, "area_id", ""),
+        "is_online": entity._is_online,
+        "is_filled": entity.is_filled_by_state,
+        "state": entity.state,
+    }
+
+    # Sber current state payload
+    try:
+        sber_state = entity.to_sber_current_state()
+        result["sber_states"] = sber_state.get(entity_id, {}).get("states", [])
+    except (RuntimeError, TypeError, ValueError):
+        result["sber_states"] = []
+
+    # Sber device config (model, allowed_values, dependencies)
+    try:
+        sber_config = entity.to_sber_state()
+        result["sber_model"] = sber_config.get("model", {})
+    except (RuntimeError, TypeError, ValueError):
+        result["sber_model"] = {}
+
+    # HA entity attributes
+    ha_state = hass.states.get(entity_id)
+    if ha_state:
+        result["ha_state"] = ha_state.state
+        result["ha_attributes"] = dict(ha_state.attributes)
+    else:
+        result["ha_state"] = None
+        result["ha_attributes"] = {}
+
+    # HA device registry info
+    if entry and entry.device_id:
+        device = device_reg.async_get(entry.device_id)
+        if device:
+            result["device_info"] = {
+                "name": device.name_by_user or device.name,
+                "manufacturer": device.manufacturer,
+                "model": device.model,
+                "sw_version": device.sw_version,
+                "hw_version": device.hw_version,
+                "area_id": device.area_id,
+            }
+
+    # Linked entities with current state values
+    links = bridge.entity_links.get(entity_id, {})
+    if links:
+        linked_detail: list[dict[str, Any]] = []
+        for role, linked_id in links.items():
+            linked_state = hass.states.get(linked_id)
+            linked_entry = entity_reg.async_get(linked_id)
+            linked_detail.append({
+                "role": role,
+                "entity_id": linked_id,
+                "friendly_name": (
+                    linked_state.attributes.get("friendly_name", linked_id)
+                    if linked_state
+                    else linked_entry.name or linked_entry.original_name or linked_id
+                    if linked_entry
+                    else linked_id
+                ),
+                "state": linked_state.state if linked_state else None,
+                "device_class": linked_entry.original_device_class if linked_entry else None,
+            })
+        result["linked_entities"] = linked_detail
+
+    # Redefinitions (custom name/room from Sber)
+    redefs = bridge.redefinitions.get(entity_id)
+    if redefs:
+        result["redefinitions"] = redefs
+
+    connection.send_result(msg["id"], result)
 
 
 @websocket_api.websocket_command(

@@ -6,6 +6,7 @@
  */
 
 import "./sber-entity-row.js?v=1.6.2";
+import "./sber-detail-dialog.js?v=1.10.3";
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
@@ -402,6 +403,7 @@ class SberDeviceTable extends LitElement {
                             @override-changed=${this._onOverrideChanged}
                             @sync-entity=${this._onSyncEntity}
                             @link-entity=${this._onLinkEntity}
+                            @show-detail=${this._onShowDetail}
                           ></sber-entity-row>
                         </tr>
                       `
@@ -411,7 +413,15 @@ class SberDeviceTable extends LitElement {
               </div>
             `}
       </div>
+      <sber-detail-dialog .hass=${this.hass}></sber-detail-dialog>
     `;
+  }
+
+  _onShowDetail(e) {
+    const entityId = e.detail?.entity_id;
+    if (!entityId) return;
+    const dialog = this.shadowRoot.querySelector("sber-detail-dialog");
+    if (dialog) dialog.show(entityId);
   }
 }
 
