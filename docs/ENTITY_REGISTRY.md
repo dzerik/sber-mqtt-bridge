@@ -1,7 +1,9 @@
 # Entity Registry — Sber Smart Home MQTT Bridge
 
-> Auto-generated reference for all Sber device types, their features, allowed values,
-> and HA domain mappings. Used for quick lookup during development and audit.
+> Comprehensive reference for all Sber device types, features, allowed values,
+> online status logic, entity linking, and HA domain mappings.
+>
+> Last updated: v1.10.3 (2026-03-26)
 
 ## HA Domain -> Sber Category Mapping
 
@@ -14,12 +16,12 @@
 | script | * | `relay` | RelayEntity | relay.py |
 | button | * | `relay` | RelayEntity | relay.py |
 | input_boolean | * | `scenario_button` | ScenarioButtonEntity | scenario_button.py |
-| cover | curtain | `curtain` | CurtainEntity | curtain.py |
-| cover | blind/shade | `window_blind` | WindowBlindEntity | window_blind.py |
+| cover | * (default) | `curtain` | CurtainEntity | curtain.py |
+| cover | blind/shade/shutter | `window_blind` | WindowBlindEntity | window_blind.py |
 | cover | gate/garage_door | `gate` | GateEntity | gate.py |
 | climate | * (default) | `hvac_ac` | ClimateEntity | climate.py |
-| climate | (radiator override) | `hvac_radiator` | HvacRadiatorEntity | hvac_radiator.py |
-| climate | (heater override) | `hvac_heater` | HvacHeaterEntity | hvac_heater.py |
+| climate | radiator | `hvac_radiator` | HvacRadiatorEntity | hvac_radiator.py |
+| climate | heater | `hvac_heater` | HvacHeaterEntity | hvac_heater.py |
 | climate | (underfloor override) | `hvac_underfloor_heating` | HvacUnderfloorEntity | hvac_underfloor_heating.py |
 | water_heater | * | `hvac_boiler` | HvacBoilerEntity | hvac_boiler.py |
 | valve | * | `valve` | ValveEntity | valve.py |
@@ -45,235 +47,257 @@
 
 ---
 
+## Online Status Logic
+
+The `online` feature is reported for every device. The logic varies by entity type:
+
+| HA state | Default behavior | Event-based binary_sensors |
+|----------|-----------------|---------------------------|
+| `None` (not loaded) | **offline** (is_filled=false, UI: "Loading...") | **offline** |
+| `"unavailable"` | **offline** | **offline** |
+| `"unknown"` | **offline** | **online** (device reachable, no events yet) |
+| `"on"/"off"/value/etc.` | **online** | **online** |
+
+**Event-based sensors** with `_unknown_is_online = True`:
+`MotionSensorEntity`, `DoorSensorEntity`, `WaterLeakSensorEntity`, `SmokeSensorEntity`, `GasSensorEntity`
+
+**Value-based sensors** keep `unknown` = offline to avoid reporting fake 0 values:
+`SensorTempEntity` (would report 0.0C), `HumiditySensorEntity` (would report 0%)
+
+**UI badge states:**
+- Green **"Online"** — entity is reachable and reporting state
+- Grey **"Offline"** — entity state is `unavailable` (device unreachable)
+- Yellow **"Loading..."** — state not yet received (`is_filled=false`)
+
+---
+
 ## Feature Registry by Category
 
-### `light` (LightEntity)
+### `light` / `led_strip` (LightEntity / LedStripEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
+| `online` | BOOL | true/false | R | |
 | `on_off` | BOOL | true/false | R/W | Power state |
-| `light_brightness` | INT | 50-1000 | R/W | Mapped from HA 0-255 |
-| `light_colour` | COLOUR | `{h,s,v}` | R/W | HSV; h=0-360, s=0-1000, v=0-1000 |
-| `light_mode` | ENUM | `white`, `colour` | R/W | Color mode selector |
-| `light_colour_temp` | INT | 0-1000 | R/W | Mapped from HA mireds (min_mireds..max_mireds) |
+| `light_brightness` | INTEGER | 100-900, step 1 | R/W | Mapped from HA 0-255 via LinearConverter |
+| `light_colour` | COLOUR | `{h: 0-360, s: 0-1000, v: 0-1000}` | R/W | HSV; converted via ColorConverter |
+| `light_mode` | ENUM | `white`, `colour` | R/W | Switching sends HA service call with current color/temp |
+| `light_colour_temp` | ENUM | 0-1000, step 1 | R/W | Mapped from HA mireds (reversed) |
 
-### `led_strip` (LedStripEntity)
+**Dependencies:** `light_colour` depends on `light_mode == "colour"`
 
-Same as `light` (inherits LightEntity, only category differs).
-
-### `relay` (RelayEntity, extends OnOffEntity)
+### `relay` / `socket` (RelayEntity / SocketEntity, extends OnOffEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
-| `on_off` | BOOL | true/false | R/W | Power state |
-| `power` | INT | watts | R | From `current_power_w` attr |
-| `voltage` | INT | volts | R | From `voltage` attr |
-| `current` | INT | milliamps | R | From `current` attr |
-| `child_lock` | BOOL | true/false | R | From `child_lock` attr |
+| `online` | BOOL | true/false | R | |
+| `on_off` | BOOL | true/false | R/W | For button domain uses `press` service |
+| `power` | INTEGER | watts | R | Optional, from HA attributes |
+| `voltage` | INTEGER | volts | R | Optional |
+| `current` | INTEGER | milliamps | R | Optional |
+| `child_lock` | BOOL | true/false | R | Optional |
 
-### `socket` (SocketEntity, extends RelayEntity)
-
-Same features as `relay`, category = `socket`.
-
-### `curtain` (CurtainEntity)
+### `curtain` / `window_blind` / `gate` (CurtainEntity hierarchy)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
-| `open_percentage` | INT | 0-100 | R/W | 0=closed, 100=open |
-| `open_state` | ENUM | `open`, `close` | R | Current state |
+| `online` | BOOL | true/false | R | |
+| `open_percentage` | INTEGER | 0-100, step 1 | R/W | 0=closed, 100=open |
+| `open_state` | ENUM | `open`, `close` | R | Enforced consistent with percentage |
 | `open_set` | ENUM | `open`, `close`, `stop` | W | Command |
+| `battery_percentage` | INTEGER | 0-100 | R | From attributes or linked entity |
+| `battery_low_power` | BOOL | true/false | R | From linked binary_sensor or <20% |
+| `signal_strength` | ENUM | `high`, `medium`, `low` | R | From RSSI/linkquality attribute or linked |
 
-### `window_blind` (WindowBlindEntity, extends CurtainEntity)
-
-Same features as `curtain`, category = `window_blind`.
-
-### `gate` (GateEntity, extends CurtainEntity)
-
-Same features as `curtain`, category = `gate`.
+**Consistency enforcement:** if percentage > 0 → open_state forced to "open"; if 0 → "close"
 
 ### `hvac_ac` (ClimateEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
-| `on_off` | BOOL | true/false | R/W | Power state |
-| `temperature` | INT | x10 (e.g. 225 = 22.5C) | R | Current temp |
-| `hvac_temp_set` | INT | min_temp..max_temp (whole degrees) | R/W | Target temp |
-| `hvac_work_mode` | ENUM | `cooling`, `heating`, `dehumidification`, `ventilation`, `auto` | R/W | Mode |
-| `hvac_air_flow_power` | ENUM | `auto`, `low`, `medium`, `high`, `turbo`, `quiet` | R/W | Fan speed |
-| `hvac_air_flow_direction` | ENUM | `auto`, `no`, `vertical`, `horizontal`, `rotation`, `swing` | R/W | Swing mode |
-| `hvac_humidity_set` | INT | 0-100 | R/W | Target humidity (if supported) |
-| `hvac_night_mode` | BOOL | true/false | R/W | From `preset_mode == sleep` |
-
-### `hvac_radiator` (HvacRadiatorEntity, extends ClimateEntity)
-
-| Feature | Type | Range/Values | Direction | Notes |
-|---------|------|-------------|-----------|-------|
+| `online` | BOOL | true/false | R | |
 | `on_off` | BOOL | true/false | R/W | |
-| `temperature` | INT | x10 | R | Current temp |
-| `hvac_temp_set` | INT | 25-40 | R/W | Target temp |
-| `hvac_work_mode` | ENUM | `heating` | R | Fixed mode |
-| `hvac_air_flow_power` | ENUM | `auto`, `low`, `medium`, `high` | R/W | Fan speed |
+| `temperature` | INTEGER | x10 (e.g. 225 = 22.5C) | R | Current temp |
+| `hvac_temp_set` | INTEGER | min_temp..max_temp, step configurable | R/W | Target temp (whole degrees) |
+| `hvac_work_mode` | ENUM | `cooling`, `heating`, `dehumidification`, `ventilation`, `auto` | R/W | Mapped from HA hvac_mode |
+| `hvac_air_flow_power` | ENUM | `auto`, `low`, `medium`, `high`, `turbo`, `quiet` | R/W | Mapped via HA_TO_SBER_FAN_MODE (20+ HA names) |
+| `hvac_air_flow_direction` | ENUM | `auto`, `no`, `vertical`, `horizontal`, `rotation`, `swing` | R/W | Mapped from HA swing_mode |
+| `hvac_humidity_set` | INTEGER | 0-100 | R/W | If HA entity supports target_humidity |
+| `hvac_night_mode` | BOOL | true/false | R/W | From preset_mode sleep/night |
+| `hvac_thermostat_mode` | ENUM | `heating`, `auto` | R/W | For boiler/heater/underfloor only |
 
-### `hvac_heater` (HvacHeaterEntity, extends ClimateEntity)
+**Fan mode mapping (HA_TO_SBER_FAN_MODE):**
+auto, low, medium/mid, high, turbo/strong/boost/max, quiet/silent/sleep, 1-5 (numeric)
 
-| Feature | Type | Range/Values | Direction | Notes |
-|---------|------|-------------|-----------|-------|
-| `on_off` | BOOL | true/false | R/W | |
-| `temperature` | INT | x10 | R | Current temp |
-| `hvac_temp_set` | INT | 5-40 | R/W | Target temp |
-| `hvac_work_mode` | ENUM | `heating` | R | Fixed mode |
-| `hvac_air_flow_power` | ENUM | `auto`, `low`, `medium`, `high` | R/W | Fan speed |
+### `hvac_radiator` (HvacRadiatorEntity)
 
-### `hvac_boiler` (HvacBoilerEntity, extends ClimateEntity)
+Inherits ClimateEntity. `_supports_fan=False`, `_supports_swing=False`, `_supports_work_mode=False`.
+Temperature: 25-40C, step 5.
 
-| Feature | Type | Range/Values | Direction | Notes |
-|---------|------|-------------|-----------|-------|
-| `on_off` | BOOL | true/false | R/W | |
-| `temperature` | INT | x10 | R | Current temp |
-| `hvac_temp_set` | INT | 25-80 | R/W | Target temp |
-| `hvac_work_mode` | ENUM | `heating` | R | Fixed mode |
+### `hvac_heater` (HvacHeaterEntity)
 
-### `hvac_underfloor_heating` (HvacUnderfloorEntity, extends ClimateEntity)
+Inherits ClimateEntity. `_supports_fan=True`, `_supports_thermostat_mode=True`, `_supports_swing=False`, `_supports_work_mode=False`.
+Temperature: 5-40C.
 
-| Feature | Type | Range/Values | Direction | Notes |
-|---------|------|-------------|-----------|-------|
-| `on_off` | BOOL | true/false | R/W | |
-| `temperature` | INT | x10 | R | Current temp |
-| `hvac_temp_set` | INT | 25-50 | R/W | Target temp |
-| `hvac_work_mode` | ENUM | `heating` | R | Fixed mode |
+### `hvac_boiler` (HvacBoilerEntity)
+
+Inherits ClimateEntity. `_supports_thermostat_mode=True`, no fan/swing/work_mode.
+Temperature: 25-80C, step 5.
+
+### `hvac_underfloor_heating` (HvacUnderfloorEntity)
+
+Inherits ClimateEntity. `_supports_thermostat_mode=True`, no fan/swing/work_mode.
+Temperature: 25-50C, step 5.
 
 ### `hvac_humidifier` (HumidifierEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
+| `online` | BOOL | true/false | R | |
 | `on_off` | BOOL | true/false | R/W | |
-| `humidity` | INT | 0-100 | R | Current humidity |
-| `hvac_humidity_set` | INT | 0-100 | R/W | Target humidity |
-| `hvac_air_flow_power` | ENUM | `auto`, `low`, `medium`, `high`, `turbo`, `quiet` | R/W | Fan speed |
-| `hvac_night_mode` | BOOL | true/false | R/W | |
+| `humidity` | INTEGER | 0-100 | R | Current humidity |
+| `hvac_humidity_set` | INTEGER | 0-100, step 1 | R/W | Target humidity |
+| `hvac_air_flow_power` | ENUM | dynamic from HA modes | R/W | Mapped via HA_TO_SBER_HUMIDIFIER_MODE |
+| `hvac_night_mode` | BOOL | true/false | R/W | If modes contain sleep/night |
 
 ### `hvac_fan` (HvacFanEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
+| `online` | BOOL | true/false | R | |
 | `on_off` | BOOL | true/false | R/W | |
-| `hvac_air_flow_power` | ENUM | `auto`, `high`, `low`, `medium`, `turbo` | R/W | Fan speed |
+| `hvac_air_flow_power` | ENUM | `auto`, `high`, `low`, `medium`, `quiet`, `turbo` | R/W | From preset_mode or percentage |
+
+**Percentage → Speed mapping:** 0-19%=quiet, 20-39%=low, 40-66%=medium, 67-89%=high, 90-100%=turbo
 
 ### `hvac_air_purifier` (HvacAirPurifierEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
+| `online` | BOOL | true/false | R | |
 | `on_off` | BOOL | true/false | R/W | |
-| `hvac_air_flow_power` | ENUM | `auto`, `low`, `medium`, `high`, `turbo`, `quiet` | R/W | Fan speed |
-| `hvac_ionization` | BOOL | true/false | R/W | |
-| `hvac_night_mode` | BOOL | true/false | R/W | |
+| `hvac_air_flow_power` | ENUM | `auto`, `high`, `low`, `medium`, `quiet`, `turbo` | R/W | Shared constants from hvac_fan |
+| `hvac_ionization` | BOOL | true/false | R | From HA attributes |
+| `hvac_night_mode` | BOOL | true/false | R | |
 | `hvac_aromatization` | BOOL | true/false | R | |
 | `hvac_replace_filter` | BOOL | true/false | R | Filter replacement needed |
 | `hvac_replace_ionizator` | BOOL | true/false | R | Ionizer replacement needed |
+| `hvac_decontaminate` | BOOL | true/false | R | Conditional |
 
 ### `valve` (ValveEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
+| `online` | BOOL | true/false | R | |
 | `open_state` | ENUM | `open`, `close` | R | Current state |
 | `open_set` | ENUM | `open`, `close`, `stop` | W | Command |
+| `battery_percentage` | INTEGER | 0-100 | R | From attributes or linked entity |
+| `battery_low_power` | BOOL | true/false | R | From linked binary_sensor or <20% |
+| `signal_strength` | ENUM | `high`, `medium`, `low` | R | From attributes or linked entity |
 
 ### `sensor_temp` (SensorTempEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
-| `online` | BOOL | true/false | R | Always true when state exists |
-| `temperature` | INT | x10 (e.g. 225 = 22.5C) | R | |
-| `battery_percentage` | INT | 0-100 | R | Linked entity only |
-| `battery_low_power` | BOOL | true/false | R | < 20% |
-| `signal_strength` | ENUM | `high`, `medium`, `low` | R | Linked entity only |
-| `humidity` | INT | 0-100 | R | Linked entity only |
+| `online` | BOOL | true/false | R | unknown = **offline** (prevents 0C report) |
+| `temperature` | INTEGER | x10 (225 = 22.5C) | R | |
+| `humidity` | INTEGER | 0-100 | R | From linked humidity entity |
+| `air_pressure` | INTEGER | mmHg | R | From `pressure` attribute |
+| `battery_percentage` | INTEGER | 0-100 | R | From attributes or linked |
+| `battery_low_power` | BOOL | true/false | R | |
+| `signal_strength` | ENUM | `high`/`medium`/`low` | R | |
 
 ### `sensor_temp` (HumiditySensorEntity, same category)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
-| `online` | BOOL | true/false | R | |
-| `humidity` | INT | 0-100 | R | |
-| `battery_percentage` | INT | 0-100 | R | Linked entity only |
-| `battery_low_power` | BOOL | true/false | R | < 20% |
-| `signal_strength` | ENUM | `high`, `medium`, `low` | R | Linked entity only |
-| `temperature` | INT | x10 | R | Linked entity only |
+| `online` | BOOL | true/false | R | unknown = **offline** |
+| `humidity` | INTEGER | 0-100 | R | |
+| `temperature` | INTEGER | x10 | R | From linked temperature entity |
+| `battery_percentage` | INTEGER | 0-100 | R | |
+| `battery_low_power` | BOOL | true/false | R | |
+| `signal_strength` | ENUM | `high`/`medium`/`low` | R | |
 
 ### `sensor_pir` (MotionSensorEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
-| `online` | BOOL | true/false | R | |
-| `pir` | ENUM | `pir` | R | Always "pir" when motion detected |
-| `battery_percentage` | INT | 0-100 | R | Linked |
-| `battery_low_power` | BOOL | true/false | R | Linked |
-| `signal_strength` | ENUM | `high`/`medium`/`low` | R | Linked |
-| `tamper_alarm` | BOOL | true/false | R | From `tamper` attr |
+| `online` | BOOL | true/false | R | unknown = **online** (_unknown_is_online=True) |
+| `pir` | ENUM | `pir`, `no_pir` | R | Per Sber C2C spec |
+| `battery_percentage` | INTEGER | 0-100 | R | |
+| `battery_low_power` | BOOL | true/false | R | |
+| `signal_strength` | ENUM | `high`/`medium`/`low` | R | |
+| `tamper_alarm` | BOOL | true/false | R | From `tamper` attribute |
 
 ### `sensor_door` (DoorSensorEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
-| `online` | BOOL | true/false | R | |
+| `online` | BOOL | true/false | R | unknown = **online** |
 | `doorcontact_state` | BOOL | true/false | R | true = open |
-| `battery_percentage` | INT | 0-100 | R | Linked |
-| `battery_low_power` | BOOL | true/false | R | Linked |
-| `signal_strength` | ENUM | `high`/`medium`/`low` | R | Linked |
-| `tamper_alarm` | BOOL | true/false | R | From `tamper` attr |
+| `battery_percentage` | INTEGER | 0-100 | R | |
+| `battery_low_power` | BOOL | true/false | R | |
+| `signal_strength` | ENUM | `high`/`medium`/`low` | R | |
+| `tamper_alarm` | BOOL | true/false | R | |
 
 ### `sensor_water_leak` (WaterLeakSensorEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
-| `online` | BOOL | true/false | R | |
+| `online` | BOOL | true/false | R | unknown = **online** |
 | `water_leak_state` | BOOL | true/false | R | true = leak detected |
-| `battery_percentage` | INT | 0-100 | R | Linked |
-| `battery_low_power` | BOOL | true/false | R | Linked |
-| `signal_strength` | ENUM | `high`/`medium`/`low` | R | Linked |
+| `battery_percentage` | INTEGER | 0-100 | R | |
+| `battery_low_power` | BOOL | true/false | R | |
+| `signal_strength` | ENUM | `high`/`medium`/`low` | R | |
 
 ### `sensor_smoke` (SmokeSensorEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
-| `online` | BOOL | true/false | R | |
+| `online` | BOOL | true/false | R | unknown = **online** |
 | `smoke_state` | BOOL | true/false | R | true = smoke detected |
-| `battery_percentage` | INT | 0-100 | R | Linked |
-| `battery_low_power` | BOOL | true/false | R | Linked |
-| `signal_strength` | ENUM | `high`/`medium`/`low` | R | Linked |
+| `alarm_mute` | BOOL | true/false | R | From `alarm_mute` attribute |
+| `battery_percentage` | INTEGER | 0-100 | R | |
+| `battery_low_power` | BOOL | true/false | R | |
+| `signal_strength` | ENUM | `high`/`medium`/`low` | R | |
 
 ### `sensor_gas` (GasSensorEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
-| `online` | BOOL | true/false | R | |
+| `online` | BOOL | true/false | R | unknown = **online** |
 | `gas_leak_state` | BOOL | true/false | R | true = gas detected |
-| `battery_percentage` | INT | 0-100 | R | Linked |
-| `battery_low_power` | BOOL | true/false | R | Linked |
-| `signal_strength` | ENUM | `high`/`medium`/`low` | R | Linked |
+| `alarm_mute` | BOOL | true/false | R | From `alarm_mute` attribute |
+| `battery_percentage` | INTEGER | 0-100 | R | |
+| `battery_low_power` | BOOL | true/false | R | |
+| `signal_strength` | ENUM | `high`/`medium`/`low` | R | |
 
 ### `scenario_button` (ScenarioButtonEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
-| `button_event` | ENUM | `click`, `double_click`, `long_press` | R/W | |
+| `online` | BOOL | true/false | R | |
+| `button_event` | ENUM | `click`, `double_click`, `long_press` | R | on=click, off=double_click |
 
 ### `kettle` (KettleEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
+| `online` | BOOL | true/false | R | |
 | `on_off` | BOOL | true/false | R/W | |
-| `kitchen_water_temperature` | INT | degrees | R | Current temp |
-| `kitchen_water_temperature_set` | INT | 60-100 | R/W | Target temp |
-| `kitchen_water_low_level` | BOOL | true/false | R | Low water level |
-| `child_lock` | BOOL | true/false | R/W | |
+| `kitchen_water_temperature` | INTEGER | degrees (plain, NOT x10) | R | Current water temp |
+| `kitchen_water_temperature_set` | INTEGER | 60-100, step 10 | R/W | Target temp |
+| `kitchen_water_level` | INTEGER | | R | From `water_level` attribute |
+| `kitchen_water_low_level` | BOOL | true/false | R | Heuristic: temp < 30 |
+| `child_lock` | BOOL | true/false | R | |
 
 ### `tv` (TvEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
+| `online` | BOOL | true/false | R | |
 | `on_off` | BOOL | true/false | R/W | |
-| `volume_int` | INT | 0-100 | R/W | |
+| `volume_int` | INTEGER | 0-100, step 1 | R/W | HA 0.0-1.0 -> Sber 0-100 |
 | `mute` | BOOL | true/false | R/W | |
 | `source` | ENUM | dynamic (from `source_list`) | R/W | Input source |
 
@@ -281,47 +305,61 @@ Same features as `curtain`, category = `gate`.
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
+| `online` | BOOL | true/false | R | |
 | `vacuum_cleaner_status` | ENUM | `cleaning`, `charging`, `docked`, `returning`, `error`, `paused` | R | |
 | `vacuum_cleaner_command` | ENUM | `start`, `stop`, `pause`, `return_to_dock` | W | |
-| `vacuum_cleaner_program` | ENUM | dynamic (from `fan_speed_list`) | R/W | |
-| `battery_percentage` | INT | 0-100 | R | |
+| `vacuum_cleaner_program` | ENUM | dynamic (from `fan_speed_list`) | R/W | Cleaning intensity |
+| `battery_percentage` | INTEGER | 0-100 | R | |
 
 ### `intercom` (IntercomEntity, extends OnOffEntity)
 
 | Feature | Type | Range/Values | Direction | Notes |
 |---------|------|-------------|-----------|-------|
+| `online` | BOOL | true/false | R | |
 | `on_off` | BOOL | true/false | R/W | |
 | `incoming_call` | BOOL | true/false | R | |
-| `reject_call` | BOOL | true/false | W | |
-| `unlock` | BOOL | true/false | W | |
+| `reject_call` | BOOL | true/false | R | |
+| `unlock` | BOOL | true/false | R | |
 
 ---
 
-## Entity Linking (Auxiliary Sensors)
+## Entity Linking
 
 ### Allowed Link Roles by Category
 
 | Primary Category | Allowed Roles |
 |-----------------|---------------|
-| `sensor_water_leak` | `battery`, `signal_strength` |
-| `sensor_pir` | `battery`, `signal_strength` |
-| `sensor_door` | `battery`, `signal_strength` |
-| `sensor_smoke` | `battery`, `signal_strength` |
-| `sensor_gas` | `battery`, `signal_strength` |
-| `sensor_temp` | `battery`, `signal_strength`, `humidity` |
-| `sensor_humidity` | `battery`, `signal_strength`, `temperature` |
+| `sensor_water_leak` | `battery`, `battery_low`, `signal_strength` |
+| `sensor_pir` | `battery`, `battery_low`, `signal_strength` |
+| `sensor_door` | `battery`, `battery_low`, `signal_strength` |
+| `sensor_smoke` | `battery`, `battery_low`, `signal_strength` |
+| `sensor_gas` | `battery`, `battery_low`, `signal_strength` |
+| `sensor_temp` | `battery`, `battery_low`, `signal_strength`, `humidity` |
+| `sensor_humidity` | `battery`, `battery_low`, `signal_strength`, `temperature` |
+| `curtain` | `battery`, `battery_low`, `signal_strength` |
+| `window_blind` | `battery`, `battery_low`, `signal_strength` |
+| `gate` | `battery`, `battery_low`, `signal_strength` |
+| `valve` | `battery`, `battery_low`, `signal_strength` |
 | `hvac_ac` | `temperature` |
 | `hvac_humidifier` | `humidity` |
 
 ### HA device_class -> Link Role
 
-| HA device_class | Link Role |
-|----------------|-----------|
-| `battery` | `battery` |
-| `temperature` | `temperature` |
-| `humidity` | `humidity` |
-| `moisture` | `humidity` |
-| `signal_strength` | `signal_strength` |
+| HA device_class | HA domain | Link Role |
+|----------------|-----------|-----------|
+| `battery` | `sensor` | `battery` (percentage level) |
+| `battery` | `binary_sensor` | `battery_low` (boolean low flag) |
+| `temperature` | `sensor` | `temperature` |
+| `humidity` | `sensor` | `humidity` |
+| `signal_strength` | `sensor` | `signal_strength` |
+
+> Note: `moisture` binary_sensor is **excluded** — it's a leak detector, not humidity.
+> Both `battery` (sensor) and `battery_low` (binary_sensor) can be linked simultaneously.
+
+### Wizard vs Link Dialog
+
+- **Wizard** (Add Device step 2): shows only **same-device** candidates (`same_device_only=true`)
+- **Link Dialog** (edit links): shows all candidates, grouped by same_device / other_devices
 
 ---
 
@@ -331,32 +369,72 @@ Same features as `curtain`, category = `gate`.
 BaseEntity (abstract)
   +-- LightEntity (light)
   |     +-- LedStripEntity (led_strip)
-  +-- CurtainEntity (curtain)
+  +-- CurtainEntity (curtain)            [update_linked_data: battery, battery_low, signal]
   |     +-- WindowBlindEntity (window_blind)
   |     +-- GateEntity (gate)
   +-- ClimateEntity (hvac_ac)
-  |     +-- HvacRadiatorEntity (hvac_radiator, temp 25-40)
-  |     +-- HvacHeaterEntity (hvac_heater, temp 5-40)
-  |     +-- HvacBoilerEntity (hvac_boiler, temp 25-80)
-  |     +-- HvacUnderfloorEntity (hvac_underfloor_heating, temp 25-50)
+  |     +-- HvacRadiatorEntity (hvac_radiator, temp 25-40, step 5)
+  |     +-- HvacHeaterEntity (hvac_heater, temp 5-40, fan+thermostat)
+  |     +-- HvacBoilerEntity (hvac_boiler, temp 25-80, step 5, thermostat)
+  |     +-- HvacUnderfloorEntity (hvac_underfloor_heating, temp 25-50, step 5)
   +-- OnOffEntity (abstract)
   |     +-- RelayEntity (relay)
   |     |     +-- SocketEntity (socket)
   |     +-- IntercomEntity (intercom)
-  |     +-- ValveEntity (valve)
-  +-- SimpleReadOnlySensor (abstract)
-  |     +-- SensorTempEntity (sensor_temp)
-  |     +-- HumiditySensorEntity (sensor_temp)
-  |     +-- MotionSensorEntity (sensor_pir)
-  |     +-- DoorSensorEntity (sensor_door)
-  |     +-- WaterLeakSensorEntity (sensor_water_leak)
-  |     +-- SmokeSensorEntity (sensor_smoke)
-  |     +-- GasSensorEntity (sensor_gas)
+  +-- SimpleReadOnlySensor (abstract)    [_unknown_is_online flag, update_linked_data]
+  |     +-- SensorTempEntity (sensor_temp)          [unknown=offline]
+  |     +-- HumiditySensorEntity (sensor_temp)      [unknown=offline]
+  |     +-- MotionSensorEntity (sensor_pir)         [unknown=ONLINE]
+  |     +-- DoorSensorEntity (sensor_door)          [unknown=ONLINE]
+  |     +-- WaterLeakSensorEntity (sensor_water_leak) [unknown=ONLINE]
+  |     +-- SmokeSensorEntity (sensor_smoke)        [unknown=ONLINE]
+  |     +-- GasSensorEntity (sensor_gas)            [unknown=ONLINE]
   +-- HumidifierEntity (hvac_humidifier)
   +-- HvacFanEntity (hvac_fan)
-  +-- HvacAirPurifierEntity (hvac_air_purifier)
+  +-- HvacAirPurifierEntity (hvac_air_purifier)     [imports speed constants from hvac_fan]
   +-- ScenarioButtonEntity (scenario_button)
   +-- KettleEntity (kettle)
   +-- TvEntity (tv)
   +-- VacuumCleanerEntity (vacuum_cleaner)
+  +-- ValveEntity (valve)                [update_linked_data: battery, battery_low, signal]
 ```
+
+---
+
+## Architecture: Typed Constants & Pydantic Helpers (v1.10.0+)
+
+### sber_constants.py
+
+All string literals replaced with typed StrEnum constants:
+- `SberFeature` — 61 feature key names
+- `SberValueType` — BOOL, INTEGER, ENUM, COLOUR, FLOAT
+- `HAState` — on, off, unavailable, unknown, open, closed, etc.
+- `MqttTopicSuffix` — commands, status_request, config_request, etc.
+
+### State Construction (sber_models.py helpers)
+
+```python
+# All device files use:
+from ..sber_constants import SberFeature
+from ..sber_models import make_state, make_bool_value, make_integer_value, make_enum_value
+
+states = [
+    make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
+    make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
+    make_state(SberFeature.TEMPERATURE, make_integer_value(int(self.temperature * 10))),
+]
+```
+
+`make_integer_value` outputs `str(value)` per Sber C2C spec.
+
+### HA Context & Echo Loop Prevention (v1.10.0+)
+
+- Sber commands include HA `Context` in service calls — logbook attribution
+- State changes from Sber context IDs are not re-published (echo loop prevention)
+- Bounded context ID set (max 200)
+
+### Value Change Diffing (v1.10.0+)
+
+- `BaseEntity.has_significant_change()` — compares current Sber state with last published
+- `BaseEntity.mark_state_published()` — snapshots state after successful publish
+- `_publish_states(force=True)` for Sber status_request responses (always respond)
