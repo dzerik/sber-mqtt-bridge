@@ -308,12 +308,17 @@ class BaseEntity(ABC):
 
     @property
     def _is_online(self) -> bool:
-        """Check if entity is online (not unavailable/unknown).
+        """Check if entity is online (reachable).
+
+        Only ``unavailable`` and ``None`` (not yet loaded) mean the device
+        is truly offline. ``unknown`` means the device is reachable but
+        has no determined value yet (e.g., a motion sensor that hasn't
+        triggered since startup) — this is still considered online.
 
         Returns:
             True if the entity state indicates it is reachable.
         """
-        return self.state not in ("unavailable", "unknown", None)
+        return self.state not in ("unavailable", None)
 
     @property
     def is_online(self) -> bool:
