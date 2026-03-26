@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-03-26
+
+### Added
+- **Device Detail Dialog**: click entity name in device table to see full overview — Sber states table, linked entities with current values, model config (allowed_values, dependencies), HA attributes, device registry info, redefinitions
+- **WS endpoint** `sber_mqtt_bridge/device_detail`: returns comprehensive data for a single entity
+
+### Changed
+- **Documentation**: full rewrite of README.md, README_ENG.md, and 7 docs files updated to v1.10.3+ — 28 categories, Sidebar Panel, DevTools, Entity Linking, typed constants, Pydantic helpers
+
 ## [1.10.3] - 2026-03-26
 
 ### Fixed
