@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.2] - 2026-03-26
+
+### Fixed
+- **Лампы отображаются как вентиляторы в Sber**: при первом подключении к MQTT конфиг публиковался до полной загрузки HA — entity features (brightness, color, color_temp) были пустыми, и Sber cloud неправильно классифицировал устройства; теперь первая публикация ожидает `EVENT_HOMEASSISTANT_STARTED`
+
 ## [1.12.1] - 2026-03-26
 
 ### Fixed

@@ -156,6 +156,10 @@ class SberBridge:
         self._stats = BridgeStats()
         self._last_config_publish_time: float | None = None
 
+        # Gate: delay initial MQTT publish until HA is fully started so that
+        # entity states (and therefore Sber features) are fully populated.
+        self._ha_ready = asyncio.Event()
+
         # Debounce: coalesce rapid state changes into a single publish
         self._pending_publish_ids: set[str] = set()
         self._publish_timer: asyncio.TimerHandle | None = None
@@ -239,6 +243,7 @@ class SberBridge:
             _LOGGER.debug("HA already running — reloading entities immediately")
             self._load_exposed_entities()
             self._subscribe_ha_events()
+            self._ha_ready.set()
         else:
             self._unsub_lifecycle_listeners.append(
                 self._hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, self._on_homeassistant_started)
@@ -505,10 +510,18 @@ class SberBridge:
         _LOGGER.debug("HA started — reloading exposed entities and republishing")
         self._load_exposed_entities()
         self._subscribe_ha_events()
-        # Republish with fresh states now that all entities are fully loaded
-        if self._connected:
-            self._hass.async_create_task(self._publish_config())
-            self._hass.async_create_task(self._publish_states(force=True))
+        # Signal that HA is ready.  If MQTT is already connected and waiting
+        # in _mqtt_connection_loop, this will unblock the initial publish there.
+        # If MQTT connected *after* HA started, _ha_ready is already set and
+        # the loop publishes immediately — no duplicate publish needed here.
+        if not self._ha_ready.is_set():
+            self._ha_ready.set()
+        else:
+            # HA was already marked ready (shouldn't happen, but be safe) —
+            # force republish since entities were just reloaded.
+            if self._connected:
+                self._hass.async_create_task(self._publish_config())
+                self._hass.async_create_task(self._publish_states(force=True))
 
     async def _mqtt_connection_loop(self) -> None:
         """Maintain persistent MQTT connection with exponential backoff reconnect."""
@@ -536,6 +549,17 @@ class SberBridge:
 
                     await client.subscribe(f"{self._down_topic}/#")
                     await client.subscribe(SBER_GLOBAL_CONFIG_TOPIC)
+
+                    # Wait for HA to be fully started before the first publish
+                    # so that entity states (and Sber features derived from them)
+                    # are fully populated.  Without this gate, lights can be
+                    # published with an empty feature set (only on_off) and Sber
+                    # cloud may misclassify them (e.g. display a lamp as a fan).
+                    if not self._ha_ready.is_set():
+                        _LOGGER.debug(
+                            "MQTT connected, waiting for HA startup before publishing config"
+                        )
+                        await self._ha_ready.wait()
 
                     # Proactively publish config + current states on connect
                     # so Sber cloud has up-to-date data without waiting for
