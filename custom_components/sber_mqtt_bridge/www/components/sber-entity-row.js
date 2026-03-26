@@ -97,6 +97,9 @@ class SberEntityRow extends LitElement {
       .badge-grey {
         background: #9e9e9e;
       }
+      .badge-yellow {
+        background: var(--warning-color, #ff9800);
+      }
       .actions-cell {
         display: flex;
         gap: 4px;
@@ -191,7 +194,7 @@ class SberEntityRow extends LitElement {
   updated() {
     /* Apply row-level online/offline CSS class */
     const d = this.device;
-    if (d?.is_online) {
+    if (d?.is_online || !d?.is_filled) {
       this.classList.add("row-online");
       this.classList.remove("row-offline");
     } else {
@@ -225,8 +228,8 @@ class SberEntityRow extends LitElement {
       <td>${d.room || "\u2014"}</td>
       <td>${d.state ?? "\u2014"}</td>
       <td>
-        <span class="badge ${d.is_online ? "badge-green" : "badge-grey"}">
-          ${d.is_online ? "Online" : "Offline"}
+        <span class="badge ${d.is_online ? "badge-green" : d.is_filled ? "badge-grey" : "badge-yellow"}">
+          ${d.is_online ? "Online" : d.is_filled ? "Offline" : "Loading\u2026"}
         </span>
       </td>
       <td>
