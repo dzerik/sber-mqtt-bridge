@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.4] - 2026-03-26
+
+### Changed
+- **Refactor**: split `_load_exposed_entities` (200 lines, complexity ~18) into 7 focused helpers: `_create_entities`, `_apply_yaml_overrides`, `_link_device_registry`, `_apply_entity_links`, `_check_device_conflicts`, `_apply_room_overrides`, `_finalize_entity_load`
+- **Refactor**: extract `_handle_disconnect` helper to DRY MQTT error handling (was duplicated for MqttError and generic exceptions)
+- **Fix**: replace bare `except Exception` with `(OSError, ValueError, RuntimeError)` in MQTT loop (ruff BLE001)
+
 ## [1.12.3] - 2026-03-26
 
 ### Added

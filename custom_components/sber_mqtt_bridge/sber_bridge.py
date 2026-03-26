@@ -281,16 +281,14 @@ class SberBridge:
         Uses swap-on-replace pattern: builds a new dict, then atomically
         replaces the reference to avoid race conditions with concurrent readers.
 
-        Custom YAML config (``sber_type``, ``sber_name``, ``sber_room``) from
-        ``configuration.yaml`` is applied after entity creation:
-        - ``sber_type`` overrides Sber category (UI override takes precedence).
-        - ``sber_name`` overrides entity display name.
-        - ``sber_room`` is added to redefinitions.
+        Delegates to focused helpers:
+        - ``_create_entities`` — build entity objects from registry + YAML config
+        - ``_apply_entity_links`` — resolve linked sensor entities
+        - ``_apply_room_overrides`` — merge YAML room into redefinitions
+        - ``_finalize_entity_load`` — prune stale data, log, trigger repairs
         """
-        # Deduplicate entity IDs while preserving order
         new_enabled = list(dict.fromkeys(self._entry.options.get(CONF_EXPOSED_ENTITIES, [])))
-        type_overrides: dict[str, str] = self._entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
-        new_entities: dict[str, BaseEntity] = {}
+        custom_config = get_custom_config(self._hass)
 
         # Restore persisted redefinitions from entry options
         saved_redefs: dict[str, dict] = self._entry.options.get("redefinitions", {})
@@ -298,13 +296,41 @@ class SberBridge:
             self._redefinitions.update(saved_redefs)
             _LOGGER.debug("Loaded %d persisted redefinitions from options", len(saved_redefs))
 
-        # Load custom YAML config
-        custom_config = get_custom_config(self._hass)
+        new_entities = self._create_entities(new_enabled, custom_config)
+        new_links, new_reverse = self._apply_entity_links(new_entities)
 
+        self._entity_links = new_links
+        self._linked_reverse = new_reverse
+
+        self._check_device_conflicts(new_entities, new_reverse)
+
+        # Atomic swap — readers see either old or new, never partial state
+        self._entities = new_entities
+        self._enabled_entity_ids = list(new_entities.keys())
+
+        self._apply_room_overrides(custom_config)
+        self._finalize_entity_load(new_enabled)
+
+    def _create_entities(
+        self,
+        enabled_ids: list[str],
+        custom_config: dict,
+    ) -> dict[str, BaseEntity]:
+        """Create Sber entity objects from HA registry and fill initial state.
+
+        Args:
+            enabled_ids: Ordered list of entity IDs to expose.
+            custom_config: YAML custom config dict (entity_id → EntityConfig).
+
+        Returns:
+            Dict mapping entity_id to created BaseEntity subclass.
+        """
+        type_overrides: dict[str, str] = self._entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
+        new_entities: dict[str, BaseEntity] = {}
         entity_reg = er.async_get(self._hass)
         device_reg = dr.async_get(self._hass)
 
-        for entity_id in new_enabled:
+        for entity_id in enabled_ids:
             entry = entity_reg.async_get(entity_id)
             if entry is None:
                 _LOGGER.warning("Entity %s not found in registry", entity_id)
@@ -332,65 +358,96 @@ class SberBridge:
                 sber_category = yaml_cfg.sber_type
                 _LOGGER.debug("YAML sber_type override for %s: %s", entity_id, sber_category)
 
-            sber_entity = create_sber_entity(
-                entity_id,
-                entity_data,
-                sber_category=sber_category,
-            )
-            if sber_entity is not None:
-                new_entities[entity_id] = sber_entity
+            sber_entity = create_sber_entity(entity_id, entity_data, sber_category=sber_category)
+            if sber_entity is None:
+                continue
 
-                # Apply YAML name override
-                if yaml_cfg is not None and yaml_cfg.sber_name is not None:
-                    sber_entity.name = yaml_cfg.sber_name
-                    _LOGGER.debug("YAML sber_name override for %s: %s", entity_id, yaml_cfg.sber_name)
+            new_entities[entity_id] = sber_entity
+            self._apply_yaml_overrides(sber_entity, entity_id, yaml_cfg)
+            self._link_device_registry(sber_entity, entry, device_reg)
 
-                # Apply YAML nicknames, groups, parent_id, partner_meta
-                if yaml_cfg is not None:
-                    if yaml_cfg.sber_nicknames is not None:
-                        sber_entity.nicknames = yaml_cfg.sber_nicknames
-                    if yaml_cfg.sber_groups is not None:
-                        sber_entity.groups = yaml_cfg.sber_groups
-                    if yaml_cfg.sber_parent_id is not None:
-                        sber_entity.parent_entity_id = yaml_cfg.sber_parent_id
-                    if yaml_cfg.sber_partner_meta is not None:
-                        sber_entity.partner_meta = yaml_cfg.sber_partner_meta
-                    if yaml_cfg.sber_features_add is not None:
-                        sber_entity.extra_features = yaml_cfg.sber_features_add
-                        _LOGGER.debug("YAML sber_features_add for %s: %s", entity_id, yaml_cfg.sber_features_add)
-                    if yaml_cfg.sber_features_remove is not None:
-                        sber_entity.removed_features = yaml_cfg.sber_features_remove
-                        _LOGGER.debug("YAML sber_features_remove for %s: %s", entity_id, yaml_cfg.sber_features_remove)
+            state = self._hass.states.get(entity_id)
+            if state is not None:
+                ha_state_dict = {
+                    "entity_id": state.entity_id,
+                    "state": state.state,
+                    "attributes": dict(state.attributes),
+                }
+                sber_entity.fill_by_ha_state(ha_state_dict)
 
-                # Link device registry data for entities that belong to a device
-                if entry.device_id is not None:
-                    device = device_reg.async_get(entry.device_id)
-                    if device is not None:
-                        device_data = {
-                            "id": device.id,
-                            "name": device.name_by_user or device.name,
-                            "area_id": device.area_id or "",
-                            "manufacturer": device.manufacturer or "Unknown",
-                            "model": device.model or "Unknown",
-                            "model_id": device.model_id or "",
-                            "hw_version": device.hw_version or "Unknown",
-                            "sw_version": device.sw_version or "Unknown",
-                        }
-                        try:
-                            sber_entity.link_device(device_data)
-                        except ValueError:
-                            _LOGGER.warning("Device ID mismatch for %s", entity_id)
+        return new_entities
 
-                state = self._hass.states.get(entity_id)
-                if state is not None:
-                    ha_state_dict = {
-                        "entity_id": state.entity_id,
-                        "state": state.state,
-                        "attributes": dict(state.attributes),
-                    }
-                    sber_entity.fill_by_ha_state(ha_state_dict)
+    @staticmethod
+    def _apply_yaml_overrides(
+        sber_entity: BaseEntity, entity_id: str, yaml_cfg: object | None
+    ) -> None:
+        """Apply YAML config overrides (name, nicknames, groups, features) to entity.
 
-        # Load and apply entity links
+        Args:
+            sber_entity: The Sber entity to configure.
+            entity_id: HA entity ID (for logging).
+            yaml_cfg: YAML EntityConfig or None.
+        """
+        if yaml_cfg is None:
+            return
+        if yaml_cfg.sber_name is not None:
+            sber_entity.name = yaml_cfg.sber_name
+            _LOGGER.debug("YAML sber_name override for %s: %s", entity_id, yaml_cfg.sber_name)
+        if yaml_cfg.sber_nicknames is not None:
+            sber_entity.nicknames = yaml_cfg.sber_nicknames
+        if yaml_cfg.sber_groups is not None:
+            sber_entity.groups = yaml_cfg.sber_groups
+        if yaml_cfg.sber_parent_id is not None:
+            sber_entity.parent_entity_id = yaml_cfg.sber_parent_id
+        if yaml_cfg.sber_partner_meta is not None:
+            sber_entity.partner_meta = yaml_cfg.sber_partner_meta
+        if yaml_cfg.sber_features_add is not None:
+            sber_entity.extra_features = yaml_cfg.sber_features_add
+            _LOGGER.debug("YAML sber_features_add for %s: %s", entity_id, yaml_cfg.sber_features_add)
+        if yaml_cfg.sber_features_remove is not None:
+            sber_entity.removed_features = yaml_cfg.sber_features_remove
+            _LOGGER.debug("YAML sber_features_remove for %s: %s", entity_id, yaml_cfg.sber_features_remove)
+
+    @staticmethod
+    def _link_device_registry(sber_entity: BaseEntity, entry: object, device_reg: dr.DeviceRegistry) -> None:
+        """Link device registry data to entity if it belongs to a device.
+
+        Args:
+            sber_entity: The Sber entity.
+            entry: HA entity registry entry.
+            device_reg: HA device registry.
+        """
+        if entry.device_id is None:
+            return
+        device = device_reg.async_get(entry.device_id)
+        if device is None:
+            return
+        device_data = {
+            "id": device.id,
+            "name": device.name_by_user or device.name,
+            "area_id": device.area_id or "",
+            "manufacturer": device.manufacturer or "Unknown",
+            "model": device.model or "Unknown",
+            "model_id": device.model_id or "",
+            "hw_version": device.hw_version or "Unknown",
+            "sw_version": device.sw_version or "Unknown",
+        }
+        try:
+            sber_entity.link_device(device_data)
+        except ValueError:
+            _LOGGER.warning("Device ID mismatch for %s", sber_entity.entity_id)
+
+    def _apply_entity_links(
+        self, new_entities: dict[str, BaseEntity]
+    ) -> tuple[dict[str, dict[str, str]], dict[str, tuple[str, str]]]:
+        """Resolve and apply entity links (linked sensors) from config options.
+
+        Args:
+            new_entities: Currently loaded entities.
+
+        Returns:
+            Tuple of (entity_links dict, linked_reverse dict).
+        """
         raw_links: dict[str, dict[str, str]] = self._entry.options.get(CONF_ENTITY_LINKS, {})
         new_links: dict[str, dict[str, str]] = {}
         new_reverse: dict[str, tuple[str, str]] = {}
@@ -418,10 +475,19 @@ class SberBridge:
                 new_links[primary_id] = valid_roles
                 _LOGGER.info("Entity links for %s: %s", primary_id, valid_roles)
 
-        self._entity_links = new_links
-        self._linked_reverse = new_reverse
+        return new_links, new_reverse
 
-        # Warn about multiple entities sharing the same physical device (exclude linked)
+    @staticmethod
+    def _check_device_conflicts(
+        new_entities: dict[str, BaseEntity],
+        new_reverse: dict[str, tuple[str, str]],
+    ) -> None:
+        """Warn about multiple entities sharing the same physical device.
+
+        Args:
+            new_entities: All loaded entities.
+            new_reverse: Reverse link mapping (linked_id → primary_id, role).
+        """
         linked_ids = set(new_reverse.keys())
         device_entities: dict[str, list[str]] = {}
         for eid, ent in new_entities.items():
@@ -439,28 +505,27 @@ class SberBridge:
                     ", ".join(eids),
                 )
 
-        # Atomic swap — readers see either old or new, never partial state
-        self._entities = new_entities
-        self._enabled_entity_ids = list(new_entities.keys())
+    def _apply_room_overrides(self, custom_config: dict) -> None:
+        """Merge YAML room overrides into redefinitions.
 
-        # Apply YAML room overrides to redefinitions
-        new_redefinitions: dict[str, dict[str, str]] = {}
+        Args:
+            custom_config: YAML custom config dict.
+        """
         for entity_id in self._enabled_entity_ids:
             yaml_cfg = custom_config.get(entity_id)
             if yaml_cfg is not None and yaml_cfg.sber_room is not None:
-                new_redefinitions[entity_id] = {"room": yaml_cfg.sber_room}
+                if entity_id not in self._redefinitions:
+                    self._redefinitions[entity_id] = {"room": yaml_cfg.sber_room}
+                elif "room" not in self._redefinitions[entity_id]:
+                    self._redefinitions[entity_id]["room"] = yaml_cfg.sber_room
                 _LOGGER.debug("YAML sber_room override for %s: %s", entity_id, yaml_cfg.sber_room)
 
-        # Merge YAML room overrides into existing redefinitions (runtime overrides take precedence)
-        for eid, redef in new_redefinitions.items():
-            if eid not in self._redefinitions:
-                self._redefinitions[eid] = redef
-            else:
-                # Only set room from YAML if not already set by Sber cloud
-                if "room" not in self._redefinitions[eid]:
-                    self._redefinitions[eid]["room"] = redef["room"]
+    def _finalize_entity_load(self, new_enabled: list[str]) -> None:
+        """Prune stale data and trigger repair checks after entity loading.
 
-        # Prune stale data from previous entity sets
+        Args:
+            new_enabled: List of currently enabled entity IDs.
+        """
         valid_ids = set(new_enabled)
         self._stats.acknowledged_entities &= valid_ids
         self._redefinitions = {k: v for k, v in self._redefinitions.items() if k in valid_ids}
@@ -472,7 +537,6 @@ class SberBridge:
             ", ".join(self._enabled_entity_ids) if self._enabled_entity_ids else "(none)",
         )
 
-        # Check for HA repair issues after entity loading
         self._hass.async_create_task(check_and_create_issues(self._hass, self))
 
     def _subscribe_ha_events(self) -> None:
@@ -575,40 +639,50 @@ class SberBridge:
                         await self._handle_mqtt_message(str(message.topic), message.payload)
 
             except aiomqtt.MqttError as err:
-                self._connected = False
-                self._mqtt_client = None
-                self._stats.connected_since = None
-                self._stats.reconnect_count += 1
-                if not self._running:
+                if not await self._handle_disconnect(err):
                     break
-                _LOGGER.warning(
-                    "Sber MQTT connection lost: %s. Reconnecting in %ds... (attempt #%d)",
-                    err,
-                    self._reconnect_interval,
-                    self._stats.reconnect_count,
-                )
-                await check_and_create_issues(self._hass, self)
-                await asyncio.sleep(self._reconnect_interval)
-                self._reconnect_interval = min(self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX)
             except asyncio.CancelledError:
                 break
-            except Exception:
-                self._connected = False
-                self._mqtt_client = None
-                self._stats.connected_since = None
-                self._stats.reconnect_count += 1
-                if not self._running:
+            except (OSError, ValueError, RuntimeError) as err:
+                if not await self._handle_disconnect(err, unexpected=True):
                     break
-                _LOGGER.exception(
-                    "Unexpected MQTT error. Reconnecting in %ds...",
-                    self._reconnect_interval,
-                )
-                await asyncio.sleep(self._reconnect_interval)
-                self._reconnect_interval = min(self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX)
 
         self._mqtt_client = None
         self._connected = False
         self._stats.connected_since = None
+
+    async def _handle_disconnect(self, err: Exception, *, unexpected: bool = False) -> bool:
+        """Handle MQTT disconnection: reset state, log, backoff, check repairs.
+
+        Args:
+            err: The exception that caused disconnection.
+            unexpected: True for non-MqttError exceptions (logged at exception level).
+
+        Returns:
+            True if the loop should continue reconnecting, False if it should stop.
+        """
+        self._connected = False
+        self._mqtt_client = None
+        self._stats.connected_since = None
+        self._stats.reconnect_count += 1
+        if not self._running:
+            return False
+        if unexpected:
+            _LOGGER.exception(
+                "Unexpected MQTT error. Reconnecting in %ds...",
+                self._reconnect_interval,
+            )
+        else:
+            _LOGGER.warning(
+                "Sber MQTT connection lost: %s. Reconnecting in %ds... (attempt #%d)",
+                err,
+                self._reconnect_interval,
+                self._stats.reconnect_count,
+            )
+        await check_and_create_issues(self._hass, self)
+        await asyncio.sleep(self._reconnect_interval)
+        self._reconnect_interval = min(self._reconnect_interval * 2, RECONNECT_INTERVAL_MAX)
+        return True
 
     async def _handle_mqtt_message(self, topic: str, payload: bytes) -> None:
         """Route incoming MQTT messages to handlers."""
