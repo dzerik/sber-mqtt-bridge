@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.13.3] - 2026-03-30
+## [1.14.0] - 2026-03-30
+
+### Added
+- **Reconnect guard**: after (re)connect, Sber commands are rejected until Sber acknowledges our states via `status_request` or `config_request` (30s fallback timeout) — replaces unreliable fixed-timer grace period
 
 ### Fixed
-- **Critical**: Sber cloud no longer overrides HA device state after integration restart — publish-before-subscribe ensures Sber knows the real HA state before it can send commands; 5-second grace period rejects any delayed "corrective" commands as a safety net
+- **Critical**: Sber cloud no longer overrides HA device state after integration restart — publish-before-subscribe ensures Sber knows the real HA state before it can send commands; reconnect guard waits for real Sber acknowledgment before accepting commands
+- **Startup noise**: linked entity "state not yet available" warnings downgraded to DEBUG during early startup (entities load after HA started event)
+- **False-positive repairs**: `check_and_create_issues` deferred until HA is fully started — prevents "broken link" repair issues during early async_setup_entry when linked entities are still loading
 
 ### Changed
 - MQTT connection loop now publishes config + states BEFORE subscribing to `down/#` — MQTT broker only delivers messages after SUBSCRIBE, so stale commands never enter the buffer
+- Reconnect guard uses Sber acknowledgment (`status_request` / `config_request`) instead of fixed 5-second timer
 
 ## [1.13.2] - 2026-03-30
 

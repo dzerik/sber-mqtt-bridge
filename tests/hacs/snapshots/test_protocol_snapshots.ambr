@@ -3,7 +3,7 @@
   dict({
     'devices': list([
       dict({
-        'hw_version': '1.13.3',
+        'hw_version': '1.14.0',
         'id': 'root',
         'model': dict({
           'category': 'hub',
@@ -16,7 +16,7 @@
           'model': 'VHub',
         }),
         'name': 'Home Assistant Bridge',
-        'sw_version': '1.13.3',
+        'sw_version': '1.14.0',
       }),
       dict({
         'default_name': 'switch.lamp',
@@ -64,7 +64,7 @@
   dict({
     'devices': list([
       dict({
-        'hw_version': '1.13.3',
+        'hw_version': '1.14.0',
         'id': 'root',
         'model': dict({
           'category': 'hub',
@@ -77,7 +77,7 @@
           'model': 'VHub',
         }),
         'name': 'Home Assistant Bridge',
-        'sw_version': '1.13.3',
+        'sw_version': '1.14.0',
       }),
       dict({
         'default_name': 'switch.lamp',

@@ -69,14 +69,12 @@ RECONNECT_INTERVAL_MAX = SETTINGS_DEFAULTS[CONF_RECONNECT_MAX]
 MAX_MQTT_PAYLOAD_SIZE = SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]
 """Default maximum MQTT payload size in bytes (1 MB) to prevent DoS from oversized messages."""
 
-RECONNECT_GRACE_SECONDS = 5.0
-"""Seconds after (re)connect during which Sber commands are ignored.
+RECONNECT_GRACE_TIMEOUT = 30.0
+"""Maximum seconds to wait for Sber acknowledgment after (re)connect.
 
-HA state is always authoritative.  After a reconnect the bridge publishes
-current HA states to Sber.  Sber cloud may respond with "corrective"
-commands based on its own stale cache — accepting them would override the
-real device state.  This grace window lets Sber ingest the fresh states
-before we start accepting commands again."""
+After a reconnect, the bridge publishes HA states and waits for Sber to
+acknowledge them (via status_request or config_request) before accepting
+commands.  This timeout is a fallback in case Sber never sends a request."""
 
 
 @dataclass
@@ -188,11 +186,13 @@ class SberBridge:
         self._pending_publish_ids: set[str] = set()
         self._publish_timer: asyncio.TimerHandle | None = None
 
-        # Grace period: ignore Sber commands for a short window after
-        # (re)connect to prevent Sber cloud from overriding HA state
-        # with its own stale cache.  HA state is always authoritative.
-        self._reconnect_grace_end: float = 0.0
-        """Monotonic timestamp after which Sber commands are accepted."""
+        # Reconnect guard: reject Sber commands until Sber acknowledges
+        # our published states (via status_request or config_request).
+        # This prevents Sber cloud from overriding HA state with stale cache.
+        self._awaiting_sber_ack: bool = False
+        """True while waiting for Sber to acknowledge our states after (re)connect."""
+        self._awaiting_sber_ack_deadline: float = 0.0
+        """Fallback deadline: stop waiting even without acknowledgment."""
 
         # Ring buffer for MQTT message log (DevTools)
         log_size = opts.get(CONF_MESSAGE_LOG_SIZE, 50)
@@ -603,7 +603,11 @@ class SberBridge:
                 new_reverse[linked_id] = (primary_id, role)
                 linked_state = self._hass.states.get(linked_id)
                 if linked_state is None:
-                    _LOGGER.warning("Linked entity %s (role=%s) for %s — state not yet available", linked_id, role, primary_id)
+                    # During early startup many entities are still loading —
+                    # use debug level to avoid alarming the user.  States will
+                    # be populated by _on_homeassistant_started reload.
+                    log_fn = _LOGGER.debug if not self._hass.is_running else _LOGGER.warning
+                    log_fn("Linked entity %s (role=%s) for %s — state not yet available", linked_id, role, primary_id)
                     continue
                 if hasattr(primary_entity, "update_linked_data"):
                     ha_state_dict = {
@@ -679,7 +683,12 @@ class SberBridge:
             ", ".join(self._enabled_entity_ids) if self._enabled_entity_ids else "(none)",
         )
 
-        self._create_safe_task(check_and_create_issues(self._hass, self), name="check_and_create_issues")
+        # Only run repair checks after HA is fully started — during early
+        # async_setup_entry many entities are still loading and linked
+        # entity states are not yet available, causing false-positive
+        # "broken link" warnings.
+        if self._hass.is_running:
+            self._create_safe_task(check_and_create_issues(self._hass, self), name="check_and_create_issues")
 
     def _subscribe_ha_events(self) -> None:
         """Subscribe to HA state changes for exposed entities.
@@ -778,14 +787,15 @@ class SberBridge:
                     await client.subscribe(f"{self._down_topic}/#")
                     await client.subscribe(SBER_GLOBAL_CONFIG_TOPIC)
 
-                    # Grace period as a safety net: even after publish-before-
-                    # subscribe, Sber cloud may send a delayed "corrective"
-                    # command a few seconds after ingesting our states.
-                    self._reconnect_grace_end = time.monotonic() + RECONNECT_GRACE_SECONDS
+                    # Reconnect guard: reject Sber commands until Sber
+                    # acknowledges our states (status_request / config_request).
+                    # Fallback timeout ensures we don't block forever.
+                    self._awaiting_sber_ack = True
+                    self._awaiting_sber_ack_deadline = time.monotonic() + RECONNECT_GRACE_TIMEOUT
                     _LOGGER.info(
                         "Connected & published states → subscribed to commands "
-                        "(grace period %.0fs)",
-                        RECONNECT_GRACE_SECONDS,
+                        "(awaiting Sber ack, timeout %.0fs)",
+                        RECONNECT_GRACE_TIMEOUT,
                     )
 
                     async for message in client.messages:
@@ -889,25 +899,31 @@ class SberBridge:
 
         devices = data.get("devices", {})
 
-        # Grace period: reject commands that arrive shortly after
-        # (re)connect — Sber cloud may be trying to override HA state
-        # with its own stale cache.  Re-publish current states instead.
-        if time.monotonic() < self._reconnect_grace_end:
-            entity_ids = [eid for eid in devices if eid in self._entities]
-            _LOGGER.warning(
-                "Ignoring Sber command during reconnect grace period "
-                "(HA state is authoritative): %s [%s] — re-publishing states",
-                entity_ids,
-                ", ".join(
-                    s.get("key", "?")
-                    for cmd in devices.values()
-                    for s in cmd.get("states", [])
-                ),
-            )
-            # Re-publish current HA states so Sber sees the truth
-            if entity_ids:
-                await self._publish_states(entity_ids, force=True)
-            return
+        # Reconnect guard: reject commands until Sber acknowledges our
+        # published states (via status_request / config_request).  Sber
+        # cloud may send "corrective" commands based on stale cache —
+        # accepting them would override the real HA device state.
+        if self._awaiting_sber_ack:
+            # Check fallback timeout
+            if time.monotonic() >= self._awaiting_sber_ack_deadline:
+                _LOGGER.info("Sber ack timeout reached — accepting commands")
+                self._awaiting_sber_ack = False
+            else:
+                entity_ids = [eid for eid in devices if eid in self._entities]
+                _LOGGER.warning(
+                    "Ignoring Sber command (awaiting Sber ack after reconnect, "
+                    "HA state is authoritative): %s [%s] — re-publishing states",
+                    entity_ids,
+                    ", ".join(
+                        s.get("key", "?")
+                        for cmd in devices.values()
+                        for s in cmd.get("states", [])
+                    ),
+                )
+                # Re-publish current HA states so Sber sees the truth
+                if entity_ids:
+                    await self._publish_states(entity_ids, force=True)
+                return
 
         _LOGGER.debug(
             "Sber command for %d device(s): %s",
@@ -971,9 +987,17 @@ class SberBridge:
 
         If Sber asks about entities not in our current set, automatically
         re-publishes the device config so Sber is aware of the correct list.
+
+        A status_request also counts as Sber acknowledgment — it means
+        Sber has ingested our config and is now asking for current states.
         """
         requested_ids = parse_sber_status_request(payload)
         self._stats.status_requests += 1
+
+        # Sber acknowledged our data — safe to accept commands now
+        if self._awaiting_sber_ack:
+            self._awaiting_sber_ack = False
+            _LOGGER.info("Sber ack received (status_request) — now accepting commands")
 
         # Auto re-publish config if Sber asks about unknown entities
         if requested_ids:
@@ -1007,6 +1031,11 @@ class SberBridge:
     async def _handle_sber_config_request(self) -> None:
         """Handle config request from Sber cloud — send device list."""
         self._stats.config_requests += 1
+
+        # Sber acknowledged our data — safe to accept commands now
+        if self._awaiting_sber_ack:
+            self._awaiting_sber_ack = False
+            _LOGGER.info("Sber ack received (config_request) — now accepting commands")
         _LOGGER.info(
             "Sber config request received (will publish %d entities)",
             len(self._enabled_entity_ids),
