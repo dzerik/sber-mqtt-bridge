@@ -753,9 +753,6 @@ class SberBridge:
                         len(self._entities),
                     )
 
-                    await client.subscribe(f"{self._down_topic}/#")
-                    await client.subscribe(SBER_GLOBAL_CONFIG_TOPIC)
-
                     # Wait for HA to be fully started before the first publish
                     # so that entity states (and Sber features derived from them)
                     # are fully populated.  Without this gate, lights can be
@@ -767,19 +764,27 @@ class SberBridge:
                         )
                         await self._ha_ready.wait()
 
-                    # Proactively publish config + current states on connect
-                    # so Sber cloud has up-to-date data without waiting for
-                    # a config_request/status_request or state change event.
+                    # ── Publish BEFORE subscribe ──────────────────────────
+                    # HA state is authoritative.  We publish config + states
+                    # FIRST so that Sber cloud knows the real device state
+                    # BEFORE it can send any commands.  MQTT broker delivers
+                    # messages on down/# only after SUBSCRIBE, so the
+                    # message buffer is guaranteed to be empty of stale
+                    # "corrective" commands when we start listening.
                     await self._publish_config()
                     await self._publish_states(force=True)
 
-                    # Start grace period: ignore Sber commands for a short
-                    # window so that Sber cloud has time to ingest our
-                    # authoritative HA states before it can send commands.
+                    # Now subscribe — Sber already has our authoritative state
+                    await client.subscribe(f"{self._down_topic}/#")
+                    await client.subscribe(SBER_GLOBAL_CONFIG_TOPIC)
+
+                    # Grace period as a safety net: even after publish-before-
+                    # subscribe, Sber cloud may send a delayed "corrective"
+                    # command a few seconds after ingesting our states.
                     self._reconnect_grace_end = time.monotonic() + RECONNECT_GRACE_SECONDS
-                    _LOGGER.debug(
-                        "Reconnect grace period started (%.0fs) — "
-                        "Sber commands will be ignored until states are accepted",
+                    _LOGGER.info(
+                        "Connected & published states → subscribed to commands "
+                        "(grace period %.0fs)",
                         RECONNECT_GRACE_SECONDS,
                     )
 

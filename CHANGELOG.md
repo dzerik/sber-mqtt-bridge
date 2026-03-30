@@ -10,7 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.13.3] - 2026-03-30
 
 ### Fixed
-- **Critical**: Sber cloud no longer overrides HA device state after integration restart — added 5-second reconnect grace period during which Sber commands are rejected and current HA states are re-published, ensuring HA is always the authoritative source of truth
+- **Critical**: Sber cloud no longer overrides HA device state after integration restart — publish-before-subscribe ensures Sber knows the real HA state before it can send commands; 5-second grace period rejects any delayed "corrective" commands as a safety net
+
+### Changed
+- MQTT connection loop now publishes config + states BEFORE subscribing to `down/#` — MQTT broker only delivers messages after SUBSCRIBE, so stale commands never enter the buffer
 
 ## [1.13.2] - 2026-03-30
 
