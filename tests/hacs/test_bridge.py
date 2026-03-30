@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.core import Context
 
 from custom_components.sber_mqtt_bridge.sber_bridge import SberBridge
 from custom_components.sber_mqtt_bridge.const import (
@@ -258,3 +259,143 @@ class TestSberBridgePublish:
         assert "up/config" in call_args[0][0]
         payload = json.loads(call_args[0][1])
         assert len(payload["devices"]) == 2  # hub + lamp
+
+
+class TestSberBridgeEchoFix:
+    """Test that echo suppression was removed (GitHub issue #3).
+
+    Sber cloud expects a state confirmation on up/status after every command
+    it sends on down/commands. The old code suppressed the publish for
+    state changes whose Context matched a Sber-originated command, causing
+    the Salute app to show stale state. The fix removed _sber_context_ids
+    tracking entirely.
+    """
+
+    @pytest.fixture
+    def bridge(self):
+        """Create a bridge with a relay entity in 'off' state."""
+        from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
+
+        hass = MagicMock()
+        hass.services = MagicMock()
+        hass.services.async_call = AsyncMock()
+        entry = _make_entry()
+        b = SberBridge(hass, entry)
+        b._mqtt_client = AsyncMock()
+        b._connected = True
+
+        entity = RelayEntity({"entity_id": "switch.lamp", "name": "Lamp"})
+        entity.fill_by_ha_state(
+            {"entity_id": "switch.lamp", "state": "off", "attributes": {}}
+        )
+        b._entities["switch.lamp"] = entity
+        b._enabled_entity_ids = ["switch.lamp"]
+
+        return b
+
+    @pytest.mark.asyncio
+    async def test_sber_command_state_change_is_published(self, bridge):
+        """State change triggered by Sber command must NOT be suppressed.
+
+        Reproduces the scenario from issue #3: Sber sends turn_on command,
+        HA fires state_changed with the same Context, and the bridge must
+        still publish the state confirmation back to Sber.
+        """
+        # Arrange: send Sber command to turn on the relay
+        payload = json.dumps({
+            "devices": {
+                "switch.lamp": {
+                    "states": [
+                        {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}
+                    ]
+                }
+            }
+        })
+        await bridge._handle_sber_command(payload.encode())
+
+        # Capture the Context that was passed to async_call
+        call_kwargs = bridge._hass.services.async_call.call_args
+        sber_context = call_kwargs.kwargs.get("context") or call_kwargs[1].get("context")
+        assert isinstance(sber_context, Context)
+
+        # Act: simulate HA firing state_changed with the same context
+        new_state = MagicMock()
+        new_state.entity_id = "switch.lamp"
+        new_state.state = "on"
+        new_state.attributes = {}
+
+        old_state = MagicMock()
+        old_state.entity_id = "switch.lamp"
+        old_state.state = "off"
+        old_state.attributes = {}
+
+        event = MagicMock()
+        event.context = sber_context
+        event.data = {
+            "entity_id": "switch.lamp",
+            "old_state": old_state,
+            "new_state": new_state,
+        }
+
+        with patch.object(bridge, "_schedule_debounced_publish") as mock_publish:
+            bridge._on_ha_state_changed(event)
+
+            # Assert: publish is NOT suppressed
+            mock_publish.assert_called_once_with("switch.lamp")
+
+    def test_ha_originated_state_change_is_published(self, bridge):
+        """State change from HA UI (random context) must be published."""
+        new_state = MagicMock()
+        new_state.entity_id = "switch.lamp"
+        new_state.state = "on"
+        new_state.attributes = {}
+
+        old_state = MagicMock()
+        old_state.entity_id = "switch.lamp"
+        old_state.state = "off"
+        old_state.attributes = {}
+
+        event = MagicMock()
+        event.context = Context()  # random HA-originated context
+        event.data = {
+            "entity_id": "switch.lamp",
+            "old_state": old_state,
+            "new_state": new_state,
+        }
+
+        with patch.object(bridge, "_schedule_debounced_publish") as mock_publish:
+            bridge._on_ha_state_changed(event)
+
+            mock_publish.assert_called_once_with("switch.lamp")
+
+    def test_sber_context_ids_not_stored(self):
+        """Verify the echo suppression mechanism (_sber_context_ids) is gone."""
+        hass = MagicMock()
+        entry = _make_entry()
+        b = SberBridge(hass, entry)
+
+        assert not hasattr(b, "_sber_context_ids"), (
+            "_sber_context_ids should not exist — echo suppression was removed in issue #3"
+        )
+
+    @pytest.mark.asyncio
+    async def test_sber_command_creates_ha_context(self, bridge):
+        """Sber command must create an HA Context for logbook attribution."""
+        payload = json.dumps({
+            "devices": {
+                "switch.lamp": {
+                    "states": [
+                        {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}
+                    ]
+                }
+            }
+        })
+
+        await bridge._handle_sber_command(payload.encode())
+
+        bridge._hass.services.async_call.assert_called_once()
+        call_kwargs = bridge._hass.services.async_call.call_args
+        context_arg = call_kwargs.kwargs.get("context") or call_kwargs[1].get("context")
+        assert isinstance(context_arg, Context), (
+            "async_call must receive a Context instance for HA logbook attribution"
+        )

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.1] - 2026-03-30
+
+### Fixed
+- **Critical**: Sber-originated commands (via Salute app) now correctly publish state confirmation back to Sber cloud — previously the echo suppression mechanism blocked the publish, causing Salute to show stale device state ([#3](https://github.com/dzerik/sber-mqtt-bridge/issues/3))
+
+### Removed
+- Echo loop prevention (`_sber_context_ids`) — unnecessary because Sber commands arrive on `down/commands` while state updates are published on `up/status` (no feedback loop possible)
+- `context_cleanup_threshold` setting from UI (no longer needed)
+
 ## [1.13.0] - 2026-03-26
 
 ### Added

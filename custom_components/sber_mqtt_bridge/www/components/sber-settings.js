@@ -35,7 +35,6 @@ const SETTING_DEFS = [
     note: "Applied immediately",
     fields: [
       { key: "message_log_size", label: "MQTT message log buffer", min: 10, max: 500, step: 10, type: "number" },
-      { key: "context_cleanup_threshold", label: "Context ID cleanup threshold", min: 50, max: 1000, step: 50, type: "number" },
     ],
   },
 ];

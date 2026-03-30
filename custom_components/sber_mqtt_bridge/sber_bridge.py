@@ -29,7 +29,6 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from .config_flow import create_ssl_context
 from .const import (
-    CONF_CONTEXT_CLEANUP_THRESHOLD,
     CONF_DEBOUNCE_DELAY,
     CONF_ENTITY_LINKS,
     CONF_ENTITY_TYPE_OVERRIDES,
@@ -165,7 +164,6 @@ class SberBridge:
         self._reconnect_interval = self._reconnect_min
         self._debounce_delay: float = opts.get(CONF_DEBOUNCE_DELAY, 0.1)
         self._max_payload_size: int = opts.get(CONF_MAX_MQTT_PAYLOAD, MAX_MQTT_PAYLOAD_SIZE)
-        self._context_cleanup_threshold: int = opts.get(CONF_CONTEXT_CLEANUP_THRESHOLD, 200)
 
         self._unsub_state_listeners: list[Callable] = []
         self._unsub_lifecycle_listeners: list[Callable] = []
@@ -181,8 +179,6 @@ class SberBridge:
         self._pending_publish_ids: set[str] = set()
         self._publish_timer: asyncio.TimerHandle | None = None
 
-        # Echo loop prevention: context IDs from Sber commands
-        self._sber_context_ids: set[str] = set()
 
         # Ring buffer for MQTT message log (DevTools)
         log_size = opts.get(CONF_MESSAGE_LOG_SIZE, 50)
@@ -248,15 +244,14 @@ class SberBridge:
     def apply_settings(self, options: dict) -> None:
         """Apply changed operational settings without full bridge restart.
 
-        Settings that take effect immediately: debounce_delay, context_cleanup_threshold,
-        max_mqtt_payload_size, message_log_size.
+        Settings that take effect immediately: debounce_delay, max_mqtt_payload_size,
+        message_log_size.
         Settings that take effect on next reconnect: reconnect_min, reconnect_max, verify_ssl.
 
         Args:
             options: Config entry options dict.
         """
         self._debounce_delay = options.get(CONF_DEBOUNCE_DELAY, 0.1)
-        self._context_cleanup_threshold = options.get(CONF_CONTEXT_CLEANUP_THRESHOLD, 200)
         self._max_payload_size = options.get(CONF_MAX_MQTT_PAYLOAD, MAX_MQTT_PAYLOAD_SIZE)
         self._reconnect_min = options.get(CONF_RECONNECT_MIN, RECONNECT_INTERVAL_MIN)
         self._reconnect_max = options.get(CONF_RECONNECT_MAX, RECONNECT_INTERVAL_MAX)
@@ -842,13 +837,8 @@ class SberBridge:
         update_state_ids: list[str] = []
 
         # Create HA Context for Sber commands — enables logbook attribution
-        # and echo loop prevention (state changes from this context are not
-        # re-published back to Sber)
+        # so users can see which actions were triggered by Sber/Salute.
         context = Context()
-        self._sber_context_ids.add(context.id)
-        # Bounded cleanup to prevent memory leak
-        if len(self._sber_context_ids) > self._context_cleanup_threshold:
-            self._sber_context_ids.clear()
 
         for entity_id, cmd_data in devices.items():
             # Track Sber acknowledgment
@@ -1029,11 +1019,12 @@ class SberBridge:
         Also handles linked entity state changes by forwarding data
         to the primary entity and scheduling publish for the primary.
         """
-        # Echo loop prevention: skip state changes caused by our own Sber commands
-        if event.context and event.context.id in self._sber_context_ids:
-            self._sber_context_ids.discard(event.context.id)
-            _LOGGER.debug("Skipping echo for %s (Sber context %s)", event.data.get("entity_id"), event.context.id)
-            return
+        # Sber-originated state changes are NOT suppressed: the Sber cloud
+        # expects a state confirmation on up/status after every command it
+        # sends on down/commands.  Suppressing the publish ("echo prevention")
+        # caused the Salute app to show stale state (see issue #3).
+        # The Context is still created in _handle_sber_command for HA logbook
+        # attribution, but we no longer use it to skip the publish.
 
         entity_id = event.data["entity_id"]
         new_state = event.data.get("new_state")
