@@ -308,9 +308,12 @@ class LightEntity(BaseEntity):
                 # light_mode is a Sber-only concept — HA doesn't have it.
                 # To actually switch the lamp's mode, send current color or
                 # color_temp to HA so it transitions into the requested mode.
+                # NOTE: Do NOT mutate self.current_color_mode here — the actual
+                # mode will be updated by fill_by_ha_state when HA confirms
+                # the state change.  Premature mutation creates a window where
+                # the debounced publish can send stale/wrong mode to Sber.
                 mode_value = cmd_value.get("enum_value")
                 if mode_value == "colour":
-                    self.current_color_mode = "hs"
                     # Force HA into color mode by sending current hs_color
                     if isinstance(self.hs_color, list) and len(self.hs_color) >= 2:
                         processing_result.append(
@@ -329,7 +332,6 @@ class LightEntity(BaseEntity):
                     else:
                         processing_result.append({"update_state": True})
                 else:
-                    self.current_color_mode = "color_temp"
                     # Force HA into white mode by sending current color_temp
                     if self.current_sber_color_temp is not None:
                         ha_ct = self.color_temp_converter.sber_to_ha(self.current_sber_color_temp)

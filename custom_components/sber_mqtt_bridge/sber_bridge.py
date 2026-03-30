@@ -232,6 +232,34 @@ class SberBridge:
         """Return entity IDs that were published but not yet acknowledged by Sber."""
         return [eid for eid in self._enabled_entity_ids if eid not in self._stats.acknowledged_entities]
 
+    def _create_safe_task(self, coro: Any, *, name: str | None = None) -> None:
+        """Create an asyncio task with error logging to prevent silent failures.
+
+        Wraps ``hass.async_create_task`` with a done-callback that logs any
+        unhandled exception at WARNING level.  This prevents the class of bugs
+        where a fire-and-forget publish task silently drops a state update
+        (similar to issue #3).
+
+        Args:
+            coro: Coroutine to schedule.
+            name: Optional task name for log messages.
+        """
+        task = self._hass.async_create_task(coro, eager_start=True)
+
+        def _done_cb(t: asyncio.Task) -> None:
+            if t.cancelled():
+                return
+            exc = t.exception()
+            if exc is not None:
+                _LOGGER.warning(
+                    "Background task %s failed: %s",
+                    name or t.get_name(),
+                    exc,
+                    exc_info=exc,
+                )
+
+        task.add_done_callback(_done_cb)
+
     @property
     def message_log(self) -> list[dict[str, Any]]:
         """Return a copy of the MQTT message log ring buffer."""
@@ -320,7 +348,7 @@ class SberBridge:
             "payload": payload,
         }
         self._message_log.append(msg_dict)
-        for cb in self._message_subscribers:
+        for cb in list(self._message_subscribers):
             try:
                 cb(msg_dict)
             except Exception:
@@ -338,13 +366,11 @@ class SberBridge:
         self._subscribe_ha_events()
         self._connection_task = asyncio.create_task(self._mqtt_connection_loop())
 
-        # Re-load entities after HA is fully started to pick up any entities
-        # that were not yet registered during early async_setup_entry.
-        # If HA is already running (e.g. integration reload), load immediately.
+        # If HA is already running (e.g. integration reload), entities are
+        # fully available — mark ready immediately.  Otherwise, wait for
+        # EVENT_HOMEASSISTANT_STARTED to reload entities with real states.
         if self._hass.is_running:
-            _LOGGER.debug("HA already running — reloading entities immediately")
-            self._load_exposed_entities()
-            self._subscribe_ha_events()
+            _LOGGER.debug("HA already running — entities loaded, marking ready")
             self._ha_ready.set()
         else:
             self._unsub_lifecycle_listeners.append(
@@ -639,7 +665,7 @@ class SberBridge:
             ", ".join(self._enabled_entity_ids) if self._enabled_entity_ids else "(none)",
         )
 
-        self._hass.async_create_task(check_and_create_issues(self._hass, self))
+        self._create_safe_task(check_and_create_issues(self._hass, self), name="check_and_create_issues")
 
     def _subscribe_ha_events(self) -> None:
         """Subscribe to HA state changes for exposed entities.
@@ -686,8 +712,8 @@ class SberBridge:
             # HA was already marked ready (shouldn't happen, but be safe) —
             # force republish since entities were just reloaded.
             if self._connected:
-                self._hass.async_create_task(self._publish_config())
-                self._hass.async_create_task(self._publish_states(force=True))
+                self._create_safe_task(self._publish_config(), name="republish_config")
+                self._create_safe_task(self._publish_states(force=True), name="republish_states")
 
     async def _mqtt_connection_loop(self) -> None:
         """Maintain persistent MQTT connection with exponential backoff reconnect."""
@@ -1048,7 +1074,7 @@ class SberBridge:
                 _LOGGER.debug("Linked %s (%s) → primary %s", entity_id, role, primary_id)
                 if features_before != features_after:
                     _LOGGER.info("Features changed for %s after linked update — republishing config", primary_id)
-                    self._hass.async_create_task(self._publish_config())
+                    self._create_safe_task(self._publish_config(), name="republish_config_linked")
                 self._schedule_debounced_publish(primary_id)
             return
 
@@ -1085,7 +1111,7 @@ class SberBridge:
         ids = list(self._pending_publish_ids)
         self._pending_publish_ids.clear()
         if ids:
-            self._hass.async_create_task(self._publish_states(ids))
+            self._create_safe_task(self._publish_states(ids), name="debounced_publish")
 
     async def async_publish_entity_status(self, entity_id: str) -> None:
         """Publish the current state of a single entity to Sber cloud.
@@ -1120,16 +1146,19 @@ class SberBridge:
                 return
             entity_ids = changed_ids
 
-        payload = build_states_list_json(self._entities, entity_ids, self._enabled_entity_ids)
+        payload, payload_valid = build_states_list_json(self._entities, entity_ids, self._enabled_entity_ids)
         topic = f"{self._root_topic}/up/status"
         try:
             await self._mqtt_client.publish(topic, payload)
             self._stats.messages_sent += 1
-            # Mark published entities so next diff detects changes
-            for eid in (entity_ids or self._enabled_entity_ids):
-                entity = self._entities.get(eid)
-                if entity is not None:
-                    entity.mark_state_published()
+            # Only mark entities as published when the payload passed
+            # validation.  If Sber silently rejects an invalid payload,
+            # keeping the "dirty" flag ensures we retry on the next cycle.
+            if payload_valid:
+                for eid in (entity_ids or self._enabled_entity_ids):
+                    entity = self._entities.get(eid)
+                    if entity is not None:
+                        entity.mark_state_published()
             # DevTools: log outgoing message
             self._log_message("out", topic, payload[:500] if isinstance(payload, str) else "")
         except aiomqtt.MqttError:
@@ -1138,6 +1167,7 @@ class SberBridge:
         except (AttributeError, TypeError):
             # TOCTOU: _mqtt_client may become None between the check and publish()
             self._stats.publish_errors += 1
+            _LOGGER.debug("MQTT client gone during state publish (disconnect race), update dropped")
 
     async def _publish_config(self, entity_ids: list[str] | None = None) -> None:
         """Publish device config to Sber MQTT."""
@@ -1172,3 +1202,4 @@ class SberBridge:
             _LOGGER.exception("Error publishing config to Sber")
         except (AttributeError, TypeError):
             self._stats.publish_errors += 1
+            _LOGGER.debug("MQTT client gone during config publish (disconnect race), update dropped")

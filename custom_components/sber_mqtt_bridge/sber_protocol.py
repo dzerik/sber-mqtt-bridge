@@ -15,7 +15,7 @@ from .sber_models import validate_config_payload, validate_status_payload
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.13.1"
+VERSION = "1.13.2"
 """Protocol version string included in the hub device descriptor."""
 
 
@@ -93,12 +93,13 @@ def build_states_list_json(
     entities: dict[str, BaseEntity],
     entity_ids: list[str] | None = None,
     enabled_entity_ids: list[str] | None = None,
-) -> str:
+) -> tuple[str, bool]:
     """Build Sber state list JSON for MQTT publish.
 
     The resulting payload is validated against :class:`SberStatusPayload`
     (pydantic) before serialisation.  Validation failures are logged as
-    warnings but do **not** prevent publishing.
+    warnings but do **not** prevent publishing — Sber may still accept
+    a partially valid payload.
 
     Args:
         entities: Dict of entity_id -> BaseEntity instances.
@@ -106,7 +107,7 @@ def build_states_list_json(
         enabled_entity_ids: List of enabled entity_ids (used when entity_ids is None).
 
     Returns:
-        JSON string with the Sber states payload.
+        Tuple of (JSON string, validation_passed bool).
     """
     states: dict[str, Any] = {"devices": {}}
 
@@ -136,9 +137,9 @@ def build_states_list_json(
             "root": {"states": [{"key": "online", "value": {"type": "BOOL", "bool_value": has_entities}}]}
         }
 
-    validate_status_payload(states)
+    valid = validate_status_payload(states)
 
-    return json.dumps(states)
+    return json.dumps(states), valid
 
 
 def parse_sber_command(payload: bytes | str) -> dict[str, Any]:

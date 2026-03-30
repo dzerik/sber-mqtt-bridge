@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.2] - 2026-03-30
+
+### Fixed
+- **Race condition**: fire-and-forget `async_create_task` calls now use safe wrapper with error logging — prevents silent state update drops (structural cousin of [#3](https://github.com/dzerik/sber-mqtt-bridge/issues/3))
+- **Race condition**: `_message_subscribers` set iteration now uses snapshot to prevent `RuntimeError` if a WebSocket disconnect triggers `unsub()` during callback dispatch
+- **Race condition**: TOCTOU `_mqtt_client` null-check now logs at DEBUG level when publish is dropped due to disconnect race, instead of failing silently
+- **State desync**: `light_mode` command no longer prematurely mutates `current_color_mode` — waits for HA state confirmation via `fill_by_ha_state` to avoid publishing stale mode to Sber
+- **State desync**: `mark_state_published` is now skipped when `validate_status_payload` fails — prevents the bridge from thinking an invalid payload was accepted by Sber
+- **Startup perf**: removed redundant double `_load_exposed_entities` + `_subscribe_ha_events` call on integration reload path
+
+### Changed
+- `build_states_list_json` now returns `tuple[str, bool]` (payload, validation_passed) instead of just `str`
+
 ## [1.13.1] - 2026-03-30
 
 ### Fixed

@@ -103,32 +103,32 @@ class TestBuildStatesListJson(unittest.TestCase):
         self.enabled = ["switch.lamp", "sensor.temp"]
 
     def test_returns_valid_json(self):
-        result = json.loads(build_states_list_json(self.entities, None, self.enabled))
+        result = json.loads(build_states_list_json(self.entities, None, self.enabled)[0])
         self.assertIn("devices", result)
 
     def test_specific_entity_ids(self):
-        result = json.loads(build_states_list_json(self.entities, ["switch.lamp"], self.enabled))
+        result = json.loads(build_states_list_json(self.entities, ["switch.lamp"], self.enabled)[0])
         self.assertIn("switch.lamp", result["devices"])
         self.assertNotIn("sensor.temp", result["devices"])
 
     def test_all_enabled(self):
-        result = json.loads(build_states_list_json(self.entities, None, self.enabled))
+        result = json.loads(build_states_list_json(self.entities, None, self.enabled)[0])
         self.assertIn("switch.lamp", result["devices"])
         self.assertIn("sensor.temp", result["devices"])
 
     def test_empty_returns_root(self):
-        result = json.loads(build_states_list_json({}, None, []))
+        result = json.loads(build_states_list_json({}, None, [])[0])
         self.assertIn("root", result["devices"])
 
     def test_relay_state_format(self):
-        result = json.loads(build_states_list_json(self.entities, ["switch.lamp"], self.enabled))
+        result = json.loads(build_states_list_json(self.entities, ["switch.lamp"], self.enabled)[0])
         states = result["devices"]["switch.lamp"]["states"]
         keys = [s["key"] for s in states]
         self.assertIn("online", keys)
         self.assertIn("on_off", keys)
 
     def test_sensor_state_format(self):
-        result = json.loads(build_states_list_json(self.entities, ["sensor.temp"], self.enabled))
+        result = json.loads(build_states_list_json(self.entities, ["sensor.temp"], self.enabled)[0])
         states = result["devices"]["sensor.temp"]["states"]
         temp = next(s for s in states if s["key"] == "temperature")
         self.assertEqual(temp["value"]["integer_value"], "225")

@@ -76,7 +76,7 @@ def test_states_list_multiple_entities(snapshot: SnapshotAssertion) -> None:
     entities = {"switch.lamp": relay, "sensor.temp": sensor}
     enabled = ["switch.lamp", "sensor.temp"]
 
-    result = json.loads(build_states_list_json(entities, None, enabled))
+    result = json.loads(build_states_list_json(entities, None, enabled)[0])
     assert result == snapshot
 
 
@@ -95,5 +95,5 @@ def test_devices_list_with_redefinitions(snapshot: SnapshotAssertion) -> None:
 
 def test_states_list_empty_fallback_root(snapshot: SnapshotAssertion) -> None:
     """States list JSON with no entities returns root fallback snapshot."""
-    result = json.loads(build_states_list_json({}, None, []))
+    result = json.loads(build_states_list_json({}, None, [])[0])
     assert result == snapshot

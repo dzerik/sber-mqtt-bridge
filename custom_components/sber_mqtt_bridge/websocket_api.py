@@ -733,7 +733,7 @@ async def ws_raw_states(
 
     from .sber_protocol import build_states_list_json
 
-    payload = build_states_list_json(bridge.entities, None, bridge.enabled_entity_ids)
+    payload, _valid = build_states_list_json(bridge.entities, None, bridge.enabled_entity_ids)
     connection.send_result(msg["id"], {"payload": payload})
 
 

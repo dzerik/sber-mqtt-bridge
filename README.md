@@ -3,7 +3,7 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 [![GitHub Release](https://img.shields.io/github/v/release/dzerik/sber-mqtt-bridge)](https://github.com/dzerik/sber-mqtt-bridge/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
-[![Tests](https://img.shields.io/badge/tests-498+-brightgreen)](tests/hacs/)
+[![Tests](https://img.shields.io/badge/tests-517+-brightgreen)](tests/hacs/)
 [![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions)
 
 **[English documentation](README_ENG.md)** | **[Документация (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)**
@@ -64,7 +64,7 @@ flowchart LR
 - SSL сертификат (настраивается)
 - Переводы: английский и русский
 - CI/CD: ruff, pytest, HACS validation, hassfest
-- **498+ тестов**
+- **517+ тестов**
 
 ## Ключевые фичи v1.10
 
@@ -88,10 +88,6 @@ flowchart LR
 ### HA Context propagation
 
 Команды от Sber передаются в Home Assistant с заполненным `Context`, что обеспечивает корректную атрибуцию в журнале (logbook). В логах HA видно, что команда пришла именно от Sber-интеграции.
-
-### Echo loop prevention (предотвращение эхо-петли)
-
-Изменения состояний HA, вызванные командами от Sber, не переотправляются обратно в Sber. Интеграция отслеживает Context-ID команд и фильтрует порождённые ими state-change события.
 
 ### Value change diffing
 

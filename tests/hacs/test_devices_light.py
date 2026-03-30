@@ -331,7 +331,8 @@ class TestLightProcessCmd(unittest.TestCase):
         })
         self.assertEqual(len(result), 1)
         self.assertIn("update_state", result[0])
-        self.assertEqual(entity.current_color_mode, "hs")
+        # current_color_mode is NOT mutated in process_cmd — it will be
+        # updated by fill_by_ha_state when HA confirms the state change.
 
     def test_cmd_light_mode_colour_with_hs(self):
         """light_mode=colour with hs_color sends turn_on with hs_color."""
@@ -344,7 +345,7 @@ class TestLightProcessCmd(unittest.TestCase):
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_on")
         self.assertEqual(url["service_data"]["hs_color"], [120.0, 80.0])
-        self.assertEqual(entity.current_color_mode, "hs")
+        # current_color_mode is NOT mutated in process_cmd — deferred to fill_by_ha_state
 
     def test_cmd_light_mode_white(self):
         """light_mode=white sends turn_on with color_temp to switch HA mode."""
