@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.3] - 2026-03-30
+
+### Fixed
+- **Critical**: Sber cloud no longer overrides HA device state after integration restart — added 5-second reconnect grace period during which Sber commands are rejected and current HA states are re-published, ensuring HA is always the authoritative source of truth
+
 ## [1.13.2] - 2026-03-30
 
 ### Fixed

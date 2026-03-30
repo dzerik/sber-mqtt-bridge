@@ -69,6 +69,15 @@ RECONNECT_INTERVAL_MAX = SETTINGS_DEFAULTS[CONF_RECONNECT_MAX]
 MAX_MQTT_PAYLOAD_SIZE = SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]
 """Default maximum MQTT payload size in bytes (1 MB) to prevent DoS from oversized messages."""
 
+RECONNECT_GRACE_SECONDS = 5.0
+"""Seconds after (re)connect during which Sber commands are ignored.
+
+HA state is always authoritative.  After a reconnect the bridge publishes
+current HA states to Sber.  Sber cloud may respond with "corrective"
+commands based on its own stale cache — accepting them would override the
+real device state.  This grace window lets Sber ingest the fresh states
+before we start accepting commands again."""
+
 
 @dataclass
 class BridgeStats:
@@ -179,6 +188,11 @@ class SberBridge:
         self._pending_publish_ids: set[str] = set()
         self._publish_timer: asyncio.TimerHandle | None = None
 
+        # Grace period: ignore Sber commands for a short window after
+        # (re)connect to prevent Sber cloud from overriding HA state
+        # with its own stale cache.  HA state is always authoritative.
+        self._reconnect_grace_end: float = 0.0
+        """Monotonic timestamp after which Sber commands are accepted."""
 
         # Ring buffer for MQTT message log (DevTools)
         log_size = opts.get(CONF_MESSAGE_LOG_SIZE, 50)
@@ -759,6 +773,16 @@ class SberBridge:
                     await self._publish_config()
                     await self._publish_states(force=True)
 
+                    # Start grace period: ignore Sber commands for a short
+                    # window so that Sber cloud has time to ingest our
+                    # authoritative HA states before it can send commands.
+                    self._reconnect_grace_end = time.monotonic() + RECONNECT_GRACE_SECONDS
+                    _LOGGER.debug(
+                        "Reconnect grace period started (%.0fs) — "
+                        "Sber commands will be ignored until states are accepted",
+                        RECONNECT_GRACE_SECONDS,
+                    )
+
                     async for message in client.messages:
                         if not self._running:
                             break
@@ -849,11 +873,37 @@ class SberBridge:
             _LOGGER.debug("Unhandled MQTT topic suffix: %s", suffix)
 
     async def _handle_sber_command(self, payload: bytes) -> None:
-        """Handle command from Sber cloud → execute HA service."""
+        """Handle command from Sber cloud → execute HA service.
+
+        During the reconnect grace period, commands are rejected and
+        current HA states are re-published so that Sber cloud accepts
+        HA as the authoritative source of truth.
+        """
         data = parse_sber_command(payload)
         self._stats.commands_received += 1
 
         devices = data.get("devices", {})
+
+        # Grace period: reject commands that arrive shortly after
+        # (re)connect — Sber cloud may be trying to override HA state
+        # with its own stale cache.  Re-publish current states instead.
+        if time.monotonic() < self._reconnect_grace_end:
+            entity_ids = [eid for eid in devices if eid in self._entities]
+            _LOGGER.warning(
+                "Ignoring Sber command during reconnect grace period "
+                "(HA state is authoritative): %s [%s] — re-publishing states",
+                entity_ids,
+                ", ".join(
+                    s.get("key", "?")
+                    for cmd in devices.values()
+                    for s in cmd.get("states", [])
+                ),
+            )
+            # Re-publish current HA states so Sber sees the truth
+            if entity_ids:
+                await self._publish_states(entity_ids, force=True)
+            return
+
         _LOGGER.debug(
             "Sber command for %d device(s): %s",
             len(devices),
