@@ -7,7 +7,7 @@ import logging
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import ROLE_HUMIDITY, BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,6 +40,8 @@ class HumidifierEntity(BaseEntity):
     - Target humidity setting
     - Work mode selection (when supported by the device)
     """
+
+    LINKABLE_ROLES = (ROLE_HUMIDITY,)
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize humidifier entity.

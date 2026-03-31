@@ -82,38 +82,6 @@ SBER_GLOBAL_CONFIG_TOPIC = "sberdevices/v1/__config"
 CONF_ENTITY_LINKS = "entity_links"
 """Options key for entity linking config: {primary_entity_id: {role: linked_entity_id}}."""
 
-# Allowed link roles per Sber category (based on Sber docs: developers.sber.ru/docs/ru/smarthome/c2c/)
-ALLOWED_LINK_ROLES: dict[str, list[str]] = {
-    "sensor_water_leak": ["battery", "battery_low", "signal_strength"],
-    "sensor_pir": ["battery", "battery_low", "signal_strength"],
-    "sensor_door": ["battery", "battery_low", "signal_strength"],
-    "sensor_smoke": ["battery", "battery_low", "signal_strength"],
-    "sensor_gas": ["battery", "battery_low", "signal_strength"],
-    "sensor_temp": ["battery", "battery_low", "signal_strength", "humidity"],
-    "sensor_humidity": ["battery", "battery_low", "signal_strength", "temperature"],
-    "curtain": ["battery", "battery_low", "signal_strength"],
-    "window_blind": ["battery", "battery_low", "signal_strength"],
-    "gate": ["battery", "battery_low", "signal_strength"],
-    "valve": ["battery", "battery_low", "signal_strength"],
-    "hvac_ac": ["temperature"],
-    "hvac_humidifier": ["humidity"],
-}
-"""Map Sber category to list of linkable roles."""
-
-# HA device_class → link role (domain-aware overrides in ws_suggest_links)
-HA_DEVICE_CLASS_TO_LINK_ROLE: dict[str, str] = {
-    "battery": "battery",
-    "temperature": "temperature",
-    "humidity": "humidity",
-    "signal_strength": "signal_strength",
-}
-"""Map HA sensor device_class to entity link role name.
-
-Note: domain-aware overrides are applied in ws_suggest_links:
-- battery → battery_low (binary_sensor is bool, not percentage)
-- humidity → target_humidity (number domain is setpoint, not current reading)
-- moisture is excluded (it's a leak sensor, not humidity)
-"""
 
 SUPPORTED_DOMAINS = [
     "light",

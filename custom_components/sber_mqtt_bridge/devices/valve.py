@@ -12,7 +12,7 @@ import logging
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import SENSOR_LINK_ROLES, BaseEntity
 from .utils.signal import rssi_to_signal_strength
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,6 +31,8 @@ class ValveEntity(BaseEntity):
     Optionally reports ``battery_percentage``, ``battery_low_power``,
     and ``signal_strength`` when the HA entity provides these attributes.
     """
+
+    LINKABLE_ROLES = SENSOR_LINK_ROLES
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize valve entity.

@@ -7,6 +7,7 @@ import logging
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_integer_value, make_state
+from .base_entity import ROLE_TEMPERATURE, SENSOR_LINK_ROLES
 from .simple_sensor import SimpleReadOnlySensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,6 +22,8 @@ class HumiditySensorEntity(SimpleReadOnlySensor):
     Reports humidity readings from HA sensor entities to the Sber cloud.
     Humidity is transmitted as a plain integer percentage (0-100).
     """
+
+    LINKABLE_ROLES = (*SENSOR_LINK_ROLES, ROLE_TEMPERATURE)
 
     _sber_value_key = "humidity"
     _sber_value_type = "INTEGER"

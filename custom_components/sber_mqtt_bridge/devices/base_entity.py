@@ -8,10 +8,98 @@ from __future__ import annotations
 
 import copy
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import ClassVar
 
 # DeviceData type alias — linked_device is stored as a plain dict with keys:
 # id, name, area_id, manufacturer, model, model_id, hw_version, sw_version
 DeviceData = dict[str, str]
+
+
+# ---------------------------------------------------------------------------
+#  Linkable Roles — self-describing entity linking registry
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class LinkableRole:
+    """Describes a linkable sensor role that a device class accepts.
+
+    Each role declares which HA domain + device_class combinations it matches.
+    Device classes declare which roles they accept via ``LINKABLE_ROLES``.
+    This eliminates the need for separate mapping dicts and domain overrides.
+
+    Attributes:
+        role: Link role name (e.g. ``"battery"``, ``"humidity"``).
+        domains: Accepted HA entity domains (e.g. ``{"sensor"}``).
+        device_classes: Accepted HA device_class values (e.g. ``{"humidity"}``).
+    """
+
+    role: str
+    domains: frozenset[str]
+    device_classes: frozenset[str]
+
+    def matches(self, domain: str, device_class: str) -> bool:
+        """Check if an HA entity matches this role.
+
+        Args:
+            domain: HA entity domain (e.g. ``"sensor"``).
+            device_class: HA original_device_class (e.g. ``"humidity"``).
+
+        Returns:
+            True if both domain and device_class match.
+        """
+        return domain in self.domains and device_class in self.device_classes
+
+
+# Common reusable LinkableRole instances
+ROLE_BATTERY = LinkableRole("battery", frozenset({"sensor"}), frozenset({"battery"}))
+"""Battery percentage sensor (sensor domain, battery device_class)."""
+
+ROLE_BATTERY_LOW = LinkableRole("battery_low", frozenset({"binary_sensor"}), frozenset({"battery"}))
+"""Low-battery binary sensor (binary_sensor domain, battery device_class)."""
+
+ROLE_SIGNAL = LinkableRole("signal_strength", frozenset({"sensor"}), frozenset({"signal_strength"}))
+"""Signal strength sensor (sensor domain, signal_strength device_class)."""
+
+ROLE_TEMPERATURE = LinkableRole("temperature", frozenset({"sensor"}), frozenset({"temperature"}))
+"""Temperature sensor (sensor domain, temperature device_class)."""
+
+ROLE_HUMIDITY = LinkableRole("humidity", frozenset({"sensor"}), frozenset({"humidity"}))
+"""Humidity sensor (sensor domain, humidity device_class)."""
+
+SENSOR_LINK_ROLES: tuple[LinkableRole, ...] = (ROLE_BATTERY, ROLE_BATTERY_LOW, ROLE_SIGNAL)
+"""Common linkable roles for battery-powered devices (sensors, covers, valves)."""
+
+ALL_LINKABLE_ROLES: tuple[LinkableRole, ...] = (
+    ROLE_BATTERY,
+    ROLE_BATTERY_LOW,
+    ROLE_SIGNAL,
+    ROLE_TEMPERATURE,
+    ROLE_HUMIDITY,
+)
+"""Global registry of all known linkable roles for display in UI."""
+
+
+def resolve_link_role(domain: str, device_class: str) -> str:
+    """Determine the link role for an HA entity based on domain and device_class.
+
+    Iterates ``ALL_LINKABLE_ROLES`` and returns the role name of the first match.
+    Domain-aware disambiguation is built into the role definitions:
+    e.g. ``sensor`` + ``battery`` → ``battery``, ``binary_sensor`` + ``battery``
+    → ``battery_low``.
+
+    Args:
+        domain: HA entity domain.
+        device_class: HA original_device_class.
+
+    Returns:
+        Role name string, or empty string if no match.
+    """
+    for lr in ALL_LINKABLE_ROLES:
+        if lr.matches(domain, device_class):
+            return lr.role
+    return ""
 
 
 class BaseEntity(ABC):
@@ -25,6 +113,9 @@ class BaseEntity(ABC):
     - process_cmd: Handle Sber commands, return HA service calls
     - process_state_change: Handle HA state change events
     """
+
+    LINKABLE_ROLES: ClassVar[tuple[LinkableRole, ...]] = ()
+    """Linkable roles this device class accepts. Override in subclasses."""
 
     category: str
     area_id: str

@@ -7,7 +7,7 @@ import logging
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import SENSOR_LINK_ROLES, BaseEntity
 from .utils.signal import rssi_to_signal_strength
 
 CURTAIN_ENTITY_CATEGORY = "curtain"
@@ -24,6 +24,8 @@ class CurtainEntity(BaseEntity):
     - Open/close/stop commands
     - Open state reporting
     """
+
+    LINKABLE_ROLES = SENSOR_LINK_ROLES
 
     current_position: int = 0
     """Current cover position (0-100%)."""

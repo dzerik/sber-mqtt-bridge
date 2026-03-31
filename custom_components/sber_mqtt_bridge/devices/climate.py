@@ -6,7 +6,7 @@ import logging
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import ROLE_TEMPERATURE, BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -112,6 +112,8 @@ class ClimateEntity(BaseEntity):
     - ``_supports_work_mode``: include hvac_work_mode (default True for AC)
     - ``_supports_thermostat_mode``: include hvac_thermostat_mode (default False)
     """
+
+    LINKABLE_ROLES = (ROLE_TEMPERATURE,)
 
     _supports_fan: bool = True
     _supports_swing: bool = True

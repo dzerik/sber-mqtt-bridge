@@ -18,16 +18,15 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
-    ALLOWED_LINK_ROLES,
     CONF_ENTITY_LINKS,
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
     CONF_SBER_VERIFY_SSL,
     DOMAIN,
-    HA_DEVICE_CLASS_TO_LINK_ROLE,
     SETTINGS_DEFAULTS,
     SUPPORTED_DOMAINS,
 )
+from .devices.base_entity import LinkableRole, resolve_link_role
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -1000,11 +999,12 @@ async def ws_suggest_links(
         connection.send_result(msg["id"], {"candidates": [], "allowed_roles": [], "category": ""})
         return
 
-    # Determine primary category: explicit param > bridge > auto-detect
+    # Resolve primary entity: bridge instance > auto-detect via factory
     primary_category = msg.get("category", "")
-    if not primary_category and bridge:
+    primary_entity = None
+    if bridge:
         primary_entity = bridge.entities.get(msg["entity_id"])
-        if primary_entity:
+        if primary_entity and not primary_category:
             primary_category = primary_entity.category
     if not primary_category:
         from .sber_entity_map import create_sber_entity
@@ -1013,11 +1013,15 @@ async def ws_suggest_links(
             "entity_id": primary_entry.entity_id,
             "original_device_class": primary_entry.original_device_class or "",
         }
-        test_entity = create_sber_entity(msg["entity_id"], entity_data)
-        if test_entity:
-            primary_category = test_entity.category
+        primary_entity = create_sber_entity(msg["entity_id"], entity_data)
+        if primary_entity:
+            primary_category = primary_entity.category
 
-    allowed_roles = ALLOWED_LINK_ROLES.get(primary_category, [])
+    # Linkable roles are declared on the device class itself
+    linkable_roles: tuple[LinkableRole, ...] = ()
+    if primary_entity is not None:
+        linkable_roles = primary_entity.LINKABLE_ROLES
+    allowed_roles = [lr.role for lr in linkable_roles]
 
     # Collect existing links for pre-selection
     existing_links: dict[str, str] = {}
@@ -1036,15 +1040,20 @@ async def ws_suggest_links(
             continue
 
         dc = e.original_device_class or ""
-        suggested_role = HA_DEVICE_CLASS_TO_LINK_ROLE.get(dc, "")
-        # binary_sensor with battery class → battery_low (boolean low-battery flag)
-        # sensor with battery class → battery (percentage level)
-        if suggested_role == "battery" and e.domain == "binary_sensor":
-            suggested_role = "battery_low"
-        # number with humidity class → target_humidity (setpoint, not current reading)
-        # sensor with humidity class stays as "humidity" (current reading)
-        if suggested_role == "humidity" and e.domain == "number":
-            suggested_role = "target_humidity"
+
+        # Check if any of the primary's linkable roles match this candidate
+        compatible = False
+        suggested_role = ""
+        for lr in linkable_roles:
+            if lr.matches(e.domain, dc):
+                suggested_role = lr.role
+                compatible = True
+                break
+
+        # Fallback: resolve role for display (greyed-out incompatible candidates)
+        if not suggested_role:
+            suggested_role = resolve_link_role(e.domain, dc)
+
         # Skip entities that don't map to any link role (unless already linked)
         if not suggested_role and e.entity_id not in existing_links.values():
             continue
@@ -1054,8 +1063,6 @@ async def ws_suggest_links(
         # When same_device_only is set (wizard mode), skip entities from other devices
         if same_device_only and not same_device:
             continue
-
-        compatible = suggested_role in allowed_roles if suggested_role else False
 
         state = hass.states.get(e.entity_id)
         friendly_name = ""
@@ -1129,9 +1136,8 @@ async def ws_auto_link_all(
         if primary_id in all_links:
             continue  # Already has links
 
-        category = primary_entity.category
-        allowed_roles = ALLOWED_LINK_ROLES.get(category, [])
-        if not allowed_roles:
+        linkable_roles = primary_entity.LINKABLE_ROLES
+        if not linkable_roles:
             continue
 
         # Find siblings on same device
@@ -1144,9 +1150,10 @@ async def ws_auto_link_all(
             if e.disabled:
                 continue
             dc = e.original_device_class or ""
-            role = HA_DEVICE_CLASS_TO_LINK_ROLE.get(dc, "")
-            if role and role in allowed_roles and role not in new_links:
-                new_links[role] = e.entity_id
+            for lr in linkable_roles:
+                if lr.matches(e.domain, dc) and lr.role not in new_links:
+                    new_links[lr.role] = e.entity_id
+                    break
 
         if new_links:
             all_links[primary_id] = new_links

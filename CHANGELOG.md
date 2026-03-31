@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-03-31
+
+### Changed
+- **Architecture**: Entity link roles are now declared on device classes via `LINKABLE_ROLES` class attribute (`LinkableRole` dataclass) instead of centralized `ALLOWED_LINK_ROLES` / `HA_DEVICE_CLASS_TO_LINK_ROLE` dicts — each device class self-describes which sensor roles it accepts, with domain+device_class matching built into the role definition
+- **Entity linking**: `ws_suggest_links` and `ws_auto_link_all` now query device class `LINKABLE_ROLES` directly — no more manual domain overrides or separate mapping tables
+
+### Removed
+- `ALLOWED_LINK_ROLES` dict from `const.py` (replaced by `LINKABLE_ROLES` on device classes)
+- `HA_DEVICE_CLASS_TO_LINK_ROLE` dict from `const.py` (replaced by `resolve_link_role()` using `ALL_LINKABLE_ROLES` registry)
+
 ## [1.14.1] - 2026-03-31
 
 ### Fixed

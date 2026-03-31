@@ -18,7 +18,7 @@ from typing import ClassVar
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import SENSOR_LINK_ROLES, BaseEntity
 from .utils.signal import rssi_to_signal_strength
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,6 +34,8 @@ class SimpleReadOnlySensor(BaseEntity):
     Optionally reports ``battery_percentage`` when the HA entity has
     a ``battery`` or ``battery_level`` attribute.
     """
+
+    LINKABLE_ROLES = SENSOR_LINK_ROLES
 
     _sber_value_key: str
     """Sber state key name (e.g., 'temperature', 'pir', 'water_leak')."""
