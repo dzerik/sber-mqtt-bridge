@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-03-31
+
+### Fixed
+- **Entity linking**: `number` entities with `device_class=humidity` (target humidity) now get distinct role `target_humidity` instead of clashing with `sensor` humidity role — fixes inability to link external humidity sensor to `hvac_humidifier`
+- **Humidifier linked sensor**: `HumidifierEntity` now implements `update_linked_data()` — linked humidity sensor value is used as `current_humidity` for Sber `humidity` feature
+
 ## [1.14.0] - 2026-03-30
 
 ### Added

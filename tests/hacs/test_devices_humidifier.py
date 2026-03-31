@@ -244,6 +244,48 @@ class TestHumidifierProcessCmd(unittest.TestCase):
         self.assertEqual(len(result), 3)
 
 
+class TestHumidifierUpdateLinkedData(unittest.TestCase):
+    """Test update_linked_data for linked humidity sensor."""
+
+    def test_humidity_role_updates_current_humidity(self):
+        """Linked humidity sensor should update current_humidity."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(current_humidity=None))
+        self.assertIsNone(entity.current_humidity)
+        entity.update_linked_data("humidity", {"state": "55.3"})
+        self.assertAlmostEqual(entity.current_humidity, 55.3)
+
+    def test_humidity_role_overrides_native(self):
+        """Linked sensor value should override native current_humidity."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(current_humidity=40))
+        self.assertEqual(entity.current_humidity, 40)
+        entity.update_linked_data("humidity", {"state": "62"})
+        self.assertAlmostEqual(entity.current_humidity, 62.0)
+
+    def test_humidity_role_ignores_unavailable(self):
+        """Unavailable/unknown states should not change current_humidity."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(current_humidity=40))
+        for bad_state in ("unknown", "unavailable", None):
+            entity.update_linked_data("humidity", {"state": bad_state})
+            self.assertEqual(entity.current_humidity, 40)
+
+    def test_humidity_role_ignores_invalid(self):
+        """Non-numeric state should not change current_humidity."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(current_humidity=40))
+        entity.update_linked_data("humidity", {"state": "not_a_number"})
+        self.assertEqual(entity.current_humidity, 40)
+
+    def test_unrelated_role_ignored(self):
+        """Roles other than 'humidity' should be silently ignored."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(current_humidity=40))
+        entity.update_linked_data("temperature", {"state": "25"})
+        self.assertEqual(entity.current_humidity, 40)
+
+
 class TestHumidifierProcessStateChange(unittest.TestCase):
     """Test process_state_change."""
 

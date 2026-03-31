@@ -109,8 +109,9 @@ HA_DEVICE_CLASS_TO_LINK_ROLE: dict[str, str] = {
 }
 """Map HA sensor device_class to entity link role name.
 
-Note: binary_sensor domain overrides are applied in ws_suggest_links:
+Note: domain-aware overrides are applied in ws_suggest_links:
 - battery → battery_low (binary_sensor is bool, not percentage)
+- humidity → target_humidity (number domain is setpoint, not current reading)
 - moisture is excluded (it's a leak sensor, not humidity)
 """
 

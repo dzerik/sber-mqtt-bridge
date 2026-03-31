@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from ..sber_constants import SberFeature
@@ -84,6 +85,23 @@ class HumidifierEntity(BaseEntity):
             self._water_low_level = bool(water_low)
         else:
             self._water_low_level = None
+
+    def update_linked_data(self, role: str, ha_state: dict) -> None:
+        """Inject current humidity from a linked sensor entity.
+
+        When the HA humidifier entity does not provide ``current_humidity``
+        in its attributes, an external humidity sensor can be linked to
+        supply the value for the Sber ``humidity`` feature.
+
+        Args:
+            role: Link role name (only ``humidity`` is handled).
+            ha_state: HA state dict with 'state' containing the reading.
+        """
+        if role == "humidity":
+            state_val = ha_state.get("state")
+            if state_val not in (None, "unknown", "unavailable"):
+                with contextlib.suppress(TypeError, ValueError):
+                    self.current_humidity = float(state_val)
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list based on available humidifier capabilities.

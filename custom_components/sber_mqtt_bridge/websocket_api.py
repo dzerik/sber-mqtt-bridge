@@ -1041,6 +1041,10 @@ async def ws_suggest_links(
         # sensor with battery class → battery (percentage level)
         if suggested_role == "battery" and e.domain == "binary_sensor":
             suggested_role = "battery_low"
+        # number with humidity class → target_humidity (setpoint, not current reading)
+        # sensor with humidity class stays as "humidity" (current reading)
+        if suggested_role == "humidity" and e.domain == "number":
+            suggested_role = "target_humidity"
         # Skip entities that don't map to any link role (unless already linked)
         if not suggested_role and e.entity_id not in existing_links.values():
             continue
