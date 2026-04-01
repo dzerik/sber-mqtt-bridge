@@ -58,6 +58,12 @@ class SberMqttPanel extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this._autoRefresh = setInterval(() => this._fetchAll(), 15000);
+    this._visibilityHandler = () => {
+      if (document.visibilityState === "visible") this._fetchAll();
+    };
+    document.addEventListener("visibilitychange", this._visibilityHandler);
+    /* Re-fetch immediately when element is re-attached (e.g. HA navigation) */
+    if (this._hassReady) this._fetchAll();
   }
 
   disconnectedCallback() {
@@ -66,12 +72,21 @@ class SberMqttPanel extends LitElement {
       clearInterval(this._autoRefresh);
       this._autoRefresh = null;
     }
+    if (this._visibilityHandler) {
+      document.removeEventListener("visibilitychange", this._visibilityHandler);
+      this._visibilityHandler = null;
+    }
   }
 
   updated(changedProps) {
-    if (changedProps.has("hass") && this.hass && !this._hassReady) {
-      this._hassReady = true;
-      this._fetchAll();
+    if (changedProps.has("hass") && this.hass) {
+      if (!this._hassReady) {
+        this._hassReady = true;
+        this._fetchAll();
+      } else if (this._error) {
+        /* hass object refreshed after WS reconnect — retry if in error state */
+        this._fetchAll();
+      }
     }
   }
 

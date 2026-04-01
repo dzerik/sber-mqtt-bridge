@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.2] - 2026-04-02
+
+### Fixed
+- **UI**: Panel goes blank after long idle — added `visibilitychange` listener for instant re-fetch when tab returns to foreground, retry on WS reconnect when in error state, re-fetch on DOM re-attach
+
 ## [1.15.1] - 2026-04-01
 
 ### Changed
