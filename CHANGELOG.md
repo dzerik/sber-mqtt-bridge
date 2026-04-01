@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-04-02
+
+### Added
+- **UI**: Edit form in device detail dialog — edit Sber name, room, and home directly from the panel with Save & Re-publish
+- **Protocol**: Default room fallback from HA `location_name` for devices without an area
+- **Protocol**: Area name resolution — `area_id` slugs (e.g. "living_room") now resolve to human-readable names (e.g. "Гостиная") via HA area registry
+- **API**: New WebSocket endpoint `sber_mqtt_bridge/update_redefinitions` for saving device overrides from UI
+
 ## [1.16.1] - 2026-04-02
 
 ### Fixed

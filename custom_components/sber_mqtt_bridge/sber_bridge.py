@@ -23,6 +23,7 @@ import aiomqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Context, Event, HomeAssistant, callback
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
@@ -471,6 +472,7 @@ class SberBridge:
         new_entities: dict[str, BaseEntity] = {}
         entity_reg = er.async_get(self._hass)
         device_reg = dr.async_get(self._hass)
+        area_reg = ar.async_get(self._hass)
 
         for entity_id in enabled_ids:
             entry = entity_reg.async_get(entity_id)
@@ -478,9 +480,11 @@ class SberBridge:
                 _LOGGER.warning("Entity %s not found in registry", entity_id)
                 continue
 
+            # Resolve area_id slug → human-readable area name
+            entity_area = area_reg.async_get_area(entry.area_id) if entry.area_id else None
             entity_data = {
                 "entity_id": entry.entity_id,
-                "area_id": entry.area_id or "",
+                "area_id": entity_area.name if entity_area else "",
                 "device_id": entry.device_id,
                 "name": entry.name or entry.original_name or entry.entity_id,
                 "original_name": entry.original_name,
@@ -506,7 +510,7 @@ class SberBridge:
 
             new_entities[entity_id] = sber_entity
             self._apply_yaml_overrides(sber_entity, entity_id, yaml_cfg)
-            self._link_device_registry(sber_entity, entry, device_reg)
+            self._link_device_registry(sber_entity, entry, device_reg, area_reg)
 
             state = self._hass.states.get(entity_id)
             if state is not None:
@@ -551,23 +555,34 @@ class SberBridge:
             _LOGGER.debug("YAML sber_features_remove for %s: %s", entity_id, yaml_cfg.sber_features_remove)
 
     @staticmethod
-    def _link_device_registry(sber_entity: BaseEntity, entry: object, device_reg: dr.DeviceRegistry) -> None:
+    def _link_device_registry(
+        sber_entity: BaseEntity,
+        entry: object,
+        device_reg: dr.DeviceRegistry,
+        area_reg: ar.AreaRegistry | None = None,
+    ) -> None:
         """Link device registry data to entity if it belongs to a device.
 
         Args:
             sber_entity: The Sber entity.
             entry: HA entity registry entry.
             device_reg: HA device registry.
+            area_reg: HA area registry for resolving area slug to name.
         """
         if entry.device_id is None:
             return
         device = device_reg.async_get(entry.device_id)
         if device is None:
             return
+        device_area = (
+            area_reg.async_get_area(device.area_id)
+            if area_reg and device.area_id
+            else None
+        )
         device_data = {
             "id": device.id,
             "name": device.name_by_user or device.name,
-            "area_id": device.area_id or "",
+            "area_id": device_area.name if device_area else (device.area_id or ""),
             "manufacturer": device.manufacturer or "Unknown",
             "model": device.model or "Unknown",
             "model_id": device.model_id or "",
@@ -1259,11 +1274,13 @@ class SberBridge:
             return
 
         ids_to_publish = entity_ids or self._enabled_entity_ids
+        location = self._hass.config.location_name or ""
         payload = build_devices_list_json(
             self._entities,
             ids_to_publish,
             self._redefinitions,
-            default_home=self._hass.config.location_name or "",
+            default_home=location,
+            default_room=location,
         )
         topic = f"{self._root_topic}/up/config"
         try:

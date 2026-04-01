@@ -19,6 +19,7 @@ class SberDetailDialog extends LitElement {
       _data: { type: Object },
       _loading: { type: Boolean },
       _error: { type: String },
+      _saveStatus: { type: String },
     };
   }
 
@@ -179,6 +180,57 @@ class SberDetailDialog extends LitElement {
         word-break: break-all;
       }
 
+      .edit-form {
+        display: grid;
+        grid-template-columns: 80px 1fr;
+        gap: 8px 12px;
+        align-items: center;
+      }
+      .edit-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--secondary-text-color);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      .edit-input {
+        padding: 8px 12px;
+        border: 1px solid var(--divider-color, #444);
+        border-radius: 6px;
+        font-size: 13px;
+        background: var(--secondary-background-color, #2a2a2a);
+        color: var(--primary-text-color);
+        outline: none;
+      }
+      .edit-input:focus {
+        border-color: var(--primary-color);
+      }
+      .edit-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 4px;
+      }
+      .edit-save {
+        padding: 8px 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        background: var(--primary-color);
+        color: #fff;
+        transition: opacity 0.15s;
+      }
+      .edit-save:hover { opacity: 0.85; }
+      .save-status {
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .save-status.ok { color: var(--success-color, #4caf50); }
+      .save-status.error { color: var(--error-color, #f44336); }
+
       /* ── Mobile ── */
       @media (max-width: 768px) {
         .dialog {
@@ -202,6 +254,12 @@ class SberDetailDialog extends LitElement {
           grid-template-columns: 1fr;
           gap: 2px;
         }
+        .edit-form {
+          grid-template-columns: 1fr;
+        }
+        .edit-label {
+          margin-top: 4px;
+        }
         .grid .label {
           font-size: 11px;
           margin-top: 6px;
@@ -223,6 +281,7 @@ class SberDetailDialog extends LitElement {
     this._data = null;
     this._loading = false;
     this._error = "";
+    this._saveStatus = "";
   }
 
   async show(entityId) {
@@ -279,13 +338,13 @@ class SberDetailDialog extends LitElement {
         <button class="close-btn" @click=${() => this.hide()}>\u2715</button>
       </div>
       <div class="body">
+        ${this._renderEditForm(d)}
         ${this._renderOverview(d)}
         ${this._renderSberStates(d)}
         ${d.linked_entities?.length ? this._renderLinkedEntities(d) : ""}
         ${this._renderModel(d)}
         ${this._renderHAAttributes(d)}
         ${d.device_info ? this._renderDeviceInfo(d) : ""}
-        ${d.redefinitions ? this._renderRedefinitions(d) : ""}
       </div>
     `;
   }
@@ -429,18 +488,56 @@ class SberDetailDialog extends LitElement {
     `;
   }
 
-  _renderRedefinitions(d) {
-    const r = d.redefinitions;
+  _renderEditForm(d) {
+    const r = d.redefinitions || {};
     return html`
       <div class="section">
-        <div class="section-title">Sber Redefinitions</div>
-        <div class="grid">
-          ${r.name ? html`<span class="label">Name</span><span class="value">${r.name}</span>` : ""}
-          ${r.room ? html`<span class="label">Room</span><span class="value">${r.room}</span>` : ""}
-          ${r.home ? html`<span class="label">Home</span><span class="value">${r.home}</span>` : ""}
+        <div class="section-title">Sber Override</div>
+        <div class="edit-form">
+          <label class="edit-label">Name</label>
+          <input class="edit-input" type="text" id="edit-name"
+            .value=${r.name || d.name || ""}
+            placeholder=${d.name || d.entity_id} />
+          <label class="edit-label">Room</label>
+          <input class="edit-input" type="text" id="edit-room"
+            .value=${r.room || d.room || ""}
+            placeholder=${d.room || "Room name"} />
+          <label class="edit-label">Home</label>
+          <input class="edit-input" type="text" id="edit-home"
+            .value=${r.home || ""}
+            placeholder="Home name" />
+          <div class="edit-actions">
+            <button class="edit-save" @click=${this._onSave}>
+              \u{1F4BE} Save & Re-publish
+            </button>
+            ${this._saveStatus ? html`<span class="save-status ${this._saveStatus}">${this._saveStatus === "ok" ? "\u2713 Saved" : "\u2717 Error"}</span>` : ""}
+          </div>
         </div>
       </div>
     `;
+  }
+
+  async _onSave() {
+    if (!this.hass || !this._data) return;
+    const name = this.shadowRoot.getElementById("edit-name")?.value?.trim() || "";
+    const room = this.shadowRoot.getElementById("edit-room")?.value?.trim() || "";
+    const home = this.shadowRoot.getElementById("edit-home")?.value?.trim() || "";
+    try {
+      await this.hass.callWS({
+        type: "sber_mqtt_bridge/update_redefinitions",
+        entity_id: this._data.entity_id,
+        name,
+        room,
+        home,
+      });
+      this._saveStatus = "ok";
+      this.requestUpdate();
+      // Re-fetch detail after short delay
+      setTimeout(() => this.show(this._data.entity_id), 1500);
+    } catch (e) {
+      this._saveStatus = "error";
+      this.requestUpdate();
+    }
   }
 }
 

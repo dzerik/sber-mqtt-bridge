@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
@@ -87,6 +88,7 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_raw_config)
     websocket_api.async_register_command(hass, ws_raw_states)
     websocket_api.async_register_command(hass, ws_device_detail)
+    websocket_api.async_register_command(hass, ws_update_redefinitions)
     websocket_api.async_register_command(hass, ws_set_entity_links)
     websocket_api.async_register_command(hass, ws_suggest_links)
     websocket_api.async_register_command(hass, ws_auto_link_all)
@@ -766,7 +768,13 @@ async def ws_device_detail(
 
     entity_reg = er.async_get(hass)
     device_reg = dr.async_get(hass)
+    area_reg = ar.async_get(hass)
     entry = entity_reg.async_get(entity_id)
+
+    # Resolve area slug → human name
+    raw_area = getattr(entity, "area_id", "")
+    area_obj = area_reg.async_get_area(raw_area) if raw_area else None
+    resolved_room = area_obj.name if area_obj else raw_area
 
     # Basic info
     features = entity.get_final_features_list() if hasattr(entity, "get_final_features_list") else entity.create_features_list()
@@ -775,7 +783,7 @@ async def ws_device_detail(
         "name": entity.name,
         "sber_category": entity.category,
         "features": features,
-        "room": getattr(entity, "area_id", ""),
+        "room": resolved_room,
         "is_online": entity._is_online,
         "is_filled": entity.is_filled_by_state,
         "state": entity.state,
@@ -845,6 +853,56 @@ async def ws_device_detail(
         result["redefinitions"] = redefs
 
     connection.send_result(msg["id"], result)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/update_redefinitions",
+        vol.Required("entity_id"): str,
+        vol.Optional("name"): str,
+        vol.Optional("room"): str,
+        vol.Optional("home"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_update_redefinitions(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Update Sber redefinitions (name/room/home) for a single device.
+
+    Merges provided fields into existing redefinitions, persists to config
+    entry, and triggers a config re-publish to Sber cloud.
+    """
+    bridge = _get_bridge(hass)
+    if bridge is None:
+        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
+        return
+
+    entity_id: str = msg["entity_id"]
+    if entity_id not in bridge.entities:
+        connection.send_error(msg["id"], "not_found", f"Entity {entity_id} not in bridge")
+        return
+
+    existing = bridge.redefinitions.get(entity_id, {})
+    for key in ("name", "room", "home"):
+        if key in msg:
+            val = msg[key].strip() if msg[key] else ""
+            if val:
+                existing[key] = val
+            else:
+                existing.pop(key, None)
+
+    bridge._redefinitions[entity_id] = existing
+    bridge._persist_redefinitions()
+
+    try:
+        await bridge._publish_config()
+    except Exception:
+        _LOGGER.exception("Re-publish after redefinition update failed")
+
+    connection.send_result(msg["id"], {"entity_id": entity_id, "redefinitions": existing})
 
 
 @websocket_api.websocket_command(
