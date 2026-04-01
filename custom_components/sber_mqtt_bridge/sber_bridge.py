@@ -1274,7 +1274,7 @@ class SberBridge:
             return
 
         ids_to_publish = entity_ids or self._enabled_entity_ids
-        location = self._hass.config.location_name or ""
+        location = self._hass.config.location_name or "Мой дом"
         payload = build_devices_list_json(
             self._entities,
             ids_to_publish,

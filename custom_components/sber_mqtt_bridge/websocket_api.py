@@ -139,7 +139,7 @@ async def ws_get_devices(
             "sber_category": entity.category,
             "features": features,
             "name": entity.name,
-            "room": getattr(entity, "area_id", ""),
+            "room": entity.effective_room,
             "is_online": entity._is_online,
             "state": entity.state,
             "is_filled": entity.is_filled_by_state,
@@ -267,6 +267,8 @@ async def ws_get_available_entities(
     linked_ids = bridge.linked_entity_ids if bridge else set()
 
     registry = er.async_get(hass)
+    device_reg = dr.async_get(hass)
+    area_reg = ar.async_get(hass)
     entities: list[dict[str, Any]] = []
 
     for entity_entry in registry.entities.values():
@@ -285,12 +287,22 @@ async def ws_get_available_entities(
         if state and state.attributes:
             friendly_name = state.attributes.get("friendly_name", "")
 
+        # Resolve area: entity area → device area → empty
+        raw_area = entity_entry.area_id
+        if not raw_area and entity_entry.device_id:
+            device = device_reg.async_get(entity_entry.device_id)
+            if device:
+                raw_area = device.area_id
+        area_obj = area_reg.async_get_area(raw_area) if raw_area else None
+        area_name = area_obj.name if area_obj else ""
+
         entities.append(
             {
                 "entity_id": entity_entry.entity_id,
                 "domain": domain,
                 "device_class": entity_entry.original_device_class or "",
                 "friendly_name": friendly_name or entity_entry.name or entity_entry.original_name or "",
+                "area": area_name,
             }
         )
 
@@ -772,7 +784,7 @@ async def ws_device_detail(
     entry = entity_reg.async_get(entity_id)
 
     # Resolve area slug → human name
-    raw_area = getattr(entity, "area_id", "")
+    raw_area = entity.effective_room
     area_obj = area_reg.async_get_area(raw_area) if raw_area else None
     resolved_room = area_obj.name if area_obj else raw_area
 
@@ -822,7 +834,11 @@ async def ws_device_detail(
                 "model": device.model,
                 "sw_version": device.sw_version,
                 "hw_version": device.hw_version,
-                "area_id": device.area_id,
+                "area_id": (
+                    area_reg.async_get_area(device.area_id).name
+                    if device.area_id and area_reg.async_get_area(device.area_id)
+                    else device.area_id or ""
+                ),
             }
 
     # Linked entities with current state values
@@ -1238,6 +1254,8 @@ async def ws_auto_link_all(
         vol.Required("entity_id"): str,
         vol.Required("category"): str,
         vol.Optional("entity_links", default={}): dict,
+        vol.Optional("name"): str,
+        vol.Optional("room"): str,
     }
 )
 @websocket_api.async_response
@@ -1286,6 +1304,19 @@ async def ws_add_device_wizard(
         all_links: dict[str, dict] = dict(new_options.get(CONF_ENTITY_LINKS, {}))
         all_links[entity_id] = entity_links
         new_options[CONF_ENTITY_LINKS] = all_links
+
+    # 4. Set name/room redefinitions
+    wizard_name = msg.get("name", "").strip()
+    wizard_room = msg.get("room", "").strip()
+    if wizard_name or wizard_room:
+        redefs: dict[str, dict] = dict(new_options.get("redefinitions", {}))
+        entity_redef = dict(redefs.get(entity_id, {}))
+        if wizard_name:
+            entity_redef["name"] = wizard_name
+        if wizard_room:
+            entity_redef["room"] = wizard_room
+        redefs[entity_id] = entity_redef
+        new_options["redefinitions"] = redefs
 
     # Single atomic update + reload
     hass.config_entries.async_update_entry(entry, options=new_options)

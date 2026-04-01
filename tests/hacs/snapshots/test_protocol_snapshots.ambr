@@ -3,7 +3,9 @@
   dict({
     'devices': list([
       dict({
-        'hw_version': '1.16.1',
+        'default_name': 'HA-SberBridge Hub',
+        'home': '',
+        'hw_version': '1.17.1',
         'id': 'root',
         'model': dict({
           'category': 'hub',
@@ -16,7 +18,8 @@
           'model': 'VHub',
         }),
         'name': 'Home Assistant Bridge',
-        'sw_version': '1.16.1',
+        'room': '',
+        'sw_version': '1.17.1',
       }),
       dict({
         'default_name': 'switch.lamp',
@@ -64,7 +67,9 @@
   dict({
     'devices': list([
       dict({
-        'hw_version': '1.16.1',
+        'default_name': 'HA-SberBridge Hub',
+        'home': '',
+        'hw_version': '1.17.1',
         'id': 'root',
         'model': dict({
           'category': 'hub',
@@ -77,7 +82,8 @@
           'model': 'VHub',
         }),
         'name': 'Home Assistant Bridge',
-        'sw_version': '1.16.1',
+        'room': '',
+        'sw_version': '1.17.1',
       }),
       dict({
         'default_name': 'switch.lamp',
@@ -104,6 +110,8 @@
 # ---
 # name: test_hub_device_snapshot
   dict({
+    'default_name': 'HA-SberBridge Hub',
+    'home': '',
     'hw_version': '1.0.0',
     'id': 'root',
     'model': dict({
@@ -117,6 +125,7 @@
       'model': 'VHub',
     }),
     'name': 'Home Assistant Bridge',
+    'room': '',
     'sw_version': '1.0.0',
   })
 # ---

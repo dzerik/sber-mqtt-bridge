@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.1] - 2026-04-02
+
+### Fixed
+- **Rooms**: `effective_room` property — entity area → device area fallback, so devices without their own area inherit room from device registry
+- **Rooms**: Hub device now includes `home` and `room` fields (per Sber C2C docs)
+- **Rooms**: Default `home`/`room` fallback hardcoded to "Мой дом" when HA `location_name` is not set
+- **Rooms**: Area name resolution in `ws_device_detail` and device registry display
+- **Wizard**: Pre-fills room from HA area; saves name/room to redefinitions on device creation
+- **API**: `available_entities` endpoint now returns resolved `area` name per entity
+
 ## [1.17.0] - 2026-04-02
 
 ### Added

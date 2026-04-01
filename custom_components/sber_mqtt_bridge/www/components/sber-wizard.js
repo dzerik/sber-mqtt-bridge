@@ -173,6 +173,9 @@ class SberWizard extends LitElement {
         this._name = ent.friendly_name;
         this._slugId = slugify(ent.friendly_name);
       }
+      if (ent?.area) {
+        this._room = ent.area;
+      }
     }
   }
 

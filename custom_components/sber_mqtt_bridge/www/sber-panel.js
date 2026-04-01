@@ -333,6 +333,8 @@ class SberMqttPanel extends LitElement {
         entity_id: d.entity_id,
         category: d.category,
         entity_links: d.entity_links || {},
+        name: d.name || "",
+        room: d.room || "",
       });
       await new Promise((r) => setTimeout(r, 1500));
       await this._fetchAll();

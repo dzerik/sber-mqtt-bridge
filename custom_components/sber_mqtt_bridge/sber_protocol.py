@@ -15,15 +15,24 @@ from .sber_models import validate_config_payload, validate_status_payload
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.17.0"
+VERSION = "1.17.1"
 """Protocol version string included in the hub device descriptor."""
 
 
-def build_hub_device(version: str = VERSION) -> dict:
-    """Build the root hub device descriptor for Sber."""
+def build_hub_device(version: str = VERSION, home: str = "", room: str = "") -> dict:
+    """Build the root hub device descriptor for Sber.
+
+    Args:
+        version: Protocol version string.
+        home: Home name for the hub device.
+        room: Room name for the hub device.
+    """
     return {
         "id": "root",
         "name": "Home Assistant Bridge",
+        "default_name": "HA-SberBridge Hub",
+        "home": home,
+        "room": room,
         "hw_version": version,
         "sw_version": version,
         "model": {
@@ -62,7 +71,7 @@ def build_devices_list_json(
     Returns:
         JSON string with the Sber device list payload.
     """
-    device_list: dict[str, Any] = {"devices": [build_hub_device()]}
+    device_list: dict[str, Any] = {"devices": [build_hub_device(home=default_home, room=default_room)]}
 
     for entity_id in enabled_entity_ids:
         entity = entities.get(entity_id)

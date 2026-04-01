@@ -207,6 +207,18 @@ class BaseEntity(ABC):
         if friendly and self.name == self.entity_id:
             self.name = friendly
 
+    @property
+    def effective_room(self) -> str:
+        """Return the best available room name.
+
+        Priority: entity area_id → device area_id → empty string.
+        """
+        if self.area_id:
+            return self.area_id
+        if self.linked_device:
+            return self.linked_device.get("area_id", "")
+        return ""
+
     def is_group_state(self) -> bool:
         """Check if this entity represents a group of other entities."""
         entity_list = self.attributes.get("entity_id")
