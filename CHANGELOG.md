@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.3] - 2026-04-02
+
+### Changed
+- **UI**: Toolbar button order — Wizard first, then logical groups (entity management, sync, import/export) separated by vertical dividers
+
 ## [1.15.2] - 2026-04-02
 
 ### Fixed

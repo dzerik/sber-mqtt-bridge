@@ -144,6 +144,12 @@ class SberToolbar extends LitElement {
       .dropdown-item.danger {
         color: var(--error-color, #f44336);
       }
+      .divider {
+        width: 1px;
+        align-self: stretch;
+        background: var(--divider-color, #e0e0e0);
+        margin: 4px 4px;
+      }
 
       /* ── Mobile ── */
       @media (max-width: 768px) {
@@ -154,6 +160,9 @@ class SberToolbar extends LitElement {
           padding: 6px 10px;
           font-size: 12px;
           gap: 4px;
+        }
+        .divider {
+          display: none;
         }
         /* Force counter + status to new line */
         .spacer {
@@ -227,35 +236,17 @@ class SberToolbar extends LitElement {
 
   render() {
     return html`
-      <button class="btn btn-secondary" @click=${() => this._dispatch("toolbar-refresh")}>
-        \u{21BB} Refresh
-      </button>
-      <button
-        class="btn btn-primary"
-        ?disabled=${this.loading}
-        @click=${() => this._dispatch("toolbar-republish")}
-      >
-        ${this.loading ? "Publishing..." : "\u{1F4E4} Re-publish config"}
-      </button>
-      <button class="btn btn-success" @click=${() => this._dispatch("toolbar-add")}>
-        \u{2795} Add Devices
-      </button>
+      <!-- Primary action -->
       <button class="btn btn-success" @click=${() => this._dispatch("toolbar-wizard")}>
         \u{1F9D9} Wizard
       </button>
-      <button class="btn btn-secondary" @click=${() => this._dispatch("toolbar-export")}>
-        \u{1F4E5} Export
-      </button>
-      <button class="btn btn-secondary" @click=${this._triggerImport}>
-        \u{1F4E4} Import
-      </button>
-      <input
-        type="file"
-        accept=".json"
-        style="display:none"
-        @change=${this._onImportFile}
-      />
 
+      <div class="divider"></div>
+
+      <!-- Entity management -->
+      <button class="btn btn-success" @click=${() => this._dispatch("toolbar-add")}>
+        \u{2795} Add Devices
+      </button>
       <div class="dropdown">
         <button class="btn btn-secondary" @click=${this._toggleBulk}>
           Bulk \u25BE
@@ -276,6 +267,36 @@ class SberToolbar extends LitElement {
             `
           : ""}
       </div>
+
+      <div class="divider"></div>
+
+      <!-- Sync -->
+      <button
+        class="btn btn-primary"
+        ?disabled=${this.loading}
+        @click=${() => this._dispatch("toolbar-republish")}
+      >
+        ${this.loading ? "Publishing..." : "\u{1F4E4} Re-publish"}
+      </button>
+      <button class="btn btn-secondary" @click=${() => this._dispatch("toolbar-refresh")}>
+        \u{21BB} Refresh
+      </button>
+
+      <div class="divider"></div>
+
+      <!-- Import / Export -->
+      <button class="btn btn-secondary" @click=${() => this._dispatch("toolbar-export")}>
+        \u{1F4E5} Export
+      </button>
+      <button class="btn btn-secondary" @click=${this._triggerImport}>
+        \u{1F4E4} Import
+      </button>
+      <input
+        type="file"
+        accept=".json"
+        style="display:none"
+        @change=${this._onImportFile}
+      />
 
       <span class="spacer"></span>
 
