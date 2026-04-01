@@ -1073,22 +1073,26 @@ async def ws_suggest_links(
         connection.send_result(msg["id"], {"candidates": [], "allowed_roles": [], "category": ""})
         return
 
-    # Resolve primary entity: bridge instance > auto-detect via factory
+    # Resolve primary entity: bridge instance > factory with explicit category > auto-detect
     primary_category = msg.get("category", "")
     primary_entity = None
     if bridge:
         primary_entity = bridge.entities.get(msg["entity_id"])
         if primary_entity and not primary_category:
             primary_category = primary_entity.category
-    if not primary_category:
+
+    # When entity not in bridge (wizard flow), create temporary entity via factory
+    if primary_entity is None:
         from .sber_entity_map import create_sber_entity
 
         entity_data = {
             "entity_id": primary_entry.entity_id,
             "original_device_class": primary_entry.original_device_class or "",
         }
-        primary_entity = create_sber_entity(msg["entity_id"], entity_data)
-        if primary_entity:
+        primary_entity = create_sber_entity(
+            msg["entity_id"], entity_data, sber_category=primary_category or None,
+        )
+        if primary_entity and not primary_category:
             primary_category = primary_entity.category
 
     # Linkable roles are declared on the device class itself
@@ -1115,6 +1119,8 @@ async def ws_suggest_links(
 
         dc = e.original_device_class or ""
 
+        same_device = bool(primary_device_id and e.device_id == primary_device_id)
+
         # Check if any of the primary's linkable roles match this candidate
         compatible = False
         suggested_role = ""
@@ -1124,15 +1130,17 @@ async def ws_suggest_links(
                 compatible = True
                 break
 
-        # Fallback: resolve role for display (greyed-out incompatible candidates)
+        # Fallback: resolve role for display
         if not suggested_role:
             suggested_role = resolve_link_role(e.domain, dc)
+
+        # Same-device siblings are always compatible for linking
+        if same_device and suggested_role:
+            compatible = True
 
         # Skip entities that don't map to any link role (unless already linked)
         if not suggested_role and e.entity_id not in existing_links.values():
             continue
-
-        same_device = bool(primary_device_id and e.device_id == primary_device_id)
 
         # When same_device_only is set (wizard mode), skip entities from other devices
         if same_device_only and not same_device:

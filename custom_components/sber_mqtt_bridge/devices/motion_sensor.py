@@ -78,6 +78,27 @@ class MotionSensorEntity(SimpleReadOnlySensor):
     def _get_sber_value(self) -> str:
         """Return Sber ENUM value for motion detection.
 
-        Per Sber C2C spec: ``"pir"`` = motion detected, ``"no_pir"`` = no motion.
+        Per Sber C2C spec, ``pir`` is event-based: send ``"pir"`` only when
+        motion is detected.  When idle, return empty string so the feature
+        is omitted from the state payload.
         """
-        return "pir" if self.motion_detected else "no_pir"
+        return "pir" if self.motion_detected else ""
+
+    def to_sber_current_state(self) -> dict[str, dict]:
+        """Build Sber state, omitting pir key when no motion detected.
+
+        PIR is event-based per Sber spec: only emit ``pir`` on motion,
+        omit the key entirely when idle.
+        """
+        # Use parent implementation for online, battery, signal
+        result = super().to_sber_current_state()
+        entity_states = result[self.entity_id]["states"]
+
+        if not self.motion_detected:
+            # Remove the pir state entry added by parent
+            entity_states[:] = [s for s in entity_states if s.get("key") != "pir"]
+
+        if self._tamper is not None:
+            entity_states.append(make_state(SberFeature.TAMPER_ALARM, make_bool_value(self._tamper)))
+
+        return result

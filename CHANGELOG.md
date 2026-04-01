@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.2] - 2026-04-02
+
+### Fixed
+- **PIR sensor**: Event-based — only emit `pir` on motion, omit key when idle (fixes "always detecting" in Sber)
+- **Wizard linking**: Same-device siblings always compatible regardless of LINKABLE_ROLES
+- **Wizard linking**: Create temporary entity via factory with category override for correct LINKABLE_ROLES in wizard flow
+- **Sensor subclass**: Humidity sensor created correctly even with `sensor_temp` category override (device_class aware)
+- **Naming**: `friendly_name` used when entity name matches `original_name` (fixes "Температура" instead of "Климат детская Температура")
+
 ## [1.17.1] - 2026-04-02
 
 ### Fixed

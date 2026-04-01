@@ -284,8 +284,12 @@ def create_sber_entity(
     Returns:
         BaseEntity subclass instance or None if domain not supported.
     """
-    # User override takes precedence
+    # User override takes precedence, but respect device_class for sensors
     if sber_category:
+        # For sensor_temp category, pick the right subclass based on device_class
+        dc = entity_data.get("original_device_class", "")
+        if sber_category == "sensor_temp" and dc == "humidity":
+            sber_category = "sensor_humidity"
         constructor = CATEGORY_CONSTRUCTORS.get(sber_category)
         if constructor is not None:
             entity = constructor(entity_data)

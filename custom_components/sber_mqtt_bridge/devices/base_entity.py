@@ -201,10 +201,13 @@ class BaseEntity(ABC):
         self.attributes = copy.deepcopy(ha_entity_state.get("attributes", {}))
         self.is_filled_by_state = True
 
-        # Use friendly_name from HA state as fallback when entity registry
-        # had no name (self.name fell back to entity_id in __init__).
+        # Use friendly_name from HA state when entity name was not customized
+        # by the user (still matches original_name or entity_id).
+        # This handles has_entity_name=True entities where original_name is
+        # just a suffix ("Temperature") but friendly_name is the full name
+        # ("Climate Sensor Temperature").
         friendly = self.attributes.get("friendly_name")
-        if friendly and self.name == self.entity_id:
+        if friendly and self.name in (self.entity_id, self.original_name):
             self.name = friendly
 
     @property
