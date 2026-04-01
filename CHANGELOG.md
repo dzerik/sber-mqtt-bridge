@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-04-02
+
+### Added
+- **Protocol**: Default `home` field for all devices — uses HA `location_name` as fallback when not set via redefinitions, fixing Sber cloud silently rejecting devices without `home`
+- **Model**: `home` field added to `SberDevice` Pydantic model
+
 ## [1.15.3] - 2026-04-02
 
 ### Changed

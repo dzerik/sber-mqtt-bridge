@@ -92,6 +92,7 @@ class SberDevice(BaseModel):
         name: Display name.
         default_name: Fallback name (usually entity_id).
         room: Room / area identifier.
+        home: Home / location name (e.g. "Мой дом").
         model: Nested device model descriptor.
         hw_version: Hardware version string.
         sw_version: Software version string.
@@ -106,6 +107,7 @@ class SberDevice(BaseModel):
     name: str
     default_name: str | None = None
     room: str = ""
+    home: str | None = None
     model: SberDeviceModel
     hw_version: str = "Unknown"
     sw_version: str = "Unknown"

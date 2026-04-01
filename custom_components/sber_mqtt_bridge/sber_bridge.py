@@ -1259,7 +1259,12 @@ class SberBridge:
             return
 
         ids_to_publish = entity_ids or self._enabled_entity_ids
-        payload = build_devices_list_json(self._entities, ids_to_publish, self._redefinitions)
+        payload = build_devices_list_json(
+            self._entities,
+            ids_to_publish,
+            self._redefinitions,
+            default_home=self._hass.config.location_name or "",
+        )
         topic = f"{self._root_topic}/up/config"
         try:
             await self._mqtt_client.publish(topic, payload)

@@ -216,6 +216,7 @@ class TestSberBridgePublish:
     @pytest.fixture
     def bridge(self):
         hass = MagicMock()
+        hass.config.location_name = "My Home"
         entry = _make_entry()
         b = SberBridge(hass, entry)
         b._mqtt_client = AsyncMock()

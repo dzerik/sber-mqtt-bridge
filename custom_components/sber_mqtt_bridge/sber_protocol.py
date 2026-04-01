@@ -15,7 +15,7 @@ from .sber_models import validate_config_payload, validate_status_payload
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.15.3"
+VERSION = "1.16.0"
 """Protocol version string included in the hub device descriptor."""
 
 
@@ -41,6 +41,7 @@ def build_devices_list_json(
     entities: dict[str, BaseEntity],
     enabled_entity_ids: list[str],
     redefinitions: dict[str, dict] | None = None,
+    default_home: str = "",
 ) -> str:
     """Build Sber device config JSON for MQTT publish.
 
@@ -52,6 +53,8 @@ def build_devices_list_json(
         entities: Dict of entity_id -> BaseEntity instances.
         enabled_entity_ids: List of entity_ids to include.
         redefinitions: Optional dict of entity_id -> {home, room, name} overrides.
+        default_home: Fallback home name (from HA location_name) when not
+            set via redefinitions.  Sber cloud may reject devices without it.
 
     Returns:
         JSON string with the Sber device list payload.
@@ -80,6 +83,9 @@ def build_devices_list_json(
                 device_data["room"] = redef["room"]
             if redef.get("name"):
                 device_data["name"] = redef["name"]
+
+        if "home" not in device_data and default_home:
+            device_data["home"] = default_home
 
         filtered = {k: v for k, v in device_data.items() if v is not None}
         device_list["devices"].append(filtered)
