@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.16.1] - 2026-04-02
+
+### Fixed
+- **Naming**: Use `friendly_name` from HA state attributes as fallback when entity registry has no custom name — devices like `light.svet_nad_stolom` now show their human-readable name instead of entity_id
+
 ## [1.16.0] - 2026-04-02
 
 ### Added

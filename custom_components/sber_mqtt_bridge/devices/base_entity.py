@@ -201,6 +201,12 @@ class BaseEntity(ABC):
         self.attributes = copy.deepcopy(ha_entity_state.get("attributes", {}))
         self.is_filled_by_state = True
 
+        # Use friendly_name from HA state as fallback when entity registry
+        # had no name (self.name fell back to entity_id in __init__).
+        friendly = self.attributes.get("friendly_name")
+        if friendly and self.name == self.entity_id:
+            self.name = friendly
+
     def is_group_state(self) -> bool:
         """Check if this entity represents a group of other entities."""
         entity_list = self.attributes.get("entity_id")
