@@ -165,6 +165,29 @@ class SberDeviceTable extends LitElement {
         width: 16px;
         height: 16px;
       }
+
+      /* ── Mobile: cards instead of table ── */
+      @media (max-width: 768px) {
+        .card {
+          padding: 12px;
+        }
+        .counters {
+          gap: 10px;
+          font-size: 13px;
+        }
+        .filter-input {
+          max-width: none;
+        }
+        .table-wrapper {
+          overflow-x: visible;
+        }
+        table, thead, tbody, tr {
+          display: block;
+        }
+        thead {
+          display: none;
+        }
+      }
     `;
   }
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.1] - 2026-04-01
+
+### Changed
+- **UI**: Adaptive responsive layout for mobile devices — device list renders as cards on screens ≤768px, toolbar buttons compact, tabs horizontally scrollable, detail dialog fullscreen on mobile
+
 ## [1.15.0] - 2026-03-31
 
 ### Changed

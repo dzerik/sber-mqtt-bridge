@@ -10,5 +10,5 @@
   "issue_tracker": "https://github.com/dzerik/sber-mqtt-bridge/issues",
   "loggers": ["aiomqtt"],
   "requirements": ["aiomqtt>=2.0,<3.0", "pydantic>=2.0,<3.0"],
-  "version": "1.15.0"
+  "version": "1.15.1"
 }

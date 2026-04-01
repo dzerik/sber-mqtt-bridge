@@ -145,6 +145,102 @@ class SberEntityRow extends LitElement {
         width: 16px;
         height: 16px;
       }
+
+      /* ── Mobile: card layout ── */
+      @media (max-width: 768px) {
+        :host {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          position: relative;
+          padding: 12px 12px 12px 15px;
+          margin-bottom: 8px;
+          border-radius: 8px;
+          border: 1px solid var(--divider-color, #e0e0e0);
+        }
+        :host(.row-online) {
+          border-left: 3px solid var(--success-color, #4caf50);
+        }
+        :host(.row-offline) {
+          border-left: 3px solid var(--error-color, #f44336);
+        }
+        :host(.row-online) td,
+        :host(.row-offline) td {
+          background: none;
+        }
+        td {
+          border-bottom: none;
+          padding: 2px 0;
+          font-size: 13px;
+        }
+        /* Checkbox — top-right corner */
+        .cell-check {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          padding: 0;
+        }
+        /* Name — prominent, full width */
+        .cell-name {
+          flex: 0 0 100%;
+          order: 1;
+          font-size: 15px;
+          font-weight: 500;
+          padding-right: 36px;
+          padding-bottom: 2px;
+        }
+        /* Entity ID — small, muted */
+        .cell-eid {
+          flex: 0 0 100%;
+          order: 2;
+          padding-bottom: 6px;
+        }
+        .cell-eid code {
+          font-size: 11px;
+          opacity: 0.6;
+        }
+        /* Metadata: category, room, state, online — inline row */
+        .cell-cat,
+        .cell-room,
+        .cell-state,
+        .cell-online {
+          order: 3;
+          margin-right: 12px;
+          font-size: 12px;
+        }
+        .cell-cat::before,
+        .cell-room::before,
+        .cell-state::before {
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          color: var(--secondary-text-color);
+          margin-right: 3px;
+        }
+        .cell-cat::before { content: "cat "; }
+        .cell-room::before { content: "room "; }
+        .cell-state::before { content: "state "; }
+        /* Features — hidden on mobile (visible in detail dialog) */
+        .cell-feat {
+          display: none;
+        }
+        /* Actions — full width bottom row */
+        .cell-actions {
+          flex: 0 0 100%;
+          order: 9;
+          padding-top: 8px;
+          border-top: 1px solid var(--divider-color, #e0e0e0);
+          margin-top: 6px;
+        }
+        .actions-cell {
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+        select {
+          font-size: 13px;
+          padding: 4px 6px;
+        }
+      }
     `;
   }
 
@@ -226,31 +322,31 @@ class SberEntityRow extends LitElement {
     if (!d || !d.entity_id) return html``;
 
     return html`
-      <td>
+      <td class="cell-check">
         <input
           type="checkbox"
           .checked=${this.selected}
           @change=${this._onCheckChange}
         />
       </td>
-      <td><code>${d.entity_id}</code></td>
-      <td><span class="name-link" @click=${this._onShowDetail}>${d.name || "\u2014"}</span>${d.linked_entities ? html` <span class="feature-tag" style="background:var(--info-color,#2196f3);color:#fff">\u{1F517} +${Object.keys(d.linked_entities).length}</span>` : ""}</td>
-      <td><code>${d.sber_category}</code></td>
-      <td>
+      <td class="cell-eid"><code>${d.entity_id}</code></td>
+      <td class="cell-name"><span class="name-link" @click=${this._onShowDetail}>${d.name || "\u2014"}</span>${d.linked_entities ? html` <span class="feature-tag" style="background:var(--info-color,#2196f3);color:#fff">\u{1F517} +${Object.keys(d.linked_entities).length}</span>` : ""}</td>
+      <td class="cell-cat"><code>${d.sber_category}</code></td>
+      <td class="cell-feat">
         <div class="features">
           ${(d.features || []).map(
             (f) => html`<span class="feature-tag">${f}</span>`
           )}
         </div>
       </td>
-      <td>${d.room || "\u2014"}</td>
-      <td>${d.state ?? "\u2014"}</td>
-      <td>
+      <td class="cell-room">${d.room || "\u2014"}</td>
+      <td class="cell-state">${d.state ?? "\u2014"}</td>
+      <td class="cell-online">
         <span class="badge ${d.is_online ? "badge-green" : d.is_filled ? "badge-grey" : "badge-yellow"}">
           ${d.is_online ? "Online" : d.is_filled ? "Offline" : "Loading\u2026"}
         </span>
       </td>
-      <td>
+      <td class="cell-actions">
         <div class="actions-cell">
           <select @change=${this._onOverrideChange}>
             ${OVERRIDABLE_CATEGORIES.map(

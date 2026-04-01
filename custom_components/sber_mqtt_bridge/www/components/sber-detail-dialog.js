@@ -178,6 +178,42 @@ class SberDetailDialog extends LitElement {
         white-space: pre-wrap;
         word-break: break-all;
       }
+
+      /* ── Mobile ── */
+      @media (max-width: 768px) {
+        .dialog {
+          width: 100vw;
+          max-height: 100vh;
+          border-radius: 0;
+          top: 0;
+          left: 0;
+          transform: none;
+        }
+        .header {
+          padding: 12px 16px;
+        }
+        .header h2 {
+          font-size: 16px;
+        }
+        .body {
+          padding: 12px 16px;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+          gap: 2px;
+        }
+        .grid .label {
+          font-size: 11px;
+          margin-top: 6px;
+        }
+        .state-table {
+          font-size: 12px;
+        }
+        .state-table th,
+        .state-table td {
+          padding: 3px 6px;
+        }
+      }
     `;
   }
 

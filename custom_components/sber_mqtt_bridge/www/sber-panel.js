@@ -419,6 +419,34 @@ class SberMqttPanel extends LitElement {
         margin-bottom: 12px;
         font-size: 13px;
       }
+
+      /* ── Mobile ── */
+      @media (max-width: 768px) {
+        :host {
+          padding: 8px;
+        }
+        .header h1 {
+          font-size: 20px;
+        }
+        .tabs {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .tabs::-webkit-scrollbar {
+          display: none;
+        }
+        .tab {
+          padding: 10px 14px;
+          font-size: 12px;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .card {
+          padding: 12px;
+          border-radius: 8px;
+        }
+      }
     `;
   }
 

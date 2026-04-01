@@ -144,6 +144,26 @@ class SberToolbar extends LitElement {
       .dropdown-item.danger {
         color: var(--error-color, #f44336);
       }
+
+      /* ── Mobile ── */
+      @media (max-width: 768px) {
+        :host {
+          gap: 6px;
+        }
+        .btn {
+          padding: 6px 10px;
+          font-size: 12px;
+          gap: 4px;
+        }
+        /* Force counter + status to new line */
+        .spacer {
+          flex-basis: 100%;
+          height: 0;
+        }
+        .counter, .status {
+          font-size: 12px;
+        }
+      }
     `;
   }
 
