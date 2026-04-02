@@ -1,6 +1,6 @@
 # Roadmap — Sber Smart Home MQTT Bridge
 
-Обновлено: 2026-03-26, версия: 1.10.3
+Обновлено: 2026-04-02, версия: 1.18.0
 
 ---
 
@@ -8,10 +8,11 @@
 
 | Метрика | Значение |
 |---------|----------|
-| Версия | 1.10.3 |
+| Версия | 1.18.0 |
 | Sber категории | **28/28 (100%)** (27 устройств + hub) |
+| Sber features | **~47/55 (85%)** |
 | HA домены | 15 |
-| Тесты | 498+ |
+| Тесты | 524+ |
 | Ruff errors | 0 |
 
 ### Реализованные категории (28/28)
@@ -53,32 +54,65 @@
 
 ## Что осталось реализовать
 
-### Приоритет 1 — Расширение features существующих устройств
+### Приоритет 0 — Технический долг: Feature Coverage (85% → 100%)
 
-| # | Задача | Категории | Описание |
-|---|--------|-----------|----------|
-| 1 | `air_pressure` feature | sensor_temp | Атмосферное давление из HA sensor (device_class=pressure) |
-| 2 | `signal_strength` feature | все сенсоры, covers | RSSI/signal_strength из HA attributes |
-| 3 | `tamper_alarm` feature | sensor_door, sensor_pir | Вскрытие датчика (binary_sensor tamper attribute) |
-| 4 | `battery_low_power` feature | все сенсоры, covers | Разряжена ли батарея (bool, из battery_level < 20%) |
-| 5 | `child_lock` feature | socket, kettle | Блокировка от детей из HA attributes |
-| 6 | `sensor_sensitive` feature | sensor_temp, sensor_door, sensor_pir | Чувствительность датчика |
-| 7 | `hvac_humidity_set` feature | hvac_ac | Целевая влажность кондиционера |
-| 8 | `hvac_night_mode` feature | hvac_ac, hvac_humidifier | Ночной режим |
-| 9 | `open_rate` feature | curtain, window_blind, gate | Скорость открытия (auto/low/high) |
-| 10 | `open_left/right_*` features | curtain, gate | Двустворчатые шторы/ворота (6 features) |
+**Статус:** 47/55 features реализовано. 8 features отсутствуют.
 
-### Приоритет 2 — Структурные улучшения протокола
+#### Нереализованные features
+
+| Feature | Категории | Описание | Сложность |
+|---------|-----------|----------|-----------|
+| `sensor_sensitive` | sensor_door, sensor_pir, sensor_temp | Чувствительность датчика (ENUM: auto/high/low). Требует HA service для изменения. Большинство Zigbee датчиков не поддерживают. | Средняя |
+| `sleep_timer` | light, tv | Таймер отключения (INTEGER, минуты). Требует HA automation/timer helper. | Средняя |
+| `open_rate` | curtain, window_blind, gate | Скорость открытия/закрытия (ENUM: auto/low/high). Из HA cover speed attribute. | Низкая |
+| `open_left_percentage` | curtain, gate | Позиция левой створки двустворчатых штор/ворот (INTEGER 0-100). | Средняя |
+| `open_right_percentage` | curtain, gate | Позиция правой створки (INTEGER 0-100). | Средняя |
+| `light_transmission_percentage` | curtain, window_blind | Процент пропускания света (INTEGER 0-100). Не в SberFeature enum. | Низкая |
+| `custom_key` | tv | Отправка произвольных кнопок пульта (ENUM). Требует IR-blaster интеграцию. | Высокая |
+| `number` | tv | Набор цифр на пульте (INTEGER). Аналогично custom_key. | Средняя |
+| `channel_int` | tv | Переключение канала по номеру (INTEGER). Сейчас есть только channel ENUM (+/-). | Низкая |
+
+#### Features реализованные частично (tech debt)
+
+| Feature | Где есть | Где НЕТ | Что нужно |
+|---------|----------|---------|-----------|
+| `tamper_alarm` | sensor_pir, sensor_door | water_leak, smoke, gas | Добавить чтение tamper attribute |
+| `alarm_mute` | smoke, gas | water_leak | Добавить для water_leak |
+| `signal_strength` | curtain, valve, sensors (linked) | relay, socket, light | Добавить linked signal для всех |
+| `child_lock` | kettle, relay/socket | climate, humidifier | Добавить если HA entity поддерживает |
+
+#### План реализации полного покрытия
+
+**Фаза 1 — Дополнение существующих (Patch, 1-2 дня):**
+1. `tamper_alarm` → water_leak, smoke, gas (читать tamper attribute)
+2. `alarm_mute` → water_leak (аналогично smoke/gas)
+3. `channel_int` → tv (INTEGER, прямой набор канала)
+4. `open_rate` → curtain/window_blind/gate (если speed attribute доступен)
+
+**Фаза 2 — Новые capabilities (Minor, 2-3 дня):**
+5. `sensor_sensitive` → все сенсоры. Требует: определить HA service/attribute для каждого типа датчика, ENUM allowed_values, process_cmd handler
+6. `sleep_timer` → light, tv. Требует: создание HA timer helper или использование `async_call_later`, INTEGER allowed_values
+7. `child_lock` → расширить на climate, humidifier (из HA attributes)
+
+**Фаза 3 — Двустворчатые устройства (Minor, 2-3 дня):**
+8. `open_left_percentage` + `open_right_percentage` → curtain, gate. Требует: определить HA cover entities для левой/правой створки, маппинг position
+9. `light_transmission_percentage` → curtain. Из HA tilt_position attribute
+
+**Фаза 4 — TV расширение (Minor, 1-2 дня):**
+10. `custom_key` → tv. Маппинг на HA remote.send_command
+11. `number` → tv. Отправка цифр через remote.send_command
+
+### Приоритет 1 — Структурные улучшения протокола
 
 | # | Задача | Описание |
 |---|--------|----------|
-| 11 | `dependencies` | light_colour зависит от light_mode=colour (JSON dependencies) |
+| 11 | ~~`dependencies`~~ | ~~light_colour зависит от light_mode=colour~~ — **СДЕЛАНО** |
 | 12 | `allowed_values` расширение | Добавить для valve, curtain, sensor_temp и др. |
 | 13 | `nicknames` | Массив альтернативных имён устройства |
 | 14 | `groups` | Группы устройств (Климат, Свет и т.д.) |
 | 15 | `parent_id` | Иерархия устройств (hub → device) |
 
-### Приоритет 3 — Архитектура и качество
+### Приоритет 2 — Архитектура и качество
 
 | # | Задача | Описание |
 |---|--------|----------|
@@ -88,7 +122,7 @@
 | 19 | CI/CD GitHub Actions | hassfest, HACS validate, pytest, ruff, mypy |
 | 20 | Мульти-версия HA тестирование | Тесты на 3-4 версиях HA (как у Yandex Smart Home) |
 
-### Приоритет 4 — Расширение функционала
+### Приоритет 3 — Расширение функционала
 
 | # | Задача | Описание |
 |---|--------|----------|
@@ -98,10 +132,41 @@
 | 24 | ~~Автоматический re-publish config~~ | ~~После получения state для entity без config~~ — **СДЕЛАНО** |
 | 25 | ~~Persist redefinitions~~ | ~~Сохранять rename/room из Sber app~~ — **СДЕЛАНО** |
 | 26 | ~~Entity Linking~~ | ~~Auto-link all кнопка, config migration v2→v3, расширение тестов~~ — **СДЕЛАНО в v1.10** |
+| 27 | ~~Edit form в detail dialog~~ | ~~Name/room/home редактирование из панели~~ — **СДЕЛАНО в v1.17** |
+| 28 | ~~Default home/room~~ | ~~Fallback из HA location_name~~ — **СДЕЛАНО в v1.16-1.17** |
+| 29 | ~~Area name resolution~~ | ~~area_id slug → human name через area_registry~~ — **СДЕЛАНО в v1.17** |
+| 30 | ~~Category-aware model_id~~ | ~~Суффикс категории для защиты от Sber override~~ — **СДЕЛАНО в v1.18** |
 
 ---
 
 ## Выполненные задачи (для справки)
+
+### v1.18.0 — Category-aware model_id, Smart Fan, Curtain States
+- Model ID: суффикс категории предотвращает Sber override (`TS0002_limited_hvac_fan`)
+- Fan: простые on/off fan без speed → только `on_off` + `online` (без ложных `hvac_air_flow_power`)
+- Curtain: передача `opening`/`closing` промежуточных состояний
+
+### v1.17.x — Device Edit, Area Resolution, Room/Home Defaults
+- Edit form в detail dialog: редактирование name/room/home с Save & Re-publish
+- Area name resolution: slug → human-readable через area_registry
+- Default home/room fallback из HA `location_name` (→ "Мой дом")
+- Hub device: home/room/default_name по документации Sber
+- Wizard: pre-fill room из HA area, сохранение name/room в redefinitions
+- `effective_room` property: entity area → device area fallback
+- PIR: event-based — `pir` только при движении, omit при idle
+- Wizard linking: same-device siblings всегда compatible
+- Sensor subclass: humidity корректно создаётся при sensor_temp override
+- Naming: `friendly_name` для has_entity_name entities
+
+### v1.16.x — Default Home, Friendly Name Fallback
+- Default `home` для всех устройств из HA `location_name`
+- `home` field в SberDevice Pydantic модели
+- `friendly_name` fallback для устройств без custom name в registry
+
+### v1.15.x — Responsive UI, Idle Fix, Toolbar
+- Адаптивная мобильная вёрстка: карточки устройств на экранах ≤768px
+- Fix: пустая панель после idle — `visibilitychange` listener, retry on WS reconnect
+- Toolbar: Wizard первый, логические группы с вертикальными разделителями
 
 ### v1.10.0 — Typed Constants, Pydantic Helpers, Context & Echo Prevention
 - `sber_constants.py`: SberFeature (61 ключ), SberValueType, HAState, MqttTopicSuffix — полная типизация протокола через StrEnum
