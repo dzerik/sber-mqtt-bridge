@@ -334,14 +334,15 @@ class LightEntity(BaseEntity):
                 else:
                     # Force HA into white mode by sending current color_temp
                     if self.current_sber_color_temp is not None:
-                        ha_ct = self.color_temp_converter.sber_to_ha(self.current_sber_color_temp)
+                        ha_mireds = self.color_temp_converter.sber_to_ha(self.current_sber_color_temp)
+                        ha_kelvin = int(1_000_000 / max(ha_mireds, 1))
                         processing_result.append(
                             {
                                 "url": {
                                     "type": "call_service",
                                     "domain": "light",
                                     "service": "turn_on",
-                                    "service_data": {"color_temp": ha_ct},
+                                    "service_data": {"color_temp_kelvin": ha_kelvin},
                                     "target": {"entity_id": self.entity_id},
                                 }
                             }
@@ -351,14 +352,15 @@ class LightEntity(BaseEntity):
 
             elif cmd_key == "light_colour_temp":
                 sber_color_temp = self._safe_int(cmd_value.get("integer_value")) or 0
-                ha_color_temp = self.color_temp_converter.sber_to_ha(sber_color_temp)
+                ha_mireds = self.color_temp_converter.sber_to_ha(sber_color_temp)
+                ha_kelvin = int(1_000_000 / max(ha_mireds, 1))
                 processing_result.append(
                     {
                         "url": {
                             "type": "call_service",
                             "domain": "light",
                             "service": "turn_on",
-                            "service_data": {"color_temp": ha_color_temp},
+                            "service_data": {"color_temp_kelvin": ha_kelvin},
                             "target": {"entity_id": self.entity_id},
                         }
                     }

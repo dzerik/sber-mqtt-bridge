@@ -356,7 +356,7 @@ class TestLightProcessCmd(unittest.TestCase):
         self.assertEqual(entity.current_color_mode, "color_temp")
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_on")
-        self.assertIn("color_temp", url["service_data"])
+        self.assertIn("color_temp_kelvin", url["service_data"])
 
     def test_cmd_light_colour_temp_when_on(self):
         """light_colour_temp generates turn_on with color_temp."""
@@ -367,7 +367,7 @@ class TestLightProcessCmd(unittest.TestCase):
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_on")
-        self.assertIn("color_temp", url["service_data"])
+        self.assertIn("color_temp_kelvin", url["service_data"])
 
     def test_cmd_light_colour_temp_when_off_still_sends(self):
         """light_colour_temp while off still generates service call (state not gated)."""
