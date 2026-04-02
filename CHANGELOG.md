@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.24.2] - 2026-04-02
+
+### Added
+- **Connection phase indicator**: UI shows lifecycle phases after restart — Starting, Connecting, Awaiting Sber, Ready, Disconnected (with pulsing animation for in-progress states)
+- **Hardware testing status**: README callout + devices page with tested (12) vs untested (16) categories
+
+### Fixed
+- **Settings UI**: toggle switches no longer stretch full width
+- **Test count**: badge updated to 1470+
+
 ## [1.24.0] - 2026-04-02
 
 ### Added
