@@ -61,7 +61,7 @@ SETTINGS_DEFAULTS: dict[str, int | float | bool] = {
     CONF_MAX_MQTT_PAYLOAD: 1_000_000,
     CONF_CONTEXT_CLEANUP_THRESHOLD: 200,
     CONF_SBER_VERIFY_SSL: True,
-    CONF_HUB_AUTO_PARENT: True,
+    CONF_HUB_AUTO_PARENT: False,
 }
 """Default values for bridge operational settings."""
 

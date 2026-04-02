@@ -355,7 +355,7 @@ class SberBridge:
         topic = f"{self._root_topic}/up/{target}"
         await self._mqtt_client.publish(topic, payload)
         self._stats.messages_sent += 1
-        self._log_message("out", topic, payload[:500])
+        self._log_message("out", topic, payload)
 
     # ---------------------------------------------------------------------------
     # Message log subscriber management (for real-time DevTools push)
@@ -383,7 +383,7 @@ class SberBridge:
         Args:
             direction: "in" or "out".
             topic: MQTT topic.
-            payload: Payload string (may be truncated).
+            payload: Payload string.
         """
         msg_dict = {
             "time": time.time(),
@@ -920,7 +920,7 @@ class SberBridge:
         _LOGGER.debug("MQTT <- %s (%d bytes)", topic, len(payload) if payload else 0)
 
         # DevTools: log incoming message
-        decoded = payload[:500].decode("utf-8", errors="replace") if isinstance(payload, bytes) else str(payload)[:500]
+        decoded = payload.decode("utf-8", errors="replace") if isinstance(payload, bytes) else str(payload)[:500]
         self._log_message("in", topic, decoded)
 
         # Payload size guard (M2)
@@ -1161,7 +1161,7 @@ class SberBridge:
             _LOGGER.warning(
                 "Sber error (#%d, raw): %s",
                 self._stats.errors_from_sber,
-                payload[:500] if isinstance(payload, (str, bytes)) else payload,
+                payload if isinstance(payload, (str, bytes)) else payload,
             )
 
     async def _handle_change_group(self, payload: bytes) -> None:
@@ -1289,6 +1289,8 @@ class SberBridge:
         if entity is None:
             return
 
+        was_filled = entity.is_filled_by_state
+
         try:
             old_state_obj = event.data.get("old_state")
             old_state_dict = (
@@ -1300,6 +1302,13 @@ class SberBridge:
         except (TypeError, ValueError, KeyError, AttributeError):
             _LOGGER.exception("Error processing state change for %s", entity_id)
             return
+
+        # If entity transitioned from unfilled → filled (e.g. slow-loading
+        # integrations like xiaomi_miio, cast), republish config so Sber
+        # cloud sees this device for the first time.
+        if not was_filled and entity.is_filled_by_state:
+            _LOGGER.info("Entity %s now available — republishing config", entity_id)
+            self._create_safe_task(self._publish_config(), name="republish_config_new_entity")
 
         _LOGGER.debug("HA → Sber state: %s = %s", entity_id, new_state.state)
         self._schedule_debounced_publish(entity_id)
@@ -1373,7 +1382,7 @@ class SberBridge:
                     if entity is not None:
                         entity.mark_state_published()
             # DevTools: log outgoing message
-            self._log_message("out", topic, payload[:500] if isinstance(payload, str) else "")
+            self._log_message("out", topic, payload if isinstance(payload, str) else "")
         except aiomqtt.MqttError:
             self._stats.publish_errors += 1
             _LOGGER.exception("Error publishing states to Sber")
@@ -1388,8 +1397,11 @@ class SberBridge:
             return
 
         ids_to_publish = entity_ids or self._enabled_entity_ids
-        location = self._hass.config.location_name or "Мой дом"
-        auto_parent = self._entry.options.get(CONF_HUB_AUTO_PARENT, True)
+        # Sber expects Russian home/room names. HA default "Home Assistant"
+        # doesn't match redefinitions from Sber app (typically "Мой дом").
+        ha_location = self._hass.config.location_name
+        location = ha_location if ha_location and ha_location != "Home Assistant" else "Мой дом"
+        auto_parent = self._entry.options.get(CONF_HUB_AUTO_PARENT, False)
         payload = build_devices_list_json(
             self._entities,
             ids_to_publish,
@@ -1409,7 +1421,7 @@ class SberBridge:
                 ", ".join(ids_to_publish),
             )
             # DevTools: log outgoing message
-            self._log_message("out", topic, payload[:500] if isinstance(payload, str) else "")
+            self._log_message("out", topic, payload if isinstance(payload, str) else "")
 
             # Log unacknowledged entities for debugging
             unack = self.unacknowledged_entities
