@@ -106,12 +106,18 @@ def _switch_state(entity_id="switch.relay", state="on"):
 class TestLightDependencies(unittest.TestCase):
     """Test dependencies in LightEntity.to_sber_state()."""
 
-    def test_dependencies_omitted_from_mqtt_config(self):
-        """Dependencies NOT sent via MQTT — Sber protobuf rejects 'value' field."""
+    def test_dependencies_present_when_color_supported(self):
+        """Dependencies should use 'values' (plural) per Sber protobuf spec."""
         entity = LightEntity(LIGHT_DATA)
         entity.fill_by_ha_state(_light_state(supported_color_modes=["color_temp", "xy"]))
         result = entity.to_sber_state()
-        self.assertNotIn("dependencies", result["model"])
+        deps = result["model"]["dependencies"]
+        self.assertIn("light_colour", deps)
+        self.assertEqual(deps["light_colour"]["key"], "light_mode")
+        self.assertEqual(
+            deps["light_colour"]["values"],
+            [{"type": "ENUM", "enum_value": "colour"}],
+        )
 
     def test_dependencies_absent_when_no_color(self):
         """Dependencies should not be set when light has no color support."""

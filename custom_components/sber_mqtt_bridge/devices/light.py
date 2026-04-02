@@ -162,7 +162,7 @@ class LightEntity(BaseEntity):
             return {
                 "light_colour": {
                     "key": "light_mode",
-                    "value": [{"type": "ENUM", "enum_value": "colour"}],
+                    "values": [{"type": "ENUM", "enum_value": "colour"}],
                 },
             }
         return {}

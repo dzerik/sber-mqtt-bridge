@@ -351,10 +351,9 @@ class BaseEntity(ABC):
         allowed = self.create_allowed_values_list()
         if allowed:
             res["model"]["allowed_values"] = allowed
-        # NOTE: dependencies omitted from MQTT config payload — Sber protobuf
-        # rejects the "value" field in dependencies structure via MQTT.
-        # Dependencies work via REST API /v1/models but not MQTT up/config.
-        # deps = self.create_dependencies()
+        deps = self.create_dependencies()
+        if deps:
+            res["model"]["dependencies"] = deps
 
         if self.nicknames:
             res["nicknames"] = self.nicknames
