@@ -63,6 +63,7 @@ class SberFeature(StrEnum):
     OPEN_RATE = "open_rate"
     OPEN_LEFT_PERCENTAGE = "open_left_percentage"
     OPEN_RIGHT_PERCENTAGE = "open_right_percentage"
+    LIGHT_TRANSMISSION_PERCENTAGE = "light_transmission_percentage"
 
     # Sensors
     AIR_PRESSURE = "air_pressure"

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-04-02
+
+### Added
+- **Curtain**: `light_transmission_percentage` from HA `tilt_position` attribute (for blinds)
+- **TV**: `direction` command handling (up=volume_up, down=volume_down)
+- **Constants**: `LIGHT_TRANSMISSION_PERCENTAGE` added to SberFeature enum
+
+### Deferred
+- `open_left/right_percentage` — no standard HA mapping for double curtains
+- `custom_key` / `number` — no standard HA service for remote key press in media_player
+
 ## [1.19.0] - 2026-04-02
 
 ### Added

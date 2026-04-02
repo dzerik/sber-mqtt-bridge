@@ -239,4 +239,20 @@ class TvEntity(BaseEntity):
                         }
                     )
 
+            elif key == "direction" and value.get("type") == "ENUM":
+                direction_cmd = value.get("enum_value")
+                if not direction_cmd:
+                    continue
+                # Map Sber direction to media_player commands
+                direction_map = {
+                    "up": "media_player.volume_up",
+                    "down": "media_player.volume_down",
+                }
+                service = direction_map.get(direction_cmd)
+                if service:
+                    domain, svc = service.split(".", 1)
+                    results.append(
+                        {"url": {"type": "call_service", "domain": domain, "service": svc, "target": {"entity_id": self.entity_id}}}
+                    )
+
         return results

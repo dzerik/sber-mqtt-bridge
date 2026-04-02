@@ -52,6 +52,7 @@ class CurtainEntity(BaseEntity):
         self._battery_low: bool | None = None
         self._signal_strength_raw: int | None = None
         self._open_rate: str | None = None
+        self._tilt_position: int | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Update state from Home Assistant data.
@@ -78,6 +79,10 @@ class CurtainEntity(BaseEntity):
                 self._battery_level = int(battery)
             except (TypeError, ValueError):
                 self._battery_level = None
+
+        # Tilt position → light_transmission_percentage (blinds)
+        tilt = attrs.get("current_tilt_position")
+        self._tilt_position = int(tilt) if tilt is not None else None
 
         # Motor speed (open_rate) — some Tuya/Zigbee covers expose this
         speed = attrs.get("speed") or attrs.get("motor_speed")
@@ -234,6 +239,8 @@ class CurtainEntity(BaseEntity):
             features.append("signal_strength")
         if self._open_rate is not None:
             features.append("open_rate")
+        if self._tilt_position is not None:
+            features.append("light_transmission_percentage")
         return features
 
     def create_allowed_values_list(self) -> dict[str, dict]:
@@ -311,5 +318,9 @@ class CurtainEntity(BaseEntity):
             )
         if self._open_rate is not None:
             states.append(make_state(SberFeature.OPEN_RATE, make_enum_value(self._open_rate)))
+        if self._tilt_position is not None:
+            states.append(
+                make_state(SberFeature.LIGHT_TRANSMISSION_PERCENTAGE, make_integer_value(self._tilt_position))
+            )
 
         return {self.entity_id: {"states": states}}
