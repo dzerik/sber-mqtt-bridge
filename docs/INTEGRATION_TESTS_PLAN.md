@@ -200,15 +200,202 @@ light.a changes → light.b changes (same moment)
 
 ---
 
+## Device-Specific Integration Scenarios (11-25)
+
+### Fixtures
+
+```python
+@pytest.fixture
+async def bridge_with_climate(hass, service_calls):
+    """Bridge с climate entity (hvac_ac)."""
+    hass.states.async_set("climate.ac", "cool", {
+        "hvac_modes": ["off", "cool", "heat", "dry", "fan_only", "auto"],
+        "fan_modes": ["auto", "low", "medium", "high"],
+        "swing_modes": ["off", "vertical", "horizontal"],
+        "preset_modes": ["sleep", "boost"],
+        "current_temperature": 24.5,
+        "temperature": 22,
+        "fan_mode": "auto",
+        "swing_mode": "off",
+    })
+    # ...yield bridge, mqtt_client, service_calls
+
+@pytest.fixture
+async def bridge_with_curtain(hass, service_calls):
+    """Bridge с cover entity."""
+    hass.states.async_set("cover.curtain", "open", {
+        "current_position": 75,
+    })
+    # ...
+
+@pytest.fixture
+async def bridge_with_vacuum(hass, service_calls):
+    """Bridge с vacuum entity."""
+    hass.states.async_set("vacuum.robo", "docked", {
+        "fan_speed": "standard",
+        "fan_speed_list": ["quiet", "standard", "turbo"],
+        "battery_level": 85,
+    })
+    # ...
+```
+
+### 11. Climate: hvac_mode Change Cascade
+```
+Sber: hvac_work_mode=cooling → bridge: climate.set_hvac_mode(cool)
+→ HA: state changes to "cool" + fan_mode resets to "auto"
+→ bridge: publish hvac_work_mode=cooling + hvac_air_flow_power=auto
+```
+Проверяем: service call с `hvac_mode`, state publish с обоими features.
+
+### 12. Climate: Temperature + Mode в одной команде
+```
+Sber: [hvac_temp_set=25, hvac_work_mode=heating] (одно сообщение)
+→ bridge: set_temperature(25) + set_hvac_mode(heat)
+→ HA: state=heat, temperature=25
+→ publish: оба значения
+```
+Проверяем: два service calls, publish содержит оба.
+
+### 13. Climate: Night Mode Toggle
+```
+Sber: hvac_night_mode=true → bridge: set_preset_mode("sleep")
+→ HA: preset_mode=sleep → publish: hvac_night_mode=true + hvac_work_mode=quiet
+Sber: hvac_night_mode=false → bridge: set_preset_mode(first non-night)
+→ HA: preset_mode=none → publish: hvac_night_mode=false
+```
+Проверяем: preset_mode переключается, work_mode меняется.
+
+### 14. Humidifier: Mode + Humidity в одной команде
+```
+Sber: [hvac_humidity_set=60, hvac_air_flow_power=medium]
+→ bridge: set_humidity(60) + set_mode(medium)
+→ publish: оба значения
+```
+Проверяем: два service calls, оба в publish.
+
+### 15. Curtain: Position 0→50→100 + open_state Consistency
+```
+Sber: open_percentage=50 → bridge: set_cover_position(50)
+→ HA: position=50, state=open → publish: open_percentage="50", open_state="open"
+Sber: open_percentage=0 → bridge: set_cover_position(0)
+→ HA: position=0, state=closed → publish: open_percentage="0", open_state="close"
+```
+Проверяем: open_state **всегда** консистентен с percentage (pos>0→open, pos=0→close).
+
+### 16. Curtain: Open/Close/Stop Commands
+```
+Sber: open_set=open → bridge: open_cover
+Sber: open_set=stop → bridge: stop_cover
+Sber: open_set=close → bridge: close_cover
+```
+Проверяем: правильные service calls для каждого enum.
+
+### 17. TV: Volume + Mute + Source Cascade
+```
+Sber: [volume_int=30, mute=false, source="HDMI"] (одно сообщение)
+→ bridge: volume_set(0.3) + volume_mute(false) + select_source("HDMI")
+→ publish: все три значения
+```
+Проверяем: три service calls, volume конвертирован (30→0.3).
+
+### 18. TV: Channel Int + Direction
+```
+Sber: channel_int=5 → bridge: play_media(channel, "5")
+Sber: direction=ok → bridge: media_play_pause
+Sber: channel="+" → bridge: media_next_track
+```
+Проверяем: правильные service calls.
+
+### 19. Vacuum: Full Lifecycle
+```
+Sber: vacuum_cleaner_command=start → bridge: vacuum.start
+→ HA: state=cleaning → publish: status=cleaning
+Sber: vacuum_cleaner_command=return_to_base → bridge: vacuum.return_to_base
+→ HA: state=returning → publish: status=go_home
+→ HA: state=docked → publish: status=standby
+```
+Проверяем: полный цикл с правильными Sber enum на каждом шаге.
+
+### 20. Fan: Simple Relay (no speed)
+```
+Sber: on_off=true → bridge: fan.turn_on
+→ publish: on_off=true (NO hvac_air_flow_power!)
+Sber: hvac_air_flow_power=high → bridge: IGNORED (no speed support)
+→ publish: on_off only
+```
+Проверяем: простой fan без speed не крашится на speed command.
+
+### 21. Sensor: Linked Data Propagation
+```
+Parent: sensor_temp (temperature) linked with battery + humidity
+→ battery sensor changes → parent re-reads battery
+→ publish: temperature + battery_percentage + humidity
+```
+Проверяем: linked data обновляется и публикуется вместе с parent.
+
+### 22. Valve: Open/Close + Battery Linked
+```
+Sber: open_set=open → bridge: valve.open_valve
+→ HA: state=open → publish: open_state="open"
+Battery linked sensor changes: 85→20
+→ publish: open_state + battery_percentage="20" + battery_low_power=false
+Battery linked: 20→15
+→ publish: battery_low_power=true (threshold < 20%)
+```
+Проверяем: valve state + linked battery с порогом.
+
+### 23. PIR: Event-Based (No Idle State)
+```
+HA: binary_sensor off→on → publish: pir="pir"
+HA: binary_sensor on→off → publish: online=true (NO pir key!)
+```
+Проверяем: pir ключ **отсутствует** при state=off.
+
+### 24. Redefinitions: Edit → Re-publish
+```
+User: update_redefinitions(entity, name="Новое имя", room="Спальня")
+→ bridge: persist + re-publish config
+→ Config JSON: name="Новое имя", room="Спальня"
+```
+Проверяем: redefinitions в config payload.
+
+### 25. Multiple Entities Same Device (Temp + Humidity)
+```
+Device has: sensor.temp (primary, sensor_temp) + sensor.humidity (linked)
+→ humidity changes → parent sensor.temp re-reads
+→ publish: temperature + humidity обновлённые
+Temperature changes → publish: temperature новая + humidity текущая
+```
+Проверяем: linked entities обновляются при изменении любого sibling.
+
+---
+
 ## Порядок реализации
 
-1. **Fixtures**: `bridge_with_light`, helpers
+### Этап 1 — Инфраструктура и базовые сценарии
+1. **Fixtures**: `bridge_with_light`, `bridge_with_climate`, `bridge_with_curtain`, `bridge_with_vacuum`, helpers
 2. **Сценарии 1, 8**: базовый command→state→publish (самые простые)
 3. **Сценарии 2, 4**: delayed confirm + RGB (баг из реальной жизни)
-4. **Сценарии 3, 5**: async device, debounce (timing-sensitive)
-5. **Сценарий 7**: reconnect guard
-6. **Сценарии 6, 10**: rapid commands, concurrent (edge cases)
-7. **Сценарий 9**: config rejection
+
+### Этап 2 — Device-specific: Climate, Humidifier
+4. **Сценарии 11, 12, 13**: climate mode cascade, multi-command, night mode
+5. **Сценарий 14**: humidifier mode + humidity
+
+### Этап 3 — Device-specific: Cover, TV, Vacuum
+6. **Сценарии 15, 16**: curtain position + open_state consistency
+7. **Сценарии 17, 18**: TV volume cascade + channel/direction
+8. **Сценарий 19**: vacuum full lifecycle
+
+### Этап 4 — Device-specific: Sensors, Valve, Fan
+9. **Сценарии 20, 21, 22**: fan simple relay, sensor linked data, valve + battery
+10. **Сценарий 23**: PIR event-based (no idle state)
+
+### Этап 5 — Edge cases и redefinitions
+11. **Сценарии 3, 5**: async device, debounce
+12. **Сценарий 7**: reconnect guard
+13. **Сценарии 6, 10**: rapid commands, concurrent
+14. **Сценарий 9**: config rejection
+15. **Сценарии 24, 25**: redefinitions, multiple entities same device
 
 ## Зависимости
 
