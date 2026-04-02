@@ -5,7 +5,8 @@
  * with search, domain grouping and multi-select.
  */
 
-import { filterEntities } from "../utils.js?v=1.6.2";
+const _v = new URL(import.meta.url).searchParams.get("v") || "";
+const { filterEntities } = await import(`../utils.js${_v ? `?v=${_v}` : ""}`);
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")

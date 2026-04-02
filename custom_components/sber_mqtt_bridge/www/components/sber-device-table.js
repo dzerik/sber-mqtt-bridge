@@ -5,8 +5,12 @@
  * inline delete and category override controls.
  */
 
-import "./sber-entity-row.js?v=1.6.2";
-import "./sber-detail-dialog.js?v=1.10.3";
+const _v = new URL(import.meta.url).searchParams.get("v") || "";
+const _q = _v ? `?v=${_v}` : "";
+await Promise.all([
+  import(`./sber-entity-row.js${_q}`),
+  import(`./sber-detail-dialog.js${_q}`),
+]);
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")

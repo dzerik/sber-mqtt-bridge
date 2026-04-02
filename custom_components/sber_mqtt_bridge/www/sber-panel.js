@@ -8,16 +8,22 @@
  * No build step required.
  */
 
-import "./components/sber-device-table.js";
-import "./components/sber-status-card.js";
-import "./components/sber-stats-grid.js";
-import "./components/sber-add-dialog.js";
-import "./components/sber-toolbar.js";
-import "./components/sber-wizard.js";
-import "./components/sber-toast.js";
-import "./components/sber-devtools.js";
-import "./components/sber-settings.js";
-import "./components/sber-link-dialog.js";
+// Cache-busting: extract version from own URL (?v=X.Y.Z) and propagate
+// to sub-component imports so browser fetches fresh copies on upgrade.
+const _v = new URL(import.meta.url).searchParams.get("v") || "";
+const _q = _v ? `?v=${_v}` : "";
+await Promise.all([
+  import(`./components/sber-device-table.js${_q}`),
+  import(`./components/sber-status-card.js${_q}`),
+  import(`./components/sber-stats-grid.js${_q}`),
+  import(`./components/sber-add-dialog.js${_q}`),
+  import(`./components/sber-toolbar.js${_q}`),
+  import(`./components/sber-wizard.js${_q}`),
+  import(`./components/sber-toast.js${_q}`),
+  import(`./components/sber-devtools.js${_q}`),
+  import(`./components/sber-settings.js${_q}`),
+  import(`./components/sber-link-dialog.js${_q}`),
+]);
 
 const LitElement = Object.getPrototypeOf(
   customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
