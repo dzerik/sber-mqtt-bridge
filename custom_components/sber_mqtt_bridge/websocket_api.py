@@ -199,6 +199,7 @@ async def ws_get_status(
         msg["id"],
         {
             "connected": bridge.is_connected,
+            "phase": bridge.connection_phase,
             "stats": bridge.stats,
             "entities_count": bridge.entities_count,
             "unacknowledged": bridge.unacknowledged_entities,

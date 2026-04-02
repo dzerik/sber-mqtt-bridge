@@ -216,6 +216,27 @@ class SberBridge:
         return self._connected
 
     @property
+    def connection_phase(self) -> str:
+        """Return the current connection lifecycle phase.
+
+        Phases:
+            ``starting`` — HA not fully loaded, waiting for integrations.
+            ``connecting`` — MQTT connection in progress.
+            ``awaiting_ack`` — connected, published config, waiting for Sber to acknowledge.
+            ``ready`` — fully operational, accepting commands.
+            ``disconnected`` — not connected to MQTT broker.
+        """
+        if not self._running:
+            return "disconnected"
+        if not self._ha_ready.is_set():
+            return "starting"
+        if not self._connected:
+            return "connecting"
+        if self._awaiting_sber_ack:
+            return "awaiting_ack"
+        return "ready"
+
+    @property
     def entities_count(self) -> int:
         """Return the number of loaded Sber entities."""
         return len(self._entities)

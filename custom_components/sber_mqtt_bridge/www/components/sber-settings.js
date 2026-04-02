@@ -171,7 +171,9 @@ class SberSettings extends LitElement {
       .toggle {
         position: relative;
         width: 44px;
+        min-width: 44px;
         height: 24px;
+        flex-shrink: 0;
       }
       .toggle input {
         opacity: 0;
@@ -234,6 +236,8 @@ class SberSettings extends LitElement {
         font-size: 14px;
         color: var(--secondary-text-color);
         font-weight: 500;
+        text-align: right;
+        white-space: nowrap;
       }
       .loading {
         text-align: center;

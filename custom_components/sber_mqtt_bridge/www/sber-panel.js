@@ -563,7 +563,7 @@ class SberMqttPanel extends LitElement {
     return html`
       <div class="card">
         <h2>Connection</h2>
-        <sber-status-card .connected=${connected}></sber-status-card>
+        <sber-status-card .connected=${connected} .phase=${s?.phase || "disconnected"}></sber-status-card>
       </div>
 
       <div class="card">
