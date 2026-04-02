@@ -17,6 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bridge**: Delayed state confirmation (1.5s) after Sber commands — ensures colour mode published back to Sber
 - **DevTools**: Copy payload button in MQTT Message Log
 
+## [1.22.0] - 2026-04-02
+
+### Fixed
+- **Light RGB**: `hs_color` tuple support — HA returns tuples, not lists (broke colour mode)
+- **Light**: `color_temp` → `color_temp_kelvin` for HA 2025+
+- **Light**: Min brightness=1 on colour command prevents accidental turn-off
+- **Light**: Dependencies `"value"` → `"values"` per Sber protobuf
+- **Vacuum**: Status enums: `returning`→`go_home`, `docked`→`standby`, `paused`→`standby` (per Sber docs)
+- **TV**: Direction `left`/`right`/`ok` now handled (→ prev_track/next_track/play_pause)
+- **Protocol**: `hw_version`/`sw_version` fallback `"Unknown"` → `"1"`
+
+### Added
+- **Bridge**: Delayed 1.5s state confirmation after Sber commands (fixes async ESPHome)
+- **DevTools**: Copy payload button in MQTT Message Log
+- **Tests**: 553 Sber C2C compliance tests (structure + enum values for all 15+ device classes)
+
 ## [1.20.1] - 2026-04-02
 
 ### Fixed
