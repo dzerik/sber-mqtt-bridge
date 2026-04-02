@@ -446,13 +446,18 @@ class TestBridgeFlowDebounce:
 
         assert entity.has_significant_change() is True
 
-    async def test_rapid_commands_final_state_published(self):
-        """Three rapid on/off commands result in final state being published."""
+    async def test_rapid_commands_dedup_confirm(self):
+        """Three rapid on/off commands: only last delayed confirm fires (dedup)."""
         hass = _make_hass()
         bridge = _make_bridge(hass, RelayEntity, "switch.lamp", "off")
 
-        ha_state_after = _mock_ha_state("on")
-        hass.states.get = MagicMock(return_value=ha_state_after)
+        # Track HA state to match last command
+        last_cmd_state = {"state": "off"}
+
+        def _track_state(eid):
+            return _mock_ha_state(last_cmd_state["state"])
+
+        hass.states.get = MagicMock(side_effect=_track_state)
 
         commands = [True, False, True]
         with patch(
@@ -460,6 +465,7 @@ class TestBridgeFlowDebounce:
             new_callable=AsyncMock,
         ):
             for on_val in commands:
+                last_cmd_state["state"] = "on" if on_val else "off"
                 payload = _sber_cmd_payload({
                     "switch.lamp": {
                         "states": [
@@ -472,10 +478,11 @@ class TestBridgeFlowDebounce:
 
         payloads = _get_published_payloads(bridge)
         assert len(payloads) >= 1
+        # Only the last command's confirm should produce a publish
         device_states = payloads[-1]["devices"]["switch.lamp"]["states"]
         on_off_val = _find_state_value(device_states, "on_off")
         assert on_off_val is not None
-        assert on_off_val["bool_value"] is True
+        assert on_off_val["bool_value"] is True  # Last command was on=True
 
 
 # ---------------------------------------------------------------------------

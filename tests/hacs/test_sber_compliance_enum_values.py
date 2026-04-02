@@ -186,21 +186,15 @@ class TestVacuumCleanerStatus:
     """Verify _HA_STATE_TO_SBER_STATUS maps to documented Sber values."""
 
     def test_all_mapped_values_are_documented(self):
-        """Every Sber status value must be in the documented set.
-
-        NOTE: The current mapping uses 'returning' and 'docked' which are NOT
-        in the Sber docs ('go_home' and 'standby' expected). This test documents
-        this discrepancy -- it will fail until the mapping is corrected.
-        """
+        """Every Sber status value must be in the documented set."""
         non_compliant = {}
         for ha_state, sber_status in _HA_STATE_TO_SBER_STATUS.items():
             if sber_status not in SBER_VACUUM_CLEANER_STATUS:
                 non_compliant[ha_state] = sber_status
-        if non_compliant:
-            pytest.skip(
-                f"COMPLIANCE GAP: These HA states map to non-documented Sber values: "
-                f"{non_compliant}. Documented values: {SBER_VACUUM_CLEANER_STATUS}"
-            )
+        assert not non_compliant, (
+            f"Non-compliant HA→Sber status mappings: {non_compliant}. "
+            f"Documented values: {SBER_VACUUM_CLEANER_STATUS}"
+        )
 
     def test_cleaning_status_is_documented(self):
         """'cleaning' is a valid Sber vacuum_cleaner_status."""
@@ -212,30 +206,16 @@ class TestVacuumCleanerStatus:
         assert _HA_STATE_TO_SBER_STATUS["error"] == "error"
         assert "error" in SBER_VACUUM_CLEANER_STATUS
 
-    def test_returning_maps_to_non_documented_value(self):
-        """HA 'returning' maps to 'returning' -- Sber docs expect 'go_home'.
-
-        This is a known compliance gap.
-        """
+    def test_returning_maps_to_go_home(self):
+        """HA 'returning' must map to Sber 'go_home'."""
         sber_val = _HA_STATE_TO_SBER_STATUS.get("returning")
-        if sber_val and sber_val not in SBER_VACUUM_CLEANER_STATUS:
-            pytest.skip(
-                f"COMPLIANCE GAP: HA 'returning' -> '{sber_val}', "
-                f"Sber docs expect 'go_home'"
-            )
+        assert sber_val == "go_home"
         assert sber_val in SBER_VACUUM_CLEANER_STATUS
 
-    def test_docked_maps_to_non_documented_value(self):
-        """HA 'docked'/'idle' maps to 'docked' -- Sber docs expect 'standby'.
-
-        This is a known compliance gap.
-        """
+    def test_docked_maps_to_standby(self):
+        """HA 'docked' must map to Sber 'standby'."""
         sber_val = _HA_STATE_TO_SBER_STATUS.get("docked")
-        if sber_val and sber_val not in SBER_VACUUM_CLEANER_STATUS:
-            pytest.skip(
-                f"COMPLIANCE GAP: HA 'docked' -> '{sber_val}', "
-                f"Sber docs expect 'standby'"
-            )
+        assert sber_val == "standby"
         assert sber_val in SBER_VACUUM_CLEANER_STATUS
 
     def test_entity_produces_status_in_state(self):
@@ -314,51 +294,27 @@ class TestTvDirection:
                 "Sber docs define it but no HA service mapping exists."
             )
 
-    def test_right_direction_not_handled(self):
-        """Sber direction='right' is NOT handled -- compliance gap.
-
-        Sber docs include 'right' in direction values, but the current
-        implementation only maps 'up' and 'down'.
-        """
+    def test_right_direction_handled(self):
+        """Sber direction='right' must produce a service call."""
         entity_id = "media_player.tv"
         entity = TvEntity(_make_entity_data(entity_id))
         result = entity.process_cmd(self._build_direction_cmd("right"))
-        if not result:
-            pytest.skip(
-                "COMPLIANCE GAP: direction='right' not handled. "
-                "Sber docs define it but no HA service mapping exists."
-            )
+        assert result, "direction='right' must be handled"
 
-    def test_ok_direction_not_handled(self):
-        """Sber direction='ok' is NOT handled -- compliance gap.
-
-        Sber docs include 'ok' in direction values, but the current
-        implementation only maps 'up' and 'down'.
-        """
+    def test_ok_direction_handled(self):
+        """Sber direction='ok' must produce a service call."""
         entity_id = "media_player.tv"
         entity = TvEntity(_make_entity_data(entity_id))
         result = entity.process_cmd(self._build_direction_cmd("ok"))
-        if not result:
-            pytest.skip(
-                "COMPLIANCE GAP: direction='ok' not handled. "
-                "Sber docs define it but no HA service mapping exists."
-            )
+        assert result, "direction='ok' must be handled"
 
-    def test_handled_directions_count(self):
-        """Document how many of the 5 Sber direction values are handled."""
+    def test_all_directions_handled(self):
+        """All 5 Sber direction values must be handled."""
         entity_id = "media_player.tv"
         entity = TvEntity(_make_entity_data(entity_id))
-        handled = []
         for d in SBER_DIRECTION:
             result = entity.process_cmd(self._build_direction_cmd(d))
-            if result:
-                handled.append(d)
-        not_handled = SBER_DIRECTION - set(handled)
-        if not_handled:
-            pytest.skip(
-                f"COMPLIANCE GAP: {len(handled)}/5 directions handled. "
-                f"Not handled: {not_handled}"
-            )
+            assert result, f"direction='{d}' must be handled"
 
 
 # ===========================================================================
@@ -443,39 +399,44 @@ class TestSensorSensitive:
             "state": "off",
             "attributes": {"sensitivity": sensitivity_input},
         })
-        assert entity._sensor_sensitive == expected_sber
+        states = _get_states(entity, entity_id)
+        actual = _get_enum_value(states, "sensor_sensitive")
+        assert actual == expected_sber
         assert expected_sber in SBER_SENSOR_SENSITIVE
 
     @pytest.mark.parametrize("invalid_value", ["very_high", "super_low", "123", "none", ""])
-    def test_invalid_sensitivity_produces_none(self, invalid_value: str):
-        """Invalid sensitivity values should produce None (feature not included)."""
+    def test_invalid_sensitivity_not_in_state(self, invalid_value: str):
+        """Invalid sensitivity values must not produce sensor_sensitive in state."""
         entity_id = "binary_sensor.motion"
         entity = MotionSensorEntity(_make_entity_data(entity_id))
         entity.fill_by_ha_state({
             "state": "off",
             "attributes": {"sensitivity": invalid_value},
         })
-        assert entity._sensor_sensitive is None
+        states = _get_states(entity, entity_id)
+        assert _get_enum_value(states, "sensor_sensitive") is None
 
-    def test_no_sensitivity_attribute(self):
-        """Missing sensitivity attribute produces None."""
+    def test_no_sensitivity_attribute_not_in_state(self):
+        """Missing sensitivity attribute must not produce sensor_sensitive in state."""
         entity_id = "binary_sensor.motion"
         entity = MotionSensorEntity(_make_entity_data(entity_id))
         entity.fill_by_ha_state({
             "state": "off",
             "attributes": {},
         })
-        assert entity._sensor_sensitive is None
+        states = _get_states(entity, entity_id)
+        assert _get_enum_value(states, "sensor_sensitive") is None
 
     def test_motion_sensitivity_attribute_also_works(self):
-        """The 'motion_sensitivity' attribute is also read."""
+        """The 'motion_sensitivity' HA attribute is also recognized."""
         entity_id = "binary_sensor.motion"
         entity = MotionSensorEntity(_make_entity_data(entity_id))
         entity.fill_by_ha_state({
             "state": "off",
             "attributes": {"motion_sensitivity": "high"},
         })
-        assert entity._sensor_sensitive == "high"
+        states = _get_states(entity, entity_id)
+        assert _get_enum_value(states, "sensor_sensitive") == "high"
 
     def test_all_produced_values_are_documented(self):
         """Sweep known inputs and verify only documented values are produced."""

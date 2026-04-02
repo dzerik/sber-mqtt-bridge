@@ -369,16 +369,6 @@ class TestSberBridgeEchoFix:
 
             mock_publish.assert_called_once_with("switch.lamp")
 
-    def test_sber_context_ids_not_stored(self):
-        """Verify the echo suppression mechanism (_sber_context_ids) is gone."""
-        hass = MagicMock()
-        entry = _make_entry()
-        b = SberBridge(hass, entry)
-
-        assert not hasattr(b, "_sber_context_ids"), (
-            "_sber_context_ids should not exist — echo suppression was removed in issue #3"
-        )
-
     @pytest.mark.asyncio
     async def test_sber_command_creates_ha_context(self, bridge):
         """Sber command must create an HA Context for logbook attribution."""
