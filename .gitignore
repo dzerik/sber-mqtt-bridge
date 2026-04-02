@@ -38,6 +38,10 @@ mqtt_sber_gate/
 .playwright-mcp
 
 # Internal docs (not published)
+docs/ROADMAP.md
+docs/INTEGRATION_TESTS_PLAN.md
+docs/ENTITY_REGISTRY.md
 docs/ENTITY_LINKING_PLAN.md
+docs/AUDIT_REPORT.md
 docs/audit/
 /build/
