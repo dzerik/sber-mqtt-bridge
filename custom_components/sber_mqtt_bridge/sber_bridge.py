@@ -993,9 +993,38 @@ class SberBridge:
                 except (TimeoutError, KeyError, ValueError, AttributeError) as err:
                     _LOGGER.warning("Error calling HA service for %s: %s", entity_id, err)
 
+        # Collect all entity IDs that received commands
+        commanded_ids = [eid for eid in devices if eid in self._entities]
+
         # Batch publish state updates (e.g. light_mode) in a single call
         if update_state_ids:
-            await self._publish_states(update_state_ids)
+            await self._publish_states(update_state_ids, force=True)
+
+        # Schedule a delayed force-publish for all commanded entities.
+        # Sber expects state confirmation after every command. The normal
+        # state_changed → publish flow may miss changes when HA attributes
+        # update asynchronously (e.g. ESPHome) or when the state itself
+        # doesn't change (e.g. color change while already 'on').
+        if commanded_ids:
+            async def _delayed_confirm() -> None:
+                try:
+                    await asyncio.sleep(1.5)
+                    for eid in commanded_ids:
+                        entity = self._entities.get(eid)
+                        if entity:
+                            ha_state = self._hass.states.get(eid)
+                            if ha_state:
+                                entity.fill_by_ha_state({
+                                    "entity_id": eid,
+                                    "state": ha_state.state,
+                                    "attributes": dict(ha_state.attributes),
+                                })
+                    _LOGGER.debug("Delayed state confirm for %s", commanded_ids)
+                    await self._publish_states(commanded_ids, force=True)
+                except Exception:
+                    _LOGGER.exception("Delayed state confirm failed")
+
+            self._create_safe_task(_delayed_confirm(), name="sber_cmd_confirm")
 
     async def _handle_sber_status_request(self, payload: bytes) -> None:
         """Handle status request from Sber cloud.

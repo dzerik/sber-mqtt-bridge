@@ -197,7 +197,7 @@ class LightEntity(BaseEntity):
             )
 
         if self.current_state:
-            if self._is_current_color_mode_colored() and isinstance(self.hs_color, list) and len(self.hs_color) >= 2:
+            if self._is_current_color_mode_colored() and isinstance(self.hs_color, (list, tuple)) and len(self.hs_color) >= 2:
                 current_color_sber = ColorConverter.ha_to_sber_hsv(
                     self.hs_color[0], self.hs_color[1], self.current_sber_brightness
                 )
@@ -289,6 +289,8 @@ class LightEntity(BaseEntity):
                 else:
                     color = (0, 0, 0)
 
+                # Ensure brightness >= 1 to avoid turning off the lamp
+                brightness = max(color[2], 1)
                 processing_result.append(
                     {
                         "url": {
@@ -297,7 +299,7 @@ class LightEntity(BaseEntity):
                             "service": "turn_on",
                             "service_data": {
                                 "hs_color": [color[0], color[1]],
-                                "brightness": color[2],
+                                "brightness": brightness,
                             },
                             "target": {"entity_id": self.entity_id},
                         }
@@ -315,7 +317,7 @@ class LightEntity(BaseEntity):
                 mode_value = cmd_value.get("enum_value")
                 if mode_value == "colour":
                     # Force HA into color mode by sending current hs_color
-                    if isinstance(self.hs_color, list) and len(self.hs_color) >= 2:
+                    if isinstance(self.hs_color, (list, tuple)) and len(self.hs_color) >= 2:
                         processing_result.append(
                             {
                                 "url": {

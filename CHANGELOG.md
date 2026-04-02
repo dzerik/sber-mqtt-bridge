@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-04-02
+
+### Fixed
+- **Light RGB**: `hs_color` tuple support — HA returns tuple not list, broke colour mode detection for all RGB lights
+- **Light**: `color_temp` → `color_temp_kelvin` for HA 2025+ (deprecated mireds in service_data)
+- **Light**: Minimum brightness=1 on color command to prevent accidental turn-off
+- **Light**: Dependencies field `"value"` → `"values"` per Sber protobuf spec (fixed ESPHome lamp rejection)
+- **Bridge**: Delayed state confirmation (1.5s) after Sber commands — ensures colour mode published back to Sber
+- **DevTools**: Copy payload button in MQTT Message Log
+
 ## [1.20.1] - 2026-04-02
 
 ### Fixed
