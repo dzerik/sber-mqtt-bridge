@@ -84,6 +84,7 @@ class SimpleReadOnlySensor(BaseEntity):
         self._battery_level: int | None = None
         self._battery_low_linked: bool | None = None
         self._signal_strength_raw: int | None = None
+        self._sensor_sensitive: str | None = None
         self._linked_entities: dict[str, str] = {}
         """Linked entity IDs by role: {role: entity_id}."""
 
@@ -136,6 +137,18 @@ class SimpleReadOnlySensor(BaseEntity):
         else:
             self._signal_strength_raw = None
 
+        # Sensor sensitivity (Aqara, Tuya, some Zigbee devices)
+        sensitivity = attrs.get("sensitivity") or attrs.get("motion_sensitivity")
+        if sensitivity is not None:
+            s = str(sensitivity).lower()
+            if s in ("auto", "high", "low", "medium"):
+                # Sber only accepts auto/high, map medium→auto, low→low
+                self._sensor_sensitive = {"medium": "auto", "low": "low"}.get(s, s)
+            else:
+                self._sensor_sensitive = None
+        else:
+            self._sensor_sensitive = None
+
     def _build_sber_value_dict(self) -> dict:
         """Build the Sber value dict for the sensor's feature.
 
@@ -165,6 +178,8 @@ class SimpleReadOnlySensor(BaseEntity):
             features.append("battery_low_power")
         if self._signal_strength_raw is not None:
             features.append("signal_strength")
+        if self._sensor_sensitive is not None:
+            features.append("sensor_sensitive")
         return features
 
     def to_sber_current_state(self) -> dict[str, dict]:
@@ -190,6 +205,10 @@ class SimpleReadOnlySensor(BaseEntity):
                 make_state(
                     SberFeature.SIGNAL_STRENGTH, make_enum_value(rssi_to_signal_strength(self._signal_strength_raw))
                 )
+            )
+        if self._sensor_sensitive is not None:
+            states.append(
+                make_state(SberFeature.SENSOR_SENSITIVE, make_enum_value(self._sensor_sensitive))
             )
         return {self.entity_id: {"states": states}}
 

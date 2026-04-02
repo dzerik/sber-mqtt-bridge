@@ -59,6 +59,7 @@ class HumidifierEntity(BaseEntity):
         self._max_humidity: int = 85
         self._water_level: int | None = None
         self._water_low_level: bool | None = None
+        self._child_lock: bool | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update all humidifier attributes.
@@ -87,6 +88,8 @@ class HumidifierEntity(BaseEntity):
             self._water_low_level = bool(water_low)
         else:
             self._water_low_level = None
+        child_lock = attrs.get("child_lock")
+        self._child_lock = bool(child_lock) if child_lock is not None else None
 
     def update_linked_data(self, role: str, ha_state: dict) -> None:
         """Inject current humidity from a linked sensor entity.
@@ -123,6 +126,8 @@ class HumidifierEntity(BaseEntity):
             features.append("hvac_water_percentage")
         if self._water_low_level is not None:
             features.append("hvac_water_low_level")
+        if self._child_lock is not None:
+            features.append("child_lock")
         return features
 
     @property
@@ -195,6 +200,8 @@ class HumidifierEntity(BaseEntity):
             states.append(
                 make_state(SberFeature.HVAC_WATER_LOW_LEVEL, make_bool_value(self._water_low_level))
             )
+        if self._child_lock is not None:
+            states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:

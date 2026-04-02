@@ -153,6 +153,7 @@ class ClimateEntity(BaseEntity):
         self._target_humidity: int | None = None
         self._preset_mode: str | None = None
         self._preset_modes: list[str] = []
+        self._child_lock: bool | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update all climate attributes.
@@ -186,6 +187,8 @@ class ClimateEntity(BaseEntity):
             self._target_humidity = None
         self._preset_mode = attrs.get("preset_mode")
         self._preset_modes = attrs.get("preset_modes", [])
+        child_lock = attrs.get("child_lock")
+        self._child_lock = bool(child_lock) if child_lock is not None else None
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list based on available climate capabilities.
@@ -209,6 +212,8 @@ class ClimateEntity(BaseEntity):
             features.append("hvac_humidity_set")
         if self._has_night_mode:
             features.append("hvac_night_mode")
+        if self._child_lock is not None:
+            features.append("child_lock")
         return features
 
     @property
@@ -319,6 +324,8 @@ class ClimateEntity(BaseEntity):
         if self._has_night_mode:
             is_night = self._preset_mode in ("sleep", "night")
             states.append(make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(is_night)))
+        if self._child_lock is not None:
+            states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:

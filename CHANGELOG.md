@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-04-02
+
+### Added
+- **Sensors**: `sensor_sensitive` for all sensor types — reads sensitivity/motion_sensitivity from HA attributes (ENUM: auto/high/low)
+- **Climate**: `child_lock` support from HA attributes
+- **Humidifier**: `child_lock` support from HA attributes
+
+### Deferred
+- `sleep_timer` for light/tv — requires async scheduling architecture in bridge (separate PR)
+
 ## [1.18.1] - 2026-04-02
 
 ### Added
