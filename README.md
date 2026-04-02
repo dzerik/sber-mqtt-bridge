@@ -3,7 +3,7 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 [![GitHub Release](https://img.shields.io/github/v/release/dzerik/sber-mqtt-bridge)](https://github.com/dzerik/sber-mqtt-bridge/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
-[![Tests](https://img.shields.io/badge/tests-517+-brightgreen)](tests/hacs/)
+[![Tests](https://img.shields.io/badge/tests-1470+-brightgreen)](tests/hacs/)
 [![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions)
 
 **[English documentation](README_ENG.md)** | **[Документация (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)**
@@ -64,7 +64,7 @@ flowchart LR
 - SSL сертификат (настраивается)
 - Переводы: английский и русский
 - CI/CD: ruff, pytest, HACS validation, hassfest
-- **517+ тестов**
+- **1470+ тестов**
 
 ## Ключевые фичи v1.10
 
@@ -133,6 +133,12 @@ flowchart LR
 | `media_player` | tv | Телевизор | -- |
 | `vacuum` | vacuum_cleaner | Робот-пылесос | -- |
 | -- (только через override) | intercom | Домофон | -- |
+
+> [!IMPORTANT]
+> **Протестировано на реальном оборудовании: 12 из 28 категорий** (light, climate, curtain, valve, fan, sensor_pir, sensor_temp, sensor_water_leak, humidifier, tv, scenario_button, hub).
+> 16 категорий ещё не проверены на физических устройствах -- нужна помощь сообщества!
+>
+> **[Полный статус тестирования устройств](https://dzerik.github.io/sber-mqtt-bridge/devices/#статус-тестирования-на-реальном-оборудовании)**
 
 ## Подготовка -- Настройка Sber Studio
 
