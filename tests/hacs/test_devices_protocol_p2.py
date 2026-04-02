@@ -241,14 +241,12 @@ class TestScenarioButtonAllowedValues(unittest.TestCase):
         self.assertEqual(av["button_event"]["type"], "ENUM")
         self.assertIn("click", av["button_event"]["enum_values"]["values"])
         self.assertIn("double_click", av["button_event"]["enum_values"]["values"])
-        self.assertIn("long_press", av["button_event"]["enum_values"]["values"])
-
-    def test_button_event_three_values(self):
+    def test_button_event_two_values(self):
         entity = ScenarioButtonEntity(BUTTON_DATA)
         entity.fill_by_ha_state(_button_state())
         result = entity.to_sber_state()
         av = result["model"]["allowed_values"]
-        self.assertEqual(len(av["button_event"]["enum_values"]["values"]), 3)
+        self.assertEqual(len(av["button_event"]["enum_values"]["values"]), 2)
 
 
 # === Task 13: nicknames ===

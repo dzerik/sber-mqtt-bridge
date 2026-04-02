@@ -125,7 +125,7 @@ classDiagram
         "dependencies": {
             "light_colour": {
                 "key": "light_mode",
-                "value": [{"type": "ENUM", "enum_value": "colour"}]
+                "values": [{"type": "ENUM", "enum_value": "colour"}]
             }
         },
         "allowed_values": {
@@ -328,7 +328,7 @@ classDiagram
     "dependencies": {
         "<dependent_feature>": {
             "key": "<controlling_feature>",
-            "value": [
+            "values": [
                 {
                     "type": "<VALUE_TYPE>",
                     "<type>_value": "<value>"
@@ -348,7 +348,7 @@ classDiagram
     "dependencies": {
         "light_colour": {
             "key": "light_mode",
-            "value": [{"type": "ENUM", "enum_value": "colour"}]
+            "values": [{"type": "ENUM", "enum_value": "colour"}]
         }
     }
 }

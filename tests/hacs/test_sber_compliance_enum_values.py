@@ -58,8 +58,8 @@ SBER_SIGNAL_STRENGTH = {"low", "medium", "high"}
 SBER_SENSOR_SENSITIVE = {"auto", "high", "low"}
 """Sber docs: sensor_sensitive allowed values."""
 
-SBER_BUTTON_EVENT = {"click", "double_click", "long_press"}
-"""Sber docs: button_event allowed values."""
+SBER_BUTTON_EVENT = {"click", "double_click"}
+"""Sber docs: button_event allowed values (HA input_boolean can only produce click/double_click)."""
 
 SBER_TEMP_UNIT_VIEW = {"c", "f"}
 """Sber docs: temp_unit_view allowed values."""
@@ -550,23 +550,14 @@ class TestButtonEvent:
             f"Undocumented button_event values: {undocumented}"
         )
 
-    def test_long_press_not_produced_but_allowed(self):
-        """'long_press' is in allowed_values but never produced by current logic.
-
-        This documents a potential gap where Sber may send 'long_press' events
-        but the entity only produces 'click' and 'double_click'.
-        """
+    def test_long_press_not_in_allowed_values(self):
+        """'long_press' must NOT be in allowed_values — HA input_boolean cannot produce it."""
         entity_id = "input_boolean.test"
-        produced = set()
-        for state in ("on", "off", "unavailable", "unknown"):
-            entity = ScenarioButtonEntity(_make_entity_data(entity_id))
-            entity.fill_by_ha_state({"state": state, "attributes": {}})
-            states = _get_states(entity, entity_id)
-            event = _get_enum_value(states, "button_event")
-            if event:
-                produced.add(event)
-        assert "long_press" not in produced, (
-            "Expected 'long_press' to never be produced, but it was"
+        entity = ScenarioButtonEntity(_make_entity_data(entity_id))
+        allowed = entity.create_allowed_values_list()
+        enum_values = set(allowed["button_event"]["enum_values"]["values"])
+        assert "long_press" not in enum_values, (
+            "long_press should not be in allowed_values for input_boolean-based scenario button"
         )
 
 

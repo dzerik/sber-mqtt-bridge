@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.22.1] - 2026-04-02
+
+### Fixed
+- **Protocol**: `SberValue.integer_value` type `int` → `str` to match C2C spec (VR-002)
+- **Protocol**: `SberValue` now supports all 6 Sber types (added FLOAT, STRING)
+- **Protocol**: `parse_sber_command()` validates `devices` is dict (VR-032)
+- **ScenarioButton**: Remove `long_press` from allowed_values — HA input_boolean cannot produce it
+
 ## [1.21.0] - 2026-04-02
 
 ### Fixed

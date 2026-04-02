@@ -1001,7 +1001,7 @@ class TestScenarioButtonCompliance:
         allowed = result["model"]["allowed_values"]
         assert "button_event" in allowed
         vals = set(allowed["button_event"]["enum_values"]["values"])
-        assert vals == {"click", "double_click", "long_press"}
+        assert vals == {"click", "double_click"}
 
     def test_process_cmd_is_noop(self):
         """ScenarioButton must return empty list for any command (read-only)."""

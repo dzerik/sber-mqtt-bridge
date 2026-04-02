@@ -33,14 +33,18 @@ class SberValue(BaseModel):
     Attributes:
         type: Value type discriminator.
         bool_value: Boolean payload (for ``BOOL`` type).
-        integer_value: Integer payload (for ``INTEGER`` type).
+        integer_value: Integer payload as **string** (for ``INTEGER`` type).
+        float_value: Float payload (for ``FLOAT`` type).
+        string_value: String payload (for ``STRING`` type).
         enum_value: Enum string payload (for ``ENUM`` type).
         colour_value: HSV colour dict (for ``COLOUR`` type).
     """
 
-    type: Literal["BOOL", "INTEGER", "ENUM", "COLOUR"]
+    type: Literal["BOOL", "INTEGER", "FLOAT", "STRING", "ENUM", "COLOUR"]
     bool_value: bool | None = None
-    integer_value: int | None = None
+    integer_value: str | None = None
+    float_value: float | None = None
+    string_value: str | None = None
     enum_value: str | None = None
     colour_value: dict[str, int] | None = None
 
@@ -87,16 +91,18 @@ class SberDeviceModel(BaseModel):
 class SberDevice(BaseModel):
     """Full device descriptor for Sber config publish.
 
+    Per Sber spec (VR-001), ``model_id`` and ``model`` are mutually exclusive.
+    This integration always uses inline ``model``; ``model_id`` is not emitted.
+
     Attributes:
         id: Device / entity identifier.
         name: Display name.
         default_name: Fallback name (usually entity_id).
         room: Room / area identifier.
         home: Home / location name (e.g. "Мой дом").
-        model: Nested device model descriptor.
+        model: Nested device model descriptor (mutually exclusive with model_id).
         hw_version: Hardware version string.
         sw_version: Software version string.
-        model_id: Optional model identifier.
         nicknames: Alternative voice names.
         groups: Device groups.
         parent_id: Parent device entity_id for hub hierarchy.
@@ -111,7 +117,6 @@ class SberDevice(BaseModel):
     model: SberDeviceModel
     hw_version: str = "Unknown"
     sw_version: str = "Unknown"
-    model_id: str = ""
     nicknames: list[str] | None = None
     groups: list[str] | None = None
     parent_id: str | None = None

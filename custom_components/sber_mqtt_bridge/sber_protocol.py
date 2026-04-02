@@ -15,7 +15,7 @@ from .sber_models import validate_config_payload, validate_status_payload
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.22.0"
+VERSION = "1.22.1"
 """Protocol version string included in the hub device descriptor."""
 
 
@@ -166,6 +166,8 @@ def build_states_list_json(
 def parse_sber_command(payload: bytes | str) -> dict[str, Any]:
     """Parse Sber MQTT command payload.
 
+    Per spec (VR-032), ``devices`` must be a dict keyed by device_id.
+
     Args:
         payload: Raw MQTT payload (bytes or str).
 
@@ -173,12 +175,20 @@ def parse_sber_command(payload: bytes | str) -> dict[str, Any]:
         Parsed dict with 'devices' key, or empty dict on parse error.
     """
     try:
-        return json.loads(payload)
+        data = json.loads(payload)
     except (json.JSONDecodeError, TypeError):
         _LOGGER.warning(
             "Failed to parse Sber command payload: %s", payload[:200] if isinstance(payload, (str, bytes)) else payload
         )
         return {"devices": {}}
+    devices = data.get("devices")
+    if not isinstance(devices, dict):
+        _LOGGER.warning(
+            "Invalid command payload: 'devices' must be dict, got %s",
+            type(devices).__name__,
+        )
+        return {"devices": {}}
+    return data
 
 
 def parse_sber_status_request(payload: bytes | str) -> list[str]:

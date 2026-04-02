@@ -18,7 +18,7 @@ class ScenarioButtonEntity(BaseEntity):
     """Sber scenario button entity.
 
     Maps HA input_boolean entities to the Sber 'scenario_button' category.
-    Reports button events ('click' / 'double_click') based on the boolean state.
+    Reports button events (``click`` / ``double_click``) based on the boolean state.
     """
 
     def __init__(self, entity_data: dict) -> None:
@@ -60,7 +60,7 @@ class ScenarioButtonEntity(BaseEntity):
         return {
             "button_event": {
                 "type": "ENUM",
-                "enum_values": {"values": ["click", "double_click", "long_press"]},
+                "enum_values": {"values": ["click", "double_click"]},
             },
         }
 
