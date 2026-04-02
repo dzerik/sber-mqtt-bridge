@@ -31,8 +31,8 @@ def build_hub_device(version: str = VERSION, home: str = "", room: str = "") -> 
         "id": "root",
         "name": "Home Assistant Bridge",
         "default_name": "HA-SberBridge Hub",
-        "home": home,
-        "room": room,
+        "home": home or "Мой дом",
+        "room": room or "Мой дом",
         "hw_version": version,
         "sw_version": version,
         "model": {

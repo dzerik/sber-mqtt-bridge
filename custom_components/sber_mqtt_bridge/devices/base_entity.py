@@ -333,7 +333,7 @@ class BaseEntity(ABC):
             res = {
                 "id": self.entity_id,
                 "name": display_name,
-                "default_name": self.original_name,
+                "default_name": self.original_name or self.entity_id,
                 "room": self.linked_device.get("area_id", self.area_id),
                 "model": {
                     "id": model_id,

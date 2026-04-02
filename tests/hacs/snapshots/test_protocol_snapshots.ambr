@@ -4,7 +4,7 @@
     'devices': list([
       dict({
         'default_name': 'HA-SberBridge Hub',
-        'home': '',
+        'home': 'Мой дом',
         'hw_version': '1.24.4',
         'id': 'root',
         'model': dict({
@@ -18,7 +18,7 @@
           'model': 'VHub',
         }),
         'name': 'Home Assistant Bridge',
-        'room': '',
+        'room': 'Мой дом',
         'sw_version': '1.24.4',
       }),
       dict({
@@ -70,7 +70,7 @@
     'devices': list([
       dict({
         'default_name': 'HA-SberBridge Hub',
-        'home': '',
+        'home': 'Мой дом',
         'hw_version': '1.24.4',
         'id': 'root',
         'model': dict({
@@ -84,7 +84,7 @@
           'model': 'VHub',
         }),
         'name': 'Home Assistant Bridge',
-        'room': '',
+        'room': 'Мой дом',
         'sw_version': '1.24.4',
       }),
       dict({
@@ -114,7 +114,7 @@
 # name: test_hub_device_snapshot
   dict({
     'default_name': 'HA-SberBridge Hub',
-    'home': '',
+    'home': 'Мой дом',
     'hw_version': '1.0.0',
     'id': 'root',
     'model': dict({
@@ -128,7 +128,7 @@
       'model': 'VHub',
     }),
     'name': 'Home Assistant Bridge',
-    'room': '',
+    'room': 'Мой дом',
     'sw_version': '1.0.0',
   })
 # ---
