@@ -37,12 +37,15 @@ class TestCurtainFillByHaState(unittest.TestCase):
         self.assertEqual(entity.current_position, 75)
         self.assertEqual(entity.state, "open")
 
-    def test_fill_no_position_opened(self):
-        """No position attribute + state 'opened' defaults to 100."""
+    def test_fill_no_position_open_defaults_100(self):
+        """No position attribute + HA state 'open' must default to 100.
+
+        HA cover uses 'open' (not 'opened') as the state value per HA docs.
+        """
         entity = CurtainEntity(ENTITY_DATA)
         entity.fill_by_ha_state({
             "entity_id": "cover.curtain",
-            "state": "opened",
+            "state": "open",
             "attributes": {},
         })
         self.assertEqual(entity.current_position, 100)

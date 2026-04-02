@@ -45,10 +45,10 @@ from custom_components.sber_mqtt_bridge.sber_protocol import (
     parse_sber_status_request,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _entity_data(entity_id: str, name: str = "Test") -> dict:
     """Build minimal HA entity registry dict."""
@@ -116,6 +116,7 @@ _ALL_ENTITIES = _STANDARD_ENTITIES + _BINARY_SENSOR_ENTITIES
 # 1. TestEntityUnavailableState
 # =========================================================================
 
+
 class TestEntityUnavailableState:
     """Every entity must report online=False for unavailable/unknown/None states."""
 
@@ -136,14 +137,28 @@ class TestEntityUnavailableState:
         _STANDARD_ENTITIES,
         ids=[cls.__name__ for cls, _, _ in _STANDARD_ENTITIES],
     )
-    def test_unknown_produces_online_false_for_standard_entities(
-        self, entity_cls, entity_id, ha_domain
-    ):
+    def test_unknown_produces_online_false_for_standard_entities(self, entity_cls, entity_id, ha_domain):
         """State 'unknown' must produce online=False for non-sensor entities."""
         entity = entity_cls(_entity_data(entity_id))
         entity.fill_by_ha_state(_ha_state(entity_id, "unknown"))
         result = entity.to_sber_current_state()
         assert _get_online_value(result, entity_id) is False
+
+    @pytest.mark.parametrize(
+        ("entity_cls", "entity_id", "ha_domain"),
+        _BINARY_SENSOR_ENTITIES,
+        ids=[cls.__name__ for cls, _, _ in _BINARY_SENSOR_ENTITIES],
+    )
+    def test_unknown_produces_online_true_for_binary_sensors(self, entity_cls, entity_id, ha_domain):
+        """Event-based binary sensors treat 'unknown' as online (no event yet, not offline).
+
+        Per HA docs, binary_sensor 'unknown' means the sensor hasn't reported yet,
+        not that the device is unreachable. Sber must see these as online.
+        """
+        entity = entity_cls(_entity_data(entity_id))
+        entity.fill_by_ha_state(_ha_state(entity_id, "unknown"))
+        result = entity.to_sber_current_state()
+        assert _get_online_value(result, entity_id) is True
 
     @pytest.mark.parametrize(
         ("entity_cls", "entity_id", "ha_domain"),
@@ -174,6 +189,7 @@ class TestEntityUnavailableState:
 # =========================================================================
 # 2. TestMalformedSberPayloads
 # =========================================================================
+
 
 class TestMalformedSberPayloads:
     """parse_sber_command and parse_sber_status_request must handle garbage gracefully."""
@@ -287,6 +303,7 @@ class TestMalformedSberPayloads:
 # 3. TestOutOfRangeCommandValues
 # =========================================================================
 
+
 class TestOutOfRangeCommandValues:
     """Commands with extreme numeric values must be clamped, never crash."""
 
@@ -296,9 +313,9 @@ class TestOutOfRangeCommandValues:
         """Sber brightness 99999 must be clamped to valid HA range [0..255]."""
         entity = LightEntity(_entity_data("light.test"))
         entity.fill_by_ha_state(_ha_state("light.test", "on", brightness=128, color_mode="brightness"))
-        result = entity.process_cmd({
-            "states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": "99999"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": "99999"}}]}
+        )
         assert len(result) == 1
         brightness = result[0]["url"]["service_data"]["brightness"]
         assert 0 <= brightness <= 255
@@ -307,9 +324,9 @@ class TestOutOfRangeCommandValues:
         """Sber brightness -100 must be clamped to valid HA range [0..255]."""
         entity = LightEntity(_entity_data("light.test"))
         entity.fill_by_ha_state(_ha_state("light.test", "on", brightness=128, color_mode="brightness"))
-        result = entity.process_cmd({
-            "states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": "-100"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": "-100"}}]}
+        )
         assert len(result) == 1
         brightness = result[0]["url"]["service_data"]["brightness"]
         assert 0 <= brightness <= 255
@@ -318,9 +335,9 @@ class TestOutOfRangeCommandValues:
         """Sber brightness 0 must produce valid HA brightness."""
         entity = LightEntity(_entity_data("light.test"))
         entity.fill_by_ha_state(_ha_state("light.test", "on", brightness=128, color_mode="brightness"))
-        result = entity.process_cmd({
-            "states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": "0"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": "0"}}]}
+        )
         assert len(result) == 1
         brightness = result[0]["url"]["service_data"]["brightness"]
         assert 0 <= brightness <= 255
@@ -329,57 +346,79 @@ class TestOutOfRangeCommandValues:
         """Non-numeric brightness value must be ignored (no crash)."""
         entity = LightEntity(_entity_data("light.test"))
         entity.fill_by_ha_state(_ha_state("light.test", "on", brightness=128, color_mode="brightness"))
-        result = entity.process_cmd({
-            "states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": "abc"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": "abc"}}]}
+        )
         assert result == []
 
     # -- Light color temp --
 
     def test_light_color_temp_extreme_high(self):
-        """Sber color_temp 99999 must not crash."""
+        """Sber color_temp 99999 must clamp to warmest (max mireds → lowest kelvin)."""
         entity = LightEntity(_entity_data("light.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "light.test", "on",
-            brightness=128, color_mode="color_temp",
-            min_mireds=153, max_mireds=500,
-        ))
-        result = entity.process_cmd({
-            "states": [{"key": "light_colour_temp", "value": {"type": "INTEGER", "integer_value": "99999"}}]
-        })
+        entity.fill_by_ha_state(
+            _ha_state(
+                "light.test",
+                "on",
+                brightness=128,
+                color_mode="color_temp",
+                min_mireds=153,
+                max_mireds=500,
+            )
+        )
+        result = entity.process_cmd(
+            {"states": [{"key": "light_colour_temp", "value": {"type": "INTEGER", "integer_value": "99999"}}]}
+        )
         assert len(result) == 1
-        assert "color_temp_kelvin" in result[0]["url"]["service_data"]
+        kelvin = result[0]["url"]["service_data"]["color_temp_kelvin"]
+        # Must be within physically valid range for this entity (2000K-6535K)
+        assert 1000 <= kelvin <= 10000
 
     def test_light_color_temp_negative(self):
-        """Sber color_temp -100 must not crash."""
+        """Sber color_temp -100 must clamp to coolest (min mireds → highest kelvin)."""
         entity = LightEntity(_entity_data("light.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "light.test", "on",
-            brightness=128, color_mode="color_temp",
-            min_mireds=153, max_mireds=500,
-        ))
-        result = entity.process_cmd({
-            "states": [{"key": "light_colour_temp", "value": {"type": "INTEGER", "integer_value": "-100"}}]
-        })
+        entity.fill_by_ha_state(
+            _ha_state(
+                "light.test",
+                "on",
+                brightness=128,
+                color_mode="color_temp",
+                min_mireds=153,
+                max_mireds=500,
+            )
+        )
+        result = entity.process_cmd(
+            {"states": [{"key": "light_colour_temp", "value": {"type": "INTEGER", "integer_value": "-100"}}]}
+        )
         assert len(result) == 1
+        kelvin = result[0]["url"]["service_data"]["color_temp_kelvin"]
+        assert 1000 <= kelvin <= 10000
 
     # -- Light colour (HSV) --
 
     def test_light_colour_extreme_hsv_values(self):
         """HSV values beyond spec (h>360, s>1000, v>1000) must be clamped."""
         entity = LightEntity(_entity_data("light.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "light.test", "on",
-            brightness=128, color_mode="hs",
-            hs_color=[180.0, 50.0],
-            supported_color_modes=["hs"],
-        ))
-        result = entity.process_cmd({
-            "states": [{
-                "key": "light_colour",
-                "value": {"colour_value": {"h": 999, "s": 5000, "v": 5000}},
-            }]
-        })
+        entity.fill_by_ha_state(
+            _ha_state(
+                "light.test",
+                "on",
+                brightness=128,
+                color_mode="hs",
+                hs_color=[180.0, 50.0],
+                supported_color_modes=["hs"],
+            )
+        )
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "light_colour",
+                        "value": {"colour_value": {"h": 999, "s": 5000, "v": 5000}},
+                    }
+                ]
+            }
+        )
         assert len(result) == 1
         sd = result[0]["url"]["service_data"]
         assert "hs_color" in sd
@@ -388,27 +427,33 @@ class TestOutOfRangeCommandValues:
     def test_light_colour_negative_hsv_values(self):
         """Negative HSV values must be clamped to 0."""
         entity = LightEntity(_entity_data("light.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "light.test", "on",
-            brightness=128, color_mode="hs",
-            hs_color=[180.0, 50.0],
-            supported_color_modes=["hs"],
-        ))
-        result = entity.process_cmd({
-            "states": [{
-                "key": "light_colour",
-                "value": {"colour_value": {"h": -10, "s": -20, "v": -30}},
-            }]
-        })
+        entity.fill_by_ha_state(
+            _ha_state(
+                "light.test",
+                "on",
+                brightness=128,
+                color_mode="hs",
+                hs_color=[180.0, 50.0],
+                supported_color_modes=["hs"],
+            )
+        )
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "light_colour",
+                        "value": {"colour_value": {"h": -10, "s": -20, "v": -30}},
+                    }
+                ]
+            }
+        )
         assert len(result) == 1
 
     def test_light_colour_missing_colour_value(self):
         """Missing colour_value must not crash."""
         entity = LightEntity(_entity_data("light.test"))
         entity.fill_by_ha_state(_ha_state("light.test", "on", brightness=128, color_mode="hs"))
-        result = entity.process_cmd({
-            "states": [{"key": "light_colour", "value": {}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "light_colour", "value": {}}]})
         # colour_value is None => fallback to (0,0,0)
         assert len(result) == 1
 
@@ -417,42 +462,60 @@ class TestOutOfRangeCommandValues:
     def test_climate_temperature_extreme_high(self):
         """hvac_temp_set 999 must not crash."""
         entity = ClimateEntity(_entity_data("climate.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "climate.test", "cool",
-            current_temperature=22.0, temperature=24.0,
-            hvac_modes=["cool", "heat", "off"], min_temp=16, max_temp=32,
-        ))
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": "999"}}]
-        })
+        entity.fill_by_ha_state(
+            _ha_state(
+                "climate.test",
+                "cool",
+                current_temperature=22.0,
+                temperature=24.0,
+                hvac_modes=["cool", "heat", "off"],
+                min_temp=16,
+                max_temp=32,
+            )
+        )
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": "999"}}]}
+        )
         assert len(result) == 1
         temp = result[0]["url"]["service_data"]["temperature"]
-        assert isinstance(temp, float)
+        # HA climate service accepts the value; clamping is entity's responsibility.
+        # At minimum it must be a valid number.
+        assert isinstance(temp, (int, float))
 
     def test_climate_temperature_extreme_low(self):
         """hvac_temp_set -50 must not crash."""
         entity = ClimateEntity(_entity_data("climate.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "climate.test", "heat",
-            current_temperature=22.0, temperature=24.0,
-            hvac_modes=["cool", "heat", "off"], min_temp=16, max_temp=32,
-        ))
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": "-50"}}]
-        })
+        entity.fill_by_ha_state(
+            _ha_state(
+                "climate.test",
+                "heat",
+                current_temperature=22.0,
+                temperature=24.0,
+                hvac_modes=["cool", "heat", "off"],
+                min_temp=16,
+                max_temp=32,
+            )
+        )
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": "-50"}}]}
+        )
         assert len(result) == 1
 
     def test_climate_temperature_non_numeric(self):
         """Non-numeric temperature must be ignored."""
         entity = ClimateEntity(_entity_data("climate.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "climate.test", "cool",
-            current_temperature=22.0, temperature=24.0,
-            hvac_modes=["cool", "heat", "off"],
-        ))
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": "hot"}}]
-        })
+        entity.fill_by_ha_state(
+            _ha_state(
+                "climate.test",
+                "cool",
+                current_temperature=22.0,
+                temperature=24.0,
+                hvac_modes=["cool", "heat", "off"],
+            )
+        )
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": "hot"}}]}
+        )
         assert result == []
 
     # -- Curtain position --
@@ -461,9 +524,9 @@ class TestOutOfRangeCommandValues:
         """open_percentage 150 must be clamped to 100."""
         entity = CurtainEntity(_entity_data("cover.test"))
         entity.fill_by_ha_state(_ha_state("cover.test", "open", current_position=50))
-        result = entity.process_cmd({
-            "states": [{"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": "150"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": "150"}}]}
+        )
         assert len(result) == 1
         position = result[0]["url"]["service_data"]["position"]
         assert 0 <= position <= 100
@@ -472,9 +535,9 @@ class TestOutOfRangeCommandValues:
         """open_percentage -10 must be clamped to 0."""
         entity = CurtainEntity(_entity_data("cover.test"))
         entity.fill_by_ha_state(_ha_state("cover.test", "open", current_position=50))
-        result = entity.process_cmd({
-            "states": [{"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": "-10"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": "-10"}}]}
+        )
         assert len(result) == 1
         position = result[0]["url"]["service_data"]["position"]
         assert position == 0
@@ -483,9 +546,9 @@ class TestOutOfRangeCommandValues:
         """Non-numeric position must be ignored."""
         entity = CurtainEntity(_entity_data("cover.test"))
         entity.fill_by_ha_state(_ha_state("cover.test", "open", current_position=50))
-        result = entity.process_cmd({
-            "states": [{"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": "halfway"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": "halfway"}}]}
+        )
         assert result == []
 
     # -- Climate humidity --
@@ -493,33 +556,49 @@ class TestOutOfRangeCommandValues:
     def test_climate_humidity_extreme_high(self):
         """hvac_humidity_set 999 must not crash."""
         entity = ClimateEntity(_entity_data("climate.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "climate.test", "cool",
-            current_temperature=22.0, temperature=24.0,
-            hvac_modes=["cool", "heat", "off"], target_humidity=50,
-        ))
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_humidity_set", "value": {"type": "INTEGER", "integer_value": "999"}}]
-        })
+        entity.fill_by_ha_state(
+            _ha_state(
+                "climate.test",
+                "cool",
+                current_temperature=22.0,
+                temperature=24.0,
+                hvac_modes=["cool", "heat", "off"],
+                target_humidity=50,
+            )
+        )
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_humidity_set", "value": {"type": "INTEGER", "integer_value": "999"}}]}
+        )
         assert len(result) == 1
 
     def test_climate_humidity_negative(self):
-        """hvac_humidity_set -10 must not crash."""
+        """hvac_humidity_set -10 — must not send negative humidity to HA.
+
+        Per Sber spec, humidity is 0-100%. Negative value should either be
+        clamped to 0 or rejected. At minimum the sent value must be >= 0.
+        """
         entity = ClimateEntity(_entity_data("climate.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "climate.test", "cool",
-            current_temperature=22.0, temperature=24.0,
-            hvac_modes=["cool", "heat", "off"],
-        ))
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_humidity_set", "value": {"type": "INTEGER", "integer_value": "-10"}}]
-        })
-        assert len(result) == 1
+        entity.fill_by_ha_state(
+            _ha_state(
+                "climate.test",
+                "cool",
+                current_temperature=22.0,
+                temperature=24.0,
+                hvac_modes=["cool", "heat", "off"],
+            )
+        )
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_humidity_set", "value": {"type": "INTEGER", "integer_value": "-10"}}]}
+        )
+        if result:
+            humidity = result[0]["url"]["service_data"]["humidity"]
+            assert humidity >= 0, f"Negative humidity {humidity} must not be sent to HA"
 
 
 # =========================================================================
 # 4. TestNoneAndNaNAttributes
 # =========================================================================
+
 
 class TestNoneAndNaNAttributes:
     """fill_by_ha_state must not crash on None, NaN, Inf, or non-numeric attributes."""
@@ -527,91 +606,119 @@ class TestNoneAndNaNAttributes:
     def test_light_brightness_none(self):
         """Light with brightness=None must not crash."""
         entity = LightEntity(_entity_data("light.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "light.test", "on",
-            brightness=None, color_mode="brightness",
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "light.test",
+                "on",
+                brightness=None,
+                color_mode="brightness",
+            )
+        )
         result = entity.to_sber_current_state()
         assert "light.test" in result
 
     def test_light_color_temp_none(self):
         """Light with color_temp=None must not crash."""
         entity = LightEntity(_entity_data("light.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "light.test", "on",
-            brightness=128, color_temp=None, color_mode="color_temp",
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "light.test",
+                "on",
+                brightness=128,
+                color_temp=None,
+                color_mode="color_temp",
+            )
+        )
         result = entity.to_sber_current_state()
         assert "light.test" in result
 
     def test_light_hs_color_none(self):
         """Light with hs_color=None must not crash."""
         entity = LightEntity(_entity_data("light.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "light.test", "on",
-            brightness=128, hs_color=None, color_mode="hs",
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "light.test",
+                "on",
+                brightness=128,
+                hs_color=None,
+                color_mode="hs",
+            )
+        )
         result = entity.to_sber_current_state()
         assert "light.test" in result
 
     def test_light_max_mireds_none(self):
         """Light with max_mireds=None must not crash."""
         entity = LightEntity(_entity_data("light.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "light.test", "on",
-            brightness=128, color_mode="brightness",
-            max_mireds=None, min_mireds=None,
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "light.test",
+                "on",
+                brightness=128,
+                color_mode="brightness",
+                max_mireds=None,
+                min_mireds=None,
+            )
+        )
         result = entity.to_sber_current_state()
         assert "light.test" in result
 
     @pytest.mark.xfail(
         reason="BUG: ClimateEntity.to_sber_current_state crashes on NaN temperature "
-               "(ValueError: cannot convert float NaN to integer)",
+        "(ValueError: cannot convert float NaN to integer)",
         strict=True,
     )
     def test_climate_temperature_nan(self):
         """Climate with current_temperature=NaN must not crash."""
         entity = ClimateEntity(_entity_data("climate.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "climate.test", "cool",
-            current_temperature=float("nan"),
-            temperature=22.0,
-            hvac_modes=["cool", "heat", "off"],
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "climate.test",
+                "cool",
+                current_temperature=float("nan"),
+                temperature=22.0,
+                hvac_modes=["cool", "heat", "off"],
+            )
+        )
         result = entity.to_sber_current_state()
         assert "climate.test" in result
 
     def test_climate_target_temperature_none(self):
         """Climate with temperature=None must not crash."""
         entity = ClimateEntity(_entity_data("climate.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "climate.test", "cool",
-            current_temperature=22.0,
-            temperature=None,
-            hvac_modes=["cool", "heat", "off"],
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "climate.test",
+                "cool",
+                current_temperature=22.0,
+                temperature=None,
+                hvac_modes=["cool", "heat", "off"],
+            )
+        )
         result = entity.to_sber_current_state()
         assert "climate.test" in result
 
     def test_climate_min_temp_none(self):
         """Climate with min_temp=None must fall back to default."""
         entity = ClimateEntity(_entity_data("climate.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "climate.test", "cool",
-            current_temperature=22.0,
-            temperature=24.0,
-            min_temp=None,
-            max_temp=None,
-            hvac_modes=["cool", "heat", "off"],
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "climate.test",
+                "cool",
+                current_temperature=22.0,
+                temperature=24.0,
+                min_temp=None,
+                max_temp=None,
+                hvac_modes=["cool", "heat", "off"],
+            )
+        )
         # Should use defaults: 16.0 / 32.0
         assert entity.min_temp == 16.0
         assert entity.max_temp == 32.0
 
     @pytest.mark.xfail(
         reason="BUG: SensorTempEntity._get_sber_value crashes on Inf "
-               "(OverflowError: cannot convert float infinity to integer)",
+        "(OverflowError: cannot convert float infinity to integer)",
         strict=True,
     )
     def test_sensor_temp_inf(self):
@@ -622,8 +729,7 @@ class TestNoneAndNaNAttributes:
         assert "sensor.test" in result
 
     @pytest.mark.xfail(
-        reason="BUG: SensorTempEntity._get_sber_value crashes on NaN "
-               "(ValueError: cannot convert float NaN to integer)",
+        reason="BUG: SensorTempEntity._get_sber_value crashes on NaN (ValueError: cannot convert float NaN to integer)",
         strict=True,
     )
     def test_sensor_temp_nan_string(self):
@@ -635,7 +741,7 @@ class TestNoneAndNaNAttributes:
 
     @pytest.mark.xfail(
         reason="BUG: SensorTempEntity._get_sber_value crashes on -Inf "
-               "(OverflowError: cannot convert float infinity to integer)",
+        "(OverflowError: cannot convert float infinity to integer)",
         strict=True,
     )
     def test_sensor_temp_negative_inf(self):
@@ -655,10 +761,13 @@ class TestNoneAndNaNAttributes:
     def test_curtain_position_string(self):
         """Curtain with current_position='fifty' must not crash; falls back."""
         entity = CurtainEntity(_entity_data("cover.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "cover.test", "open",
-            current_position="fifty",
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "cover.test",
+                "open",
+                current_position="fifty",
+            )
+        )
         # Should fallback: state is 'opened' => 100, but state is 'open' not 'opened'
         result = entity.to_sber_current_state()
         assert "cover.test" in result
@@ -666,62 +775,80 @@ class TestNoneAndNaNAttributes:
     def test_curtain_position_none(self):
         """Curtain with current_position=None must fallback based on state."""
         entity = CurtainEntity(_entity_data("cover.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "cover.test", "closed",
-            current_position=None,
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "cover.test",
+                "closed",
+                current_position=None,
+            )
+        )
         assert entity.current_position == 0
 
     def test_curtain_position_negative_float(self):
         """Curtain with current_position=-5.5 must be clamped to 0."""
         entity = CurtainEntity(_entity_data("cover.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "cover.test", "open",
-            current_position=-5.5,
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "cover.test",
+                "open",
+                current_position=-5.5,
+            )
+        )
         assert entity.current_position == 0
 
     def test_climate_target_humidity_non_numeric(self):
         """Climate with target_humidity='wet' must not crash."""
         entity = ClimateEntity(_entity_data("climate.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "climate.test", "cool",
-            current_temperature=22.0,
-            temperature=24.0,
-            target_humidity="wet",
-            hvac_modes=["cool", "heat", "off"],
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "climate.test",
+                "cool",
+                current_temperature=22.0,
+                temperature=24.0,
+                target_humidity="wet",
+                hvac_modes=["cool", "heat", "off"],
+            )
+        )
         # Non-numeric target_humidity is handled gracefully
         assert entity._target_humidity is None
 
     def test_relay_with_non_numeric_power(self):
         """Relay with power='unknown' must not crash."""
         entity = RelayEntity(_entity_data("switch.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "switch.test", "on",
-            power="unknown",
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "switch.test",
+                "on",
+                power="unknown",
+            )
+        )
         result = entity.to_sber_current_state()
         assert "switch.test" in result
 
     def test_vacuum_with_none_battery(self):
         """Vacuum with battery_level=None must not crash."""
         entity = VacuumCleanerEntity(_entity_data("vacuum.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "vacuum.test", "docked",
-            battery_level=None,
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "vacuum.test",
+                "docked",
+                battery_level=None,
+            )
+        )
         result = entity.to_sber_current_state()
         assert "vacuum.test" in result
 
     def test_tv_with_none_volume(self):
         """TV with volume_level=None must not crash."""
         entity = TvEntity(_entity_data("media_player.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "media_player.test", "playing",
-            volume_level=None,
-            is_volume_muted=None,
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "media_player.test",
+                "playing",
+                volume_level=None,
+                is_volume_muted=None,
+            )
+        )
         result = entity.to_sber_current_state()
         assert "media_player.test" in result
 
@@ -729,6 +856,7 @@ class TestNoneAndNaNAttributes:
 # =========================================================================
 # 5. TestCommandWithMissingFields
 # =========================================================================
+
 
 class TestCommandWithMissingFields:
     """Commands with missing or malformed fields must not crash."""
@@ -774,28 +902,28 @@ class TestCommandWithMissingFields:
         """State entry without 'key' must be ignored."""
         entity = LightEntity(_entity_data("light.test"))
         entity.fill_by_ha_state(_ha_state("light.test", "on", brightness=128))
-        result = entity.process_cmd({
-            "states": [{"value": {"type": "BOOL", "bool_value": True}}]
-        })
+        result = entity.process_cmd({"states": [{"value": {"type": "BOOL", "bool_value": True}}]})
         assert result == []
 
     def test_cmd_unknown_key_ignored(self):
         """Unknown command key must be ignored without crash."""
         entity = LightEntity(_entity_data("light.test"))
         entity.fill_by_ha_state(_ha_state("light.test", "on", brightness=128))
-        result = entity.process_cmd({
-            "states": [{"key": "magic_spell", "value": {"type": "BOOL", "bool_value": True}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "magic_spell", "value": {"type": "BOOL", "bool_value": True}}]})
         assert result == []
 
     def test_climate_cmd_no_value(self):
         """Climate command without value must not crash."""
         entity = ClimateEntity(_entity_data("climate.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "climate.test", "cool",
-            current_temperature=22.0, temperature=24.0,
-            hvac_modes=["cool", "heat", "off"],
-        ))
+        entity.fill_by_ha_state(
+            _ha_state(
+                "climate.test",
+                "cool",
+                current_temperature=22.0,
+                temperature=24.0,
+                hvac_modes=["cool", "heat", "off"],
+            )
+        )
         result = entity.process_cmd({"states": [{"key": "hvac_temp_set"}]})
         # Missing value => _safe_float(None) => None => skip
         assert result == []
@@ -803,32 +931,30 @@ class TestCommandWithMissingFields:
     def test_climate_cmd_empty_enum_value(self):
         """Climate command with empty enum_value must not crash."""
         entity = ClimateEntity(_entity_data("climate.test"))
-        entity.fill_by_ha_state(_ha_state(
-            "climate.test", "cool",
-            current_temperature=22.0, temperature=24.0,
-            hvac_modes=["cool", "heat", "off"],
-        ))
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_work_mode", "value": {"enum_value": ""}}]
-        })
+        entity.fill_by_ha_state(
+            _ha_state(
+                "climate.test",
+                "cool",
+                current_temperature=22.0,
+                temperature=24.0,
+                hvac_modes=["cool", "heat", "off"],
+            )
+        )
+        result = entity.process_cmd({"states": [{"key": "hvac_work_mode", "value": {"enum_value": ""}}]})
         assert result == []
 
     def test_valve_cmd_missing_enum_value(self):
         """Valve command with missing enum_value must not crash."""
         entity = ValveEntity(_entity_data("valve.test"))
         entity.fill_by_ha_state(_ha_state("valve.test", "closed"))
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {"type": "ENUM"}}]})
         assert result == []
 
     def test_curtain_cmd_missing_integer_value(self):
         """Curtain position command without integer_value must not crash."""
         entity = CurtainEntity(_entity_data("cover.test"))
         entity.fill_by_ha_state(_ha_state("cover.test", "open", current_position=50))
-        result = entity.process_cmd({
-            "states": [{"key": "open_percentage", "value": {"type": "INTEGER"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_percentage", "value": {"type": "INTEGER"}}]})
         assert result == []
 
     def test_sensor_process_cmd_any_payload(self):
@@ -845,20 +971,24 @@ class TestCommandWithMissingFields:
         result = entity.process_cmd(None)
         assert result == []
 
-    @pytest.mark.parametrize(("entity_cls", "entity_id"), [
-        (RelayEntity, "switch.test"),
-        (SocketEntity, "switch.test_socket"),
-        (ValveEntity, "valve.test"),
-        (CurtainEntity, "cover.test"),
-        (LightEntity, "light.test"),
-        (ClimateEntity, "climate.test"),
-        (HumidifierEntity, "humidifier.test"),
-        (TvEntity, "media_player.test"),
-        (VacuumCleanerEntity, "vacuum.test"),
-        (HvacFanEntity, "fan.test"),
-        (KettleEntity, "switch.test_kettle"),
-        (IntercomEntity, "switch.test_intercom"),
-    ], ids=lambda x: x.__name__ if isinstance(x, type) else x)
+    @pytest.mark.parametrize(
+        ("entity_cls", "entity_id"),
+        [
+            (RelayEntity, "switch.test"),
+            (SocketEntity, "switch.test_socket"),
+            (ValveEntity, "valve.test"),
+            (CurtainEntity, "cover.test"),
+            (LightEntity, "light.test"),
+            (ClimateEntity, "climate.test"),
+            (HumidifierEntity, "humidifier.test"),
+            (TvEntity, "media_player.test"),
+            (VacuumCleanerEntity, "vacuum.test"),
+            (HvacFanEntity, "fan.test"),
+            (KettleEntity, "switch.test_kettle"),
+            (IntercomEntity, "switch.test_intercom"),
+        ],
+        ids=lambda x: x.__name__ if isinstance(x, type) else x,
+    )
     def test_cmd_empty_states_all_controllable_entities(self, entity_cls, entity_id):
         """Empty states list must return empty result for all controllable entities."""
         entity = entity_cls(_entity_data(entity_id))

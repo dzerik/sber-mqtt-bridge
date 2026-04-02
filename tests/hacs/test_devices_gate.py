@@ -73,10 +73,13 @@ class TestGateFillByHaState(unittest.TestCase):
         self.assertEqual(entity.state, "closed")
         self.assertEqual(entity.current_position, 0)
 
-    def test_fill_no_position_opened_defaults_100(self):
-        """No position attribute + state 'opened' defaults to 100."""
+    def test_fill_no_position_open_defaults_100(self):
+        """No position attribute + HA state 'open' must default to 100.
+
+        HA cover uses 'open' (not 'opened') as the state value.
+        """
         entity = GateEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(state="opened"))
+        entity.fill_by_ha_state(_make_ha_state(state="open"))
         self.assertEqual(entity.current_position, 100)
 
     def test_fill_no_position_closed_defaults_0(self):
@@ -103,7 +106,13 @@ class TestGateCreateFeaturesList(unittest.TestCase):
     """Test create_features_list returns correct Sber features."""
 
     def test_minimal_features(self):
-        """Gate without optional sensors must have core features."""
+        """Gate must have core cover features: online, open_set, open_state, open_percentage.
+
+        Although the Sber gate example model omits open_percentage, it is a valid
+        optional feature that can be added to any cover category. Since HA cover
+        entities report current_position, we include it so Sber can send
+        percentage-based commands.
+        """
         entity = GateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(state="open", current_position=50))
         features = entity.create_features_list()
