@@ -164,10 +164,121 @@ class TestTvProcessCmd(unittest.TestCase):
         self.assertEqual(result[0]["url"]["service"], "select_source")
         self.assertEqual(result[0]["url"]["service_data"]["source"], "HDMI 2")
 
+    def test_cmd_channel_int(self):
+        """channel_int INTEGER command must produce play_media service call."""
+        entity = self._make_entity("playing")
+        result = entity.process_cmd(
+            {"states": [{"key": "channel_int", "value": {"type": "INTEGER", "integer_value": "5"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "play_media")
+        self.assertEqual(url["domain"], "media_player")
+        self.assertEqual(url["service_data"]["media_content_type"], "channel")
+        self.assertEqual(url["service_data"]["media_content_id"], "5")
+
+    def test_cmd_channel_int_large_number(self):
+        """channel_int with large channel number must work correctly."""
+        entity = self._make_entity("playing")
+        result = entity.process_cmd(
+            {"states": [{"key": "channel_int", "value": {"type": "INTEGER", "integer_value": "999"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service_data"]["media_content_id"], "999")
+
+    def test_cmd_channel_int_none_skipped(self):
+        """channel_int with None integer_value must be skipped."""
+        entity = self._make_entity("playing")
+        result = entity.process_cmd(
+            {"states": [{"key": "channel_int", "value": {"type": "INTEGER"}}]}
+        )
+        self.assertEqual(len(result), 0)
+
+    def test_cmd_direction_up(self):
+        """direction=up must produce media_player.volume_up service call."""
+        entity = self._make_entity("playing")
+        result = entity.process_cmd(
+            {"states": [{"key": "direction", "value": {"type": "ENUM", "enum_value": "up"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        url = result[0]["url"]
+        self.assertEqual(url["domain"], "media_player")
+        self.assertEqual(url["service"], "volume_up")
+
+    def test_cmd_direction_down(self):
+        """direction=down must produce media_player.volume_down service call."""
+        entity = self._make_entity("playing")
+        result = entity.process_cmd(
+            {"states": [{"key": "direction", "value": {"type": "ENUM", "enum_value": "down"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "volume_down")
+
+    def test_cmd_direction_unmapped_ignored(self):
+        """direction values without mapping (left/right/ok) must produce no result."""
+        entity = self._make_entity("playing")
+        for direction in ("left", "right", "ok"):
+            result = entity.process_cmd(
+                {"states": [{"key": "direction", "value": {"type": "ENUM", "enum_value": direction}}]}
+            )
+            self.assertEqual(len(result), 0, f"direction={direction} should not produce a service call")
+
+    def test_cmd_direction_empty_skipped(self):
+        """direction with empty enum_value must be skipped."""
+        entity = self._make_entity("playing")
+        result = entity.process_cmd(
+            {"states": [{"key": "direction", "value": {"type": "ENUM", "enum_value": ""}}]}
+        )
+        self.assertEqual(len(result), 0)
+
+    def test_cmd_channel_plus(self):
+        """channel=+ must produce media_next_track service call."""
+        entity = self._make_entity("playing")
+        result = entity.process_cmd(
+            {"states": [{"key": "channel", "value": {"type": "ENUM", "enum_value": "+"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "media_next_track")
+
+    def test_cmd_channel_minus(self):
+        """channel=- must produce media_previous_track service call."""
+        entity = self._make_entity("playing")
+        result = entity.process_cmd(
+            {"states": [{"key": "channel", "value": {"type": "ENUM", "enum_value": "-"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "media_previous_track")
+
     def test_cmd_empty_states(self):
         entity = self._make_entity()
         result = entity.process_cmd({"states": []})
         self.assertEqual(result, [])
+
+
+class TestTvFeatures(unittest.TestCase):
+    """Test channel_int and direction in features list."""
+
+    def test_channel_int_in_features(self):
+        """channel_int must always be in features list."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        features = entity.create_features_list()
+        self.assertIn("channel_int", features)
+
+    def test_direction_in_features(self):
+        """direction must always be in features list."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        features = entity.create_features_list()
+        self.assertIn("direction", features)
+
+    def test_channel_in_features(self):
+        """channel must always be in features list."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        features = entity.create_features_list()
+        self.assertIn("channel", features)
 
 
 class TestTvAllowedValues(unittest.TestCase):
@@ -194,3 +305,34 @@ class TestTvAllowedValues(unittest.TestCase):
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
         self.assertNotIn("source", allowed)
+
+    def test_channel_int_allowed_values(self):
+        """channel_int must have INTEGER allowed values with min=1, max=999."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        result = entity.to_sber_state()
+        allowed = result["model"]["allowed_values"]
+        self.assertIn("channel_int", allowed)
+        self.assertEqual(allowed["channel_int"]["type"], "INTEGER")
+        self.assertEqual(allowed["channel_int"]["integer_values"]["min"], "1")
+        self.assertEqual(allowed["channel_int"]["integer_values"]["max"], "999")
+
+    def test_direction_allowed_values(self):
+        """direction must have ENUM allowed values with up/down/left/right/ok."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        result = entity.to_sber_state()
+        allowed = result["model"]["allowed_values"]
+        self.assertIn("direction", allowed)
+        self.assertEqual(allowed["direction"]["type"], "ENUM")
+        values = allowed["direction"]["enum_values"]["values"]
+        self.assertEqual(values, ["up", "down", "left", "right", "ok"])
+
+    def test_channel_allowed_values(self):
+        """channel must have ENUM allowed values with +/-."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        result = entity.to_sber_state()
+        allowed = result["model"]["allowed_values"]
+        self.assertIn("channel", allowed)
+        self.assertEqual(allowed["channel"]["enum_values"]["values"], ["+", "-"])

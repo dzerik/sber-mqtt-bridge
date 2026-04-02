@@ -334,6 +334,66 @@ class TestClimateProcessCmd(unittest.TestCase):
         self.assertEqual(len(result), 1)
 
 
+class TestClimateChildLock(unittest.TestCase):
+    """Test child_lock feature in ClimateEntity."""
+
+    def test_child_lock_feature_present(self):
+        """Climate with child_lock=True must include child_lock in features."""
+        entity = ClimateEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["child_lock"] = True
+        entity.fill_by_ha_state(ha)
+        features = entity.create_features_list()
+        self.assertIn("child_lock", features)
+
+    def test_child_lock_feature_present_when_false(self):
+        """Climate with child_lock=False must still include child_lock in features."""
+        entity = ClimateEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["child_lock"] = False
+        entity.fill_by_ha_state(ha)
+        features = entity.create_features_list()
+        self.assertIn("child_lock", features)
+
+    def test_child_lock_feature_absent(self):
+        """Climate without child_lock attribute must not include it."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state())
+        features = entity.create_features_list()
+        self.assertNotIn("child_lock", features)
+
+    def test_child_lock_true_in_state(self):
+        """child_lock=True must produce child_lock=True in Sber state."""
+        entity = ClimateEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["child_lock"] = True
+        entity.fill_by_ha_state(ha)
+        result = entity.to_sber_current_state()
+        states = result["climate.ac"]["states"]
+        cl = next(s for s in states if s["key"] == "child_lock")
+        self.assertTrue(cl["value"]["bool_value"])
+
+    def test_child_lock_false_in_state(self):
+        """child_lock=False must produce child_lock=False in Sber state."""
+        entity = ClimateEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["child_lock"] = False
+        entity.fill_by_ha_state(ha)
+        result = entity.to_sber_current_state()
+        states = result["climate.ac"]["states"]
+        cl = next(s for s in states if s["key"] == "child_lock")
+        self.assertFalse(cl["value"]["bool_value"])
+
+    def test_child_lock_not_in_state_when_absent(self):
+        """Without child_lock attribute, it must not appear in Sber state."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state())
+        result = entity.to_sber_current_state()
+        states = result["climate.ac"]["states"]
+        keys = [s["key"] for s in states]
+        self.assertNotIn("child_lock", keys)
+
+
 class TestClimateProcessStateChange(unittest.TestCase):
     """Test process_state_change delegates to fill_by_ha_state."""
 

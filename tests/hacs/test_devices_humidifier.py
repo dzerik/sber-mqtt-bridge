@@ -286,6 +286,66 @@ class TestHumidifierUpdateLinkedData(unittest.TestCase):
         self.assertEqual(entity.current_humidity, 40)
 
 
+class TestHumidifierChildLock(unittest.TestCase):
+    """Test child_lock feature in HumidifierEntity."""
+
+    def test_child_lock_feature_present(self):
+        """Humidifier with child_lock=True must include child_lock in features."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["child_lock"] = True
+        entity.fill_by_ha_state(ha)
+        features = entity.create_features_list()
+        self.assertIn("child_lock", features)
+
+    def test_child_lock_feature_present_when_false(self):
+        """Humidifier with child_lock=False must still include child_lock in features."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["child_lock"] = False
+        entity.fill_by_ha_state(ha)
+        features = entity.create_features_list()
+        self.assertIn("child_lock", features)
+
+    def test_child_lock_feature_absent(self):
+        """Humidifier without child_lock attribute must not include it."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state())
+        features = entity.create_features_list()
+        self.assertNotIn("child_lock", features)
+
+    def test_child_lock_true_in_state(self):
+        """child_lock=True must produce child_lock=True in Sber state."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["child_lock"] = True
+        entity.fill_by_ha_state(ha)
+        result = entity.to_sber_current_state()
+        states = result["humidifier.room"]["states"]
+        cl = next(s for s in states if s["key"] == "child_lock")
+        self.assertTrue(cl["value"]["bool_value"])
+
+    def test_child_lock_false_in_state(self):
+        """child_lock=False must produce child_lock=False in Sber state."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["child_lock"] = False
+        entity.fill_by_ha_state(ha)
+        result = entity.to_sber_current_state()
+        states = result["humidifier.room"]["states"]
+        cl = next(s for s in states if s["key"] == "child_lock")
+        self.assertFalse(cl["value"]["bool_value"])
+
+    def test_child_lock_not_in_state_when_absent(self):
+        """Without child_lock attribute, it must not appear in Sber state."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state())
+        result = entity.to_sber_current_state()
+        states = result["humidifier.room"]["states"]
+        keys = [s["key"] for s in states]
+        self.assertNotIn("child_lock", keys)
+
+
 class TestHumidifierProcessStateChange(unittest.TestCase):
     """Test process_state_change."""
 

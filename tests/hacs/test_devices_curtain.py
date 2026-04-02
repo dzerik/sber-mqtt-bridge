@@ -221,6 +221,182 @@ class TestCurtainProcessCmd(unittest.TestCase):
         self.assertEqual(result, [])
 
 
+class TestCurtainLightTransmission(unittest.TestCase):
+    """Test light_transmission_percentage feature in CurtainEntity."""
+
+    def test_tilt_feature_present(self):
+        """Cover with current_tilt_position must include light_transmission_percentage."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state({
+            "entity_id": "cover.curtain",
+            "state": "open",
+            "attributes": {"current_position": 50, "current_tilt_position": 80},
+        })
+        features = entity.create_features_list()
+        self.assertIn("light_transmission_percentage", features)
+
+    def test_tilt_feature_absent(self):
+        """Cover without tilt must not include light_transmission_percentage."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state())
+        features = entity.create_features_list()
+        self.assertNotIn("light_transmission_percentage", features)
+
+    def test_tilt_value_in_state(self):
+        """Tilt value=80 must produce light_transmission_percentage=80 in Sber state."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state({
+            "entity_id": "cover.curtain",
+            "state": "open",
+            "attributes": {"current_position": 50, "current_tilt_position": 80},
+        })
+        result = entity.to_sber_current_state()
+        states = result["cover.curtain"]["states"]
+        ltp = next(s for s in states if s["key"] == "light_transmission_percentage")
+        self.assertEqual(ltp["value"]["integer_value"], "80")
+
+    def test_tilt_zero_value(self):
+        """Tilt=0 must still be reported (not treated as falsy)."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state({
+            "entity_id": "cover.curtain",
+            "state": "open",
+            "attributes": {"current_position": 50, "current_tilt_position": 0},
+        })
+        features = entity.create_features_list()
+        self.assertIn("light_transmission_percentage", features)
+        result = entity.to_sber_current_state()
+        states = result["cover.curtain"]["states"]
+        ltp = next(s for s in states if s["key"] == "light_transmission_percentage")
+        self.assertEqual(ltp["value"]["integer_value"], "0")
+
+    def test_tilt_not_in_state_when_absent(self):
+        """Without tilt, light_transmission_percentage must not appear in state."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state())
+        result = entity.to_sber_current_state()
+        states = result["cover.curtain"]["states"]
+        keys = [s["key"] for s in states]
+        self.assertNotIn("light_transmission_percentage", keys)
+
+
+class TestCurtainOpenRate(unittest.TestCase):
+    """Test open_rate feature in CurtainEntity."""
+
+    def test_open_rate_feature_present(self):
+        """Cover with speed=low must include open_rate in features."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state({
+            "entity_id": "cover.curtain",
+            "state": "open",
+            "attributes": {"current_position": 50, "speed": "low"},
+        })
+        features = entity.create_features_list()
+        self.assertIn("open_rate", features)
+
+    def test_open_rate_feature_absent(self):
+        """Cover without speed must not include open_rate."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state())
+        features = entity.create_features_list()
+        self.assertNotIn("open_rate", features)
+
+    def test_open_rate_low_in_state(self):
+        """speed=low must produce open_rate=low in Sber state."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state({
+            "entity_id": "cover.curtain",
+            "state": "open",
+            "attributes": {"current_position": 50, "speed": "low"},
+        })
+        result = entity.to_sber_current_state()
+        states = result["cover.curtain"]["states"]
+        rate = next(s for s in states if s["key"] == "open_rate")
+        self.assertEqual(rate["value"]["enum_value"], "low")
+
+    def test_open_rate_high_in_state(self):
+        """speed=high must produce open_rate=high in Sber state."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state({
+            "entity_id": "cover.curtain",
+            "state": "open",
+            "attributes": {"current_position": 50, "speed": "high"},
+        })
+        result = entity.to_sber_current_state()
+        states = result["cover.curtain"]["states"]
+        rate = next(s for s in states if s["key"] == "open_rate")
+        self.assertEqual(rate["value"]["enum_value"], "high")
+
+    def test_open_rate_auto_in_state(self):
+        """speed=auto must produce open_rate=auto in Sber state."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state({
+            "entity_id": "cover.curtain",
+            "state": "open",
+            "attributes": {"current_position": 50, "speed": "auto"},
+        })
+        result = entity.to_sber_current_state()
+        states = result["cover.curtain"]["states"]
+        rate = next(s for s in states if s["key"] == "open_rate")
+        self.assertEqual(rate["value"]["enum_value"], "auto")
+
+    def test_open_rate_invalid_speed_ignored(self):
+        """Unrecognized speed value must not produce open_rate."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state({
+            "entity_id": "cover.curtain",
+            "state": "open",
+            "attributes": {"current_position": 50, "speed": "turbo"},
+        })
+        features = entity.create_features_list()
+        self.assertNotIn("open_rate", features)
+
+    def test_open_rate_motor_speed_alias(self):
+        """motor_speed attribute must also be recognized as open_rate source."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state({
+            "entity_id": "cover.curtain",
+            "state": "open",
+            "attributes": {"current_position": 50, "motor_speed": "high"},
+        })
+        features = entity.create_features_list()
+        self.assertIn("open_rate", features)
+
+    def test_open_rate_not_in_state_when_absent(self):
+        """Without speed, open_rate must not appear in Sber state."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state())
+        result = entity.to_sber_current_state()
+        states = result["cover.curtain"]["states"]
+        keys = [s["key"] for s in states]
+        self.assertNotIn("open_rate", keys)
+
+    def test_open_rate_allowed_values(self):
+        """open_rate must include allowed values when present."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state({
+            "entity_id": "cover.curtain",
+            "state": "open",
+            "attributes": {"current_position": 50, "speed": "low"},
+        })
+        result = entity.to_sber_state()
+        allowed = result["model"]["allowed_values"]
+        self.assertIn("open_rate", allowed)
+        self.assertEqual(allowed["open_rate"]["type"], "ENUM")
+        self.assertEqual(
+            allowed["open_rate"]["enum_values"]["values"],
+            ["auto", "low", "high"],
+        )
+
+    def test_open_rate_no_allowed_values_when_absent(self):
+        """open_rate must not appear in allowed values when absent."""
+        entity = CurtainEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state())
+        result = entity.to_sber_state()
+        allowed = result["model"]["allowed_values"]
+        self.assertNotIn("open_rate", allowed)
+
+
 class TestCurtainProcessStateChange(unittest.TestCase):
     """Test process_state_change."""
 
