@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.24.0] - 2026-04-02
+
+### Added
+- **Hub Device in Settings UI**: Hub (root device) now visible in Settings tab with name, home, room, version, online status, and children count
+- **Auto parent_id**: All child devices automatically get `parent_id: "root"` linking them to the hub in Sber hierarchy (configurable toggle in Settings)
+- **Hub info in WebSocket API**: `sber_mqtt_bridge/status` now returns `hub` object with full hub metadata
+
+### Changed
+- **Protocol**: `build_devices_list_json` now accepts `auto_parent_id` parameter (default: True)
+
 ## [1.23.1] - 2026-04-02
 
 ### Fixed

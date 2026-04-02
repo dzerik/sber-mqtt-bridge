@@ -45,6 +45,7 @@ class SberSettings extends LitElement {
       hass: { type: Object },
       _settings: { type: Object },
       _defaults: { type: Object },
+      _hub: { type: Object },
       _loading: { type: Boolean },
       _saving: { type: Boolean },
       _dirty: { type: Boolean },
@@ -56,6 +57,7 @@ class SberSettings extends LitElement {
     super();
     this._settings = {};
     this._defaults = {};
+    this._hub = null;
     this._loading = false;
     this._saving = false;
     this._dirty = false;
@@ -72,9 +74,13 @@ class SberSettings extends LitElement {
   async _loadSettings() {
     this._loading = true;
     try {
-      const res = await this.hass.callWS({ type: "sber_mqtt_bridge/get_settings" });
-      this._settings = { ...res.settings };
-      this._defaults = res.defaults;
+      const [settingsRes, statusRes] = await Promise.all([
+        this.hass.callWS({ type: "sber_mqtt_bridge/get_settings" }),
+        this.hass.callWS({ type: "sber_mqtt_bridge/status" }),
+      ]);
+      this._settings = { ...settingsRes.settings };
+      this._defaults = settingsRes.defaults;
+      this._hub = statusRes.hub || null;
       this._dirty = false;
     } catch (e) {
       this._toast("Failed to load settings: " + (e.message || e), "error");
@@ -224,6 +230,11 @@ class SberSettings extends LitElement {
         background: var(--secondary-background-color, #f5f5f5);
         color: var(--primary-text-color);
       }
+      .ro-value {
+        font-size: 14px;
+        color: var(--secondary-text-color);
+        font-weight: 500;
+      }
       .loading {
         text-align: center;
         padding: 40px;
@@ -238,6 +249,47 @@ class SberSettings extends LitElement {
     }
 
     return html`
+      ${this._hub ? html`
+        <div class="card">
+          <h3>Hub Device</h3>
+          <div class="note">Root device for Sber hierarchy (read-only, from HA config)</div>
+          <div class="field">
+            <label>Name</label>
+            <span class="ro-value">${this._hub.name}</span>
+          </div>
+          <div class="field">
+            <label>Home</label>
+            <span class="ro-value">${this._hub.home || "—"}</span>
+          </div>
+          <div class="field">
+            <label>Room</label>
+            <span class="ro-value">${this._hub.room || "—"}</span>
+          </div>
+          <div class="field">
+            <label>Version</label>
+            <span class="ro-value">${this._hub.version}</span>
+          </div>
+          <div class="field">
+            <label>Online</label>
+            <span class="ro-value" style="color: ${this._hub.is_online ? "var(--success-color, #4caf50)" : "var(--error-color, #f44336)"}">
+              ${this._hub.is_online ? "Yes" : "No"}
+            </span>
+          </div>
+          <div class="field">
+            <label>Children</label>
+            <span class="ro-value">${this._hub.children_count} devices</span>
+          </div>
+          <div class="field">
+            <label>Auto-assign parent_id</label>
+            <label class="toggle">
+              <input type="checkbox" .checked=${!!this._settings.hub_auto_parent_id}
+                @change=${(e) => this._onInput("hub_auto_parent_id", e.target.checked)}>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      ` : ""}
+
       ${SETTING_DEFS.map(group => html`
         <div class="card">
           <h3>${group.group}</h3>

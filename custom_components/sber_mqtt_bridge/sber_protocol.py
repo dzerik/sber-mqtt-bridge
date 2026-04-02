@@ -15,7 +15,7 @@ from .sber_models import validate_config_payload, validate_status_payload
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.23.1"
+VERSION = "1.24.0"
 """Protocol version string included in the hub device descriptor."""
 
 
@@ -52,6 +52,7 @@ def build_devices_list_json(
     redefinitions: dict[str, dict] | None = None,
     default_home: str = "",
     default_room: str = "",
+    auto_parent_id: bool = True,
 ) -> str:
     """Build Sber device config JSON for MQTT publish.
 
@@ -67,6 +68,9 @@ def build_devices_list_json(
             set via redefinitions.  Sber cloud may reject devices without it.
         default_room: Fallback room name when device has no area assigned.
             Sber cloud may reject devices without a room.
+        auto_parent_id: When True, automatically set ``parent_id`` to the hub
+            ID (``"root"``) for all child devices that don't have an explicit
+            parent_id.  This creates a proper hierarchy in Sber cloud.
 
     Returns:
         JSON string with the Sber device list payload.
@@ -101,6 +105,9 @@ def build_devices_list_json(
 
         if not device_data.get("room") and default_room:
             device_data["room"] = default_room
+
+        if auto_parent_id and "parent_id" not in device_data:
+            device_data["parent_id"] = "root"
 
         filtered = {k: v for k, v in device_data.items() if v is not None}
         device_list["devices"].append(filtered)

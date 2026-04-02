@@ -32,6 +32,7 @@ from .config_flow import create_ssl_context
 from .const import (
     CONF_DEBOUNCE_DELAY,
     CONF_ENTITY_LINKS,
+    CONF_HUB_AUTO_PARENT,
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
     CONF_MAX_MQTT_PAYLOAD,
@@ -1367,12 +1368,14 @@ class SberBridge:
 
         ids_to_publish = entity_ids or self._enabled_entity_ids
         location = self._hass.config.location_name or "Мой дом"
+        auto_parent = self._entry.options.get(CONF_HUB_AUTO_PARENT, True)
         payload = build_devices_list_json(
             self._entities,
             ids_to_publish,
             self._redefinitions,
             default_home=location,
             default_room=location,
+            auto_parent_id=auto_parent,
         )
         topic = f"{self._root_topic}/up/config"
         try:

@@ -191,6 +191,10 @@ async def ws_get_status(
 
     from .sber_protocol import VERSION
 
+    location = hass.config.location_name or "Мой дом"
+    entry = _get_config_entry(hass)
+    auto_parent = entry.options.get("hub_auto_parent_id", True) if entry else True
+
     connection.send_result(
         msg["id"],
         {
@@ -199,6 +203,16 @@ async def ws_get_status(
             "entities_count": bridge.entities_count,
             "unacknowledged": bridge.unacknowledged_entities,
             "version": VERSION,
+            "hub": {
+                "id": "root",
+                "name": "Home Assistant Bridge",
+                "home": location,
+                "room": location,
+                "version": VERSION,
+                "is_online": bridge.is_connected,
+                "children_count": len(bridge.enabled_entity_ids),
+                "auto_parent_id": auto_parent,
+            },
         },
     )
 
