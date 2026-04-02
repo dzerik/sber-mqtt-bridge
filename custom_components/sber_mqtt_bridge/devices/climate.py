@@ -524,15 +524,27 @@ class ClimateEntity(BaseEntity):
                         }
                     )
                 else:
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "climate",
-                                "service": "set_preset_mode",
-                                "service_data": {"preset_mode": "none"},
-                                "target": {"entity_id": self.entity_id},
+                    # Find first non-night preset, or use "none" as last resort
+                    normal_presets = [
+                        p for p in self._preset_modes
+                        if p not in ("sleep", "night")
+                    ]
+                    fallback_preset = normal_presets[0] if normal_presets else "none"
+                    if "none" in self._preset_modes or normal_presets:
+                        results.append(
+                            {
+                                "url": {
+                                    "type": "call_service",
+                                    "domain": "climate",
+                                    "service": "set_preset_mode",
+                                    "service_data": {"preset_mode": fallback_preset},
+                                    "target": {"entity_id": self.entity_id},
+                                }
                             }
-                        }
-                    )
+                        )
+                    else:
+                        _LOGGER.warning(
+                            "Cannot turn off night mode for %s: no non-night presets available",
+                            self.entity_id,
+                        )
         return results

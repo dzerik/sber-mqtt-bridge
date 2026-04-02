@@ -626,15 +626,13 @@ class TestVacuumCleanerCompliance:
         vals = allowed["vacuum_cleaner_command"]["enum_values"]["values"]
         assert set(vals) == {"start", "stop", "pause", "return_to_dock"}
 
-    def test_allowed_values_status_enum(self):
-        """Allowed values for vacuum_cleaner_status must include all valid states."""
+    def test_status_not_in_allowed_values(self):
+        """vacuum_cleaner_status is read-only — must NOT be in allowed_values."""
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
-        assert "vacuum_cleaner_status" in allowed
-        vals = set(allowed["vacuum_cleaner_status"]["enum_values"]["values"])
-        assert {"cleaning", "charging", "standby", "go_home", "error"} <= vals
+        assert "vacuum_cleaner_status" not in allowed
 
     def test_allowed_values_program_when_fan_speeds(self):
         """Allowed values for vacuum_cleaner_program must list fan speeds."""
@@ -648,15 +646,13 @@ class TestVacuumCleanerCompliance:
         vals = allowed["vacuum_cleaner_program"]["enum_values"]["values"]
         assert vals == ["silent", "standard", "turbo"]
 
-    def test_allowed_values_cleaning_type_when_available(self):
-        """Allowed values for vacuum_cleaner_cleaning_type must include dry/wet/dry_and_wet."""
+    def test_cleaning_type_not_in_allowed_values(self):
+        """vacuum_cleaner_cleaning_type is read-only — must NOT be in allowed_values."""
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(cleaning_type="dry"))
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
-        assert "vacuum_cleaner_cleaning_type" in allowed
-        vals = set(allowed["vacuum_cleaner_cleaning_type"]["enum_values"]["values"])
-        assert vals == {"dry", "wet", "dry_and_wet"}
+        assert "vacuum_cleaner_cleaning_type" not in allowed
 
     @pytest.mark.parametrize(
         "cmd_value,expected_service",

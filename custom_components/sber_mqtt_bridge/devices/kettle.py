@@ -137,8 +137,8 @@ class KettleEntity(BaseEntity):
                 results.append(self._build_on_off_service_call(self.entity_id, domain, on))
 
             elif key == "kitchen_water_temperature_set" and value.get("type") == "INTEGER":
-                raw = value.get("integer_value")
-                if raw is None:
+                temp = self._safe_int(value.get("integer_value"))
+                if temp is None:
                     continue
                 results.append(
                     {
@@ -146,7 +146,7 @@ class KettleEntity(BaseEntity):
                             "type": "call_service",
                             "domain": domain,
                             "service": "set_temperature",
-                            "service_data": {"temperature": self._safe_int(raw) or 0},
+                            "service_data": {"temperature": temp},
                             "target": {"entity_id": self.entity_id},
                         }
                     }

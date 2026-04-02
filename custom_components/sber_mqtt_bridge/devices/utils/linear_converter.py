@@ -84,9 +84,9 @@ class LinearConverter:
             Rounded integer value in HA range.
         """
         if sber_value < self.sber_side_min:
-            return self.ha_side_min
+            return self.ha_side_max if self.is_reversed else self.ha_side_min
         if sber_value > self.sber_side_max:
-            return self.ha_side_max
+            return self.ha_side_min if self.is_reversed else self.ha_side_max
         sber_delta = (sber_value - self.sber_side_min) if not self.is_reversed else (self.sber_side_max - sber_value)
         return round(
             sber_delta * (self.ha_side_max - self.ha_side_min) / (self.sber_side_max - self.sber_side_min)

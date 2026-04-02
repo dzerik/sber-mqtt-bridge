@@ -108,21 +108,15 @@ class VacuumCleanerEntity(BaseEntity):
                 "type": "ENUM",
                 "enum_values": {"values": list(_SBER_CMD_TO_HA_SERVICE.keys())},
             },
-            "vacuum_cleaner_status": {
-                "type": "ENUM",
-                "enum_values": {"values": ["cleaning", "charging", "standby", "go_home", "error"]},
-            },
         }
         if self._fan_speed_list:
             allowed["vacuum_cleaner_program"] = {
                 "type": "ENUM",
                 "enum_values": {"values": self._fan_speed_list},
             }
-        if self._cleaning_type is not None:
-            allowed["vacuum_cleaner_cleaning_type"] = {
-                "type": "ENUM",
-                "enum_values": {"values": ["dry", "wet", "dry_and_wet"]},
-            }
+        # vacuum_cleaner_status and vacuum_cleaner_cleaning_type are read-only:
+        # not included in allowed_values to prevent Sber from sending commands
+        # for features that have no HA service handler.
         return allowed
 
     def to_sber_current_state(self) -> dict[str, dict]:

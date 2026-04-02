@@ -195,6 +195,13 @@ class SberBridge:
         self._awaiting_sber_ack_deadline: float = 0.0
         """Fallback deadline: stop waiting even without acknowledgment."""
 
+        # Delayed confirm tasks per entity (dedup: cancel previous on new command)
+        self._confirm_tasks: dict[str, asyncio.Task] = {}
+
+        # Debounced redefinitions persistence (avoid reload mid-MQTT-loop)
+        self._redef_dirty = False
+        self._redef_timer: asyncio.TimerHandle | None = None
+
         # Ring buffer for MQTT message log (DevTools)
         log_size = opts.get(CONF_MESSAGE_LOG_SIZE, 50)
         self._message_log: deque[dict[str, Any]] = deque(maxlen=log_size)
@@ -417,6 +424,16 @@ class SberBridge:
             self._connection_task = None
 
         self._connected = False
+
+    @callback
+    def _reload_entities_and_resubscribe(self) -> None:
+        """Atomic reload: rebuild entities and re-subscribe HA events.
+
+        Must always be called together to keep subscriptions in sync with
+        the entity set. Prevents stale subscriptions after entity list changes.
+        """
+        self._load_exposed_entities()
+        self._subscribe_ha_events()
 
     def _load_exposed_entities(self) -> None:
         """Load exposed entity list from options and create Sber entity objects.
@@ -738,8 +755,7 @@ class SberBridge:
         with real states — reload and republish so Sber gets correct data.
         """
         _LOGGER.debug("HA started — reloading exposed entities and republishing")
-        self._load_exposed_entities()
-        self._subscribe_ha_events()
+        self._reload_entities_and_resubscribe()
         # Signal that HA is ready.  If MQTT is already connected and waiting
         # in _mqtt_connection_loop, this will unblock the initial publish there.
         # If MQTT connected *after* HA started, _ha_ready is already set and
@@ -807,6 +823,16 @@ class SberBridge:
                     # Fallback timeout ensures we don't block forever.
                     self._awaiting_sber_ack = True
                     self._awaiting_sber_ack_deadline = time.monotonic() + RECONNECT_GRACE_TIMEOUT
+
+                    # One-shot timer: auto-clear ack flag after timeout even if
+                    # Sber never sends a message (prevents permanent command block).
+                    def _ack_timeout_cb() -> None:
+                        if self._awaiting_sber_ack:
+                            _LOGGER.info("Sber ack timeout reached (timer) — accepting commands")
+                            self._awaiting_sber_ack = False
+
+                    self._hass.loop.call_later(RECONNECT_GRACE_TIMEOUT, _ack_timeout_cb)
+
                     _LOGGER.info(
                         "Connected & published states → subscribed to commands "
                         "(awaiting Sber ack, timeout %.0fs)",
@@ -1005,26 +1031,39 @@ class SberBridge:
         # state_changed → publish flow may miss changes when HA attributes
         # update asynchronously (e.g. ESPHome) or when the state itself
         # doesn't change (e.g. color change while already 'on').
-        if commanded_ids:
-            async def _delayed_confirm() -> None:
+        #
+        # Dedup: cancel any previous confirm task for the same entity to
+        # prevent N rapid commands from producing N simultaneous publishes.
+        for eid in commanded_ids:
+            old_task = self._confirm_tasks.pop(eid, None)
+            if old_task and not old_task.done():
+                old_task.cancel()
+
+            async def _delayed_confirm(entity_id: str = eid) -> None:
                 try:
                     await asyncio.sleep(1.5)
-                    for eid in commanded_ids:
-                        entity = self._entities.get(eid)
-                        if entity:
-                            ha_state = self._hass.states.get(eid)
-                            if ha_state:
-                                entity.fill_by_ha_state({
-                                    "entity_id": eid,
-                                    "state": ha_state.state,
-                                    "attributes": dict(ha_state.attributes),
-                                })
-                    _LOGGER.debug("Delayed state confirm for %s", commanded_ids)
-                    await self._publish_states(commanded_ids, force=True)
+                    entity = self._entities.get(entity_id)
+                    if entity:
+                        ha_state = self._hass.states.get(entity_id)
+                        if ha_state:
+                            entity.fill_by_ha_state({
+                                "entity_id": entity_id,
+                                "state": ha_state.state,
+                                "attributes": dict(ha_state.attributes),
+                            })
+                    _LOGGER.debug("Delayed state confirm for %s", entity_id)
+                    await self._publish_states([entity_id], force=True)
+                except asyncio.CancelledError:
+                    pass
                 except Exception:
-                    _LOGGER.exception("Delayed state confirm failed")
+                    _LOGGER.exception("Delayed state confirm failed for %s", entity_id)
+                finally:
+                    self._confirm_tasks.pop(entity_id, None)
 
-            self._create_safe_task(_delayed_confirm(), name="sber_cmd_confirm")
+            task = self._hass.async_create_task(
+                _delayed_confirm(), eager_start=True
+            )
+            self._confirm_tasks[eid] = task
 
     async def _handle_sber_status_request(self, payload: bytes) -> None:
         """Handle status request from Sber cloud.
@@ -1149,7 +1188,25 @@ class SberBridge:
 
     @callback
     def _persist_redefinitions(self) -> None:
-        """Save redefinitions to config entry options for persistence across restarts."""
+        """Schedule debounced save of redefinitions to config entry options.
+
+        Debounced to 2s to avoid triggering OptionsFlowWithReload mid-MQTT-loop
+        when Sber sends rapid group/rename changes (e.g. user moves 10 devices).
+        """
+        self._redef_dirty = True
+        if self._redef_timer is not None:
+            self._redef_timer.cancel()
+        self._redef_timer = self._hass.loop.call_later(
+            2.0, self._flush_redefinitions
+        )
+
+    @callback
+    def _flush_redefinitions(self) -> None:
+        """Actually persist redefinitions to config entry options."""
+        self._redef_timer = None
+        if not self._redef_dirty:
+            return
+        self._redef_dirty = False
         new_options = {**self._entry.options, "redefinitions": self._redefinitions}
         self._hass.config_entries.async_update_entry(self._entry, options=new_options)
 
@@ -1211,7 +1268,13 @@ class SberBridge:
             return
 
         try:
-            entity.process_state_change(event.data.get("old_state"), ha_state_dict)
+            old_state_obj = event.data.get("old_state")
+            old_state_dict = (
+                {"entity_id": old_state_obj.entity_id, "state": old_state_obj.state,
+                 "attributes": dict(old_state_obj.attributes)}
+                if old_state_obj else None
+            )
+            entity.process_state_change(old_state_dict, ha_state_dict)
         except (TypeError, ValueError, KeyError, AttributeError):
             _LOGGER.exception("Error processing state change for %s", entity_id)
             return

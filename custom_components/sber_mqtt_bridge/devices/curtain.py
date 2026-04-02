@@ -69,7 +69,10 @@ class CurtainEntity(BaseEntity):
 
         position = attrs.get("current_position")
         if position is not None:
-            self.current_position = position
+            try:
+                self.current_position = max(0, min(100, int(float(position))))
+            except (TypeError, ValueError):
+                self.current_position = 100 if self.state == "opened" else 0
         else:
             self.current_position = 100 if self.state == "opened" else 0
 
@@ -160,7 +163,9 @@ class CurtainEntity(BaseEntity):
                 continue
 
             if key in ("open_percentage", "cover_position"):
-                ha_position = self._safe_int(value.get("integer_value")) or 0
+                ha_position = self._safe_int(value.get("integer_value"))
+                if ha_position is None:
+                    continue
                 ha_position = max(0, min(100, ha_position))
                 processing_result.append(
                     {
@@ -255,11 +260,8 @@ class CurtainEntity(BaseEntity):
                 "integer_values": {"min": "0", "max": "100", "step": "1"},
             },
         }
-        if self._open_rate is not None:
-            allowed["open_rate"] = {
-                "type": "ENUM",
-                "enum_values": {"values": ["auto", "low", "high"]},
-            }
+        # open_rate is read-only (HA cover has no set_speed service)
+        # light_transmission_percentage maps to tilt — handled via open_percentage
         return allowed
 
     def to_sber_current_state(self) -> dict[str, dict]:

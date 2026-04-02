@@ -371,8 +371,8 @@ class TestCurtainOpenRate(unittest.TestCase):
         keys = [s["key"] for s in states]
         self.assertNotIn("open_rate", keys)
 
-    def test_open_rate_allowed_values(self):
-        """open_rate must include allowed values when present."""
+    def test_open_rate_not_in_allowed_values(self):
+        """open_rate is read-only — must NOT be in allowed_values."""
         entity = CurtainEntity(ENTITY_DATA)
         entity.fill_by_ha_state({
             "entity_id": "cover.curtain",
@@ -381,11 +381,7 @@ class TestCurtainOpenRate(unittest.TestCase):
         })
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
-        self.assertIn("open_rate", allowed)
-        self.assertEqual(allowed["open_rate"]["type"], "ENUM")
-        self.assertEqual(
-            allowed["open_rate"]["enum_values"]["values"],
-            ["auto", "low", "high"],
+        self.assertNotIn("open_rate", allowed,
         )
 
     def test_open_rate_no_allowed_values_when_absent(self):

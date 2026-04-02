@@ -119,23 +119,22 @@ class SimpleReadOnlySensor(BaseEntity):
         """
         super().fill_by_ha_state(ha_state)
         attrs = ha_state.get("attributes", {})
+        # Only overwrite battery/signal from primary entity attributes when
+        # a value IS found. When absent, preserve data injected by linked sensors
+        # via update_linked_data() to avoid flip-flopping on every state update.
         battery = attrs.get("battery") or attrs.get("battery_level")
         if battery is not None:
             try:
                 self._battery_level = int(battery)
             except (TypeError, ValueError):
-                self._battery_level = None
-        else:
-            self._battery_level = None
+                pass  # preserve linked value
 
         rssi = attrs.get("signal_strength") or attrs.get("rssi") or attrs.get("linkquality")
         if rssi is not None:
             try:
                 self._signal_strength_raw = int(rssi)
             except (TypeError, ValueError):
-                self._signal_strength_raw = None
-        else:
-            self._signal_strength_raw = None
+                pass  # preserve linked value
 
         # Sensor sensitivity (Aqara, Tuya, some Zigbee devices)
         sensitivity = attrs.get("sensitivity") or attrs.get("motion_sensitivity")

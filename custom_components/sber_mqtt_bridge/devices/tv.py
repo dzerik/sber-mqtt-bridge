@@ -53,8 +53,8 @@ class TvEntity(BaseEntity):
         super().fill_by_ha_state(ha_state)
         self.current_state = ha_state.get("state") not in ("off", "standby", "unavailable", "unknown")
         attrs = ha_state.get("attributes", {})
-        volume_level = attrs.get("volume_level")
-        self._volume = int(volume_level * 100) if volume_level is not None else 0
+        vol = self._safe_float(attrs.get("volume_level"))
+        self._volume = int(vol * 100) if vol is not None else 0
         self._is_muted = bool(attrs.get("is_volume_muted", False))
         self._source = attrs.get("source")
         self._source_list = attrs.get("source_list") or []

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-04-02
+
+### Fixed
+- **CRITICAL: Light brightness** — `ha_to_sber_hsv` received Sber-scaled brightness (100-900) instead of HA raw (0-255), causing all color lights to report max brightness to Sber cloud
+- **CRITICAL: Delayed confirm accumulation** — N rapid Sber commands produced N simultaneous MQTT publishes after 1.5s; now deduped per entity (cancel previous task)
+- **CRITICAL: Entry reload mid-MQTT-loop** — `_persist_redefinitions` triggered OptionsFlowWithReload during message processing; now debounced to 2s
+- **Color converter** — `sber_value=None` or values <100 now correctly map to brightness 0 instead of erroneously clamping to 100
+- **Linear converter** — reversed mode (color_temp) had wrong min/max clamping for out-of-range values
+- **Light brightness=0 command** — `_safe_int(...) or 50` replaced valid 0 with 50; now uses proper None guard
+- **Light color_temp command** — same `or 0` pattern fixed with None guard
+- **Curtain position** — `current_position` now cast to int and clamped 0-100 in `fill_by_ha_state`
+- **Curtain position command** — `or 0` pattern fixed; parse failure no longer closes curtains
+- **TV volume_level** — added `_safe_float` guard to prevent crash on non-numeric attribute
+- **Climate night_mode off** — now finds first non-night preset instead of blindly sending `"none"`
+- **Humidifier humidity command** — parse failure no longer sends `set_humidity(0)`
+- **Kettle temperature command** — parse failure no longer sends `set_temperature(0)`
+- **Sensor linked data** — `fill_by_ha_state` no longer resets battery/signal from linked sensors to None
+- **old_state type** — `process_state_change` now receives dict instead of raw HA `State` object
+- **Reconnect ack timeout** — one-shot timer auto-clears `_awaiting_sber_ack` after timeout
+
+### Changed
+- **Vacuum** — `vacuum_cleaner_status` and `vacuum_cleaner_cleaning_type` removed from `allowed_values` (read-only features, no HA service handler)
+- **Curtain** — `open_rate` removed from `allowed_values` (read-only, HA cover has no set_speed service)
+- **BaseEntity** — `process_cmd` now returns `[]` by default (defensive against None cmd_data)
+- **Bridge** — `_reload_entities_and_resubscribe` encapsulates coupled load+subscribe calls
+
 ## [1.22.1] - 2026-04-02
 
 ### Fixed

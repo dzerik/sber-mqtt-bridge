@@ -173,6 +173,6 @@ class TestVacuumAllowedValues(unittest.TestCase):
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
         self.assertIn("vacuum_cleaner_command", allowed)
-        self.assertIn("vacuum_cleaner_status", allowed)
+        self.assertNotIn("vacuum_cleaner_status", allowed)  # read-only, not in allowed_values
         self.assertIn("vacuum_cleaner_program", allowed)
         self.assertEqual(allowed["vacuum_cleaner_program"]["enum_values"]["values"], ["quiet", "standard", "turbo"])

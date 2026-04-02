@@ -74,11 +74,13 @@ class ColorConverter:
         # Нормализация значений Sber
         sber_hue = max(0, min(360, sber_hue if sber_hue is not None else 0))  # H: 0–360
         sber_saturation = max(0, min(1000, sber_saturation if sber_saturation is not None else 0))  # S: 0–1000
-        sber_value = max(100, min(1000, sber_value if sber_value is not None else 0))  # V: 100–1000
+        if sber_value is None:
+            sber_value = 0
+        sber_value = max(0, min(1000, sber_value))  # V: 0–1000 (values <100 map to brightness 0)
 
         # Конвертация в HA HSV
         ha_hue = sber_hue
         ha_saturation = sber_saturation / 10  # 0–1000 → 0–100%
-        ha_brightness = ((sber_value - 100) / 900) * 255  # 100–1000 → 0–255
+        ha_brightness = max(0.0, ((sber_value - 100) / 900) * 255)  # 100–1000 → 0–255; <100 → 0
 
         return round(ha_hue), round(ha_saturation), round(ha_brightness)

@@ -52,6 +52,7 @@ class LightEntity(BaseEntity):
         self.min_mireds: int = 153
         self.supported_color_modes: list[str] = []
         self.current_state: bool = False
+        self._ha_brightness_raw: int = 0
         self.current_sber_brightness: int = 0
         self.current_sber_color_temp: int | None = 0
         self.current_color_mode: str | None = None
@@ -85,6 +86,7 @@ class LightEntity(BaseEntity):
         self.current_state = ha_state.get("state", "off") == "on"
         ha_brightness = attrs.get("brightness", 0)
         ha_brightness = int(ha_brightness) if ha_brightness is not None else 0
+        self._ha_brightness_raw = ha_brightness
 
         self.current_sber_brightness = self.brightness_converter.ha_to_sber(ha_brightness)
 
@@ -199,7 +201,7 @@ class LightEntity(BaseEntity):
         if self.current_state:
             if self._is_current_color_mode_colored() and isinstance(self.hs_color, (list, tuple)) and len(self.hs_color) >= 2:
                 current_color_sber = ColorConverter.ha_to_sber_hsv(
-                    self.hs_color[0], self.hs_color[1], self.current_sber_brightness
+                    self.hs_color[0], self.hs_color[1], self._ha_brightness_raw
                 )
                 states.append(
                     make_state(
@@ -263,7 +265,9 @@ class LightEntity(BaseEntity):
                 )
 
             elif cmd_key == "light_brightness":
-                sber_br_value = self._safe_int(cmd_value.get("integer_value")) or 50
+                sber_br_value = self._safe_int(cmd_value.get("integer_value"))
+                if sber_br_value is None:
+                    continue
                 ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
                 brightness = max(0, min(int(ha_br_value), 255))
                 processing_result.append(
@@ -353,7 +357,9 @@ class LightEntity(BaseEntity):
                         processing_result.append({"update_state": True})
 
             elif cmd_key == "light_colour_temp":
-                sber_color_temp = self._safe_int(cmd_value.get("integer_value")) or 0
+                sber_color_temp = self._safe_int(cmd_value.get("integer_value"))
+                if sber_color_temp is None:
+                    continue
                 ha_mireds = self.color_temp_converter.sber_to_ha(sber_color_temp)
                 ha_kelvin = int(1_000_000 / max(ha_mireds, 1))
                 processing_result.append(

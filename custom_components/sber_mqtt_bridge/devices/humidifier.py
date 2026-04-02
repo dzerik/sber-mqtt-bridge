@@ -232,7 +232,8 @@ class HumidifierEntity(BaseEntity):
                 results.append(self._build_on_off_service_call(self.entity_id, "humidifier", on))
             elif key in ("humidity", "hvac_humidity_set"):
                 raw_humidity = value.get("integer_value")
-                if raw_humidity is None:
+                humidity = self._safe_int(raw_humidity)
+                if humidity is None:
                     continue
                 results.append(
                     {
@@ -240,7 +241,7 @@ class HumidifierEntity(BaseEntity):
                             "type": "call_service",
                             "domain": "humidifier",
                             "service": "set_humidity",
-                            "service_data": {"humidity": self._safe_int(raw_humidity) or 0},
+                            "service_data": {"humidity": humidity},
                             "target": {"entity_id": self.entity_id},
                         }
                     }

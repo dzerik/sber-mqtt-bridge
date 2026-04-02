@@ -143,7 +143,7 @@ async def _drain_tasks(hass):
         if not task.done():
             try:
                 await asyncio.wait_for(task, timeout=5)
-            except (asyncio.TimeoutError, Exception):
+            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
                 pass
 
 
@@ -613,9 +613,12 @@ class TestBridgeFlowEdgeCases:
 
         payloads = _get_published_payloads(bridge)
         assert len(payloads) >= 1
-        last = payloads[-1]
-        assert "switch.a" in last["devices"]
-        assert "switch.b" in last["devices"]
+        # With per-entity delayed confirms, each entity publishes separately
+        all_published_ids = set()
+        for p in payloads:
+            all_published_ids.update(p["devices"].keys())
+        assert "switch.a" in all_published_ids
+        assert "switch.b" in all_published_ids
 
 
 # ---------------------------------------------------------------------------

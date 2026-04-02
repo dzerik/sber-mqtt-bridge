@@ -363,6 +363,7 @@ class TestPersistRedefinitions:
         }).encode()
 
         await bridge._handle_change_group(payload)
+        bridge._flush_redefinitions()  # debounced — flush manually for test
 
         assert bridge._redefinitions["light.living_room"]["room"] == "Living Room"
         bridge._hass.config_entries.async_update_entry.assert_called_once()
@@ -376,6 +377,7 @@ class TestPersistRedefinitions:
         }).encode()
 
         await bridge._handle_rename_device(payload)
+        bridge._flush_redefinitions()  # debounced — flush manually for test
 
         assert bridge._redefinitions["light.kitchen"]["name"] == "Kitchen Light New"
         bridge._hass.config_entries.async_update_entry.assert_called_once()
@@ -384,6 +386,7 @@ class TestPersistRedefinitions:
         """_persist_redefinitions updates entry options with redefinitions."""
         bridge._redefinitions = {"light.a": {"room": "Room A"}}
         bridge._persist_redefinitions()
+        bridge._flush_redefinitions()  # debounced — flush manually for test
 
         call_args = bridge._hass.config_entries.async_update_entry.call_args
         new_options = call_args.kwargs.get("options") or call_args[1].get("options")

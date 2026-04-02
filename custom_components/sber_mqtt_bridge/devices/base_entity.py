@@ -415,12 +415,13 @@ class BaseEntity(ABC):
         """Process a command from Sber cloud.
 
         Args:
-            cmd_data: Command payload with 'states' list.
+            cmd_data: Command payload with 'states' list, or None.
 
         Returns:
             List of dicts with 'url' key containing HA service call descriptors,
-            or empty list if no action needed.
+            or empty list if no action needed or cmd_data is None.
         """
+        return []
 
     @property
     def _is_online(self) -> bool:
