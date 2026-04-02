@@ -51,6 +51,7 @@ class CurtainEntity(BaseEntity):
         self._battery_level: int | None = None
         self._battery_low: bool | None = None
         self._signal_strength_raw: int | None = None
+        self._open_rate: str | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Update state from Home Assistant data.
@@ -77,6 +78,17 @@ class CurtainEntity(BaseEntity):
                 self._battery_level = int(battery)
             except (TypeError, ValueError):
                 self._battery_level = None
+
+        # Motor speed (open_rate) — some Tuya/Zigbee covers expose this
+        speed = attrs.get("speed") or attrs.get("motor_speed")
+        if speed is not None:
+            speed_str = str(speed).lower()
+            if speed_str in ("auto", "low", "high"):
+                self._open_rate = speed_str
+            else:
+                self._open_rate = None
+        else:
+            self._open_rate = None
 
         rssi = attrs.get("signal_strength") or attrs.get("rssi") or attrs.get("linkquality")
         if rssi is not None:
@@ -220,11 +232,13 @@ class CurtainEntity(BaseEntity):
             features.append("battery_low_power")
         if self._signal_strength_raw is not None:
             features.append("signal_strength")
+        if self._open_rate is not None:
+            features.append("open_rate")
         return features
 
     def create_allowed_values_list(self) -> dict[str, dict]:
-        """Return allowed values for open_set and open_percentage features."""
-        return {
+        """Return allowed values for open_set, open_percentage, and open_rate features."""
+        allowed: dict[str, dict] = {
             "open_set": {
                 "type": "ENUM",
                 "enum_values": {"values": ["open", "close", "stop"]},
@@ -234,6 +248,12 @@ class CurtainEntity(BaseEntity):
                 "integer_values": {"min": "0", "max": "100", "step": "1"},
             },
         }
+        if self._open_rate is not None:
+            allowed["open_rate"] = {
+                "type": "ENUM",
+                "enum_values": {"values": ["auto", "low", "high"]},
+            }
+        return allowed
 
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with position, open state, and signal.
@@ -289,5 +309,7 @@ class CurtainEntity(BaseEntity):
             states.append(
                 make_state(SberFeature.SIGNAL_STRENGTH, make_enum_value(rssi_to_signal_strength(self._signal_strength_raw)))
             )
+        if self._open_rate is not None:
+            states.append(make_state(SberFeature.OPEN_RATE, make_enum_value(self._open_rate)))
 
         return {self.entity_id: {"states": states}}

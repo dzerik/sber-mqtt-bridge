@@ -69,7 +69,7 @@ class TvEntity(BaseEntity):
         features = [*super().create_features_list(), "on_off", "volume_int", "mute"]
         if self._source_list:
             features.append("source")
-        features.extend(["channel", "direction"])
+        features.extend(["channel", "channel_int", "direction"])
         return features
 
     def create_allowed_values_list(self) -> dict[str, dict]:
@@ -86,6 +86,10 @@ class TvEntity(BaseEntity):
             "channel": {
                 "type": "ENUM",
                 "enum_values": {"values": ["+", "-"]},
+            },
+            "channel_int": {
+                "type": "INTEGER",
+                "integer_values": {"min": "1", "max": "999", "step": "1"},
             },
             "direction": {
                 "type": "ENUM",
@@ -188,6 +192,27 @@ class TvEntity(BaseEntity):
                         }
                     }
                 )
+
+            elif key == "channel_int" and value.get("type") == "INTEGER":
+                raw_ch = value.get("integer_value")
+                if raw_ch is None:
+                    continue
+                ch = self._safe_int(raw_ch)
+                if ch is not None:
+                    results.append(
+                        {
+                            "url": {
+                                "type": "call_service",
+                                "domain": "media_player",
+                                "service": "play_media",
+                                "service_data": {
+                                    "media_content_type": "channel",
+                                    "media_content_id": str(ch),
+                                },
+                                "target": {"entity_id": self.entity_id},
+                            }
+                        }
+                    )
 
             elif key == "channel" and value.get("type") == "ENUM":
                 direction = value.get("enum_value")

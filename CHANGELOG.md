@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.1] - 2026-04-02
+
+### Added
+- **Sensors**: `tamper_alarm` for water_leak, smoke, gas sensors (from HA tamper attribute)
+- **Sensors**: `alarm_mute` for water_leak sensor (parity with smoke/gas)
+- **TV**: `channel_int` feature — switch channel by number via `media_player.play_media`
+- **Curtain**: `open_rate` feature (ENUM: auto/low/high) when HA cover has speed attribute
+
 ## [1.18.0] - 2026-04-02
 
 ### Changed
