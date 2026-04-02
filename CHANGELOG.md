@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.20.1] - 2026-04-02
+
+### Fixed
+- **Protocol**: Remove `dependencies` from MQTT config payload — Sber protobuf rejects `"value"` field in dependencies structure via MQTT (fixes ESPHome RGB lamps and all devices with dependencies being silently rejected)
+- **Protocol**: Replace `"Unknown"` with `"1"` for missing hw_version/sw_version (Sber may reject "Unknown")
+- **DevTools**: Copy payload button in MQTT Message Log
+
 ## [1.20.0] - 2026-04-02
 
 ### Added

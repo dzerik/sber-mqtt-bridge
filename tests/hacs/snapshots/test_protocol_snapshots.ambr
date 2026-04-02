@@ -5,7 +5,7 @@
       dict({
         'default_name': 'HA-SberBridge Hub',
         'home': '',
-        'hw_version': '1.20.0',
+        'hw_version': '1.20.1',
         'id': 'root',
         'model': dict({
           'category': 'hub',
@@ -19,11 +19,11 @@
         }),
         'name': 'Home Assistant Bridge',
         'room': '',
-        'sw_version': '1.20.0',
+        'sw_version': '1.20.1',
       }),
       dict({
         'default_name': 'switch.lamp',
-        'hw_version': 'Unknown',
+        'hw_version': '1',
         'id': 'switch.lamp',
         'model': dict({
           'category': 'relay',
@@ -38,11 +38,11 @@
         }),
         'name': 'Lamp',
         'room': 'room1',
-        'sw_version': 'Unknown',
+        'sw_version': '1',
       }),
       dict({
         'default_name': 'sensor.temp',
-        'hw_version': 'Unknown',
+        'hw_version': '1',
         'id': 'sensor.temp',
         'model': dict({
           'category': 'sensor_temp',
@@ -58,7 +58,7 @@
         }),
         'name': 'Temperature',
         'room': 'room1',
-        'sw_version': 'Unknown',
+        'sw_version': '1',
       }),
     ]),
   })
@@ -69,7 +69,7 @@
       dict({
         'default_name': 'HA-SberBridge Hub',
         'home': '',
-        'hw_version': '1.20.0',
+        'hw_version': '1.20.1',
         'id': 'root',
         'model': dict({
           'category': 'hub',
@@ -83,12 +83,12 @@
         }),
         'name': 'Home Assistant Bridge',
         'room': '',
-        'sw_version': '1.20.0',
+        'sw_version': '1.20.1',
       }),
       dict({
         'default_name': 'switch.lamp',
         'home': 'My Home',
-        'hw_version': 'Unknown',
+        'hw_version': '1',
         'id': 'switch.lamp',
         'model': dict({
           'category': 'relay',
@@ -103,7 +103,7 @@
         }),
         'name': 'New Lamp',
         'room': 'Kitchen',
-        'sw_version': 'Unknown',
+        'sw_version': '1',
       }),
     ]),
   })

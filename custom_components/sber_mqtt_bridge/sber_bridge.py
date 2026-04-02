@@ -586,8 +586,8 @@ class SberBridge:
             "manufacturer": device.manufacturer or "Unknown",
             "model": device.model or "Unknown",
             "model_id": device.model_id or "",
-            "hw_version": device.hw_version or "Unknown",
-            "sw_version": device.sw_version or "Unknown",
+            "hw_version": device.hw_version or "1",
+            "sw_version": device.sw_version or "1",
         }
         try:
             sber_entity.link_device(device_data)

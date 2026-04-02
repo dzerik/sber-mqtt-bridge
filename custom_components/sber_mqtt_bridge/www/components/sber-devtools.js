@@ -225,6 +225,24 @@ class SberDevtools extends LitElement {
       + "." + String(d.getMilliseconds()).padStart(3, "0");
   }
 
+  async _copyPayload(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      this.dispatchEvent(new CustomEvent("devtools-toast", {
+        detail: { message: "Payload copied", type: "success" },
+        bubbles: true, composed: true,
+      }));
+    } catch {
+      // Fallback for non-HTTPS contexts
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+  }
+
   _truncate(str, maxLen = 120) {
     if (!str) return "";
     return str.length > maxLen ? str.substring(0, maxLen) + "..." : str;
@@ -445,6 +463,21 @@ class SberDevtools extends LitElement {
         white-space: nowrap;
       }
 
+      .copy-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        padding: 2px 4px;
+        border-radius: 4px;
+        opacity: 0.5;
+        margin-left: 4px;
+        vertical-align: middle;
+      }
+      .copy-btn:hover {
+        opacity: 1;
+        background: var(--secondary-background-color, #333);
+      }
       .payload-cell {
         max-width: 400px;
         overflow: hidden;
@@ -602,7 +635,10 @@ class SberDevtools extends LitElement {
                         </span>
                       </td>
                       <td class="topic-cell" title="${m.topic}">${m.topic}</td>
-                      <td class="payload-cell" title="${m.payload}">${this._truncate(m.payload)}</td>
+                      <td class="payload-cell" title="${m.payload}">
+                        ${this._truncate(m.payload)}
+                        <button class="copy-btn" @click=${() => this._copyPayload(m.payload)} title="Copy payload">\u{1F4CB}</button>
+                      </td>
                     </tr>
                   `)}
                 </tbody>
