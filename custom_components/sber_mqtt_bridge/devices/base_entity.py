@@ -326,13 +326,17 @@ class BaseEntity(ABC):
             # Use overridden name (e.g. sber_name from YAML) if set, otherwise device name
             device_name = self.linked_device.get("name", self.original_name)
             display_name = self.name if self.name != self.original_name else device_name
+            # Append category suffix to model_id to prevent Sber cloud from
+            # overriding our category based on its own model database.
+            raw_model_id = self.linked_device["model_id"]
+            model_id = f"{raw_model_id}_{self.category}" if raw_model_id else f"Mdl_{self.category}"
             res = {
                 "id": self.entity_id,
                 "name": display_name,
                 "default_name": self.original_name,
                 "room": self.linked_device.get("area_id", self.area_id),
                 "model": {
-                    "id": self.linked_device["model_id"],
+                    "id": model_id,
                     "manufacturer": self.linked_device["manufacturer"],
                     "model": self.linked_device["model"],
                     "description": display_name,

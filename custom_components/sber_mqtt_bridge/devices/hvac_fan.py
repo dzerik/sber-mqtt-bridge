@@ -102,20 +102,36 @@ class HvacFanEntity(BaseEntity):
             return _percentage_to_sber_speed(self.percentage)
         return None
 
+    @property
+    def _supports_speed(self) -> bool:
+        """Check if this fan has speed control (preset_modes or percentage)."""
+        return bool(self.preset_modes) or self.percentage is not None
+
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for fan capabilities.
+
+        Only includes hvac_air_flow_power when the HA entity supports speed
+        control. Simple on/off fans (e.g. relay overridden as fan) get only
+        on_off.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        return [*super().create_features_list(), "on_off", "hvac_air_flow_power"]
+        features = [*super().create_features_list(), "on_off"]
+        if self._supports_speed:
+            features.append("hvac_air_flow_power")
+        return features
 
     def create_allowed_values_list(self) -> dict[str, dict]:
         """Build allowed values map for fan speed feature.
 
+        Returns empty dict when the fan has no speed support.
+
         Returns:
             Dict mapping feature key to its allowed ENUM values descriptor.
         """
+        if not self._supports_speed:
+            return {}
         return {
             "hvac_air_flow_power": {
                 "type": "ENUM",
@@ -133,8 +149,8 @@ class HvacFanEntity(BaseEntity):
             make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
             make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
-        speed = self._get_sber_speed()
-        if speed:
+        if self._supports_speed:
+            speed = self._get_sber_speed() or "auto"
             states.append(make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(speed)))
         return {self.entity_id: {"states": states}}
 

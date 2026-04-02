@@ -27,13 +27,21 @@ class TestHvacFanCreate(unittest.TestCase):
         entity = HvacFanEntity(ENTITY_DATA)
         self.assertFalse(entity.current_state)
 
-    def test_features_list(self):
+    def test_features_list_with_speed(self):
+        entity = HvacFanEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(percentage=50))
+        features = entity.create_features_list()
+        self.assertIn("online", features)
+        self.assertIn("on_off", features)
+        self.assertIn("hvac_air_flow_power", features)
+
+    def test_features_list_simple_relay(self):
         entity = HvacFanEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
         features = entity.create_features_list()
         self.assertIn("online", features)
         self.assertIn("on_off", features)
-        self.assertIn("hvac_air_flow_power", features)
+        self.assertNotIn("hvac_air_flow_power", features)
 
 
 class TestHvacFanToSberCurrentState(unittest.TestCase):
@@ -133,12 +141,19 @@ class TestHvacFanProcessCmd(unittest.TestCase):
 class TestHvacFanAllowedValues(unittest.TestCase):
     """Test to_sber_state allowed values."""
 
-    def test_allowed_values_present(self):
+    def test_allowed_values_with_speed(self):
         entity = HvacFanEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("on"))
+        entity.fill_by_ha_state(_make_ha_state("on", percentage=50))
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
         self.assertIn("hvac_air_flow_power", allowed)
         values = allowed["hvac_air_flow_power"]["enum_values"]["values"]
         self.assertIn("auto", values)
         self.assertIn("high", values)
+
+    def test_allowed_values_simple_relay(self):
+        entity = HvacFanEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on"))
+        result = entity.to_sber_state()
+        allowed = result["model"].get("allowed_values", {})
+        self.assertNotIn("hvac_air_flow_power", allowed)

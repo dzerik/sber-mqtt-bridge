@@ -259,13 +259,15 @@ class CurtainEntity(BaseEntity):
 
         # Enforce consistency: open_state must match open_percentage
         sber_pos = self._convert_position(self.current_position)
-        state_map = {"open": "open", "opening": "open", "closed": "close", "closing": "close"}
+        # Sber supports: open, close, opening, closing
+        state_map = {"open": "open", "opening": "opening", "closed": "close", "closing": "closing"}
         open_state = state_map.get(self.state, "close" if sber_pos == 0 else "open")
-        # Force alignment: if percentage > 0, state must be 'open'; if 0, must be 'close'
-        if sber_pos > 0 and open_state == "close":
-            open_state = "open"
-        elif sber_pos == 0 and open_state == "open":
-            open_state = "close"
+        # Force alignment for stable states: percentage > 0 must be 'open'; 0 must be 'close'
+        if self.state not in ("opening", "closing"):
+            if sber_pos > 0 and open_state == "close":
+                open_state = "open"
+            elif sber_pos == 0 and open_state == "open":
+                open_state = "close"
         states.append(
             make_state(SberFeature.OPEN_STATE, make_enum_value(open_state))
         )

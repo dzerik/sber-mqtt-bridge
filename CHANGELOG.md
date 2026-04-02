@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-04-02
+
+### Changed
+- **Model ID**: Category suffix appended to all model_ids (`TS0002_limited` → `TS0002_limited_hvac_fan`) to prevent Sber cloud from overriding device category based on its own model database
+- **Fan**: Simple on/off fans (no speed support) no longer declare `hvac_air_flow_power` feature — only `on_off` + `online`
+- **Curtain**: Pass `opening`/`closing` intermediate states to Sber (previously collapsed to `open`/`close`)
+
 ## [1.17.2] - 2026-04-02
 
 ### Fixed
