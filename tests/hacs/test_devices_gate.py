@@ -329,11 +329,13 @@ class TestGateNegative(unittest.TestCase):
         self.assertEqual(len(result), 0)
 
     def test_fill_with_invalid_position_string(self):
-        """Non-numeric position must fall back to state-based default."""
+        """Non-numeric position must fall back to state-based default.
+
+        HA state 'open' → position defaults to 100 (fully open).
+        """
         entity = GateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(state="open", current_position="abc"))
-        # Fallback: state='open' but not 'opened', so defaults to 0
-        self.assertEqual(entity.current_position, 0)
+        self.assertEqual(entity.current_position, 100)
 
     def test_fill_empty_attributes(self):
         """Empty attributes dict must not raise errors."""

@@ -663,11 +663,6 @@ class TestNoneAndNaNAttributes:
         result = entity.to_sber_current_state()
         assert "light.test" in result
 
-    @pytest.mark.xfail(
-        reason="BUG: ClimateEntity.to_sber_current_state crashes on NaN temperature "
-        "(ValueError: cannot convert float NaN to integer)",
-        strict=True,
-    )
     def test_climate_temperature_nan(self):
         """Climate with current_temperature=NaN must not crash."""
         entity = ClimateEntity(_entity_data("climate.test"))
@@ -716,11 +711,6 @@ class TestNoneAndNaNAttributes:
         assert entity.min_temp == 16.0
         assert entity.max_temp == 32.0
 
-    @pytest.mark.xfail(
-        reason="BUG: SensorTempEntity._get_sber_value crashes on Inf "
-        "(OverflowError: cannot convert float infinity to integer)",
-        strict=True,
-    )
     def test_sensor_temp_inf(self):
         """Temperature sensor with state='inf' must not crash."""
         entity = SensorTempEntity(_entity_data("sensor.test"))
@@ -728,10 +718,6 @@ class TestNoneAndNaNAttributes:
         result = entity.to_sber_current_state()
         assert "sensor.test" in result
 
-    @pytest.mark.xfail(
-        reason="BUG: SensorTempEntity._get_sber_value crashes on NaN (ValueError: cannot convert float NaN to integer)",
-        strict=True,
-    )
     def test_sensor_temp_nan_string(self):
         """Temperature sensor with state='nan' must not crash."""
         entity = SensorTempEntity(_entity_data("sensor.test"))
@@ -739,11 +725,6 @@ class TestNoneAndNaNAttributes:
         result = entity.to_sber_current_state()
         assert "sensor.test" in result
 
-    @pytest.mark.xfail(
-        reason="BUG: SensorTempEntity._get_sber_value crashes on -Inf "
-        "(OverflowError: cannot convert float infinity to integer)",
-        strict=True,
-    )
     def test_sensor_temp_negative_inf(self):
         """Temperature sensor with state='-inf' must not crash."""
         entity = SensorTempEntity(_entity_data("sensor.test"))

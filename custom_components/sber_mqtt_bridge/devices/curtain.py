@@ -72,9 +72,9 @@ class CurtainEntity(BaseEntity):
             try:
                 self.current_position = max(0, min(100, int(float(position))))
             except (TypeError, ValueError):
-                self.current_position = 100 if self.state == "opened" else 0
+                self.current_position = 100 if self.state in ("open", "opening") else 0
         else:
-            self.current_position = 100 if self.state == "opened" else 0
+            self.current_position = 100 if self.state in ("open", "opening") else 0
 
         battery = attrs.get("battery") or attrs.get("battery_level")
         if battery is not None:

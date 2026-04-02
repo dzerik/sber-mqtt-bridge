@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.23.1] - 2026-04-02
+
+### Fixed
+- **Curtain/Gate/WindowBlind**: Position fallback checked `"opened"` but HA cover uses `"open"` — open covers without `current_position` attribute defaulted to 0 (closed) instead of 100
+- **Climate**: NaN temperature no longer crashes `to_sber_current_state` (guarded with `math.isfinite`)
+- **Climate**: Negative humidity commands now clamped to 0-100 range
+- **SensorTemp**: NaN/Inf state values no longer crash `_get_sber_value` (guarded with `math.isfinite`)
+
 ## [1.23.0] - 2026-04-02
 
 ### Fixed

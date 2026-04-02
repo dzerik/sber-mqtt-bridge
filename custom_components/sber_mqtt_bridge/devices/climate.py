@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
@@ -167,8 +168,10 @@ class ClimateEntity(BaseEntity):
         super().fill_by_ha_state(ha_state)
         self.current_state = ha_state.get("state", "off") != "off"
         attrs = ha_state.get("attributes", {})
-        self.temperature = self._safe_float(attrs.get("current_temperature"))
-        self.target_temperature = self._safe_float(attrs.get("temperature"))
+        raw_temp = self._safe_float(attrs.get("current_temperature"))
+        self.temperature = raw_temp if raw_temp is not None and math.isfinite(raw_temp) else None
+        raw_target = self._safe_float(attrs.get("temperature"))
+        self.target_temperature = raw_target if raw_target is not None and math.isfinite(raw_target) else None
         self.fan_modes = attrs.get("fan_modes") or []
         self.swing_modes = attrs.get("swing_modes") or []
         self.hvac_modes = attrs.get("hvac_modes") or []
@@ -284,7 +287,7 @@ class ClimateEntity(BaseEntity):
             make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
             make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
-        if self.temperature is not None:
+        if self.temperature is not None and math.isfinite(self.temperature):
             states.append(
                 make_state(SberFeature.TEMPERATURE, make_integer_value(int(self.temperature * 10)))
             )
@@ -496,6 +499,7 @@ class ClimateEntity(BaseEntity):
                 humidity = self._safe_int(value.get("integer_value"))
                 if humidity is None:
                     continue
+                humidity = max(0, min(100, humidity))
                 results.append(
                     {
                         "url": {

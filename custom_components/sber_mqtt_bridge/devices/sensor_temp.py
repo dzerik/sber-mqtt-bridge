@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import math
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_enum_value, make_integer_value, make_state
@@ -50,7 +51,8 @@ class SensorTempEntity(SimpleReadOnlySensor):
         """
         super().fill_by_ha_state(ha_state)
         try:
-            self.temperature = float(ha_state.get("state", 0))
+            temp = float(ha_state.get("state", 0))
+            self.temperature = temp if math.isfinite(temp) else 0.0
         except (ValueError, TypeError):
             self.temperature = 0.0
         attrs = ha_state.get("attributes", {})

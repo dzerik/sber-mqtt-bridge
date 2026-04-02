@@ -77,10 +77,10 @@ class TestWindowBlindFillByHaState(unittest.TestCase):
         entity.fill_by_ha_state(_make_ha_state(state="open", current_position=40))
         self.assertEqual(entity.current_position, 40)
 
-    def test_fill_no_position_opened_defaults_100(self):
-        """No position attribute + state 'opened' defaults to 100."""
+    def test_fill_no_position_open_defaults_100(self):
+        """No position attribute + HA state 'open' must default to 100."""
         entity = WindowBlindEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(state="opened"))
+        entity.fill_by_ha_state(_make_ha_state(state="open"))
         self.assertEqual(entity.current_position, 100)
 
     def test_fill_no_position_closed_defaults_0(self):
@@ -374,8 +374,8 @@ class TestWindowBlindNegative(unittest.TestCase):
             "state": "open",
             "attributes": {},
         })
-        # No position attr + state 'open' (not 'opened') defaults to 0
-        self.assertEqual(entity.current_position, 0)
+        # No position attr + HA state 'open' → defaults to 100 (fully open)
+        self.assertEqual(entity.current_position, 100)
 
     def test_fill_invalid_position_string(self):
         """Non-numeric position must fall back to state-based default."""
