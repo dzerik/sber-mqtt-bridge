@@ -19,13 +19,16 @@ VACUUM_CLEANER_CATEGORY = "vacuum_cleaner"
 
 _HA_STATE_TO_SBER_STATUS: dict[str, str] = {
     "cleaning": "cleaning",
-    "returning": "returning",
-    "docked": "docked",
-    "paused": "paused",
-    "idle": "docked",
+    "returning": "go_home",
+    "docked": "standby",
+    "paused": "standby",
+    "idle": "standby",
     "error": "error",
 }
-"""Mapping from HA vacuum state to Sber vacuum_cleaner_status ENUM."""
+"""Mapping from HA vacuum state to Sber vacuum_cleaner_status ENUM.
+
+Sber documented values: cleaning, charging, standby, go_home, error.
+"""
 
 _SBER_CMD_TO_HA_SERVICE: dict[str, str] = {
     "start": "start",
@@ -67,7 +70,7 @@ class VacuumCleanerEntity(BaseEntity):
         """
         super().fill_by_ha_state(ha_state)
         ha_status = ha_state.get("state", "")
-        self._status = _HA_STATE_TO_SBER_STATUS.get(ha_status, "docked")
+        self._status = _HA_STATE_TO_SBER_STATUS.get(ha_status, "standby")
         attrs = ha_state.get("attributes", {})
         self._fan_speed = attrs.get("fan_speed")
         self._fan_speed_list = attrs.get("fan_speed_list") or []
@@ -107,7 +110,7 @@ class VacuumCleanerEntity(BaseEntity):
             },
             "vacuum_cleaner_status": {
                 "type": "ENUM",
-                "enum_values": {"values": ["cleaning", "charging", "docked", "returning", "error", "paused"]},
+                "enum_values": {"values": ["cleaning", "charging", "standby", "go_home", "error"]},
             },
         }
         if self._fan_speed_list:

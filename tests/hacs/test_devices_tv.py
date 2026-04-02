@@ -215,14 +215,16 @@ class TestTvProcessCmd(unittest.TestCase):
         url = result[0]["url"]
         self.assertEqual(url["service"], "volume_down")
 
-    def test_cmd_direction_unmapped_ignored(self):
-        """direction values without mapping (left/right/ok) must produce no result."""
+    def test_cmd_direction_left_right_ok_handled(self):
+        """direction left/right/ok produce service calls per Sber spec."""
         entity = self._make_entity("playing")
-        for direction in ("left", "right", "ok"):
+        expected = {"left": "media_previous_track", "right": "media_next_track", "ok": "media_play_pause"}
+        for direction, service in expected.items():
             result = entity.process_cmd(
                 {"states": [{"key": "direction", "value": {"type": "ENUM", "enum_value": direction}}]}
             )
-            self.assertEqual(len(result), 0, f"direction={direction} should not produce a service call")
+            self.assertEqual(len(result), 1, f"direction={direction} should produce a service call")
+            self.assertEqual(result[0]["url"]["service"], service)
 
     def test_cmd_direction_empty_skipped(self):
         """direction with empty enum_value must be skipped."""

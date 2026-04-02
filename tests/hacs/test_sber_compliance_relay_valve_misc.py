@@ -572,10 +572,10 @@ class TestVacuumCleanerCompliance:
         "ha_state,expected_sber_status",
         [
             ("cleaning", "cleaning"),
-            ("returning", "returning"),
-            ("docked", "docked"),
-            ("paused", "paused"),
-            ("idle", "docked"),
+            ("returning", "go_home"),
+            ("docked", "standby"),
+            ("paused", "standby"),
+            ("idle", "standby"),
             ("error", "error"),
         ],
     )
@@ -634,7 +634,7 @@ class TestVacuumCleanerCompliance:
         allowed = result["model"]["allowed_values"]
         assert "vacuum_cleaner_status" in allowed
         vals = set(allowed["vacuum_cleaner_status"]["enum_values"]["values"])
-        assert {"cleaning", "charging", "docked", "returning", "error", "paused"} <= vals
+        assert {"cleaning", "charging", "standby", "go_home", "error"} <= vals
 
     def test_allowed_values_program_when_fan_speeds(self):
         """Allowed values for vacuum_cleaner_program must list fan speeds."""

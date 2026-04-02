@@ -243,16 +243,27 @@ class TvEntity(BaseEntity):
                 direction_cmd = value.get("enum_value")
                 if not direction_cmd:
                     continue
-                # Map Sber direction to media_player commands
-                direction_map = {
-                    "up": "media_player.volume_up",
-                    "down": "media_player.volume_down",
-                }
-                service = direction_map.get(direction_cmd)
-                if service:
-                    domain, svc = service.split(".", 1)
+                # Map Sber direction to HA media_player commands
+                # Sber docs: up, down, left, right, ok
+                if direction_cmd == "up":
                     results.append(
-                        {"url": {"type": "call_service", "domain": domain, "service": svc, "target": {"entity_id": self.entity_id}}}
+                        {"url": {"type": "call_service", "domain": "media_player", "service": "volume_up", "target": {"entity_id": self.entity_id}}}
+                    )
+                elif direction_cmd == "down":
+                    results.append(
+                        {"url": {"type": "call_service", "domain": "media_player", "service": "volume_down", "target": {"entity_id": self.entity_id}}}
+                    )
+                elif direction_cmd == "left":
+                    results.append(
+                        {"url": {"type": "call_service", "domain": "media_player", "service": "media_previous_track", "target": {"entity_id": self.entity_id}}}
+                    )
+                elif direction_cmd == "right":
+                    results.append(
+                        {"url": {"type": "call_service", "domain": "media_player", "service": "media_next_track", "target": {"entity_id": self.entity_id}}}
+                    )
+                elif direction_cmd == "ok":
+                    results.append(
+                        {"url": {"type": "call_service", "domain": "media_player", "service": "media_play_pause", "target": {"entity_id": self.entity_id}}}
                     )
 
         return results

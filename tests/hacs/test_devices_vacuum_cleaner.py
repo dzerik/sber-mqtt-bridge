@@ -59,12 +59,12 @@ class TestVacuumFillState(unittest.TestCase):
     def test_returning_status(self):
         entity = VacuumCleanerEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("returning"))
-        self.assertEqual(entity._status, "returning")
+        self.assertEqual(entity._status, "go_home")
 
-    def test_unknown_state_defaults_docked(self):
+    def test_unknown_state_defaults_standby(self):
         entity = VacuumCleanerEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("some_unknown"))
-        self.assertEqual(entity._status, "docked")
+        self.assertEqual(entity._status, "standby")
 
     def test_battery_level(self):
         entity = VacuumCleanerEntity(ENTITY_DATA)
