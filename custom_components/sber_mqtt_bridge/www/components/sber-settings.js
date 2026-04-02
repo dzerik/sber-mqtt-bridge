@@ -172,8 +172,9 @@ class SberSettings extends LitElement {
         position: relative;
         width: 44px;
         min-width: 44px;
+        max-width: 44px;
         height: 24px;
-        flex-shrink: 0;
+        flex: 0 0 44px;
       }
       .toggle input {
         opacity: 0;

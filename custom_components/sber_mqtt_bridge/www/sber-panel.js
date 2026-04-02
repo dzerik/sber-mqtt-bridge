@@ -488,6 +488,7 @@ class SberMqttPanel extends LitElement {
       <div class="toolbar-wrapper">
         <sber-toolbar
           .connected=${connected}
+          .phase=${this._status?.phase || "disconnected"}
           .totalDevices=${this._devicesExtra.total ?? 0}
           .acknowledgedCount=${this._devicesExtra.acknowledged_count ?? 0}
           .loading=${this._loading}

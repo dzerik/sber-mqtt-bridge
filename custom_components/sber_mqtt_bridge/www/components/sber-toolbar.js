@@ -15,6 +15,7 @@ class SberToolbar extends LitElement {
   static get properties() {
     return {
       connected: { type: Boolean },
+      phase: { type: String },
       totalDevices: { type: Number },
       acknowledgedCount: { type: Number },
       loading: { type: Boolean },
@@ -25,6 +26,7 @@ class SberToolbar extends LitElement {
   constructor() {
     super();
     this.connected = false;
+    this.phase = "disconnected";
     this.totalDevices = 0;
     this.acknowledgedCount = 0;
     this.loading = false;
@@ -105,6 +107,18 @@ class SberToolbar extends LitElement {
       }
       .dot-red {
         background: var(--error-color, #f44336);
+      }
+      .dot-yellow {
+        background: #ff9800;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      .dot-orange {
+        background: #ff5722;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
       }
       .counter {
         font-size: 13px;
@@ -305,10 +319,20 @@ class SberToolbar extends LitElement {
       </span>
 
       <span class="status">
-        <span class="dot ${this.connected ? "dot-green" : "dot-red"}"></span>
-        ${this.connected ? "Connected" : "Disconnected"}
+        <span class="dot ${this._phaseDot}"></span>
+        ${this._phaseLabel}
       </span>
     `;
+  }
+
+  get _phaseDot() {
+    const m = { ready: "dot-green", starting: "dot-yellow", connecting: "dot-yellow", awaiting_ack: "dot-orange", disconnected: "dot-red" };
+    return m[this.phase] || "dot-red";
+  }
+
+  get _phaseLabel() {
+    const m = { ready: "Connected", starting: "Starting...", connecting: "Connecting...", awaiting_ack: "Awaiting Sber...", disconnected: "Disconnected" };
+    return m[this.phase] || "Disconnected";
   }
 
   connectedCallback() {
