@@ -82,6 +82,14 @@ nav:
   - Configuration: configuration.md
   - Supported Devices: devices.md
   - Troubleshooting: troubleshooting.md
+  - Sber C2C Spec:
+      - Overview: sber-c2c-spec/README.md
+      - Data Structures: sber-c2c-spec/data-structures.md
+      - MQTT Topics: sber-c2c-spec/mqtt-topics.md
+      - Device Categories: sber-c2c-spec/device-categories.md
+      - Features: sber-c2c-spec/features.md
+      - MQTT vs REST: sber-c2c-spec/mqtt-vs-rest.md
+      - Validation Rules: sber-c2c-spec/validation-rules.md
   - API Reference:
       - Обзор: api/index.md
       - SberBridge: api/bridge.md
