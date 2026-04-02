@@ -1,6 +1,6 @@
 # Roadmap — Sber Smart Home MQTT Bridge
 
-Обновлено: 2026-04-02, версия: 1.18.0
+Обновлено: 2026-04-02, версия: 1.22.0
 
 ---
 
@@ -8,11 +8,11 @@
 
 | Метрика | Значение |
 |---------|----------|
-| Версия | 1.18.0 |
+| Версия | 1.22.0 |
 | Sber категории | **28/28 (100%)** (27 устройств + hub) |
-| Sber features | **~47/55 (85%)** |
+| Sber features | **~53/55 (95%)** |
 | HA домены | 15 |
-| Тесты | 524+ |
+| Тесты | **1174** (unit + compliance + enum) |
 | Ruff errors | 0 |
 
 ### Реализованные категории (28/28)
@@ -101,6 +101,41 @@
 **Фаза 4 — TV расширение (Minor, 1-2 дня):**
 10. `custom_key` → tv. Маппинг на HA remote.send_command
 11. `number` → tv. Отправка цифр через remote.send_command
+
+### Приоритет 0.5 — Integration Flow Tests (гонки состояний)
+
+**Проблема:** unit тесты проверяют формат, но не ловят race conditions. Баги найденные вживую:
+- RGB mode: state confirm отправляет "white" потому что ESPHome ещё не обновил color_mode
+- Debounce skip: state "on"→"on" (только цвет изменился) → publish пропущен
+- Multiple rapid commands: 3 команды → 3 delayed confirm → possible race
+
+**Тестовые сценарии (файл: `tests/hacs/test_integration_flows.py`):**
+
+| # | Сценарий | Что проверяем |
+|---|----------|---------------|
+| 1 | **Command → State → Publish** | Sber command → process_cmd → HA service call → state_changed → fill_by_ha_state → publish_states. Весь цикл. |
+| 2 | **Delayed state confirm** | После command, через 1.5с state перечитывается из HA и publish_states(force=True). Проверить что MQTT publish вызван. |
+| 3 | **Async device (ESPHome)** | Command отправлен, state_changed приходит с задержкой. Первый publish — stale state. Delayed confirm — correct state. |
+| 4 | **RGB mode switch** | light_mode=colour command → immediate state still "white" → delayed confirm reads color_mode="rgb" → publish "colour". |
+| 5 | **Debounce: same state** | Light on→command→still on (only color changed) → has_significant_change() должен вернуть True (color изменился). |
+| 6 | **Rapid commands** | 3 команды за 500ms → debounce группирует → один publish с финальным state. |
+| 7 | **Reconnect guard** | После MQTT reconnect, Sber шлёт stale commands → bridge отклоняет и re-publish текущий HA state. |
+| 8 | **State confirm after on_off** | Sber: turn_on → HA service → state_changed on → publish on_off=true обратно. Sber видит confirmation. |
+| 9 | **Config rejection** | Устройство с невалидным полем → Sber reject весь config → все устройства offline. |
+| 10 | **Concurrent state_changed** | Два entity меняют state одновременно → оба публикуются, не теряются. |
+
+**Требуемые моки:**
+- `AsyncMock` для `_mqtt_client.publish` — перехват MQTT publish
+- `MagicMock` для `hass.states.get` — контроль HA state в нужный момент
+- `MagicMock` для `hass.services.async_call` — перехват service calls
+- `asyncio.sleep` mock для контроля timing delayed confirm
+- `hass.bus.async_fire` для симуляции state_changed events
+
+**Архитектура:**
+- Fixture `bridge_with_entity` — полностью сконфигурированный bridge с одним entity, MQTT mock, hass mock
+- Helper `simulate_sber_command(bridge, payload)` — отправка command как MQTT message
+- Helper `simulate_ha_state_change(bridge, entity_id, new_state, attrs)` — симуляция state_changed
+- Helper `get_published_states(mqtt_mock)` — извлечение опубликованных state payloads из MQTT mock
 
 ### Приоритет 1 — Структурные улучшения протокола
 
