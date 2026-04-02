@@ -12,6 +12,7 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.sber_mqtt_bridge.const import (
     CONF_SBER_BROKER,
@@ -1357,3 +1358,464 @@ class TestRedefinitionsFlows:
         assert target_device is not None, "switch.lamp not found in config"
         assert target_device["name"] == "New Name"
         assert target_device["room"] == "Bedroom"
+
+
+# ---------------------------------------------------------------------------
+# TestRealHassFlows — integration tests using the real `hass` fixture
+# ---------------------------------------------------------------------------
+
+
+def _make_entry_for_real_hass(options=None):
+    """Create a mock ConfigEntry suitable for use with a real hass instance."""
+    entry = MagicMock()
+    entry.data = {
+        CONF_SBER_LOGIN: "test",
+        CONF_SBER_PASSWORD: "pass",
+        CONF_SBER_BROKER: "broker.test",
+        CONF_SBER_PORT: 8883,
+    }
+    entry.options = options or {}
+    return entry
+
+
+def _extract_published_states(bridge) -> list[dict]:
+    """Return all published up/status payloads from the mqtt mock."""
+    results = []
+    for call in bridge._mqtt_client.publish.call_args_list:
+        args = call.args if call.args else call[0]
+        topic = str(args[0])
+        if "up/status" in topic:
+            results.append(json.loads(args[1]))
+    return results
+
+
+class TestRealHassFlows:
+    """Integration tests using the real ``hass`` fixture.
+
+    These tests exercise the full event-driven cycle through the real
+    HomeAssistant event bus, state machine, and event loop timers provided
+    by ``pytest-homeassistant-custom-component``.
+    """
+
+    # ------------------------------------------------------------------ #
+    # 1. Full state_changed -> debounce -> publish cycle
+    # ------------------------------------------------------------------ #
+
+    async def test_real_hass_state_change_triggers_publish(self, hass):
+        """State change on a tracked entity triggers debounced MQTT publish.
+
+        Verifies the complete event-driven path:
+        hass.states.async_set -> state_changed event -> _on_ha_state_changed
+        -> _schedule_debounced_publish -> (fire timers) -> _fire_debounced_publish
+        -> _publish_states -> mqtt_client.publish.
+        """
+        entry = _make_entry_for_real_hass()
+        bridge = SberBridge(hass, entry)
+        bridge._mqtt_client = AsyncMock()
+        bridge._connected = True
+        bridge._awaiting_sber_ack = False
+
+        entity = RelayEntity({"entity_id": "switch.lamp", "name": "Test Lamp"})
+        entity.fill_by_ha_state({
+            "entity_id": "switch.lamp",
+            "state": "off",
+            "attributes": {},
+        })
+        bridge._entities["switch.lamp"] = entity
+        bridge._enabled_entity_ids = ["switch.lamp"]
+
+        # Set initial HA state
+        hass.states.async_set("switch.lamp", "off")
+        await hass.async_block_till_done()
+
+        # Register state listener
+        bridge._subscribe_ha_events()
+
+        # Act: change state to "on"
+        hass.states.async_set("switch.lamp", "on", {})
+        await hass.async_block_till_done()
+
+        # Fire debounce timer
+        async_fire_time_changed(hass, fire_all=True)
+        await hass.async_block_till_done()
+
+        # Assert: mqtt publish was called with on_off=true
+        payloads = _extract_published_states(bridge)
+        assert len(payloads) >= 1, "Expected at least one MQTT publish"
+
+        device_states = payloads[-1]["devices"]["switch.lamp"]["states"]
+        on_off_val = _find_state_value(device_states, "on_off")
+        assert on_off_val is not None
+        assert on_off_val["bool_value"] is True
+
+    # ------------------------------------------------------------------ #
+    # 2. Color mode change publishes "colour"
+    # ------------------------------------------------------------------ #
+
+    async def test_real_hass_color_mode_change_publishes_colour(self, hass):
+        """Switching color_mode to rgb publishes light_mode=colour.
+
+        Regression test for the RGB bug where color mode change was
+        not detected because the state remained 'on'.
+        """
+        entry = _make_entry_for_real_hass()
+        bridge = SberBridge(hass, entry)
+        bridge._mqtt_client = AsyncMock()
+        bridge._connected = True
+        bridge._awaiting_sber_ack = False
+
+        initial_attrs = {
+            "brightness": 255,
+            "color_mode": "color_temp",
+            "supported_color_modes": ["color_temp", "hs", "rgb"],
+            "color_temp": 300,
+        }
+        entity = LightEntity({"entity_id": "light.test", "name": "Test Light"})
+        entity.fill_by_ha_state({
+            "entity_id": "light.test",
+            "state": "on",
+            "attributes": initial_attrs,
+        })
+        entity.mark_state_published()
+        bridge._entities["light.test"] = entity
+        bridge._enabled_entity_ids = ["light.test"]
+
+        # Set initial HA state
+        hass.states.async_set("light.test", "on", initial_attrs)
+        await hass.async_block_till_done()
+
+        bridge._subscribe_ha_events()
+
+        # Act: change to rgb color mode
+        hass.states.async_set("light.test", "on", {
+            "color_mode": "rgb",
+            "hs_color": (283.0, 100.0),
+            "rgb_color": (70, 0, 255),
+            "brightness": 255,
+            "supported_color_modes": ["color_temp", "hs", "rgb"],
+        })
+        await hass.async_block_till_done()
+
+        async_fire_time_changed(hass, fire_all=True)
+        await hass.async_block_till_done()
+
+        # Assert: publish contains light_mode=colour
+        payloads = _extract_published_states(bridge)
+        assert len(payloads) >= 1, "Expected at least one MQTT publish"
+
+        device_states = payloads[-1]["devices"]["light.test"]["states"]
+        mode_val = _find_state_value(device_states, "light_mode")
+        assert mode_val is not None
+        assert mode_val["enum_value"] == "colour", (
+            "Expected light_mode='colour' after switching to rgb, "
+            f"got '{mode_val.get('enum_value')}'"
+        )
+
+        colour_val = _find_state_value(device_states, "light_colour")
+        assert colour_val is not None, "light_colour must be present in rgb mode"
+
+    # ------------------------------------------------------------------ #
+    # 3. Debounce coalesces rapid changes
+    # ------------------------------------------------------------------ #
+
+    async def test_real_hass_debounce_coalesces_rapid_changes(self, hass):
+        """Rapid state changes are coalesced by the debounce timer.
+
+        Three rapid on/off/on changes produce a single publish with the
+        final state (on_off=true).
+        """
+        entry = _make_entry_for_real_hass()
+        bridge = SberBridge(hass, entry)
+        bridge._mqtt_client = AsyncMock()
+        bridge._connected = True
+        bridge._awaiting_sber_ack = False
+
+        entity = RelayEntity({"entity_id": "switch.lamp", "name": "Test Lamp"})
+        entity.fill_by_ha_state({
+            "entity_id": "switch.lamp",
+            "state": "off",
+            "attributes": {},
+        })
+        bridge._entities["switch.lamp"] = entity
+        bridge._enabled_entity_ids = ["switch.lamp"]
+
+        hass.states.async_set("switch.lamp", "off")
+        await hass.async_block_till_done()
+
+        bridge._subscribe_ha_events()
+
+        # Act: rapid state changes without firing timers in between
+        hass.states.async_set("switch.lamp", "on")
+        await hass.async_block_till_done()
+
+        hass.states.async_set("switch.lamp", "off")
+        await hass.async_block_till_done()
+
+        hass.states.async_set("switch.lamp", "on")
+        await hass.async_block_till_done()
+
+        # Fire the coalesced debounce timer
+        async_fire_time_changed(hass, fire_all=True)
+        await hass.async_block_till_done()
+
+        # Assert: publish called, final state is on_off=true
+        payloads = _extract_published_states(bridge)
+        assert len(payloads) >= 1, "Expected at least one MQTT publish after debounce"
+
+        device_states = payloads[-1]["devices"]["switch.lamp"]["states"]
+        on_off_val = _find_state_value(device_states, "on_off")
+        assert on_off_val is not None
+        assert on_off_val["bool_value"] is True
+
+    # ------------------------------------------------------------------ #
+    # 4. PIR sensor: no state on idle
+    # ------------------------------------------------------------------ #
+
+    async def test_real_hass_pir_no_state_on_idle(self, hass):
+        """PIR sensor publishes 'pir' key on motion, omits it on idle.
+
+        The Sber protocol requires event-based sensors to emit the
+        detection key only while active and omit it entirely when idle.
+        """
+        entry = _make_entry_for_real_hass()
+        bridge = SberBridge(hass, entry)
+        bridge._mqtt_client = AsyncMock()
+        bridge._connected = True
+        bridge._awaiting_sber_ack = False
+
+        entity = MotionSensorEntity(
+            {"entity_id": "binary_sensor.pir", "name": "PIR"}
+        )
+        entity.fill_by_ha_state({
+            "entity_id": "binary_sensor.pir",
+            "state": "off",
+            "attributes": {},
+        })
+        bridge._entities["binary_sensor.pir"] = entity
+        bridge._enabled_entity_ids = ["binary_sensor.pir"]
+
+        hass.states.async_set("binary_sensor.pir", "off")
+        await hass.async_block_till_done()
+
+        bridge._subscribe_ha_events()
+
+        # Act 1: motion detected
+        hass.states.async_set("binary_sensor.pir", "on")
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, fire_all=True)
+        await hass.async_block_till_done()
+
+        payloads = _extract_published_states(bridge)
+        assert len(payloads) >= 1, "Expected publish on motion detected"
+        device_states = payloads[-1]["devices"]["binary_sensor.pir"]["states"]
+        pir_entry = _find_state_entry(device_states, "pir")
+        assert pir_entry is not None, "pir key must be present when motion detected"
+
+        # Reset publish mock for second assertion
+        bridge._mqtt_client.publish.reset_mock()
+
+        # Act 2: motion cleared
+        hass.states.async_set("binary_sensor.pir", "off")
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, fire_all=True)
+        await hass.async_block_till_done()
+
+        payloads = _extract_published_states(bridge)
+        assert len(payloads) >= 1, "Expected publish on motion cleared"
+        device_states = payloads[-1]["devices"]["binary_sensor.pir"]["states"]
+        pir_entry = _find_state_entry(device_states, "pir")
+        assert pir_entry is None, "pir key must be ABSENT when no motion"
+
+    # ------------------------------------------------------------------ #
+    # 5. Curtain state consistency
+    # ------------------------------------------------------------------ #
+
+    async def test_real_hass_curtain_state_consistency(self, hass):
+        """Curtain position 0 publishes open_state='close' (NOT 'closed').
+
+        Sber protocol requires 'close' enum value, not HA's 'closed' state.
+        """
+        entry = _make_entry_for_real_hass()
+        bridge = SberBridge(hass, entry)
+        bridge._mqtt_client = AsyncMock()
+        bridge._connected = True
+        bridge._awaiting_sber_ack = False
+
+        entity = CurtainEntity(
+            {"entity_id": "cover.curtain", "name": "Test Curtain"}
+        )
+        entity.fill_by_ha_state({
+            "entity_id": "cover.curtain",
+            "state": "open",
+            "attributes": {"current_position": 100},
+        })
+        bridge._entities["cover.curtain"] = entity
+        bridge._enabled_entity_ids = ["cover.curtain"]
+
+        hass.states.async_set("cover.curtain", "open", {"current_position": 100})
+        await hass.async_block_till_done()
+
+        bridge._subscribe_ha_events()
+
+        # Act: close the curtain
+        hass.states.async_set("cover.curtain", "closed", {"current_position": 0})
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, fire_all=True)
+        await hass.async_block_till_done()
+
+        payloads = _extract_published_states(bridge)
+        assert len(payloads) >= 1, "Expected at least one MQTT publish"
+
+        device_states = payloads[-1]["devices"]["cover.curtain"]["states"]
+        open_state_val = _find_state_value(device_states, "open_state")
+        assert open_state_val is not None
+        assert open_state_val["enum_value"] == "close", (
+            "Sber requires 'close', not 'closed'"
+        )
+
+        open_pct_val = _find_state_value(device_states, "open_percentage")
+        assert open_pct_val is not None
+
+    # ------------------------------------------------------------------ #
+    # 6. Full command -> service call -> state change -> publish cycle
+    # ------------------------------------------------------------------ #
+
+    async def test_real_hass_command_then_state_change_cycle(self, hass):
+        """Full round-trip: Sber command -> HA service -> state change -> publish.
+
+        Simulates the complete lifecycle where a Sber command triggers
+        a service call, HA updates its state, and the bridge publishes
+        the confirmed state back to Sber.
+        """
+        entry = _make_entry_for_real_hass()
+        bridge = SberBridge(hass, entry)
+        bridge._mqtt_client = AsyncMock()
+        bridge._connected = True
+        bridge._awaiting_sber_ack = False
+
+        entity = RelayEntity({"entity_id": "switch.lamp", "name": "Test Lamp"})
+        entity.fill_by_ha_state({
+            "entity_id": "switch.lamp",
+            "state": "off",
+            "attributes": {},
+        })
+        bridge._entities["switch.lamp"] = entity
+        bridge._enabled_entity_ids = ["switch.lamp"]
+
+        hass.states.async_set("switch.lamp", "off")
+        await hass.async_block_till_done()
+
+        bridge._subscribe_ha_events()
+
+        service_calls = []
+
+        async def _mock_service_call(self_svc, domain, service, **kwargs):
+            """Simulate HA executing turn_on by updating state."""
+            service_calls.append((domain, service, kwargs))
+            if service == "turn_on":
+                hass.states.async_set("switch.lamp", "on", {})
+
+        payload = _sber_cmd_payload({
+            "switch.lamp": {
+                "states": [
+                    {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}},
+                ],
+            },
+        })
+
+        with (
+            patch(
+                "homeassistant.core.ServiceRegistry.async_call",
+                new=_mock_service_call,
+            ),
+            patch(
+                "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await bridge._handle_sber_command(payload)
+            await hass.async_block_till_done()
+
+            # Fire debounce timers (from state_changed event)
+            async_fire_time_changed(hass, fire_all=True)
+            await hass.async_block_till_done()
+
+        # Assert: service call was made for turn_on
+        turn_on_calls = [
+            c for c in service_calls if c[1] == "turn_on"
+        ]
+        assert len(turn_on_calls) >= 1, (
+            f"Expected turn_on service call, got: {service_calls}"
+        )
+
+        # Assert: MQTT publish was called with on_off=true
+        payloads = _extract_published_states(bridge)
+        assert len(payloads) >= 1, "Expected MQTT publish after state change"
+
+        device_states = payloads[-1]["devices"]["switch.lamp"]["states"]
+        on_off_val = _find_state_value(device_states, "on_off")
+        assert on_off_val is not None
+        assert on_off_val["bool_value"] is True
+
+    # ------------------------------------------------------------------ #
+    # 7. Linked sensor updates primary entity
+    # ------------------------------------------------------------------ #
+
+    async def test_real_hass_linked_sensor_updates_primary(self, hass):
+        """Linked humidity sensor change propagates to primary temp entity.
+
+        Verifies that _on_ha_state_changed forwards linked entity data
+        to the primary entity and triggers a publish containing both
+        temperature and humidity.
+        """
+        entry = _make_entry_for_real_hass()
+        bridge = SberBridge(hass, entry)
+        bridge._mqtt_client = AsyncMock()
+        bridge._connected = True
+        bridge._awaiting_sber_ack = False
+
+        entity = SensorTempEntity(
+            {"entity_id": "sensor.temp", "name": "Temperature"}
+        )
+        entity.fill_by_ha_state({
+            "entity_id": "sensor.temp",
+            "state": "22.5",
+            "attributes": {},
+        })
+        entity.mark_state_published()
+
+        bridge._entities["sensor.temp"] = entity
+        bridge._enabled_entity_ids = ["sensor.temp"]
+
+        # Configure linked entity mapping
+        bridge._entity_links = {"sensor.temp": {"humidity": "sensor.humidity"}}
+        bridge._linked_reverse = {
+            "sensor.humidity": ("sensor.temp", "humidity"),
+        }
+
+        # Set initial HA states
+        hass.states.async_set("sensor.temp", "22.5")
+        hass.states.async_set("sensor.humidity", "50")
+        await hass.async_block_till_done()
+
+        bridge._subscribe_ha_events()
+
+        # Act: humidity sensor updates
+        hass.states.async_set("sensor.humidity", "65", {})
+        await hass.async_block_till_done()
+
+        async_fire_time_changed(hass, fire_all=True)
+        await hass.async_block_till_done()
+
+        # Assert: publish includes both temperature and humidity
+        payloads = _extract_published_states(bridge)
+        assert len(payloads) >= 1, "Expected MQTT publish after linked sensor update"
+
+        device_states = payloads[-1]["devices"]["sensor.temp"]["states"]
+        temp_val = _find_state_value(device_states, "temperature")
+        assert temp_val is not None, "temperature must be present in published state"
+
+        humidity_val = _find_state_value(device_states, "humidity")
+        assert humidity_val is not None, (
+            "humidity must be present after linked sensor update"
+        )
