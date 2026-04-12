@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from typing import ClassVar
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import ROLE_HUMIDITY, BaseEntity, CommandResult
+from .base_entity import ROLE_HUMIDITY, AttrSpec, BaseEntity, CommandResult, _safe_bool_parser, _safe_int_parser
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,6 +31,18 @@ HA_TO_SBER_HUMIDIFIER_MODE: dict[str, str] = {
 """Map HA humidifier modes to Sber-standard enum values (case-insensitive lookup)."""
 
 
+def _min_humidity_parser(value: object) -> int:
+    """Parse min_humidity, defaulting to 35 on None or invalid."""
+    parsed = _safe_int_parser(value)
+    return parsed or 35
+
+
+def _max_humidity_parser(value: object) -> int:
+    """Parse max_humidity, defaulting to 85 on None or invalid."""
+    parsed = _safe_int_parser(value)
+    return parsed or 85
+
+
 class HumidifierEntity(BaseEntity):
     """Sber humidifier entity for humidity control devices.
 
@@ -41,6 +54,54 @@ class HumidifierEntity(BaseEntity):
     """
 
     LINKABLE_ROLES = (ROLE_HUMIDITY,)
+
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(
+            field="target_humidity",
+            attr_keys=("humidity",),
+        ),
+        AttrSpec(
+            field="current_humidity",
+            attr_keys=("current_humidity",),
+            preserve_on_missing=True,
+        ),
+        AttrSpec(
+            field="available_modes",
+            converter=lambda attrs: attrs.get("available_modes") or [],
+            default=[],
+        ),
+        AttrSpec(
+            field="mode",
+            attr_keys=("mode",),
+        ),
+        AttrSpec(
+            field="_min_humidity",
+            attr_keys=("min_humidity",),
+            parser=_min_humidity_parser,
+            default=35,
+        ),
+        AttrSpec(
+            field="_max_humidity",
+            attr_keys=("max_humidity",),
+            parser=_max_humidity_parser,
+            default=85,
+        ),
+        AttrSpec(
+            field="_water_level",
+            attr_keys=("water_level",),
+            parser=_safe_int_parser,
+        ),
+        AttrSpec(
+            field="_water_low_level",
+            attr_keys=("water_low_level",),
+            parser=_safe_bool_parser,
+        ),
+        AttrSpec(
+            field="_child_lock",
+            attr_keys=("child_lock",),
+            parser=_safe_bool_parser,
+        ),
+    )
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize humidifier entity.
@@ -69,26 +130,9 @@ class HumidifierEntity(BaseEntity):
                 available_modes, and mode.
         """
         super().fill_by_ha_state(ha_state)
-        self.current_state = ha_state.get("state") == "on"
         attrs = ha_state.get("attributes", {})
-        self.target_humidity = attrs.get("humidity")
-        self.current_humidity = attrs.get("current_humidity")
-        self.available_modes = attrs.get("available_modes") or []
-        self.mode = attrs.get("mode")
-        self._min_humidity = self._safe_int(attrs.get("min_humidity")) or 35
-        self._max_humidity = self._safe_int(attrs.get("max_humidity")) or 85
-        water_level = attrs.get("water_level")
-        if water_level is not None:
-            self._water_level = self._safe_int(water_level)
-        else:
-            self._water_level = None
-        water_low = attrs.get("water_low_level")
-        if water_low is not None:
-            self._water_low_level = bool(water_low)
-        else:
-            self._water_low_level = None
-        child_lock = attrs.get("child_lock")
-        self._child_lock = bool(child_lock) if child_lock is not None else None
+        self._apply_attr_specs(attrs)
+        self.current_state = ha_state.get("state") == "on"
 
     def update_linked_data(self, role: str, ha_state: dict) -> None:
         """Inject current humidity from a linked sensor entity.
