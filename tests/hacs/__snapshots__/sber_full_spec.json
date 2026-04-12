@@ -1,0 +1,1448 @@
+{
+  "categories": {
+    "curtain": {
+      "allowed_values": {
+        "open_rate": {
+          "enum_values": {
+            "values": [
+              "auto",
+              "low",
+              "high"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "curtain",
+      "dependencies": {},
+      "features": [
+        "battery_low_power",
+        "battery_percentage",
+        "online",
+        "open_left_percentage",
+        "open_rate",
+        "open_right_percentage",
+        "open_right_set",
+        "open_right_state",
+        "open_set",
+        "open_state",
+        "signal_strength"
+      ]
+    },
+    "gate": {
+      "allowed_values": {
+        "open_rate": {
+          "enum_values": {
+            "values": [
+              "auto",
+              "low",
+              "high"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "gate",
+      "dependencies": {},
+      "features": [
+        "online",
+        "open_left_percentage",
+        "open_left_set",
+        "open_left_state",
+        "open_rate",
+        "open_right_percentage",
+        "open_right_set",
+        "open_right_state",
+        "open_set",
+        "open_state",
+        "signal_strength"
+      ]
+    },
+    "hub": {
+      "allowed_values": {},
+      "category": "hub",
+      "dependencies": {},
+      "features": [
+        "online"
+      ]
+    },
+    "hvac_ac": {
+      "allowed_values": {
+        "hvac_air_flow_power": {
+          "enum_values": {
+            "values": [
+              "auto",
+              "high",
+              "low",
+              "medium",
+              "turbo"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "hvac_ac",
+      "dependencies": {},
+      "features": [
+        "hvac_air_flow_direction",
+        "hvac_air_flow_power",
+        "hvac_humidity_set",
+        "hvac_night_mode",
+        "hvac_temp_set",
+        "hvac_work_mode",
+        "on_off",
+        "online"
+      ]
+    },
+    "hvac_air_purifier": {
+      "allowed_values": {
+        "hvac_air_flow_power": {
+          "enum_values": {
+            "values": [
+              "auto",
+              "high",
+              "low",
+              "medium",
+              "turbo"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "hvac_air_purifier",
+      "dependencies": {},
+      "features": [
+        "hvac_air_flow_power",
+        "hvac_aromatization",
+        "hvac_ionization",
+        "hvac_night_mode",
+        "hvac_replace_filter",
+        "hvac_replace_ionizator",
+        "on_off",
+        "online"
+      ]
+    },
+    "hvac_boiler": {
+      "allowed_values": {
+        "hvac_temp_set": {
+          "integer_values": {
+            "max": "80",
+            "min": "25",
+            "step": "5"
+          },
+          "type": "INTEGER"
+        }
+      },
+      "category": "hvac_boiler",
+      "dependencies": {},
+      "features": [
+        "hvac_temp_set",
+        "hvac_thermostat_mode",
+        "on_off",
+        "online",
+        "temperature"
+      ]
+    },
+    "hvac_fan": {
+      "allowed_values": {
+        "hvac_air_flow_power": {
+          "enum_values": {
+            "values": [
+              "auto",
+              "high",
+              "low",
+              "medium",
+              "turbo"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "hvac_fan",
+      "dependencies": {},
+      "features": [
+        "hvac_air_flow_power",
+        "on_off",
+        "online"
+      ]
+    },
+    "hvac_heater": {
+      "allowed_values": {
+        "hvac_air_flow_power": {
+          "enum_values": {
+            "values": [
+              "auto",
+              "high",
+              "low",
+              "medium",
+              "turbo"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "hvac_heater",
+      "dependencies": {},
+      "features": [
+        "hvac_air_flow_power",
+        "hvac_temp_set",
+        "hvac_thermostat_mode",
+        "on_off",
+        "online",
+        "temperature"
+      ]
+    },
+    "hvac_humidifier": {
+      "allowed_values": {
+        "hvac_air_flow_power": {
+          "enum_values": {
+            "values": [
+              "auto",
+              "high",
+              "low",
+              "medium",
+              "turbo"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "hvac_humidifier",
+      "dependencies": {},
+      "features": [
+        "humidity",
+        "hvac_air_flow_power",
+        "hvac_humidity_set",
+        "hvac_ionization",
+        "hvac_night_mode",
+        "hvac_replace_filter",
+        "hvac_replace_ionizator",
+        "hvac_water_low_level",
+        "hvac_water_percentage",
+        "on_off",
+        "online"
+      ]
+    },
+    "hvac_radiator": {
+      "allowed_values": {
+        "hvac_temp_set": {
+          "integer_values": {
+            "max": "40",
+            "min": "25",
+            "step": "5"
+          },
+          "type": "INTEGER"
+        }
+      },
+      "category": "hvac_radiator",
+      "dependencies": {},
+      "features": [
+        "hvac_temp_set",
+        "on_off",
+        "online",
+        "temperature"
+      ]
+    },
+    "hvac_underfloor_heating": {
+      "allowed_values": {
+        "hvac_temp_set": {
+          "integer_values": {
+            "max": "50",
+            "min": "25",
+            "step": "5"
+          },
+          "type": "INTEGER"
+        }
+      },
+      "category": "hvac_underfloor_heating",
+      "dependencies": {},
+      "features": [
+        "hvac_temp_set",
+        "hvac_thermostat_mode",
+        "on_off",
+        "online",
+        "temperature"
+      ]
+    },
+    "intercom": {
+      "allowed_values": {},
+      "category": "intercom",
+      "dependencies": {},
+      "features": [
+        "incoming_call",
+        "online",
+        "reject_call",
+        "unlock"
+      ]
+    },
+    "kettle": {
+      "allowed_values": {
+        "kitchen_water_temperature_set": {
+          "integer_values": {
+            "max": "100",
+            "min": "60",
+            "step": "10"
+          },
+          "type": "INTEGER"
+        }
+      },
+      "category": "kettle",
+      "dependencies": {},
+      "features": [
+        "child_lock",
+        "kitchen_water_level",
+        "kitchen_water_low_level",
+        "kitchen_water_temperature",
+        "kitchen_water_temperature_set",
+        "on_off",
+        "online"
+      ]
+    },
+    "led_strip": {
+      "allowed_values": {
+        "light_brightness": {
+          "integer_values": {
+            "max": "900",
+            "min": "100",
+            "step": "1"
+          },
+          "type": "INTEGER"
+        }
+      },
+      "category": "led_strip",
+      "dependencies": {},
+      "features": [
+        "light_brightness",
+        "light_colour",
+        "light_colour_temp",
+        "light_mode",
+        "on_off",
+        "online",
+        "sleep_timer"
+      ]
+    },
+    "light": {
+      "allowed_values": {
+        "light_brightness": {
+          "integer_values": {
+            "max": "900",
+            "min": "100",
+            "step": "1"
+          },
+          "type": "INTEGER"
+        }
+      },
+      "category": "light",
+      "dependencies": {},
+      "features": [
+        "light_brightness",
+        "light_colour",
+        "light_colour_temp",
+        "light_mode",
+        "on_off",
+        "online"
+      ]
+    },
+    "relay": {
+      "allowed_values": {
+        "power": {
+          "integer_values": {
+            "max": "45000",
+            "min": "10",
+            "step": "1"
+          },
+          "type": "INTEGER"
+        }
+      },
+      "category": "relay",
+      "dependencies": {},
+      "features": [
+        "current",
+        "on_off",
+        "online",
+        "power",
+        "voltage"
+      ]
+    },
+    "scenario_button": {
+      "allowed_values": {
+        "button_1_event": {
+          "enum_values": {
+            "values": [
+              "click",
+              "double_click"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "scenario_button",
+      "dependencies": {},
+      "features": [
+        "battery_percentag",
+        "button_1_event",
+        "button_2_event",
+        "online",
+        "signal_strength"
+      ]
+    },
+    "sensor_door": {
+      "allowed_values": {
+        "sensor_sensitive": {
+          "enum_values": {
+            "values": [
+              "auto",
+              "high"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "sensor_door",
+      "dependencies": {},
+      "features": [
+        "battery_low_power",
+        "battery_percentage",
+        "doorcontact_state",
+        "online",
+        "sensor_sensitive",
+        "signal_strength",
+        "tamper_alarm"
+      ]
+    },
+    "sensor_gas": {
+      "allowed_values": {
+        "signal_strength": {
+          "enum_values": {
+            "values": [
+              "low",
+              "high"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "sensor_gas",
+      "dependencies": {},
+      "features": [
+        "alarm_mute",
+        "battery_low_power",
+        "battery_percentage",
+        "gas_leak_state",
+        "online",
+        "sensor_sensitive",
+        "signal_strength"
+      ]
+    },
+    "sensor_pir": {
+      "allowed_values": {
+        "sensor_sensitive": {
+          "enum_values": {
+            "values": [
+              "auto",
+              "high"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "sensor_pir",
+      "dependencies": {},
+      "features": [
+        "battery_low_power",
+        "battery_percentage",
+        "online",
+        "pir",
+        "sensor_sensitive",
+        "signal_strength"
+      ]
+    },
+    "sensor_smoke": {
+      "allowed_values": {
+        "signal_strength": {
+          "enum_values": {
+            "values": [
+              "low",
+              "high"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "sensor_smoke",
+      "dependencies": {},
+      "features": [
+        "alarm_mute",
+        "battery_low_power",
+        "battery_percentage",
+        "online",
+        "signal_strength",
+        "smoke_state"
+      ]
+    },
+    "sensor_temp": {
+      "allowed_values": {
+        "sensor_sensitive": {
+          "enum_values": {
+            "values": [
+              "auto",
+              "high"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "sensor_temp",
+      "dependencies": {},
+      "features": [
+        "air_pressure",
+        "battery_low_power",
+        "battery_percentage",
+        "humidity",
+        "online",
+        "sensor_sensitive",
+        "signal_strength",
+        "temp_unit_view",
+        "temperature"
+      ]
+    },
+    "sensor_water_leak": {
+      "allowed_values": {
+        "signal_strength": {
+          "enum_values": {
+            "values": [
+              "low",
+              "high"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "sensor_water_leak",
+      "dependencies": {},
+      "features": [
+        "battery_low_power",
+        "battery_percentage",
+        "online",
+        "signal_strength",
+        "water_leak_state"
+      ]
+    },
+    "socket": {
+      "allowed_values": {
+        "power": {
+          "integer_values": {
+            "max": "45000",
+            "min": "10",
+            "step": "1"
+          },
+          "type": "INTEGER"
+        }
+      },
+      "category": "socket",
+      "dependencies": {},
+      "features": [
+        "child_lock",
+        "current",
+        "on_off",
+        "online",
+        "power",
+        "voltage"
+      ]
+    },
+    "tv": {
+      "allowed_values": {
+        "source": {
+          "enum_values": {
+            "values": [
+              "hdmi1",
+              "hdmi2",
+              "hdmi3",
+              "tv",
+              "av",
+              "content",
+              "+",
+              "-"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "tv",
+      "dependencies": {},
+      "features": [
+        "channel",
+        "channel_int",
+        "custom_key",
+        "direction",
+        "mute",
+        "number",
+        "on_off",
+        "online",
+        "source",
+        "volume",
+        "volume_int"
+      ]
+    },
+    "vacuum_cleaner": {
+      "allowed_values": {
+        "vacuum_cleaner_program": {
+          "enum_values": {
+            "values": [
+              "perimeter",
+              "spot",
+              "smart"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "vacuum_cleaner",
+      "dependencies": {},
+      "features": [
+        "battery_percentage",
+        "child_lock",
+        "online",
+        "vacuum_cleaner_cleaning_type",
+        "vacuum_cleaner_command",
+        "vacuum_cleaner_program",
+        "vacuum_cleaner_status"
+      ]
+    },
+    "valve": {
+      "allowed_values": {
+        "signal_strength": {
+          "enum_values": {
+            "values": [
+              "low",
+              "high"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "valve",
+      "dependencies": {},
+      "features": [
+        "battery_low_power",
+        "battery_percentage",
+        "online",
+        "open_set",
+        "open_state",
+        "signal_strength"
+      ]
+    },
+    "window_blind": {
+      "allowed_values": {
+        "open_rate": {
+          "enum_values": {
+            "values": [
+              "auto",
+              "low",
+              "high"
+            ]
+          },
+          "type": "ENUM"
+        }
+      },
+      "category": "window_blind",
+      "dependencies": {},
+      "features": [
+        "battery_low_power",
+        "battery_percentage",
+        "online",
+        "open_percentage",
+        "open_rate",
+        "open_set",
+        "open_state",
+        "signal_strength"
+      ]
+    }
+  },
+  "functions": {
+    "air_pressure": {
+      "name": "air_pressure",
+      "range": "200, 800",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "sensor_temp"
+      ]
+    },
+    "alarm_mute": {
+      "name": "alarm_mute",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "sensor_gas",
+        "sensor_smoke"
+      ]
+    },
+    "battery_low_power": {
+      "name": "battery_low_power",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "curtain",
+        "scenario_button",
+        "sensor_door",
+        "sensor_gas",
+        "sensor_pir",
+        "sensor_smoke",
+        "sensor_temp",
+        "sensor_water_leak",
+        "valve",
+        "window_blind"
+      ]
+    },
+    "battery_percentage": {
+      "name": "battery_percentage",
+      "range": "0, 100",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "scenario_button",
+        "sensor_door",
+        "sensor_gas",
+        "sensor_pir",
+        "sensor_smoke",
+        "sensor_temp",
+        "sensor_water_leak",
+        "vacuum_cleaner",
+        "valve",
+        "window_blind"
+      ]
+    },
+    "button_10_event": {
+      "name": "button_10_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_1_event": {
+      "name": "button_1_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_2_event": {
+      "name": "button_2_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_3_event": {
+      "name": "button_3_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_4_event": {
+      "name": "button_4_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_5_event": {
+      "name": "button_5_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_6_event": {
+      "name": "button_6_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": []
+    },
+    "button_7_event": {
+      "name": "button_7_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_8_event": {
+      "name": "button_8_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_9_event": {
+      "name": "button_9_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_bottom_left_event": {
+      "name": "button_bottom_left_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": []
+    },
+    "button_bottom_right_event": {
+      "name": "button_bottom_right_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_event": {
+      "name": "button_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_left_event": {
+      "name": "button_left_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": []
+    },
+    "button_right_event": {
+      "name": "button_right_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_top_left_event": {
+      "name": "button_top_left_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "button_top_right_event": {
+      "name": "button_top_right_event",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "scenario_button"
+      ]
+    },
+    "channel": {
+      "name": "channel",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "tv"
+      ]
+    },
+    "channel_int": {
+      "name": "channel_int",
+      "range": "0, 999",
+      "type": "INTEGER",
+      "used_in_categories": []
+    },
+    "child_lock": {
+      "name": "child_lock",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "kettle",
+        "socket",
+        "vacuum_cleaner"
+      ]
+    },
+    "current": {
+      "name": "current",
+      "range": "0, 30000",
+      "type": "INTEGER",
+      "used_in_categories": []
+    },
+    "custom_key": {
+      "name": "custom_key",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "tv"
+      ]
+    },
+    "direction": {
+      "name": "direction",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "tv"
+      ]
+    },
+    "doorcontact_state": {
+      "name": "doorcontact_state",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "sensor_door"
+      ]
+    },
+    "gas_leak_state": {
+      "name": "gas_leak_state",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "sensor_gas"
+      ]
+    },
+    "humidity": {
+      "name": "humidity",
+      "range": "0, 100",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "hvac_ac",
+        "hvac_humidifier",
+        "sensor_temp"
+      ]
+    },
+    "hvac_air_flow_direction": {
+      "name": "hvac_air_flow_direction",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "hvac_ac"
+      ]
+    },
+    "hvac_air_flow_power": {
+      "name": "hvac_air_flow_power",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "hvac_ac",
+        "hvac_air_purifier",
+        "hvac_fan",
+        "hvac_heater",
+        "hvac_humidifier"
+      ]
+    },
+    "hvac_aromatization": {
+      "name": "hvac_aromatization",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": []
+    },
+    "hvac_decontaminate": {
+      "name": "hvac_decontaminate",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "hvac_air_purifier"
+      ]
+    },
+    "hvac_direction_set": {
+      "name": "hvac_direction_set",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": []
+    },
+    "hvac_heating_rate": {
+      "name": "hvac_heating_rate",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "hvac_boiler",
+        "hvac_underfloor_heating"
+      ]
+    },
+    "hvac_humidity_set": {
+      "name": "hvac_humidity_set",
+      "range": "30, 90",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "hvac_ac",
+        "hvac_humidifier"
+      ]
+    },
+    "hvac_ionization": {
+      "name": "hvac_ionization",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "hvac_ac",
+        "hvac_air_purifier",
+        "hvac_humidifier"
+      ]
+    },
+    "hvac_night_mode": {
+      "name": "hvac_night_mode",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "hvac_ac",
+        "hvac_air_purifier",
+        "hvac_humidifier"
+      ]
+    },
+    "hvac_replace_filter": {
+      "name": "hvac_replace_filter",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "hvac_air_purifier",
+        "hvac_humidifier"
+      ]
+    },
+    "hvac_replace_ionizator": {
+      "name": "hvac_replace_ionizator",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "hvac_air_purifier",
+        "hvac_humidifier"
+      ]
+    },
+    "hvac_temp_set": {
+      "name": "hvac_temp_set",
+      "range": "5, 50",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "hvac_ac",
+        "hvac_boiler",
+        "hvac_heater",
+        "hvac_radiator",
+        "hvac_underfloor_heating"
+      ]
+    },
+    "hvac_thermostat_mode": {
+      "name": "hvac_thermostat_mode",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": []
+    },
+    "hvac_water_level": {
+      "name": "hvac_water_level",
+      "range": "0, 50",
+      "type": "FLOAT",
+      "used_in_categories": []
+    },
+    "hvac_water_low_level": {
+      "name": "hvac_water_low_level",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "hvac_humidifier"
+      ]
+    },
+    "hvac_water_percentage": {
+      "name": "hvac_water_percentage",
+      "range": "0, 100",
+      "type": "INTEGER",
+      "used_in_categories": []
+    },
+    "hvac_work_mode": {
+      "name": "hvac_work_mode",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "hvac_ac"
+      ]
+    },
+    "incoming_call": {
+      "name": "incoming_call",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "intercom"
+      ]
+    },
+    "kitchen_water_level": {
+      "name": "kitchen_water_level",
+      "range": "0, 50",
+      "type": "FLOAT",
+      "used_in_categories": [
+        "kettle"
+      ]
+    },
+    "kitchen_water_low_level": {
+      "name": "kitchen_water_low_level",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "kettle"
+      ]
+    },
+    "kitchen_water_temperature": {
+      "name": "kitchen_water_temperature",
+      "range": "0, 100",
+      "type": "INTEGER",
+      "used_in_categories": []
+    },
+    "kitchen_water_temperature_set": {
+      "name": "kitchen_water_temperature_set",
+      "range": "0, 100",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "kettle"
+      ]
+    },
+    "light_brightness": {
+      "name": "light_brightness",
+      "range": "50,1000",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "led_strip",
+        "light"
+      ]
+    },
+    "light_colour": {
+      "name": "light_colour",
+      "range": null,
+      "type": "COLOUR",
+      "used_in_categories": [
+        "led_strip",
+        "light"
+      ]
+    },
+    "light_colour_temp": {
+      "name": "light_colour_temp",
+      "range": "0, 1000",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "led_strip",
+        "light"
+      ]
+    },
+    "light_mode": {
+      "name": "light_mode",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "led_strip",
+        "light"
+      ]
+    },
+    "light_transmission_percentage": {
+      "name": "light_transmission_percentage",
+      "range": "0, 100",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "window_blind"
+      ]
+    },
+    "mute": {
+      "name": "mute",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "tv"
+      ]
+    },
+    "number": {
+      "name": "number",
+      "range": "0, 9",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "tv"
+      ]
+    },
+    "on_off": {
+      "name": "on_off",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "hvac_ac",
+        "hvac_air_purifier",
+        "hvac_fan",
+        "hvac_heater",
+        "hvac_radiator",
+        "hvac_underfloor_heating",
+        "kettle",
+        "led_strip",
+        "light",
+        "relay",
+        "socket"
+      ]
+    },
+    "online": {
+      "name": "online",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": []
+    },
+    "open_left_percentage": {
+      "name": "open_left_percentage",
+      "range": "0, 100",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "curtain",
+        "gate"
+      ]
+    },
+    "open_left_set": {
+      "name": "open_left_set",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "curtain",
+        "gate"
+      ]
+    },
+    "open_left_state": {
+      "name": "open_left_state",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "curtain",
+        "gate"
+      ]
+    },
+    "open_percentage": {
+      "name": "open_percentage",
+      "range": "0, 100",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "curtain",
+        "gate",
+        "valve",
+        "window_blind"
+      ]
+    },
+    "open_rate": {
+      "name": "open_rate",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "curtain",
+        "gate",
+        "window_blind"
+      ]
+    },
+    "open_right_percentage": {
+      "name": "open_right_percentage",
+      "range": "0, 100",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "curtain",
+        "gate"
+      ]
+    },
+    "open_right_set": {
+      "name": "open_right_set",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "curtain",
+        "gate"
+      ]
+    },
+    "open_right_state": {
+      "name": "open_right_state",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "curtain",
+        "gate"
+      ]
+    },
+    "open_set": {
+      "name": "open_set",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "curtain",
+        "gate",
+        "valve",
+        "window_blind"
+      ]
+    },
+    "open_state": {
+      "name": "open_state",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "curtain",
+        "gate",
+        "valve",
+        "window_blind"
+      ]
+    },
+    "pir": {
+      "name": "pir",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "sensor_pir"
+      ]
+    },
+    "power": {
+      "name": "power",
+      "range": "0, 50000",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "relay",
+        "socket"
+      ]
+    },
+    "reject_call": {
+      "name": "reject_call",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "intercom"
+      ]
+    },
+    "sensor_sensitive": {
+      "name": "sensor_sensitive",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "sensor_door",
+        "sensor_gas",
+        "sensor_pir",
+        "sensor_temp"
+      ]
+    },
+    "signal_strength": {
+      "name": "signal_strength",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "curtain",
+        "gate",
+        "scenario_button",
+        "sensor_door",
+        "sensor_gas",
+        "sensor_pir",
+        "sensor_smoke",
+        "sensor_temp",
+        "sensor_water_leak",
+        "valve",
+        "window_blind"
+      ]
+    },
+    "smoke_state": {
+      "name": "smoke_state",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "sensor_smoke"
+      ]
+    },
+    "source": {
+      "name": "source",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "tv"
+      ]
+    },
+    "tamper_alarm": {
+      "name": "tamper_alarm",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": [
+        "sensor_door"
+      ]
+    },
+    "temp_unit_view": {
+      "name": "temp_unit_view",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "sensor_temp"
+      ]
+    },
+    "temperature": {
+      "name": "temperature",
+      "range": "-400, 2000",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "hvac_ac",
+        "hvac_boiler",
+        "hvac_heater",
+        "hvac_radiator",
+        "hvac_underfloor_heating",
+        "sensor_temp"
+      ]
+    },
+    "unlock": {
+      "name": "unlock",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "intercom"
+      ]
+    },
+    "vacuum_cleaner_cleaning_type": {
+      "name": "vacuum_cleaner_cleaning_type",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "vacuum_cleaner"
+      ]
+    },
+    "vacuum_cleaner_command": {
+      "name": "vacuum_cleaner_command",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "vacuum_cleaner"
+      ]
+    },
+    "vacuum_cleaner_program": {
+      "name": "vacuum_cleaner_program",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "vacuum_cleaner"
+      ]
+    },
+    "vacuum_cleaner_status": {
+      "name": "vacuum_cleaner_status",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": [
+        "vacuum_cleaner"
+      ]
+    },
+    "voltage": {
+      "name": "voltage",
+      "range": "0, 5000",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "relay",
+        "socket"
+      ]
+    },
+    "volume": {
+      "name": "volume",
+      "range": null,
+      "type": "ENUM",
+      "used_in_categories": []
+    },
+    "volume_int": {
+      "name": "volume_int",
+      "range": "0, 999",
+      "type": "INTEGER",
+      "used_in_categories": [
+        "tv"
+      ]
+    },
+    "water_leak_state": {
+      "name": "water_leak_state",
+      "range": null,
+      "type": "BOOL",
+      "used_in_categories": []
+    }
+  },
+  "generated_at": "2026-04-12T21:05:04.890060+00:00",
+  "source": "https://developers.sber.ru/docs/ru/smarthome/c2c"
+}
