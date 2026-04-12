@@ -234,21 +234,29 @@ class SberCommandDispatcher:
         await bridge._publish_config()
 
     def handle_error(self, payload: bytes) -> None:
-        """Handle error message from Sber cloud."""
+        """Handle error message from Sber cloud.
+
+        Parses the error payload, stores the detail in stats for repair
+        issue creation, and logs the error.
+        """
         bridge = self._bridge
         bridge._stats.errors_from_sber += 1
         try:
             error_data = json.loads(payload)
+            detail = json.dumps(error_data, ensure_ascii=False)
+            bridge._stats.last_error_detail = detail[:500]
             _LOGGER.warning(
                 "Sber error (#%d): %s",
                 bridge._stats.errors_from_sber,
-                json.dumps(error_data, ensure_ascii=False, indent=2),
+                detail,
             )
         except (json.JSONDecodeError, TypeError):
+            raw = payload.decode(errors="replace")[:500]
+            bridge._stats.last_error_detail = raw
             _LOGGER.warning(
                 "Sber error (#%d, raw): %s",
                 bridge._stats.errors_from_sber,
-                payload,
+                raw,
             )
 
     async def handle_change_group(self, payload: bytes) -> None:

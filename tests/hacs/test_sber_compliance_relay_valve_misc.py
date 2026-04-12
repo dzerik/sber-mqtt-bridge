@@ -234,9 +234,7 @@ class TestRelayCompliance:
         """on_off BOOL=True command must produce switch.turn_on."""
         entity = RelayEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state("off"))
-        result = entity.process_cmd(
-            {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}
-        )
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]})
         assert len(result) == 1
         assert result[0]["url"]["domain"] == "switch"
         assert result[0]["url"]["service"] == "turn_on"
@@ -245,21 +243,15 @@ class TestRelayCompliance:
         """on_off BOOL=False command must produce switch.turn_off."""
         entity = RelayEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state("on"))
-        result = entity.process_cmd(
-            {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": False}}]}
-        )
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": False}}]})
         assert len(result) == 1
         assert result[0]["url"]["service"] == "turn_off"
 
     def test_cmd_button_domain_maps_to_press(self):
         """Relay with button entity_id must produce button.press service."""
         entity = RelayEntity({"entity_id": "button.test", "name": "Button"})
-        entity.fill_by_ha_state(
-            {"entity_id": "button.test", "state": "unknown", "attributes": {}}
-        )
-        result = entity.process_cmd(
-            {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}
-        )
+        entity.fill_by_ha_state({"entity_id": "button.test", "state": "unknown", "attributes": {}})
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]})
         assert len(result) == 1
         assert result[0]["url"]["domain"] == "button"
         assert result[0]["url"]["service"] == "press"
@@ -267,12 +259,8 @@ class TestRelayCompliance:
     def test_cmd_script_domain_maps_to_turn_on(self):
         """Relay with script entity_id must produce script.turn_on service."""
         entity = RelayEntity({"entity_id": "script.my_script", "name": "Script"})
-        entity.fill_by_ha_state(
-            {"entity_id": "script.my_script", "state": "off", "attributes": {}}
-        )
-        result = entity.process_cmd(
-            {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}
-        )
+        entity.fill_by_ha_state({"entity_id": "script.my_script", "state": "off", "attributes": {}})
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]})
         assert result[0]["url"]["domain"] == "script"
         assert result[0]["url"]["service"] == "turn_on"
 
@@ -343,9 +331,7 @@ class TestSocketCompliance:
         """Socket on_off command must target switch domain."""
         entity = SocketEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state("off"))
-        result = entity.process_cmd(
-            {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}
-        )
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]})
         assert result[0]["url"]["domain"] == "switch"
         assert result[0]["url"]["service"] == "turn_on"
 
@@ -525,9 +511,7 @@ class TestVacuumCleanerCompliance:
     def test_features_include_program_when_fan_speed_list(self):
         """Vacuum must expose vacuum_cleaner_program when fan_speed_list is available."""
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(
-            self._make_ha_state(fan_speed_list=["low", "medium", "high"], fan_speed="low")
-        )
+        entity.fill_by_ha_state(self._make_ha_state(fan_speed_list=["low", "medium", "high"], fan_speed="low"))
         features = entity.create_features_list()
         assert "vacuum_cleaner_program" in features
 
@@ -599,9 +583,7 @@ class TestVacuumCleanerCompliance:
     def test_current_state_fan_speed_enum(self):
         """vacuum_cleaner_program must be ENUM when fan_speed is set."""
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(
-            self._make_ha_state(fan_speed="medium", fan_speed_list=["low", "medium", "high"])
-        )
+        entity.fill_by_ha_state(self._make_ha_state(fan_speed="medium", fan_speed_list=["low", "medium", "high"]))
         states = entity.to_sber_current_state()["vacuum.robo"]["states"]
         _assert_enum_value_is_string(states, "vacuum_cleaner_program")
         prog = _find_state(states, "vacuum_cleaner_program")
@@ -637,9 +619,7 @@ class TestVacuumCleanerCompliance:
     def test_allowed_values_program_when_fan_speeds(self):
         """Allowed values for vacuum_cleaner_program must list fan speeds."""
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(
-            self._make_ha_state(fan_speed_list=["silent", "standard", "turbo"])
-        )
+        entity.fill_by_ha_state(self._make_ha_state(fan_speed_list=["silent", "standard", "turbo"]))
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
         assert "vacuum_cleaner_program" in allowed
@@ -734,8 +714,14 @@ class TestKettleCompliance:
         entity = KettleEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
         features = entity.create_features_list()
-        for feat in ("online", "on_off", "kitchen_water_temperature",
-                     "kitchen_water_temperature_set", "kitchen_water_low_level", "child_lock"):
+        for feat in (
+            "online",
+            "on_off",
+            "kitchen_water_temperature",
+            "kitchen_water_temperature_set",
+            "kitchen_water_low_level",
+            "child_lock",
+        ):
             assert feat in features, f"Missing feature: {feat}"
 
     def test_current_state_online_bool_present(self):
@@ -801,9 +787,7 @@ class TestKettleCompliance:
         """on_off command must target water_heater domain."""
         entity = KettleEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state("off"))
-        result = entity.process_cmd(
-            {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}
-        )
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]})
         assert len(result) == 1
         assert result[0]["url"]["domain"] == "water_heater"
         assert result[0]["url"]["service"] == "turn_on"
@@ -897,9 +881,7 @@ class TestIntercomCompliance:
         """on_off command must target switch domain."""
         entity = IntercomEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state("off"))
-        result = entity.process_cmd(
-            {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}
-        )
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]})
         assert len(result) == 1
         assert result[0]["url"]["domain"] == "switch"
         assert result[0]["url"]["service"] == "turn_on"
@@ -909,9 +891,7 @@ class TestIntercomCompliance:
         entity = IntercomEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
         for key in ("incoming_call", "reject_call", "unlock"):
-            result = entity.process_cmd(
-                {"states": [{"key": key, "value": {"type": "BOOL", "bool_value": True}}]}
-            )
+            result = entity.process_cmd({"states": [{"key": key, "value": {"type": "BOOL", "bool_value": True}}]})
             assert len(result) == 0, f"Command for read-only key '{key}' should be ignored"
 
     def test_unavailable_sets_offline(self):
@@ -997,7 +977,7 @@ class TestScenarioButtonCompliance:
         allowed = result["model"]["allowed_values"]
         assert "button_event" in allowed
         vals = set(allowed["button_event"]["enum_values"]["values"])
-        assert vals == {"click", "double_click"}
+        assert vals == {"click", "double_click", "long_press"}
 
     def test_process_cmd_is_noop(self):
         """ScenarioButton must return empty list for any command (read-only)."""
@@ -1049,11 +1029,13 @@ class TestHvacRadiatorCompliance:
     def test_features_no_fan_swing_work_mode(self):
         """Radiator must NOT support fan, swing, or work_mode features."""
         entity = HvacRadiatorEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state(
-            fan_modes=["low", "high"],
-            swing_modes=["off", "vertical"],
-            hvac_modes=["off", "heat"],
-        ))
+        entity.fill_by_ha_state(
+            self._make_ha_state(
+                fan_modes=["low", "high"],
+                swing_modes=["off", "vertical"],
+                hvac_modes=["off", "heat"],
+            )
+        )
         features = entity.create_features_list()
         assert "hvac_air_flow_power" not in features
         assert "hvac_air_flow_direction" not in features
@@ -1111,10 +1093,12 @@ class TestHvacHeaterCompliance:
     def test_supports_fan_and_thermostat_mode(self):
         """Heater must support hvac_air_flow_power and hvac_thermostat_mode."""
         entity = HvacHeaterEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state(
-            fan_modes=["low", "high"],
-            hvac_modes=["off", "heat"],
-        ))
+        entity.fill_by_ha_state(
+            self._make_ha_state(
+                fan_modes=["low", "high"],
+                hvac_modes=["off", "heat"],
+            )
+        )
         features = entity.create_features_list()
         assert "hvac_air_flow_power" in features
         assert "hvac_thermostat_mode" in features
@@ -1122,10 +1106,12 @@ class TestHvacHeaterCompliance:
     def test_no_swing_no_work_mode(self):
         """Heater must NOT support swing or work_mode features."""
         entity = HvacHeaterEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state(
-            swing_modes=["off", "vertical"],
-            hvac_modes=["off", "heat"],
-        ))
+        entity.fill_by_ha_state(
+            self._make_ha_state(
+                swing_modes=["off", "vertical"],
+                hvac_modes=["off", "heat"],
+            )
+        )
         features = entity.create_features_list()
         assert "hvac_air_flow_direction" not in features
         assert "hvac_work_mode" not in features
@@ -1179,10 +1165,12 @@ class TestHvacBoilerCompliance:
     def test_no_fan_no_swing(self):
         """Boiler must NOT support fan or swing features."""
         entity = HvacBoilerEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state(
-            fan_modes=["low", "high"],
-            swing_modes=["off", "vertical"],
-        ))
+        entity.fill_by_ha_state(
+            self._make_ha_state(
+                fan_modes=["low", "high"],
+                swing_modes=["off", "vertical"],
+            )
+        )
         features = entity.create_features_list()
         assert "hvac_air_flow_power" not in features
         assert "hvac_air_flow_direction" not in features
@@ -1236,10 +1224,12 @@ class TestHvacUnderfloorCompliance:
     def test_no_fan_no_swing(self):
         """Underfloor must NOT support fan or swing features."""
         entity = HvacUnderfloorEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state(
-            fan_modes=["low", "high"],
-            swing_modes=["off", "vertical"],
-        ))
+        entity.fill_by_ha_state(
+            self._make_ha_state(
+                fan_modes=["low", "high"],
+                swing_modes=["off", "vertical"],
+            )
+        )
         features = entity.create_features_list()
         assert "hvac_air_flow_power" not in features
         assert "hvac_air_flow_direction" not in features
@@ -1270,22 +1260,90 @@ class TestCrossDeviceSberStateStructure:
     @pytest.mark.parametrize(
         "entity_cls,entity_data,ha_state",
         [
-            (RelayEntity, {"entity_id": "switch.r", "name": "R"}, {"entity_id": "switch.r", "state": "on", "attributes": {}}),
-            (SocketEntity, {"entity_id": "switch.s", "name": "S"}, {"entity_id": "switch.s", "state": "on", "attributes": {}}),
-            (ValveEntity, {"entity_id": "valve.v", "name": "V"}, {"entity_id": "valve.v", "state": "open", "attributes": {}}),
-            (VacuumCleanerEntity, {"entity_id": "vacuum.vc", "name": "VC"}, {"entity_id": "vacuum.vc", "state": "docked", "attributes": {}}),
-            (KettleEntity, {"entity_id": "water_heater.k", "name": "K"}, {"entity_id": "water_heater.k", "state": "idle", "attributes": {}}),
-            (IntercomEntity, {"entity_id": "switch.i", "name": "I"}, {"entity_id": "switch.i", "state": "on", "attributes": {}}),
-            (ScenarioButtonEntity, {"entity_id": "input_boolean.sb", "name": "SB"}, {"entity_id": "input_boolean.sb", "state": "on", "attributes": {}}),
-            (HvacRadiatorEntity, {"entity_id": "climate.rad", "name": "Rad"}, {"entity_id": "climate.rad", "state": "heat", "attributes": {"current_temperature": 22, "temperature": 30}}),
-            (HvacHeaterEntity, {"entity_id": "climate.ht", "name": "Ht"}, {"entity_id": "climate.ht", "state": "heat", "attributes": {"current_temperature": 20, "temperature": 25}}),
-            (HvacBoilerEntity, {"entity_id": "climate.bl", "name": "Bl"}, {"entity_id": "climate.bl", "state": "heat", "attributes": {"current_temperature": 55, "temperature": 65}}),
-            (HvacUnderfloorEntity, {"entity_id": "climate.uf", "name": "UF"}, {"entity_id": "climate.uf", "state": "heat", "attributes": {"current_temperature": 28, "temperature": 35}}),
+            (
+                RelayEntity,
+                {"entity_id": "switch.r", "name": "R"},
+                {"entity_id": "switch.r", "state": "on", "attributes": {}},
+            ),
+            (
+                SocketEntity,
+                {"entity_id": "switch.s", "name": "S"},
+                {"entity_id": "switch.s", "state": "on", "attributes": {}},
+            ),
+            (
+                ValveEntity,
+                {"entity_id": "valve.v", "name": "V"},
+                {"entity_id": "valve.v", "state": "open", "attributes": {}},
+            ),
+            (
+                VacuumCleanerEntity,
+                {"entity_id": "vacuum.vc", "name": "VC"},
+                {"entity_id": "vacuum.vc", "state": "docked", "attributes": {}},
+            ),
+            (
+                KettleEntity,
+                {"entity_id": "water_heater.k", "name": "K"},
+                {"entity_id": "water_heater.k", "state": "idle", "attributes": {}},
+            ),
+            (
+                IntercomEntity,
+                {"entity_id": "switch.i", "name": "I"},
+                {"entity_id": "switch.i", "state": "on", "attributes": {}},
+            ),
+            (
+                ScenarioButtonEntity,
+                {"entity_id": "input_boolean.sb", "name": "SB"},
+                {"entity_id": "input_boolean.sb", "state": "on", "attributes": {}},
+            ),
+            (
+                HvacRadiatorEntity,
+                {"entity_id": "climate.rad", "name": "Rad"},
+                {
+                    "entity_id": "climate.rad",
+                    "state": "heat",
+                    "attributes": {"current_temperature": 22, "temperature": 30},
+                },
+            ),
+            (
+                HvacHeaterEntity,
+                {"entity_id": "climate.ht", "name": "Ht"},
+                {
+                    "entity_id": "climate.ht",
+                    "state": "heat",
+                    "attributes": {"current_temperature": 20, "temperature": 25},
+                },
+            ),
+            (
+                HvacBoilerEntity,
+                {"entity_id": "climate.bl", "name": "Bl"},
+                {
+                    "entity_id": "climate.bl",
+                    "state": "heat",
+                    "attributes": {"current_temperature": 55, "temperature": 65},
+                },
+            ),
+            (
+                HvacUnderfloorEntity,
+                {"entity_id": "climate.uf", "name": "UF"},
+                {
+                    "entity_id": "climate.uf",
+                    "state": "heat",
+                    "attributes": {"current_temperature": 28, "temperature": 35},
+                },
+            ),
         ],
         ids=[
-            "relay", "socket", "valve", "vacuum", "kettle",
-            "intercom", "scenario_button", "hvac_radiator",
-            "hvac_heater", "hvac_boiler", "hvac_underfloor",
+            "relay",
+            "socket",
+            "valve",
+            "vacuum",
+            "kettle",
+            "intercom",
+            "scenario_button",
+            "hvac_radiator",
+            "hvac_heater",
+            "hvac_boiler",
+            "hvac_underfloor",
         ],
     )
     def test_sber_state_has_required_keys(self, entity_cls, entity_data, ha_state):
@@ -1298,22 +1356,90 @@ class TestCrossDeviceSberStateStructure:
     @pytest.mark.parametrize(
         "entity_cls,entity_data,ha_state",
         [
-            (RelayEntity, {"entity_id": "switch.r", "name": "R"}, {"entity_id": "switch.r", "state": "on", "attributes": {}}),
-            (SocketEntity, {"entity_id": "switch.s", "name": "S"}, {"entity_id": "switch.s", "state": "on", "attributes": {}}),
-            (ValveEntity, {"entity_id": "valve.v", "name": "V"}, {"entity_id": "valve.v", "state": "open", "attributes": {}}),
-            (VacuumCleanerEntity, {"entity_id": "vacuum.vc", "name": "VC"}, {"entity_id": "vacuum.vc", "state": "docked", "attributes": {}}),
-            (KettleEntity, {"entity_id": "water_heater.k", "name": "K"}, {"entity_id": "water_heater.k", "state": "idle", "attributes": {}}),
-            (IntercomEntity, {"entity_id": "switch.i", "name": "I"}, {"entity_id": "switch.i", "state": "on", "attributes": {}}),
-            (ScenarioButtonEntity, {"entity_id": "input_boolean.sb", "name": "SB"}, {"entity_id": "input_boolean.sb", "state": "on", "attributes": {}}),
-            (HvacRadiatorEntity, {"entity_id": "climate.rad", "name": "Rad"}, {"entity_id": "climate.rad", "state": "heat", "attributes": {"current_temperature": 22, "temperature": 30}}),
-            (HvacHeaterEntity, {"entity_id": "climate.ht", "name": "Ht"}, {"entity_id": "climate.ht", "state": "heat", "attributes": {"current_temperature": 20, "temperature": 25}}),
-            (HvacBoilerEntity, {"entity_id": "climate.bl", "name": "Bl"}, {"entity_id": "climate.bl", "state": "heat", "attributes": {"current_temperature": 55, "temperature": 65}}),
-            (HvacUnderfloorEntity, {"entity_id": "climate.uf", "name": "UF"}, {"entity_id": "climate.uf", "state": "heat", "attributes": {"current_temperature": 28, "temperature": 35}}),
+            (
+                RelayEntity,
+                {"entity_id": "switch.r", "name": "R"},
+                {"entity_id": "switch.r", "state": "on", "attributes": {}},
+            ),
+            (
+                SocketEntity,
+                {"entity_id": "switch.s", "name": "S"},
+                {"entity_id": "switch.s", "state": "on", "attributes": {}},
+            ),
+            (
+                ValveEntity,
+                {"entity_id": "valve.v", "name": "V"},
+                {"entity_id": "valve.v", "state": "open", "attributes": {}},
+            ),
+            (
+                VacuumCleanerEntity,
+                {"entity_id": "vacuum.vc", "name": "VC"},
+                {"entity_id": "vacuum.vc", "state": "docked", "attributes": {}},
+            ),
+            (
+                KettleEntity,
+                {"entity_id": "water_heater.k", "name": "K"},
+                {"entity_id": "water_heater.k", "state": "idle", "attributes": {}},
+            ),
+            (
+                IntercomEntity,
+                {"entity_id": "switch.i", "name": "I"},
+                {"entity_id": "switch.i", "state": "on", "attributes": {}},
+            ),
+            (
+                ScenarioButtonEntity,
+                {"entity_id": "input_boolean.sb", "name": "SB"},
+                {"entity_id": "input_boolean.sb", "state": "on", "attributes": {}},
+            ),
+            (
+                HvacRadiatorEntity,
+                {"entity_id": "climate.rad", "name": "Rad"},
+                {
+                    "entity_id": "climate.rad",
+                    "state": "heat",
+                    "attributes": {"current_temperature": 22, "temperature": 30},
+                },
+            ),
+            (
+                HvacHeaterEntity,
+                {"entity_id": "climate.ht", "name": "Ht"},
+                {
+                    "entity_id": "climate.ht",
+                    "state": "heat",
+                    "attributes": {"current_temperature": 20, "temperature": 25},
+                },
+            ),
+            (
+                HvacBoilerEntity,
+                {"entity_id": "climate.bl", "name": "Bl"},
+                {
+                    "entity_id": "climate.bl",
+                    "state": "heat",
+                    "attributes": {"current_temperature": 55, "temperature": 65},
+                },
+            ),
+            (
+                HvacUnderfloorEntity,
+                {"entity_id": "climate.uf", "name": "UF"},
+                {
+                    "entity_id": "climate.uf",
+                    "state": "heat",
+                    "attributes": {"current_temperature": 28, "temperature": 35},
+                },
+            ),
         ],
         ids=[
-            "relay", "socket", "valve", "vacuum", "kettle",
-            "intercom", "scenario_button", "hvac_radiator",
-            "hvac_heater", "hvac_boiler", "hvac_underfloor",
+            "relay",
+            "socket",
+            "valve",
+            "vacuum",
+            "kettle",
+            "intercom",
+            "scenario_button",
+            "hvac_radiator",
+            "hvac_heater",
+            "hvac_boiler",
+            "hvac_underfloor",
         ],
     )
     def test_current_state_online_bool_present(self, entity_cls, entity_data, ha_state):
@@ -1328,12 +1454,44 @@ class TestCrossDeviceSberStateStructure:
     @pytest.mark.parametrize(
         "entity_cls,entity_data,ha_state",
         [
-            (RelayEntity, {"entity_id": "switch.r", "name": "R"}, {"entity_id": "switch.r", "state": "on", "attributes": {"power": 100, "voltage": 220, "current": 1}}),
-            (SocketEntity, {"entity_id": "switch.s", "name": "S"}, {"entity_id": "switch.s", "state": "on", "attributes": {"power": 50}}),
-            (ValveEntity, {"entity_id": "valve.v", "name": "V"}, {"entity_id": "valve.v", "state": "open", "attributes": {"battery": 90}}),
-            (VacuumCleanerEntity, {"entity_id": "vacuum.vc", "name": "VC"}, {"entity_id": "vacuum.vc", "state": "docked", "attributes": {"battery_level": 80}}),
-            (KettleEntity, {"entity_id": "water_heater.k", "name": "K"}, {"entity_id": "water_heater.k", "state": "heating", "attributes": {"current_temperature": 75, "temperature": 100}}),
-            (HvacRadiatorEntity, {"entity_id": "climate.rad", "name": "Rad"}, {"entity_id": "climate.rad", "state": "heat", "attributes": {"current_temperature": 22, "temperature": 30}}),
+            (
+                RelayEntity,
+                {"entity_id": "switch.r", "name": "R"},
+                {"entity_id": "switch.r", "state": "on", "attributes": {"power": 100, "voltage": 220, "current": 1}},
+            ),
+            (
+                SocketEntity,
+                {"entity_id": "switch.s", "name": "S"},
+                {"entity_id": "switch.s", "state": "on", "attributes": {"power": 50}},
+            ),
+            (
+                ValveEntity,
+                {"entity_id": "valve.v", "name": "V"},
+                {"entity_id": "valve.v", "state": "open", "attributes": {"battery": 90}},
+            ),
+            (
+                VacuumCleanerEntity,
+                {"entity_id": "vacuum.vc", "name": "VC"},
+                {"entity_id": "vacuum.vc", "state": "docked", "attributes": {"battery_level": 80}},
+            ),
+            (
+                KettleEntity,
+                {"entity_id": "water_heater.k", "name": "K"},
+                {
+                    "entity_id": "water_heater.k",
+                    "state": "heating",
+                    "attributes": {"current_temperature": 75, "temperature": 100},
+                },
+            ),
+            (
+                HvacRadiatorEntity,
+                {"entity_id": "climate.rad", "name": "Rad"},
+                {
+                    "entity_id": "climate.rad",
+                    "state": "heat",
+                    "attributes": {"current_temperature": 22, "temperature": 30},
+                },
+            ),
         ],
         ids=["relay", "socket", "valve", "vacuum", "kettle", "hvac_radiator"],
     )
@@ -1349,13 +1507,41 @@ class TestCrossDeviceSberStateStructure:
     @pytest.mark.parametrize(
         "entity_cls,entity_data,ha_state",
         [
-            (RelayEntity, {"entity_id": "switch.r", "name": "R"}, {"entity_id": "switch.r", "state": "unavailable", "attributes": {}}),
-            (SocketEntity, {"entity_id": "switch.s", "name": "S"}, {"entity_id": "switch.s", "state": "unavailable", "attributes": {}}),
-            (ValveEntity, {"entity_id": "valve.v", "name": "V"}, {"entity_id": "valve.v", "state": "unavailable", "attributes": {}}),
-            (VacuumCleanerEntity, {"entity_id": "vacuum.vc", "name": "VC"}, {"entity_id": "vacuum.vc", "state": "unavailable", "attributes": {}}),
-            (KettleEntity, {"entity_id": "water_heater.k", "name": "K"}, {"entity_id": "water_heater.k", "state": "unavailable", "attributes": {}}),
-            (IntercomEntity, {"entity_id": "switch.i", "name": "I"}, {"entity_id": "switch.i", "state": "unavailable", "attributes": {}}),
-            (ScenarioButtonEntity, {"entity_id": "input_boolean.sb", "name": "SB"}, {"entity_id": "input_boolean.sb", "state": "unavailable", "attributes": {}}),
+            (
+                RelayEntity,
+                {"entity_id": "switch.r", "name": "R"},
+                {"entity_id": "switch.r", "state": "unavailable", "attributes": {}},
+            ),
+            (
+                SocketEntity,
+                {"entity_id": "switch.s", "name": "S"},
+                {"entity_id": "switch.s", "state": "unavailable", "attributes": {}},
+            ),
+            (
+                ValveEntity,
+                {"entity_id": "valve.v", "name": "V"},
+                {"entity_id": "valve.v", "state": "unavailable", "attributes": {}},
+            ),
+            (
+                VacuumCleanerEntity,
+                {"entity_id": "vacuum.vc", "name": "VC"},
+                {"entity_id": "vacuum.vc", "state": "unavailable", "attributes": {}},
+            ),
+            (
+                KettleEntity,
+                {"entity_id": "water_heater.k", "name": "K"},
+                {"entity_id": "water_heater.k", "state": "unavailable", "attributes": {}},
+            ),
+            (
+                IntercomEntity,
+                {"entity_id": "switch.i", "name": "I"},
+                {"entity_id": "switch.i", "state": "unavailable", "attributes": {}},
+            ),
+            (
+                ScenarioButtonEntity,
+                {"entity_id": "input_boolean.sb", "name": "SB"},
+                {"entity_id": "input_boolean.sb", "state": "unavailable", "attributes": {}},
+            ),
         ],
         ids=["relay", "socket", "valve", "vacuum", "kettle", "intercom", "scenario_button"],
     )

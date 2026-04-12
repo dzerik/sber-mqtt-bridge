@@ -444,6 +444,8 @@ class SberMqttPanel extends LitElement {
           .totalDevices=${this._devicesExtra.total ?? 0}
           .acknowledgedCount=${this._devicesExtra.acknowledged_count ?? 0}
           .loading=${this._loading}
+          .healthScore=${this._status?.health?.score || "healthy"}
+          .healthIssues=${this._status?.health?.issues || []}
           @toolbar-refresh=${this._onToolbarRefresh}
           @toolbar-republish=${this._onToolbarRepublish}
           @toolbar-add=${this._onToolbarAdd}
