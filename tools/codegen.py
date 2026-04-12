@@ -132,7 +132,10 @@ def render_category_features(spec: dict) -> str:
     categories = spec["categories"]
     lines = [header, "", "CATEGORY_REFERENCE_FEATURES: dict[str, frozenset[str]] = {"]
     for category in sorted(categories):
-        features = sorted(categories[category].get("features", []))
+        # all_features prefers table-extracted full list (superset of
+        # the reference model example).  Fallback to features if table
+        # scraping failed for a page.
+        features = sorted(categories[category].get("all_features") or categories[category].get("features", []))
         if features:
             formatted = ", ".join(f'"{f}"' for f in features)
             lines.append(f'    "{category}": frozenset({{{formatted}}}),')
@@ -141,12 +144,41 @@ def render_category_features(spec: dict) -> str:
     lines.append("}")
     lines.append(
         dedent(
-            '''"""All features listed in the Sber reference model for each category.
+            '''"""All features declared for each category in Sber docs.
 
-This is the *widest* known-valid feature set per category.  Use for
-compliance checks: features we emit outside this set are unknown to
-Sber cloud and likely cause silent rejection (see the TV allowed_values
-bug that motivated this module)."""
+Source: the "Доступные функции устройства" table on each category
+page plus the reference JSON example.  Use as the *widest* known-valid
+feature set per category — features we emit outside this set are
+unknown to Sber cloud and likely cause silent rejection (see the
+TV ``allowed_values`` bug that motivated this module)."""
+            ''',
+        ).strip()
+    )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_obligatory_features(spec: dict) -> str:
+    """Render obligatory_features.py content."""
+    header = HEADER.format(source=spec["source"], generated_at=spec["generated_at"]).rstrip()
+    categories = spec["categories"]
+    lines = [header, "", "CATEGORY_OBLIGATORY_FEATURES: dict[str, frozenset[str]] = {"]
+    for category in sorted(categories):
+        obligatory = sorted(categories[category].get("obligatory", []))
+        if obligatory:
+            formatted = ", ".join(f'"{f}"' for f in obligatory)
+            lines.append(f'    "{category}": frozenset({{{formatted}}}),')
+        else:
+            lines.append(f'    "{category}": frozenset(),')
+    lines.append("}")
+    lines.append(
+        dedent(
+            '''"""Features marked obligatory (``✔︎``) in Sber docs per category.
+
+Extracted from the "Доступные функции устройства" table on each
+category page.  These are the features every device of this category
+MUST emit to be accepted by Sber cloud — emitting fewer is a likely
+cause of silent rejection."""
             ''',
         ).strip()
     )
@@ -162,8 +194,10 @@ def render_init(spec: dict) -> str:
 
         from .category_features import CATEGORY_REFERENCE_FEATURES
         from .feature_types import FEATURE_TYPES
+        from .obligatory_features import CATEGORY_OBLIGATORY_FEATURES
 
         __all__ = [
+            "CATEGORY_OBLIGATORY_FEATURES",
             "CATEGORY_REFERENCE_FEATURES",
             "FEATURE_TYPES",
             "SPEC_GENERATED_AT",
@@ -201,17 +235,18 @@ def atomic_write(path: Path, content: str) -> None:
 def ruff_format_content(content: str, path: Path) -> str:
     """Run content through ``ruff format`` via stdin, keeping input on failure."""
     try:
-        result = subprocess.run(
-            ["ruff", "format", "-", "--stdin-filename", str(path)],
+        # ruff is a trusted dev tool — argv is static.
+        result = subprocess.run(  # noqa: S603
+            ["ruff", "format", "-", "--stdin-filename", str(path)],  # noqa: S607
             input=content,
             capture_output=True,
             text=True,
             check=True,
         )
-        return result.stdout
     except (subprocess.CalledProcessError, FileNotFoundError):
         # ruff not available or failed — keep input unchanged.
         return content
+    return result.stdout
 
 
 def diff_against_committed(path: Path, expected: str) -> str:
@@ -237,6 +272,7 @@ def diff_against_committed(path: Path, expected: str) -> str:
 TARGETS: tuple[tuple[str, str], ...] = (
     ("feature_types.py", "render_feature_types"),
     ("category_features.py", "render_category_features"),
+    ("obligatory_features.py", "render_obligatory_features"),
     ("__init__.py", "render_init"),
 )
 
@@ -259,6 +295,7 @@ def main(argv: list[str] | None = None) -> int:
     renderers = {
         "render_feature_types": render_feature_types,
         "render_category_features": render_category_features,
+        "render_obligatory_features": render_obligatory_features,
         "render_init": render_init,
     }
 

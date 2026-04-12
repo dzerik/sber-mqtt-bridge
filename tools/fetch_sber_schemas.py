@@ -158,15 +158,64 @@ def _normalize_category_schema(raw: dict) -> dict:
 
 
 def extract_category_schema(page, category: str) -> dict | None:
-    """Render a category page, pick the <pre> whose JSON category matches."""
+    """Render a category page, pick the <pre> whose JSON category matches.
+
+    Also extracts the "Доступные функции устройства" table, which marks
+    each feature as obligatory (``✔︎`` in column 2) or optional.  The
+    obligatory set is the strictest feature contract per Sber's own docs.
+    """
     if not _load_page(page, f"{BASE_URL}/{category}"):
         return None
+
     pre_blocks: list[str] = page.eval_on_selector_all("pre", "els => els.map(e => e.innerText)")
+    schema: dict | None = None
     for block in pre_blocks:
         data = _parse_json_block(block)
         if data and data.get("category") == category:
-            return _normalize_category_schema(data)
-    return None
+            schema = _normalize_category_schema(data)
+            break
+    if schema is None:
+        return None
+
+    # Extract obligatory features from the "Доступные функции" table.
+    table_rows = _extract_features_table(page)
+    if table_rows:
+        schema["all_features"] = sorted({row["feature"] for row in table_rows if row["feature"]})
+        schema["obligatory"] = sorted({row["feature"] for row in table_rows if row["obligatory"]})
+    else:
+        # Fallback: no table found (rare — e.g. hub page).  Treat the
+        # reference features as all-features and leave obligatory empty.
+        schema["all_features"] = schema["features"]
+        schema["obligatory"] = []
+    return schema
+
+
+_TABLE_EXTRACTOR_JS = """
+() => {
+  const headings = Array.from(document.querySelectorAll('h2'));
+  const target = headings.find(h => h.innerText.includes('Доступные функции'));
+  if (!target) return [];
+  let el = target.nextElementSibling;
+  while (el && el.tagName !== 'TABLE') el = el.nextElementSibling;
+  if (!el) return [];
+  const rows = Array.from(el.querySelectorAll('tr'));
+  return rows.slice(1).map(tr => {
+    const cells = Array.from(tr.querySelectorAll('td')).map(td => td.innerText.trim());
+    return {
+      feature: cells[0] || '',
+      obligatory: !!(cells[1] && cells[1].length > 0)
+    };
+  });
+}
+"""
+
+
+def _extract_features_table(page) -> list[dict]:
+    """Return rows from the 'Доступные функции устройства' table (may be empty)."""
+    try:
+        return page.evaluate(_TABLE_EXTRACTOR_JS)
+    except Exception:  # noqa: BLE001 — best-effort extraction
+        return []
 
 
 # ---------------------------------------------------------------------------

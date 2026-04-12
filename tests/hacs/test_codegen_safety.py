@@ -18,6 +18,7 @@ import pytest
 from pydantic import ValidationError
 
 from custom_components.sber_mqtt_bridge._generated import (
+    CATEGORY_OBLIGATORY_FEATURES,
     CATEGORY_REFERENCE_FEATURES,
     FEATURE_TYPES,
     SPEC_GENERATED_AT,
@@ -25,6 +26,7 @@ from custom_components.sber_mqtt_bridge._generated import (
 )
 from custom_components.sber_mqtt_bridge.sber_models import (
     SberState,
+    missing_obligatory_features,
     unknown_features_for_category,
 )
 
@@ -65,20 +67,20 @@ class TestFeatureTypeValidator:
 
     def test_pir_as_bool_rejected(self):
         """The real bug that motivated this validator — pir must be ENUM, not BOOL."""
-        with pytest.raises(ValidationError, match="pir.*ENUM"):
+        with pytest.raises(ValidationError, match=r"pir.*ENUM"):
             SberState.model_validate({"key": "pir", "value": {"type": "BOOL", "bool_value": True}})
 
     def test_doorcontact_state_as_enum_rejected(self):
         """doorcontact_state is BOOL per Sber spec, not ENUM."""
-        with pytest.raises(ValidationError, match="doorcontact_state.*BOOL"):
+        with pytest.raises(ValidationError, match=r"doorcontact_state.*BOOL"):
             SberState.model_validate({"key": "doorcontact_state", "value": {"type": "ENUM", "enum_value": "open"}})
 
     def test_on_off_as_integer_rejected(self):
-        with pytest.raises(ValidationError, match="on_off.*BOOL"):
+        with pytest.raises(ValidationError, match=r"on_off.*BOOL"):
             SberState.model_validate({"key": "on_off", "value": {"type": "INTEGER", "integer_value": "1"}})
 
     def test_light_brightness_as_bool_rejected(self):
-        with pytest.raises(ValidationError, match="light_brightness.*INTEGER"):
+        with pytest.raises(ValidationError, match=r"light_brightness.*INTEGER"):
             SberState.model_validate({"key": "light_brightness", "value": {"type": "BOOL", "bool_value": True}})
 
     def test_unknown_feature_allowed(self):
@@ -119,12 +121,45 @@ class TestUnknownFeaturesHelper:
         assert unknown_features_for_category("does_not_exist", {"online"}) == set()
 
 
+class TestObligatoryFeatures:
+    """CATEGORY_OBLIGATORY_FEATURES + missing_obligatory_features() correctness."""
+
+    def test_obligatory_covers_all_categories(self):
+        assert len(CATEGORY_OBLIGATORY_FEATURES) == 28
+
+    def test_online_is_obligatory_almost_everywhere(self):
+        """Every category except possibly exotic ones must have online obligatory."""
+        missing_online = [c for c, oblig in CATEGORY_OBLIGATORY_FEATURES.items() if "online" not in oblig]
+        # online is universally required per Sber spec — if this ever fails,
+        # Sber docs changed or our scraper regressed.
+        assert not missing_online, f"Categories without 'online' obligatory: {missing_online}"
+
+    def test_light_requires_on_off_and_online(self):
+        """Regression guard — our primary test category."""
+        assert CATEGORY_OBLIGATORY_FEATURES["light"] == frozenset({"online", "on_off"})
+
+    def test_sensor_pir_requires_online_and_pir(self):
+        assert CATEGORY_OBLIGATORY_FEATURES["sensor_pir"] == frozenset({"online", "pir"})
+
+    def test_missing_obligatory_detects_incomplete_emission(self):
+        """Device emitting only 'online' for light should flag 'on_off' as missing."""
+        missing = missing_obligatory_features("light", {"online"})
+        assert missing == {"on_off"}
+
+    def test_missing_obligatory_empty_when_all_present(self):
+        assert missing_obligatory_features("light", {"online", "on_off", "light_brightness"}) == set()
+
+    def test_missing_obligatory_unknown_category_empty(self):
+        """Unknown categories fail-open (empty set, not false positive)."""
+        assert missing_obligatory_features("does_not_exist", set()) == set()
+
+
 class TestCodegenDriftCheck:
     """Codegen --check mode must accurately report drift."""
 
     def test_check_mode_succeeds_on_fresh_commit(self):
         """With files freshly regenerated, --check exits 0."""
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603 — sys.executable is trusted
             [sys.executable, str(CODEGEN_SCRIPT), "--check"],
             capture_output=True,
             text=True,
@@ -157,4 +192,5 @@ class TestRuntimeDoesNotReadSpec:
         # re-import in isolation and confirm the data is the same.
         spec_mod = importlib.util.find_spec("custom_components.sber_mqtt_bridge._generated.feature_types")
         assert spec_mod is not None, "feature_types module not importable"
-        assert spec_mod.origin and Path(spec_mod.origin).exists()
+        assert spec_mod.origin
+        assert Path(spec_mod.origin).exists()

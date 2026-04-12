@@ -5,7 +5,7 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-04-12T21:05:04.890060+00:00
+Spec generated at: 2026-04-12T21:42:23.056807+00:00
 """
 
 from __future__ import annotations
@@ -17,6 +17,9 @@ CATEGORY_REFERENCE_FEATURES: dict[str, frozenset[str]] = {
             "battery_percentage",
             "online",
             "open_left_percentage",
+            "open_left_set",
+            "open_left_state",
+            "open_percentage",
             "open_rate",
             "open_right_percentage",
             "open_right_set",
@@ -32,6 +35,7 @@ CATEGORY_REFERENCE_FEATURES: dict[str, frozenset[str]] = {
             "open_left_percentage",
             "open_left_set",
             "open_left_state",
+            "open_percentage",
             "open_rate",
             "open_right_percentage",
             "open_right_set",
@@ -44,20 +48,24 @@ CATEGORY_REFERENCE_FEATURES: dict[str, frozenset[str]] = {
     "hub": frozenset({"online"}),
     "hvac_ac": frozenset(
         {
+            "humidity",
             "hvac_air_flow_direction",
             "hvac_air_flow_power",
             "hvac_humidity_set",
+            "hvac_ionization",
             "hvac_night_mode",
             "hvac_temp_set",
             "hvac_work_mode",
             "on_off",
             "online",
+            "temperature",
         }
     ),
     "hvac_air_purifier": frozenset(
         {
             "hvac_air_flow_power",
             "hvac_aromatization",
+            "hvac_decontaminate",
             "hvac_ionization",
             "hvac_night_mode",
             "hvac_replace_filter",
@@ -66,8 +74,10 @@ CATEGORY_REFERENCE_FEATURES: dict[str, frozenset[str]] = {
             "online",
         }
     ),
-    "hvac_boiler": frozenset({"hvac_temp_set", "hvac_thermostat_mode", "on_off", "online", "temperature"}),
-    "hvac_fan": frozenset({"hvac_air_flow_power", "on_off", "online"}),
+    "hvac_boiler": frozenset(
+        {"hvac_heating_rate", "hvac_temp_set", "hvac_thermostat_mode", "on_off", "online", "temperature"}
+    ),
+    "hvac_fan": frozenset({"hvac_air_flow_power", "hvac_direction_set", "on_off", "online"}),
     "hvac_heater": frozenset(
         {"hvac_air_flow_power", "hvac_temp_set", "hvac_thermostat_mode", "on_off", "online", "temperature"}
     ),
@@ -80,6 +90,7 @@ CATEGORY_REFERENCE_FEATURES: dict[str, frozenset[str]] = {
             "hvac_night_mode",
             "hvac_replace_filter",
             "hvac_replace_ionizator",
+            "hvac_water_level",
             "hvac_water_low_level",
             "hvac_water_percentage",
             "on_off",
@@ -87,7 +98,9 @@ CATEGORY_REFERENCE_FEATURES: dict[str, frozenset[str]] = {
         }
     ),
     "hvac_radiator": frozenset({"hvac_temp_set", "on_off", "online", "temperature"}),
-    "hvac_underfloor_heating": frozenset({"hvac_temp_set", "hvac_thermostat_mode", "on_off", "online", "temperature"}),
+    "hvac_underfloor_heating": frozenset(
+        {"hvac_heating_rate", "hvac_temp_set", "hvac_thermostat_mode", "on_off", "online", "temperature"}
+    ),
     "intercom": frozenset({"incoming_call", "online", "reject_call", "unlock"}),
     "kettle": frozenset(
         {
@@ -100,13 +113,33 @@ CATEGORY_REFERENCE_FEATURES: dict[str, frozenset[str]] = {
             "online",
         }
     ),
-    "led_strip": frozenset(
-        {"light_brightness", "light_colour", "light_colour_temp", "light_mode", "on_off", "online", "sleep_timer"}
-    ),
+    "led_strip": frozenset({"light_brightness", "light_colour", "light_colour_temp", "light_mode", "on_off", "online"}),
     "light": frozenset({"light_brightness", "light_colour", "light_colour_temp", "light_mode", "on_off", "online"}),
     "relay": frozenset({"current", "on_off", "online", "power", "voltage"}),
     "scenario_button": frozenset(
-        {"battery_percentag", "button_1_event", "button_2_event", "online", "signal_strength"}
+        {
+            "battery_low_power",
+            "battery_percentage",
+            "button_10_event",
+            "button_1_event",
+            "button_2_event",
+            "button_3_event",
+            "button_4_event",
+            "button_5_event",
+            "button_6_event",
+            "button_7_event",
+            "button_8_event",
+            "button_9_event",
+            "button_bottom_left_event",
+            "button_bottom_right_event",
+            "button_event",
+            "button_left_event",
+            "button_right_event",
+            "button_top_left_event",
+            "button_top_right_event",
+            "online",
+            "signal_strength",
+        }
     ),
     "sensor_door": frozenset(
         {
@@ -180,12 +213,21 @@ CATEGORY_REFERENCE_FEATURES: dict[str, frozenset[str]] = {
         }
     ),
     "valve": frozenset(
-        {"battery_low_power", "battery_percentage", "online", "open_set", "open_state", "signal_strength"}
+        {
+            "battery_low_power",
+            "battery_percentage",
+            "online",
+            "open_percentage",
+            "open_set",
+            "open_state",
+            "signal_strength",
+        }
     ),
     "window_blind": frozenset(
         {
             "battery_low_power",
             "battery_percentage",
+            "light_transmission_percentage",
             "online",
             "open_percentage",
             "open_rate",
@@ -195,9 +237,10 @@ CATEGORY_REFERENCE_FEATURES: dict[str, frozenset[str]] = {
         }
     ),
 }
-"""All features listed in the Sber reference model for each category.
+"""All features declared for each category in Sber docs.
 
-This is the *widest* known-valid feature set per category.  Use for
-compliance checks: features we emit outside this set are unknown to
-Sber cloud and likely cause silent rejection (see the TV allowed_values
-bug that motivated this module)."""
+Source: the "Доступные функции устройства" table on each category
+page plus the reference JSON example.  Use as the *widest* known-valid
+feature set per category — features we emit outside this set are
+unknown to Sber cloud and likely cause silent rejection (see the
+TV ``allowed_values`` bug that motivated this module)."""
