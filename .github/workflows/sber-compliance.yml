@@ -17,15 +17,17 @@ jobs:
   fetch-and-check:
     name: Fetch Sber schemas + detect drift
     runs-on: ubuntu-latest
-    # Use the official Playwright image — chromium + all system deps
-    # are pre-installed, no download step needed.
-    container:
-      image: mcr.microsoft.com/playwright/python:v1.48.0-jammy
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Python dependencies
-        run: pip install --quiet playwright
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright + chromium
+        run: |
+          pip install --quiet playwright
+          playwright install --with-deps chromium
 
       - name: Fetch Sber schemas
         run: python tools/fetch_sber_schemas.py
