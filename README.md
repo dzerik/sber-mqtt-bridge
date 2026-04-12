@@ -3,7 +3,7 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 [![GitHub Release](https://img.shields.io/github/v/release/dzerik/sber-mqtt-bridge)](https://github.com/dzerik/sber-mqtt-bridge/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
-[![Tests](https://img.shields.io/badge/tests-1556+-brightgreen)](tests/hacs/)
+[![Tests](https://img.shields.io/badge/tests-1708+-brightgreen)](tests/hacs/)
 [![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions)
 
 **[English documentation](README_ENG.md)** | **[Документация (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)**
@@ -58,13 +58,15 @@ flowchart LR
 - Сохранение переопределений -- переименования и комнаты из приложения Сбер переживают перезапуск HA
 - Автоматическая повторная публикация конфигурации, когда Sber запрашивает неизвестные entity
 - Валидация протокола через Pydantic -- строгая типизация JSON-сообщений Sber
+- **Автоматическое обнаружение дрейфа спецификации Sber** -- еженедельный CI-scraper тянет каноничные схемы с `developers.sber.ru`, сравнивает с нашими моделями и открывает PR при расхождениях (см. `tools/fetch_sber_schemas.py`, `tools/codegen.py`)
+- **Runtime-валидация типов features** -- сгенерированный из документации Sber словарь `FEATURE_TYPES` ловит несоответствия (напр. PIR как BOOL вместо ENUM) до отправки в облако
 - Мониторинг подключения и диагностика
 - Отслеживание подтверждения устройств -- видно, какие устройства Sber подтвердил
 - Автоматическое переподключение с экспоненциальной задержкой (5сек -> 5мин)
 - SSL сертификат (настраивается)
 - Переводы: английский и русский
-- CI/CD: ruff, pytest, HACS validation, hassfest
-- **1470+ тестов**
+- CI/CD: ruff, pytest, HACS validation, hassfest, Sber spec drift detection
+- **1708+ тестов**
 
 ## Ключевые фичи v1.10
 
