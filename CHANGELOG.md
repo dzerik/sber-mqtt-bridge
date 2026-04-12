@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.0] - 2026-04-12
+
+### Added
+
+- **Device-centric wizard (type-first flow)** — полностью переписанный
+  Add Device Wizard, заменяющий старый entity-first pipeline. Новый
+  поток: Step 1 сетка категорий Sber → Step 2 HA-устройство целиком с
+  раскрытыми linked-native (preselected) + linked-compatible (opt-in)
+  датчиками → Step 3 имя / комната / атомарный submit.
+- **`custom_components/sber_mqtt_bridge/device_grouper.py`** — новый
+  модуль, домен-агностичный `HaDeviceGrouper` с публичными методами
+  `list_for_category(sber_category)` и
+  `preview_for_category(device_id, sber_category)`. Возвращает
+  `DeviceGroup` с полями `primary`, `primary_alternatives`,
+  `linked_native`, `linked_compatible`, `unsupported`,
+  `already_exposed`, отсортированный по
+  `(not already_exposed, area, name.casefold())`.
+- **Реестр категорий в `sber_entity_map.py`**: фрозен-датакласс
+  `CategorySpec` (domains / device_classes / preferred_rank /
+  fallback_when_no_device_class) + `CATEGORY_DOMAIN_MAP` (28
+  категорий), `CategoryUiMeta` + `CATEGORY_UI_META`, `CATEGORY_GROUPS`,
+  хелпер `categories_for_domain(domain, device_class)`. Это new source
+  of truth для promotion HA domain → Sber category (было хардкод в
+  frontend `DEVICE_GROUPS`).
+- **Новые WebSocket команды** (`websocket_api/devices_grouped.py`):
+  - `sber_mqtt_bridge/list_categories` — сетка Step 1 (фильтрует
+    подкатегории с `user_selectable=False`).
+  - `sber_mqtt_bridge/list_devices_for_category` — список HA-устройств
+    для Step 2.
+  - `sber_mqtt_bridge/add_ha_device` — атомарный add (patch
+    `exposed_entities` + `entity_type_overrides` + `entity_links` +
+    `redefinitions` → один reload).
+  - `sber_mqtt_bridge/suggest_links` — переписан как тонкая обёртка
+    над `HaDeviceGrouper.preview_for_category` для post-add edit flow
+    в `sber-link-dialog.js`.
+- **77 новых тестов**: `test_category_domain_map.py` (32),
+  `test_device_grouper.py` (25), `test_websocket_devices_grouped.py`
+  (20).
+
+### Changed
+
+- **`sber-wizard.js`** полностью переписан как LitElement type-first
+  компонент с role-conflict guard (селект датчика с той же ролью
+  автоматически снимает предыдущий). Переиспользует существующий
+  стиль панели (HA CSS vars, color-mix, stepper).
+- **`sber-toolbar.js`**: убраны кнопка *"Add Devices"* и пункт *"Add
+  All Entities"* из bulk-меню; dropdown переименован в *"Maintenance"*;
+  primary-кнопка *"Add device"* диспатчит `toolbar-wizard` напрямую.
+- **`sber-panel.js`**: удалены методы `_addEntities`, `_bulkAddAll`,
+  `_onAddEntities`, `_onToolbarBulkAdd` и элемент `<sber-add-dialog>`.
+
+### Removed
+
+- **`sber-add-dialog.js`** (477 LOC) — заменён визардом, backwards
+  compat пути не сохраняются (pre-alpha, один пользователь).
+- **`ws_add_device_wizard`** — заменён на `ws_add_ha_device`.
+- **`ws_get_available_entities`** — данные теперь берутся из
+  `list_devices_for_category`.
+- **`ws_bulk_add`** — функция встроена в `ws_add_ha_device`.
+
 ## [1.25.1] - 2026-04-12
 
 ### Changed
