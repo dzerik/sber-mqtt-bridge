@@ -7,10 +7,11 @@ navigation direction, and custom key commands.
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import BaseEntity, CommandResult
+from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_bool_parser
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +56,21 @@ _DIRECTION_SERVICE: dict[str, str] = {
 """Sber ``direction`` ENUM to HA media_player service."""
 
 
+def _volume_converter(attrs: dict) -> int:
+    """Convert HA volume_level (0.0-1.0 float) to Sber integer (0-100).
+
+    Args:
+        attrs: HA attributes dict.
+
+    Returns:
+        Integer volume 0-100, or 0 if missing/invalid.
+    """
+    raw = attrs.get("volume_level")
+    if raw is None:
+        return 0
+    return int(float(raw) * 100)
+
+
 class TvEntity(BaseEntity):
     """Sber TV entity for television and media player devices.
 
@@ -66,6 +82,33 @@ class TvEntity(BaseEntity):
     - Channel switching (+/-)
     - Navigation direction (up/down/left/right/ok)
     """
+
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(
+            field="_volume",
+            converter=_volume_converter,
+            default=0,
+        ),
+        AttrSpec(
+            field="_is_muted",
+            attr_keys=("is_volume_muted",),
+            parser=_safe_bool_parser,
+            default=False,
+        ),
+        AttrSpec(
+            field="_source",
+            attr_keys=("source",),
+        ),
+        AttrSpec(
+            field="_source_list",
+            converter=lambda attrs: attrs.get("source_list") or [],
+            default=[],
+        ),
+        AttrSpec(
+            field="_media_content_id",
+            attr_keys=("media_content_id",),
+        ),
+    )
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize TV entity.
@@ -88,14 +131,9 @@ class TvEntity(BaseEntity):
             ha_state: HA state dict with 'state' and 'attributes' keys.
         """
         super().fill_by_ha_state(ha_state)
-        self.current_state = ha_state.get("state") not in ("off", "standby", "unavailable", "unknown")
         attrs = ha_state.get("attributes", {})
-        vol = self._safe_float(attrs.get("volume_level"))
-        self._volume = int(vol * 100) if vol is not None else 0
-        self._is_muted = bool(attrs.get("is_volume_muted", False))
-        self._source = attrs.get("source")
-        self._source_list = attrs.get("source_list") or []
-        self._media_content_id = attrs.get("media_content_id")
+        self._apply_attr_specs(attrs)
+        self.current_state = ha_state.get("state") not in ("off", "standby", "unavailable", "unknown")
 
     def _has_instance_allowed_values(self) -> bool:
         """TV source_list varies per device — model_id must be unique."""

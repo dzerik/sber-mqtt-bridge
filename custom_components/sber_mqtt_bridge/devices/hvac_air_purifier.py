@@ -7,10 +7,11 @@ read-only features: ionization, night mode, aromatization, filter/ionizer replac
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_state
-from .base_entity import BaseEntity, CommandResult
+from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_bool_parser
 from .hvac_fan import _SBER_SPEED_TO_PERCENTAGE, SBER_SPEED_VALUES, _percentage_to_sber_speed
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,6 +30,58 @@ class HvacAirPurifierEntity(BaseEntity):
     - Read-only flags: ionization, night mode, aromatization,
       filter replacement, ionizer replacement, decontamination
     """
+
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(
+            field="preset_modes",
+            converter=lambda attrs: attrs.get("preset_modes") or [],
+            default=[],
+        ),
+        AttrSpec(
+            field="preset_mode",
+            attr_keys=("preset_mode",),
+        ),
+        AttrSpec(
+            field="percentage",
+            attr_keys=("percentage",),
+        ),
+        AttrSpec(
+            field="_ionization",
+            attr_keys=("ionization",),
+            parser=_safe_bool_parser,
+            default=False,
+        ),
+        AttrSpec(
+            field="_night_mode",
+            attr_keys=("night_mode",),
+            parser=_safe_bool_parser,
+            default=False,
+        ),
+        AttrSpec(
+            field="_aromatization",
+            attr_keys=("aromatization",),
+            parser=_safe_bool_parser,
+            default=False,
+        ),
+        AttrSpec(
+            field="_replace_filter",
+            attr_keys=("replace_filter",),
+            parser=_safe_bool_parser,
+            default=False,
+        ),
+        AttrSpec(
+            field="_replace_ionizator",
+            attr_keys=("replace_ionizator",),
+            parser=_safe_bool_parser,
+            default=False,
+        ),
+        AttrSpec(
+            field="_decontaminate",
+            attr_keys=("decontaminate",),
+            parser=_safe_bool_parser,
+            default=False,
+        ),
+    )
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize air purifier entity.
@@ -55,17 +108,9 @@ class HvacAirPurifierEntity(BaseEntity):
             ha_state: HA state dict with 'state' and 'attributes' keys.
         """
         super().fill_by_ha_state(ha_state)
-        self.current_state = ha_state.get("state") != "off"
         attrs = ha_state.get("attributes", {})
-        self.preset_modes = attrs.get("preset_modes") or []
-        self.preset_mode = attrs.get("preset_mode")
-        self.percentage = attrs.get("percentage")
-        self._ionization = bool(attrs.get("ionization", False))
-        self._night_mode = bool(attrs.get("night_mode", False))
-        self._aromatization = bool(attrs.get("aromatization", False))
-        self._replace_filter = bool(attrs.get("replace_filter", False))
-        self._replace_ionizator = bool(attrs.get("replace_ionizator", False))
-        self._decontaminate = bool(attrs.get("decontaminate", False))
+        self._apply_attr_specs(attrs)
+        self.current_state = ha_state.get("state") != "off"
 
     def _get_sber_speed(self) -> str | None:
         """Get current fan speed as Sber ENUM value.
