@@ -491,6 +491,17 @@ class BaseEntity(ABC):
         """
         raw_model_id = device.get("model_id", "") if self.linked_device else ""
         model_id = f"{raw_model_id}_{self.category}" if raw_model_id else f"Mdl_{self.category}"
+
+        # Instance-specific allowed_values (e.g. TV source_list) must produce
+        # a unique model_id — Sber cloud stores one model per id, so devices
+        # sharing an id with different allowed_values get silently rejected.
+        allowed = self.create_allowed_values_list()
+        if allowed and self._has_instance_allowed_values():
+            import hashlib
+
+            digest = hashlib.md5(str(sorted(allowed.items())).encode(), usedforsecurity=False).hexdigest()[:8]
+            model_id = f"{model_id}_{digest}"
+
         descriptor: dict = {
             "id": model_id,
             "manufacturer": device.get("manufacturer") or "Unknown",
@@ -499,13 +510,23 @@ class BaseEntity(ABC):
             "category": self.category,
             "features": self.get_final_features_list(),
         }
-        allowed = self.create_allowed_values_list()
         if allowed:
             descriptor["allowed_values"] = allowed
         deps = self.create_dependencies()
         if deps:
             descriptor["dependencies"] = deps
         return descriptor
+
+    def _has_instance_allowed_values(self) -> bool:
+        """Return True if allowed_values vary per entity instance.
+
+        Override in subclasses where allowed_values depend on runtime data
+        (e.g. TV source_list) rather than being static for the category.
+        When True, model_id gets an MD5 suffix to avoid Sber cloud
+        collisions between devices of the same model but different
+        allowed_values.
+        """
+        return False
 
     @abstractmethod
     def to_sber_current_state(self) -> dict:

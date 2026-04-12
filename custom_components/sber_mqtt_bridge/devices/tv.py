@@ -97,6 +97,10 @@ class TvEntity(BaseEntity):
         self._source_list = attrs.get("source_list") or []
         self._media_content_id = attrs.get("media_content_id")
 
+    def _has_instance_allowed_values(self) -> bool:
+        """TV source_list varies per device — model_id must be unique."""
+        return bool(self._source_list)
+
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for TV capabilities.
 
