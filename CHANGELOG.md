@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.1] - 2026-04-12
+
+### Fixed
+
+- **TV entities silently rejected by Sber** — `allowed_values` contained
+  7 extra keys (volume_int, channel, channel_int, direction, volume,
+  custom_key, number) beyond what Sber TV reference specifies. Sber cloud
+  accepted the config but never sent `status_request` for TV devices.
+  Now only `source` is sent in `allowed_values` (per reference model).
+- **Orphan entities (SmartIR, templates) invisible in wizard** — entities
+  without `device_id` were skipped by `HaDeviceGrouper`. Now each orphan
+  becomes its own "virtual" device group. `ws_add_ha_device` also
+  recognizes orphan entities (device_id == entity_id).
+- **Panel kick-out after adding device** — `ws_add_ha_device` called
+  `async_reload` which tore down the sidebar panel mid-navigation.
+  Replaced with hot-reload via `bridge._reload_entities_and_resubscribe()`
+  + `_publish_config()`.
+- **Unique model_id for TV with instance-specific source_list** — added
+  `_has_instance_allowed_values()` hook; TV entities with different
+  source lists now get unique model IDs (MD5 suffix).
+
 ## [1.26.0] - 2026-04-12
 
 ### Added
