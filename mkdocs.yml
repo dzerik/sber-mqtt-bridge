@@ -77,7 +77,6 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Installation: installation.md
   - Sber Studio Setup: sber-setup.md
   - Configuration: configuration.md
   - Supported Devices: devices.md
@@ -93,6 +92,12 @@ nav:
   - API Reference:
       - Обзор: api/index.md
       - SberBridge: api/bridge.md
+      - MqttClientService: api/mqtt-client-service.md
+      - SberCommandDispatcher: api/command-dispatcher.md
+      - HaStateForwarder: api/ha-state-forwarder.md
+      - SberEntityLoader: api/entity-registry.md
+      - MessageLogger: api/message-logger.md
+      - WebSocket API: api/websocket-api.md
       - Протокол: api/protocol.md
       - Модели: api/models.md
       - Entity Map: api/entity-map.md

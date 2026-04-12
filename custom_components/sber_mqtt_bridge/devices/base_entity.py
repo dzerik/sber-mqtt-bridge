@@ -43,7 +43,7 @@ class AttrSpec:
 
     field: str
     attr_keys: tuple[str, ...]
-    parser: Callable[[object], object] = lambda v: v  # noqa: E731
+    parser: Callable[[object], object] = lambda v: v
     default: object = None
     preserve_on_missing: bool = False
 

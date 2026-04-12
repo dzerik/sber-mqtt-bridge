@@ -39,7 +39,7 @@ flowchart LR
 ## Быстрый старт
 
 1. [Настройте проект в Sber Studio](sber-setup.md) и получите MQTT-учётные данные
-2. [Установите интеграцию](installation.md) через HACS
+2. Установите интеграцию через HACS — см. [README на GitHub](https://github.com/dzerik/sber-mqtt-bridge#установка-через-hacs)
 3. [Настройте подключение и выберите устройства](configuration.md)
 4. Управляйте устройствами голосом: *"Салют, включи свет на кухне!"*
 

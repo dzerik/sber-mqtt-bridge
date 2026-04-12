@@ -64,17 +64,6 @@ class MotionSensorEntity(SimpleReadOnlySensor):
             features.append("tamper_alarm")
         return features
 
-    def to_sber_current_state(self) -> dict[str, dict]:
-        """Build Sber current state payload with tamper_alarm when available.
-
-        Returns:
-            Dict mapping entity_id to its Sber state representation.
-        """
-        result = super().to_sber_current_state()
-        if self._tamper is not None:
-            result[self.entity_id]["states"].append(make_state(SberFeature.TAMPER_ALARM, make_bool_value(self._tamper)))
-        return result
-
     def _get_sber_value(self) -> str:
         """Return Sber ENUM value for motion detection.
 
