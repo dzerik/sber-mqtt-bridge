@@ -21,7 +21,9 @@ import json
 import logging
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+
+from ._generated import CATEGORY_REFERENCE_FEATURES, FEATURE_TYPES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,6 +78,24 @@ class SberState(BaseModel):
 
     key: str
     value: SberValue
+
+    @model_validator(mode="after")
+    def check_feature_type_matches(self) -> SberState:
+        """Reject states where the value type doesn't match the Sber spec for the key.
+
+        Protects against silent Sber rejections like the PIR-as-BOOL bug:
+        Sber expects ``pir`` as ``{"type": "ENUM", "enum_value": "pir"}``
+        but a buggy device class could emit ``{"type": "BOOL", "bool_value": true}``
+        — Sber would accept the payload and quietly drop the device.
+
+        Uses :data:`FEATURE_TYPES` (auto-generated from Sber docs).  Unknown
+        keys are allowed — not all features are in the generated catalog
+        (typos / undocumented features are handled by compliance tests).
+        """
+        expected = FEATURE_TYPES.get(self.key)
+        if expected is not None and self.value.type != expected:
+            raise ValueError(f"Feature {self.key!r} must have type {expected!r}, got {self.value.type!r}")
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -442,6 +462,23 @@ CATEGORY_REQUIRED_FEATURES: dict[str, frozenset[str]] = {
     "hub": frozenset({"online"}),
 }
 """Required features per Sber category, verified via Context7."""
+
+
+def unknown_features_for_category(category: str, features: set[str]) -> set[str]:
+    """Return features not present in Sber's reference model for the category.
+
+    Uses :data:`CATEGORY_REFERENCE_FEATURES` (auto-generated).  Unknown
+    categories (not in our registry) return empty set — validation falls
+    back to general schema rules.
+
+    Args:
+        category: Sber category slug.
+        features: Features our device would emit.
+    """
+    reference = CATEGORY_REFERENCE_FEATURES.get(category)
+    if reference is None:
+        return set()
+    return set(features) - reference
 
 
 def validate_category_compliance(device: dict[str, Any]) -> list[str]:

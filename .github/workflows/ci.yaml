@@ -20,6 +20,8 @@ jobs:
         run: ruff check custom_components/
       - name: Ruff format check
         run: ruff format --check custom_components/
+      - name: Codegen drift check
+        run: python tools/codegen.py --check
 
   test:
     name: Test (Python ${{ matrix.python-version }})
