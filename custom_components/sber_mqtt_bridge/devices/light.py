@@ -17,7 +17,7 @@ from ..sber_models import (
     make_integer_value,
     make_state,
 )
-from .base_entity import BaseEntity
+from .base_entity import SENSOR_LINK_ROLES, BaseEntity
 from .utils.color_converter import ColorConverter
 from .utils.linear_converter import LinearConverter
 
@@ -39,7 +39,12 @@ class LightEntity(BaseEntity):
     - Color temperature (mireds ↔ 0-1000 Sber, reversed)
     - RGB color via HSV conversion
     - Light mode (white / colour)
+
+    Accepts battery / battery_low / signal_strength linked sensors via
+    :attr:`LINKABLE_ROLES` (Zigbee lights commonly report these).
     """
+
+    LINKABLE_ROLES = SENSOR_LINK_ROLES
 
     def __init__(self, ha_entity_data: dict) -> None:
         """Initialize light entity from HA entity data.

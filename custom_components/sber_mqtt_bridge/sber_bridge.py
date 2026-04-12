@@ -24,6 +24,7 @@ from homeassistant.core import Event, HomeAssistant, callback
 
 from .command_dispatcher import SberCommandDispatcher
 from .const import (
+    CONF_CONFIRM_DELAY,
     CONF_DEBOUNCE_DELAY,
     CONF_HUB_AUTO_PARENT,
     CONF_MAX_MQTT_PAYLOAD,
@@ -388,6 +389,7 @@ class SberBridge:
         self._debounce_delay: float = float(options.get(CONF_DEBOUNCE_DELAY, SETTINGS_DEFAULTS[CONF_DEBOUNCE_DELAY]))
         self._max_payload_size: int = int(options.get(CONF_MAX_MQTT_PAYLOAD, SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]))
         self._message_log_size: int = int(options.get(CONF_MESSAGE_LOG_SIZE, SETTINGS_DEFAULTS[CONF_MESSAGE_LOG_SIZE]))
+        self._confirm_delay: float = float(options.get(CONF_CONFIRM_DELAY, SETTINGS_DEFAULTS[CONF_CONFIRM_DELAY]))
         # verify_ssl has a special path: config_entry.data fallback for migrated entries
         self._verify_ssl: bool = bool(
             options.get(
@@ -780,15 +782,15 @@ class SberBridge:
     async def _delayed_confirm(self, entity_id: str) -> None:
         """Delayed state confirmation for a commanded entity.
 
-        Waits 1.5 seconds (letting HA settle async attribute updates) and
-        then re-publishes the entity's current state to Sber.  Cleans up
-        ``_confirm_tasks`` entry on completion.
+        Waits :attr:`_confirm_delay` seconds (letting HA settle async
+        attribute updates) and then re-publishes the entity's current
+        state to Sber.  Cleans up ``_confirm_tasks`` entry on completion.
 
         Args:
             entity_id: HA entity identifier to confirm.
         """
         try:
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(self._confirm_delay)
             entity = self._entities.get(entity_id)
             if entity is not None:
                 ha_state = self._hass.states.get(entity_id)
