@@ -115,17 +115,11 @@ async def ws_update_redefinitions(
     try:
         existing = await bridge.async_update_redefinition(entity_id, fields)
     except KeyError:
-        connection.send_error(
-            msg["id"], "not_found", f"Entity {entity_id} not in bridge"
-        )
+        connection.send_error(msg["id"], "not_found", f"Entity {entity_id} not in bridge")
         return
     except HomeAssistantError:
         _LOGGER.exception("Re-publish after redefinition update failed")
-        connection.send_error(
-            msg["id"], "publish_failed", "Republish after update failed"
-        )
+        connection.send_error(msg["id"], "publish_failed", "Republish after update failed")
         return
 
-    connection.send_result(
-        msg["id"], {"entity_id": entity_id, "redefinitions": existing}
-    )
+    connection.send_result(msg["id"], {"entity_id": entity_id, "redefinitions": existing})

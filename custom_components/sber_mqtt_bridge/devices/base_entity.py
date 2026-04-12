@@ -423,13 +423,9 @@ class BaseEntity(ABC):
             RuntimeError: If device has device_id but linked_device is not set.
         """
         if not self.is_filled_by_state:
-            raise RuntimeError(
-                f"Entity {self.entity_id}: fill_by_ha_state must be called before to_sber_state"
-            )
+            raise RuntimeError(f"Entity {self.entity_id}: fill_by_ha_state must be called before to_sber_state")
         if self.device_id is not None and self.linked_device is None:
-            raise RuntimeError(
-                f"Entity {self.entity_id}: linked_device required when device_id is set"
-            )
+            raise RuntimeError(f"Entity {self.entity_id}: linked_device required when device_id is set")
 
         device: DeviceData = self.linked_device or {}
         display_name = self._resolve_display_name(device)
@@ -581,9 +577,7 @@ class BaseEntity(ABC):
         Returns:
             Dict with 'url' key containing the HA service call descriptor.
         """
-        return cls._build_service_call(
-            domain, SERVICE_TURN_ON if on else SERVICE_TURN_OFF, entity_id
-        )
+        return cls._build_service_call(domain, SERVICE_TURN_ON if on else SERVICE_TURN_OFF, entity_id)
 
     @abstractmethod
     def process_cmd(self, cmd_data: dict) -> list[dict]:

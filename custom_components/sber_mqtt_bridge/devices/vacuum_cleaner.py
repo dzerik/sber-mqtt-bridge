@@ -132,13 +132,9 @@ class VacuumCleanerEntity(BaseEntity):
         if self._fan_speed:
             states.append(make_state(SberFeature.VACUUM_CLEANER_PROGRAM, make_enum_value(self._fan_speed)))
         if self._cleaning_type:
-            states.append(
-                make_state(SberFeature.VACUUM_CLEANER_CLEANING_TYPE, make_enum_value(self._cleaning_type))
-            )
+            states.append(make_state(SberFeature.VACUUM_CLEANER_CLEANING_TYPE, make_enum_value(self._cleaning_type)))
         if self._battery_level is not None:
-            states.append(
-                make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level))
-            )
+            states.append(make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level)))
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:
@@ -170,8 +166,6 @@ class VacuumCleanerEntity(BaseEntity):
                 if not fan_speed:
                     continue
                 results.append(
-                    self._build_service_call(
-                        "vacuum", "set_fan_speed", self.entity_id, {"fan_speed": fan_speed}
-                    )
+                    self._build_service_call("vacuum", "set_fan_speed", self.entity_id, {"fan_speed": fan_speed})
                 )
         return results

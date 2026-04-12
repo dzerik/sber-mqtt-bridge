@@ -72,15 +72,11 @@ def ws_subscribe_messages(
 
     connection.send_result(msg["id"])
 
-    connection.send_message(
-        websocket_api.event_message(msg["id"], {"snapshot": bridge.message_log})
-    )
+    connection.send_message(websocket_api.event_message(msg["id"], {"snapshot": bridge.message_log}))
 
     @callback
     def forward_message(message_data: dict) -> None:
-        connection.send_message(
-            websocket_api.event_message(msg["id"], {"message": message_data})
-        )
+        connection.send_message(websocket_api.event_message(msg["id"], {"message": message_data}))
 
     unsub = bridge.subscribe_messages(forward_message)
     connection.subscriptions[msg["id"]] = unsub

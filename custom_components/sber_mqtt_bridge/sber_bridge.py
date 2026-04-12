@@ -141,9 +141,7 @@ class SberBridge:
         self._password: str = entry.data[CONF_SBER_PASSWORD]
         self._broker: str = entry.data[CONF_SBER_BROKER]
         self._port: int = entry.data[CONF_SBER_PORT]
-        self._verify_ssl: bool = entry.options.get(
-            CONF_SBER_VERIFY_SSL, entry.data.get(CONF_SBER_VERIFY_SSL, True)
-        )
+        self._verify_ssl: bool = entry.options.get(CONF_SBER_VERIFY_SSL, entry.data.get(CONF_SBER_VERIFY_SSL, True))
 
         self._root_topic = f"{SBER_TOPIC_PREFIX}/{self._login}"
         self._down_topic = f"{self._root_topic}/down"
@@ -294,9 +292,7 @@ class SberBridge:
         """Return entity IDs that were published but not yet acknowledged by Sber."""
         return [eid for eid in self._enabled_entity_ids if eid not in self._stats.acknowledged_entities]
 
-    async def async_update_redefinition(
-        self, entity_id: str, fields: dict[str, str | None]
-    ) -> dict[str, str]:
+    async def async_update_redefinition(self, entity_id: str, fields: dict[str, str | None]) -> dict[str, str]:
         """Merge redefinition fields for an entity and trigger config republish.
 
         Public API for frontend / WebSocket handlers to update a device's
@@ -335,9 +331,7 @@ class SberBridge:
         """Public wrapper for forcing a device config republish to Sber."""
         await self._publish_config()
 
-    def _create_safe_task(
-        self, coro: Any, *, name: str | None = None
-    ) -> asyncio.Task:
+    def _create_safe_task(self, coro: Any, *, name: str | None = None) -> asyncio.Task:
         """Create an asyncio task with error logging to prevent silent failures.
 
         Wraps ``hass.async_create_task`` with a done-callback that logs any
@@ -388,29 +382,17 @@ class SberBridge:
         Args:
             options: Config entry options dict.
         """
-        self._reconnect_min: int = int(
-            options.get(CONF_RECONNECT_MIN, SETTINGS_DEFAULTS[CONF_RECONNECT_MIN])
-        )
-        self._reconnect_max: int = int(
-            options.get(CONF_RECONNECT_MAX, SETTINGS_DEFAULTS[CONF_RECONNECT_MAX])
-        )
+        self._reconnect_min: int = int(options.get(CONF_RECONNECT_MIN, SETTINGS_DEFAULTS[CONF_RECONNECT_MIN]))
+        self._reconnect_max: int = int(options.get(CONF_RECONNECT_MAX, SETTINGS_DEFAULTS[CONF_RECONNECT_MAX]))
         self._reconnect_interval = self._reconnect_min
-        self._debounce_delay: float = float(
-            options.get(CONF_DEBOUNCE_DELAY, SETTINGS_DEFAULTS[CONF_DEBOUNCE_DELAY])
-        )
-        self._max_payload_size: int = int(
-            options.get(CONF_MAX_MQTT_PAYLOAD, SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD])
-        )
-        self._message_log_size: int = int(
-            options.get(CONF_MESSAGE_LOG_SIZE, SETTINGS_DEFAULTS[CONF_MESSAGE_LOG_SIZE])
-        )
+        self._debounce_delay: float = float(options.get(CONF_DEBOUNCE_DELAY, SETTINGS_DEFAULTS[CONF_DEBOUNCE_DELAY]))
+        self._max_payload_size: int = int(options.get(CONF_MAX_MQTT_PAYLOAD, SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]))
+        self._message_log_size: int = int(options.get(CONF_MESSAGE_LOG_SIZE, SETTINGS_DEFAULTS[CONF_MESSAGE_LOG_SIZE]))
         # verify_ssl has a special path: config_entry.data fallback for migrated entries
         self._verify_ssl: bool = bool(
             options.get(
                 CONF_SBER_VERIFY_SSL,
-                self._entry.data.get(
-                    CONF_SBER_VERIFY_SSL, SETTINGS_DEFAULTS[CONF_SBER_VERIFY_SSL]
-                ),
+                self._entry.data.get(CONF_SBER_VERIFY_SSL, SETTINGS_DEFAULTS[CONF_SBER_VERIFY_SSL]),
             )
         )
 
@@ -426,9 +408,7 @@ class SberBridge:
         """
         self._load_settings_from_options(options)
         self._state_forwarder.set_debounce_delay(self._debounce_delay)
-        self._mqtt_service.update_backoff_limits(
-            self._reconnect_min, self._reconnect_max
-        )
+        self._mqtt_service.update_backoff_limits(self._reconnect_min, self._reconnect_max)
         self._mqtt_service.update_verify_ssl(self._verify_ssl)
         self._msg_logger.resize(self._message_log_size)
 
@@ -461,9 +441,7 @@ class SberBridge:
     # Message log subscriber management (for real-time DevTools push)
     # ---------------------------------------------------------------------------
 
-    def subscribe_messages(
-        self, callback_fn: Callable[[dict], None]
-    ) -> Callable[[], None]:
+    def subscribe_messages(self, callback_fn: Callable[[dict], None]) -> Callable[[], None]:
         """Subscribe to new MQTT messages in real time.
 
         Args:
@@ -633,16 +611,13 @@ class SberBridge:
         await self._subscribe_down_topics(client)
         self._setup_ack_guard()
         _LOGGER.info(
-            "Connected & published states → subscribed to commands "
-            "(awaiting Sber ack, timeout %.0fs)",
+            "Connected & published states → subscribed to commands (awaiting Sber ack, timeout %.0fs)",
             RECONNECT_GRACE_TIMEOUT,
         )
         # Message consumption is handled by MqttClientService itself —
         # it will call ``_handle_mqtt_message`` for each incoming message.
 
-    async def _handle_mqtt_disconnected(
-        self, err: Exception, unexpected: bool
-    ) -> bool:
+    async def _handle_mqtt_disconnected(self, err: Exception, unexpected: bool) -> bool:
         """MqttClientService hook: runs after a transport error.
 
         Clears cached transport state, defers to the existing
@@ -672,9 +647,7 @@ class SberBridge:
         """
         if self._ha_ready.is_set():
             return
-        _LOGGER.debug(
-            "MQTT connected, waiting for HA startup before publishing config"
-        )
+        _LOGGER.debug("MQTT connected, waiting for HA startup before publishing config")
         await self._ha_ready.wait()
 
     async def _perform_initial_publish(self) -> None:
@@ -732,7 +705,8 @@ class SberBridge:
         interval = self._mqtt_service.reconnect_interval
         if unexpected:
             _LOGGER.exception(
-                "Unexpected MQTT error. Reconnecting in %ds...", interval,
+                "Unexpected MQTT error. Reconnecting in %ds...",
+                interval,
             )
         else:
             _LOGGER.warning(
@@ -861,9 +835,7 @@ class SberBridge:
         self._redef_dirty = True
         if self._redef_timer is not None:
             self._redef_timer.cancel()
-        self._redef_timer = self._hass.loop.call_later(
-            2.0, self._flush_redefinitions
-        )
+        self._redef_timer = self._hass.loop.call_later(2.0, self._flush_redefinitions)
 
     @callback
     def _flush_redefinitions(self) -> None:
@@ -910,9 +882,7 @@ class SberBridge:
         """Force republish full device config to Sber cloud."""
         await self._publish_config()
 
-    async def _publish_states(
-        self, entity_ids: list[str] | None = None, *, force: bool = False
-    ) -> None:
+    async def _publish_states(self, entity_ids: list[str] | None = None, *, force: bool = False) -> None:
         """Publish entity states to Sber MQTT.
 
         Args:
@@ -930,17 +900,14 @@ class SberBridge:
         # Value change diffing: skip entities whose Sber state has not changed
         if not force and entity_ids:
             changed_ids = [
-                eid for eid in entity_ids
-                if (e := self._entities.get(eid)) is not None and e.has_significant_change()
+                eid for eid in entity_ids if (e := self._entities.get(eid)) is not None and e.has_significant_change()
             ]
             if not changed_ids:
                 _LOGGER.debug("All %d entities unchanged, skipping publish", len(entity_ids))
                 return
             entity_ids = changed_ids
 
-        payload, payload_valid = build_states_list_json(
-            self._entities, entity_ids, self._enabled_entity_ids
-        )
+        payload, payload_valid = build_states_list_json(self._entities, entity_ids, self._enabled_entity_ids)
         topic = f"{self._root_topic}/up/status"
         try:
             await client.publish(topic, payload)
@@ -953,7 +920,7 @@ class SberBridge:
         # validation.  If Sber silently rejects an invalid payload,
         # keeping the "dirty" flag ensures we retry on the next cycle.
         if payload_valid:
-            for eid in (entity_ids or self._enabled_entity_ids):
+            for eid in entity_ids or self._enabled_entity_ids:
                 entity = self._entities.get(eid)
                 if entity is not None:
                     entity.mark_state_published()

@@ -299,9 +299,7 @@ async def ws_device_detail(
                     "entity_id": linked_id,
                     "friendly_name": friendly_name,
                     "state": linked_state.state if linked_state else None,
-                    "device_class": (
-                        linked_entry.original_device_class if linked_entry else None
-                    ),
+                    "device_class": (linked_entry.original_device_class if linked_entry else None),
                 }
             )
         result["linked_entities"] = linked_detail

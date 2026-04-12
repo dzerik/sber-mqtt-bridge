@@ -102,9 +102,7 @@ class KettleEntity(BaseEntity):
             low_level = self._current_temperature < 30
             states.append(make_state(SberFeature.KITCHEN_WATER_LOW_LEVEL, make_bool_value(low_level)))
         if self._water_level is not None:
-            states.append(
-                make_state(SberFeature.KITCHEN_WATER_LEVEL, make_integer_value(self._water_level))
-            )
+            states.append(make_state(SberFeature.KITCHEN_WATER_LEVEL, make_integer_value(self._water_level)))
         if self._target_temperature is not None:
             states.append(
                 make_state(SberFeature.KITCHEN_WATER_TEMPERATURE_SET, make_integer_value(self._target_temperature))
@@ -134,16 +132,11 @@ class KettleEntity(BaseEntity):
             if key == SberFeature.ON_OFF and vtype == SberValueType.BOOL:
                 on = value.get("bool_value", False)
                 results.append(self._build_on_off_service_call(self.entity_id, domain, on))
-            elif (
-                key == SberFeature.KITCHEN_WATER_TEMPERATURE_SET
-                and vtype == SberValueType.INTEGER
-            ):
+            elif key == SberFeature.KITCHEN_WATER_TEMPERATURE_SET and vtype == SberValueType.INTEGER:
                 temp = self._safe_int(value.get("integer_value"))
                 if temp is None:
                     continue
                 results.append(
-                    self._build_service_call(
-                        domain, "set_temperature", self.entity_id, {"temperature": temp}
-                    )
+                    self._build_service_call(domain, "set_temperature", self.entity_id, {"temperature": temp})
                 )
         return results

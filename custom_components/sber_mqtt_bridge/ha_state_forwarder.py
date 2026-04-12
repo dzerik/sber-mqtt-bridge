@@ -169,15 +169,11 @@ class HaStateForwarder:
                 "Features changed for %s after linked update — republishing config",
                 primary_id,
             )
-            self._create_safe_task(
-                self._on_republish_config(), name="republish_config_linked"
-            )
+            self._create_safe_task(self._on_republish_config(), name="republish_config_linked")
         self._schedule_debounced_publish(primary_id)
 
     @callback
-    def _handle_primary_state_change(
-        self, entity_id: str, event: Event, ha_state_dict: dict
-    ) -> None:
+    def _handle_primary_state_change(self, entity_id: str, event: Event, ha_state_dict: dict) -> None:
         """Process a state change for an entity directly registered in the bridge."""
         entities = self._get_entities()
         entity = entities.get(entity_id)
@@ -187,9 +183,7 @@ class HaStateForwarder:
         was_filled = entity.is_filled_by_state
         try:
             old_state_obj = event.data.get("old_state")
-            old_state_dict = (
-                self._ha_state_to_dict(old_state_obj) if old_state_obj else None
-            )
+            old_state_dict = self._ha_state_to_dict(old_state_obj) if old_state_obj else None
             entity.process_state_change(old_state_dict, ha_state_dict)
         except (TypeError, ValueError, KeyError, AttributeError):
             _LOGGER.exception("Error processing state change for %s", entity_id)
@@ -197,9 +191,7 @@ class HaStateForwarder:
 
         if not was_filled and entity.is_filled_by_state:
             _LOGGER.info("Entity %s now available — republishing config", entity_id)
-            self._create_safe_task(
-                self._on_republish_config(), name="republish_config_new_entity"
-            )
+            self._create_safe_task(self._on_republish_config(), name="republish_config_new_entity")
 
         _LOGGER.debug("HA → Sber state: %s = %s", entity_id, ha_state_dict.get("state"))
         self._schedule_debounced_publish(entity_id)
@@ -210,9 +202,7 @@ class HaStateForwarder:
         self._pending_publish_ids.add(entity_id)
         if self._publish_timer is not None:
             self._publish_timer.cancel()
-        self._publish_timer = self._hass.loop.call_later(
-            self._debounce_delay, self._fire_debounced_publish
-        )
+        self._publish_timer = self._hass.loop.call_later(self._debounce_delay, self._fire_debounced_publish)
 
     @callback
     def _fire_debounced_publish(self) -> None:
@@ -221,6 +211,4 @@ class HaStateForwarder:
         ids = list(self._pending_publish_ids)
         self._pending_publish_ids.clear()
         if ids:
-            self._create_safe_task(
-                self._on_publish_states(ids), name="debounced_publish"
-            )
+            self._create_safe_task(self._on_publish_states(ids), name="debounced_publish")

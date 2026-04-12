@@ -195,12 +195,14 @@ class LightEntity(BaseEntity):
         ]
 
         if self.current_sber_brightness != 0:
-            states.append(
-                make_state(SberFeature.LIGHT_BRIGHTNESS, make_integer_value(self.current_sber_brightness))
-            )
+            states.append(make_state(SberFeature.LIGHT_BRIGHTNESS, make_integer_value(self.current_sber_brightness)))
 
         if self.current_state:
-            if self._is_current_color_mode_colored() and isinstance(self.hs_color, (list, tuple)) and len(self.hs_color) >= 2:
+            if (
+                self._is_current_color_mode_colored()
+                and isinstance(self.hs_color, (list, tuple))
+                and len(self.hs_color) >= 2
+            ):
                 current_color_sber = ColorConverter.ha_to_sber_hsv(
                     self.hs_color[0], self.hs_color[1], self._ha_brightness_raw
                 )
@@ -272,11 +274,7 @@ class LightEntity(BaseEntity):
             return []
         ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
         brightness = max(0, min(int(ha_br_value), 255))
-        return [
-            self._build_service_call(
-                "light", "turn_on", self.entity_id, {"brightness": brightness}
-            )
-        ]
+        return [self._build_service_call("light", "turn_on", self.entity_id, {"brightness": brightness})]
 
     def _cmd_colour(self, value: dict) -> list[dict]:
         """Handle ``light_colour``: set HSV color via ``light.turn_on``."""
@@ -348,8 +346,4 @@ class LightEntity(BaseEntity):
             return []
         ha_mireds = self.color_temp_converter.sber_to_ha(sber_color_temp)
         ha_kelvin = int(1_000_000 / max(ha_mireds, 1))
-        return [
-            self._build_service_call(
-                "light", "turn_on", self.entity_id, {"color_temp_kelvin": ha_kelvin}
-            )
-        ]
+        return [self._build_service_call("light", "turn_on", self.entity_id, {"color_temp_kelvin": ha_kelvin})]

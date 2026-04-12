@@ -234,7 +234,9 @@ class TvEntity(BaseEntity):
             return []
         return [
             self._build_service_call(
-                _MP_DOMAIN, "volume_set", self.entity_id,
+                _MP_DOMAIN,
+                "volume_set",
+                self.entity_id,
                 {"volume_level": vol / 100.0},
             )
         ]
@@ -243,7 +245,9 @@ class TvEntity(BaseEntity):
         muted = value.get("bool_value", False)
         return [
             self._build_service_call(
-                _MP_DOMAIN, "volume_mute", self.entity_id,
+                _MP_DOMAIN,
+                "volume_mute",
+                self.entity_id,
                 {"is_volume_muted": muted},
             )
         ]
@@ -252,11 +256,7 @@ class TvEntity(BaseEntity):
         source = value.get("enum_value")
         if not source:
             return []
-        return [
-            self._build_service_call(
-                _MP_DOMAIN, "select_source", self.entity_id, {"source": source}
-            )
-        ]
+        return [self._build_service_call(_MP_DOMAIN, "select_source", self.entity_id, {"source": source})]
 
     def _cmd_channel_int(self, value: dict) -> list[dict]:
         ch = self._safe_int(value.get("integer_value"))
@@ -272,7 +272,9 @@ class TvEntity(BaseEntity):
 
     def _build_play_channel_call(self, channel: int) -> dict:
         return self._build_service_call(
-            _MP_DOMAIN, "play_media", self.entity_id,
+            _MP_DOMAIN,
+            "play_media",
+            self.entity_id,
             {
                 "media_content_type": "channel",
                 "media_content_id": str(channel),

@@ -58,10 +58,6 @@ class RelayEntity(OnOffEntity):
                 continue
             on = value.get("bool_value", False)
             domain = self.entity_id.split(".", 1)[0]
-            service = (
-                SERVICE_PRESS if domain == "button"
-                else SERVICE_TURN_ON if on
-                else SERVICE_TURN_OFF
-            )
+            service = SERVICE_PRESS if domain == "button" else SERVICE_TURN_ON if on else SERVICE_TURN_OFF
             results.append(self._build_service_call(domain, service, self.entity_id))
         return results

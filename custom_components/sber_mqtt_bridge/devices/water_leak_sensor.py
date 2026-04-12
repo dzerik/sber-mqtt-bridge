@@ -68,9 +68,7 @@ class WaterLeakSensorEntity(SimpleReadOnlySensor):
         """Build Sber current state payload with tamper_alarm and alarm_mute."""
         result = super().to_sber_current_state()
         if self._tamper is not None:
-            result[self.entity_id]["states"].append(
-                make_state(SberFeature.TAMPER_ALARM, make_bool_value(self._tamper))
-            )
+            result[self.entity_id]["states"].append(make_state(SberFeature.TAMPER_ALARM, make_bool_value(self._tamper)))
         if self._alarm_mute is not None:
             result[self.entity_id]["states"].append(
                 make_state(SberFeature.ALARM_MUTE, make_bool_value(self._alarm_mute))

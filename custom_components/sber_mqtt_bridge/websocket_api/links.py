@@ -113,7 +113,9 @@ async def ws_suggest_links(
             "original_device_class": primary_entry.original_device_class or "",
         }
         primary_entity = create_sber_entity(
-            msg["entity_id"], entity_data, sber_category=primary_category or None,
+            msg["entity_id"],
+            entity_data,
+            sber_category=primary_category or None,
         )
         if primary_entity and not primary_category:
             primary_category = primary_entity.category
@@ -173,15 +175,11 @@ async def ws_suggest_links(
                 "compatible": compatible,
                 "same_device": same_device,
                 "currently_linked": e.entity_id in existing_links.values(),
-                "linked_role": next(
-                    (r for r, eid in existing_links.items() if eid == e.entity_id), ""
-                ),
+                "linked_role": next((r for r, eid in existing_links.items() if eid == e.entity_id), ""),
             }
         )
 
-    candidates.sort(
-        key=lambda c: (not c["same_device"], not c["compatible"], c["friendly_name"])
-    )
+    candidates.sort(key=lambda c: (not c["same_device"], not c["compatible"], c["friendly_name"]))
 
     connection.send_result(
         msg["id"],

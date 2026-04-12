@@ -39,9 +39,7 @@ def ws_get_settings(
         else:
             settings[key] = entry.options.get(key, default)
 
-    connection.send_result(
-        msg["id"], {"settings": settings, "defaults": dict(SETTINGS_DEFAULTS)}
-    )
+    connection.send_result(msg["id"], {"settings": settings, "defaults": dict(SETTINGS_DEFAULTS)})
 
 
 @websocket_api.websocket_command(

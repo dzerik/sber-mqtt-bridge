@@ -69,18 +69,16 @@ class SberCommandDispatcher:
                     "Ignoring Sber command (awaiting Sber ack after reconnect, "
                     "HA state is authoritative): %s [%s] — re-publishing states",
                     entity_ids,
-                    ", ".join(
-                        s.get("key", "?")
-                        for cmd in devices.values()
-                        for s in cmd.get("states", [])
-                    ),
+                    ", ".join(s.get("key", "?") for cmd in devices.values() for s in cmd.get("states", [])),
                 )
                 if entity_ids:
                     await bridge._publish_states(entity_ids, force=True)
                 return
 
         _LOGGER.debug(
-            "Sber command for %d device(s): %s", len(devices), list(devices.keys()),
+            "Sber command for %d device(s): %s",
+            len(devices),
+            list(devices.keys()),
         )
 
         update_state_ids: list[str] = []
@@ -123,9 +121,7 @@ class SberCommandDispatcher:
                 bridge._delayed_confirm(eid), name=f"delayed_confirm_{eid}"
             )
 
-    async def _call_ha_service(
-        self, entity_id: str, cmd: dict, context: Context
-    ) -> None:
+    async def _call_ha_service(self, entity_id: str, cmd: dict, context: Context) -> None:
         """Invoke ``hass.services.async_call`` for a single Sber → HA call."""
         bridge = self._bridge
         try:
@@ -168,10 +164,7 @@ class SberCommandDispatcher:
             _LOGGER.info("Sber ack received (status_request) — now accepting commands")
 
         if requested_ids:
-            unknown = [
-                eid for eid in requested_ids
-                if eid not in bridge._entities and eid != "root"
-            ]
+            unknown = [eid for eid in requested_ids if eid not in bridge._entities and eid != "root"]
             if unknown:
                 _LOGGER.info(
                     "Sber asked about unknown entities, re-publishing config: %s",
@@ -194,9 +187,7 @@ class SberCommandDispatcher:
                 len(bridge._enabled_entity_ids),
             )
 
-        await bridge._publish_states(
-            requested_ids if requested_ids else None, force=True
-        )
+        await bridge._publish_states(requested_ids if requested_ids else None, force=True)
 
     async def handle_config_request(self) -> None:
         """Handle config request from Sber cloud — send device list."""
@@ -249,9 +240,7 @@ class SberCommandDispatcher:
         existing["room"] = data.get("room")
         bridge._redefinitions[entity_id] = existing
         bridge._persist_redefinitions()
-        _LOGGER.info(
-            "Sber group change stored: %s → room=%s", entity_id, data.get("room")
-        )
+        _LOGGER.info("Sber group change stored: %s → room=%s", entity_id, data.get("room"))
 
     async def handle_rename_device(self, payload: bytes) -> None:
         """Handle device rename from Sber.

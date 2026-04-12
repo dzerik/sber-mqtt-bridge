@@ -108,7 +108,6 @@ HA_TO_SBER_FAN_MODE: dict[str, str] = {
 """Map HA fan modes to Sber air flow power enum values."""
 
 
-
 class ClimateEntity(BaseEntity):
     """Sber climate entity for air conditioner control.
 
@@ -299,13 +298,9 @@ class ClimateEntity(BaseEntity):
             make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
         if self.temperature is not None and math.isfinite(self.temperature):
-            states.append(
-                make_state(SberFeature.TEMPERATURE, make_integer_value(int(self.temperature * 10)))
-            )
+            states.append(make_state(SberFeature.TEMPERATURE, make_integer_value(int(self.temperature * 10))))
         if self.target_temperature is not None:
-            states.append(
-                make_state(SberFeature.HVAC_TEMP_SET, make_integer_value(round(self.target_temperature)))
-            )
+            states.append(make_state(SberFeature.HVAC_TEMP_SET, make_integer_value(round(self.target_temperature))))
         if self._supports_fan and self.fan_mode:
             fan_value = HA_TO_SBER_FAN_MODE.get(self.fan_mode, self.fan_mode)
             # Map HA preset modes to Sber air flow power values
@@ -332,9 +327,7 @@ class ClimateEntity(BaseEntity):
             if sber_mode:
                 states.append(make_state(SberFeature.HVAC_THERMOSTAT_MODE, make_enum_value(sber_mode)))
         if self._target_humidity is not None:
-            states.append(
-                make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(self._target_humidity))
-            )
+            states.append(make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(self._target_humidity)))
         if self._has_night_mode:
             is_night = self._preset_mode in ("sleep", "night")
             states.append(make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(is_night)))
@@ -389,11 +382,7 @@ class ClimateEntity(BaseEntity):
         temp = self._safe_float(value.get("integer_value"))
         if temp is None:
             return []
-        return [
-            self._build_service_call(
-                "climate", "set_temperature", self.entity_id, {"temperature": temp}
-            )
-        ]
+        return [self._build_service_call("climate", "set_temperature", self.entity_id, {"temperature": temp})]
 
     def _cmd_air_flow_power(self, value: dict) -> list[dict]:
         """Handle fan speed: prefer ``set_fan_mode``, fall back to presets."""
@@ -407,19 +396,11 @@ class ClimateEntity(BaseEntity):
                 ha_fan = fm
                 break
         if ha_fan and (not self.fan_modes or ha_fan in self.fan_modes):
-            return [
-                self._build_service_call(
-                    "climate", "set_fan_mode", self.entity_id, {"fan_mode": ha_fan}
-                )
-            ]
+            return [self._build_service_call("climate", "set_fan_mode", self.entity_id, {"fan_mode": ha_fan})]
         # Fallback: turbo / quiet → preset_mode
         preset = self._sber_fan_mode_to_preset(sber_mode)
         if preset is not None:
-            return [
-                self._build_service_call(
-                    "climate", "set_preset_mode", self.entity_id, {"preset_mode": preset}
-                )
-            ]
+            return [self._build_service_call("climate", "set_preset_mode", self.entity_id, {"preset_mode": preset})]
         return []
 
     def _sber_fan_mode_to_preset(self, sber_mode: str) -> str | None:
@@ -438,11 +419,7 @@ class ClimateEntity(BaseEntity):
         ha_swing = SBER_TO_HA_SWING.get(sber_swing)
         if not ha_swing or (self.swing_modes and ha_swing not in self.swing_modes):
             return []
-        return [
-            self._build_service_call(
-                "climate", "set_swing_mode", self.entity_id, {"swing_mode": ha_swing}
-            )
-        ]
+        return [self._build_service_call("climate", "set_swing_mode", self.entity_id, {"swing_mode": ha_swing})]
 
     def _cmd_work_mode(self, value: dict) -> list[dict]:
         """Handle ``hvac_work_mode``: prefer ``set_hvac_mode``, fall back to presets."""
@@ -452,19 +429,11 @@ class ClimateEntity(BaseEntity):
         # Sber turbo/quiet work modes map to HA preset_modes
         preset = self._sber_fan_mode_to_preset(sber_mode)
         if preset is not None:
-            return [
-                self._build_service_call(
-                    "climate", "set_preset_mode", self.entity_id, {"preset_mode": preset}
-                )
-            ]
+            return [self._build_service_call("climate", "set_preset_mode", self.entity_id, {"preset_mode": preset})]
         ha_mode = SBER_TO_HA_WORK_MODE.get(sber_mode)
         if not ha_mode or (self.hvac_modes and ha_mode not in self.hvac_modes):
             return []
-        return [
-            self._build_service_call(
-                "climate", "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode}
-            )
-        ]
+        return [self._build_service_call("climate", "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode})]
 
     def _cmd_thermostat_mode(self, value: dict) -> list[dict]:
         sber_mode = value.get("enum_value")
@@ -473,21 +442,13 @@ class ClimateEntity(BaseEntity):
         ha_mode = SBER_TO_HA_THERMOSTAT_MODE.get(sber_mode)
         if not ha_mode or (self.hvac_modes and ha_mode not in self.hvac_modes):
             return []
-        return [
-            self._build_service_call(
-                "climate", "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode}
-            )
-        ]
+        return [self._build_service_call("climate", "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode})]
 
     def _cmd_humidity_set(self, value: dict) -> list[dict]:
         humidity = self._safe_clamped_int(value.get("integer_value"), 0, 100)
         if humidity is None:
             return []
-        return [
-            self._build_service_call(
-                "climate", "set_humidity", self.entity_id, {"humidity": humidity}
-            )
-        ]
+        return [self._build_service_call("climate", "set_humidity", self.entity_id, {"humidity": humidity})]
 
     def _cmd_night_mode(self, value: dict) -> list[dict]:
         """Handle ``hvac_night_mode``: toggle sleep/night preset."""
@@ -495,20 +456,12 @@ class ClimateEntity(BaseEntity):
         presets = self._preset_modes or []
         if night_on:
             preset = "sleep" if "sleep" in presets else "night"
-            return [
-                self._build_service_call(
-                    "climate", "set_preset_mode", self.entity_id, {"preset_mode": preset}
-                )
-            ]
+            return [self._build_service_call("climate", "set_preset_mode", self.entity_id, {"preset_mode": preset})]
         # Turn off: fall back to first non-night preset or "none"
         normal_presets = [p for p in presets if p not in ("sleep", "night")]
         if "none" in presets or normal_presets:
             fallback = normal_presets[0] if normal_presets else "none"
-            return [
-                self._build_service_call(
-                    "climate", "set_preset_mode", self.entity_id, {"preset_mode": fallback}
-                )
-            ]
+            return [self._build_service_call("climate", "set_preset_mode", self.entity_id, {"preset_mode": fallback})]
         _LOGGER.warning(
             "Cannot turn off night mode for %s: no non-night presets available",
             self.entity_id,

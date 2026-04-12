@@ -135,20 +135,16 @@ class ValveEntity(BaseEntity):
             make_state(SberFeature.OPEN_STATE, make_enum_value("open" if self.is_open else "close")),
         ]
         if self._battery_level is not None:
-            states.append(
-                make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level))
-            )
+            states.append(make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level)))
             battery_low = self._battery_low if self._battery_low is not None else self._battery_level < 20
-            states.append(
-                make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(battery_low))
-            )
+            states.append(make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(battery_low)))
         elif self._battery_low is not None:
-            states.append(
-                make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(self._battery_low))
-            )
+            states.append(make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(self._battery_low)))
         if self._signal_strength_raw is not None:
             states.append(
-                make_state(SberFeature.SIGNAL_STRENGTH, make_enum_value(rssi_to_signal_strength(self._signal_strength_raw)))
+                make_state(
+                    SberFeature.SIGNAL_STRENGTH, make_enum_value(rssi_to_signal_strength(self._signal_strength_raw))
+                )
             )
         return {self.entity_id: {"states": states}}
 

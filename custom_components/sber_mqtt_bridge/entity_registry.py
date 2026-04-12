@@ -94,9 +94,7 @@ class SberEntityLoader:
             :class:`EntityLoadResult` ready for atomic swap.
         """
         result = EntityLoadResult()
-        new_enabled = list(
-            dict.fromkeys(self._entry.options.get(CONF_EXPOSED_ENTITIES, []))
-        )
+        new_enabled = list(dict.fromkeys(self._entry.options.get(CONF_EXPOSED_ENTITIES, [])))
         custom_config = get_custom_config(self._hass)
 
         # Merge persisted + in-memory redefinitions (persisted wins when conflict
@@ -105,23 +103,15 @@ class SberEntityLoader:
         saved_redefs: dict[str, dict] = self._entry.options.get("redefinitions", {})
         if saved_redefs:
             merged_redefs.update(saved_redefs)
-            _LOGGER.debug(
-                "Loaded %d persisted redefinitions from options", len(saved_redefs)
-            )
+            _LOGGER.debug("Loaded %d persisted redefinitions from options", len(saved_redefs))
 
         result.entities = self._create_entities(new_enabled, custom_config)
-        result.entity_links, result.linked_reverse = self._apply_entity_links(
-            result.entities
-        )
+        result.entity_links, result.linked_reverse = self._apply_entity_links(result.entities)
         self._check_device_conflicts(result.entities, result.linked_reverse)
         result.enabled_entity_ids = list(result.entities.keys())
-        result.redefinitions = self._apply_room_overrides(
-            merged_redefs, result.enabled_entity_ids, custom_config
-        )
+        result.redefinitions = self._apply_room_overrides(merged_redefs, result.enabled_entity_ids, custom_config)
         # Prune stale redefinitions: keep only entries for still-enabled entities
-        result.redefinitions = {
-            k: v for k, v in result.redefinitions.items() if k in set(new_enabled)
-        }
+        result.redefinitions = {k: v for k, v in result.redefinitions.items() if k in set(new_enabled)}
         _LOGGER.info(
             "Loaded %d Sber entities from %d exposed: %s",
             len(result.entities),
@@ -144,9 +134,7 @@ class SberEntityLoader:
         Returns:
             Dict mapping entity_id to the created BaseEntity subclass.
         """
-        type_overrides: dict[str, str] = self._entry.options.get(
-            CONF_ENTITY_TYPE_OVERRIDES, {}
-        )
+        type_overrides: dict[str, str] = self._entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
         new_entities: dict[str, BaseEntity] = {}
         entity_reg = er.async_get(self._hass)
         device_reg = dr.async_get(self._hass)
@@ -158,9 +146,7 @@ class SberEntityLoader:
                 _LOGGER.warning("Entity %s not found in registry", entity_id)
                 continue
 
-            entity_area = (
-                area_reg.async_get_area(entry.area_id) if entry.area_id else None
-            )
+            entity_area = area_reg.async_get_area(entry.area_id) if entry.area_id else None
             entity_data = {
                 "entity_id": entry.entity_id,
                 "area_id": entity_area.name if entity_area else "",
@@ -180,13 +166,9 @@ class SberEntityLoader:
             sber_category = type_overrides.get(entity_id)
             if sber_category is None and yaml_cfg is not None and yaml_cfg.sber_type is not None:
                 sber_category = yaml_cfg.sber_type
-                _LOGGER.debug(
-                    "YAML sber_type override for %s: %s", entity_id, sber_category
-                )
+                _LOGGER.debug("YAML sber_type override for %s: %s", entity_id, sber_category)
 
-            sber_entity = create_sber_entity(
-                entity_id, entity_data, sber_category=sber_category
-            )
+            sber_entity = create_sber_entity(entity_id, entity_data, sber_category=sber_category)
             if sber_entity is None:
                 continue
 
@@ -206,9 +188,7 @@ class SberEntityLoader:
         return new_entities
 
     @staticmethod
-    def _apply_yaml_overrides(
-        sber_entity: BaseEntity, entity_id: str, yaml_cfg: object | None
-    ) -> None:
+    def _apply_yaml_overrides(sber_entity: BaseEntity, entity_id: str, yaml_cfg: object | None) -> None:
         """Apply YAML config overrides (name, nicknames, groups, features)."""
         if yaml_cfg is None:
             return
@@ -225,14 +205,10 @@ class SberEntityLoader:
             sber_entity.partner_meta = yaml_cfg.sber_partner_meta
         if yaml_cfg.sber_features_add is not None:
             sber_entity.extra_features = yaml_cfg.sber_features_add
-            _LOGGER.debug(
-                "YAML sber_features_add for %s: %s", entity_id, yaml_cfg.sber_features_add
-            )
+            _LOGGER.debug("YAML sber_features_add for %s: %s", entity_id, yaml_cfg.sber_features_add)
         if yaml_cfg.sber_features_remove is not None:
             sber_entity.removed_features = yaml_cfg.sber_features_remove
-            _LOGGER.debug(
-                "YAML sber_features_remove for %s: %s", entity_id, yaml_cfg.sber_features_remove
-            )
+            _LOGGER.debug("YAML sber_features_remove for %s: %s", entity_id, yaml_cfg.sber_features_remove)
 
     @staticmethod
     def _link_device_registry(
@@ -247,11 +223,7 @@ class SberEntityLoader:
         device = device_reg.async_get(entry.device_id)
         if device is None:
             return
-        device_area = (
-            area_reg.async_get_area(device.area_id)
-            if area_reg and device.area_id
-            else None
-        )
+        device_area = area_reg.async_get_area(device.area_id) if area_reg and device.area_id else None
         device_data = {
             "id": device.id,
             "name": device.name_by_user or device.name,
@@ -271,9 +243,7 @@ class SberEntityLoader:
         self, new_entities: dict[str, BaseEntity]
     ) -> tuple[dict[str, dict[str, str]], dict[str, tuple[str, str]]]:
         """Resolve and apply entity links (linked sensors) from config options."""
-        raw_links: dict[str, dict[str, str]] = self._entry.options.get(
-            CONF_ENTITY_LINKS, {}
-        )
+        raw_links: dict[str, dict[str, str]] = self._entry.options.get(CONF_ENTITY_LINKS, {})
         new_links: dict[str, dict[str, str]] = {}
         new_reverse: dict[str, tuple[str, str]] = {}
         for primary_id, roles in raw_links.items():
@@ -286,9 +256,7 @@ class SberEntityLoader:
                 new_reverse[linked_id] = (primary_id, role)
                 linked_state = self._hass.states.get(linked_id)
                 if linked_state is None:
-                    log_fn = (
-                        _LOGGER.debug if not self._hass.is_running else _LOGGER.warning
-                    )
+                    log_fn = _LOGGER.debug if not self._hass.is_running else _LOGGER.warning
                     log_fn(
                         "Linked entity %s (role=%s) for %s — state not yet available",
                         linked_id,
@@ -348,7 +316,5 @@ class SberEntityLoader:
                 redefinitions[entity_id] = {"room": yaml_cfg.sber_room}
             elif "room" not in redefinitions[entity_id]:
                 redefinitions[entity_id]["room"] = yaml_cfg.sber_room
-            _LOGGER.debug(
-                "YAML sber_room override for %s: %s", entity_id, yaml_cfg.sber_room
-            )
+            _LOGGER.debug("YAML sber_room override for %s: %s", entity_id, yaml_cfg.sber_room)
         return redefinitions

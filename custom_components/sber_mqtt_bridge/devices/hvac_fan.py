@@ -185,19 +185,11 @@ class HvacFanEntity(BaseEntity):
         if not speed:
             return []
         if speed in self.preset_modes:
-            return [
-                self._build_service_call(
-                    "fan", "set_preset_mode", self.entity_id, {"preset_mode": speed}
-                )
-            ]
+            return [self._build_service_call("fan", "set_preset_mode", self.entity_id, {"preset_mode": speed})]
         pct = _SBER_SPEED_TO_PERCENTAGE.get(speed)
         if pct is None:
             return []
         if pct == 0:
             # 'auto' mode -- turn on without specific speed
             return [self._build_service_call("fan", "turn_on", self.entity_id)]
-        return [
-            self._build_service_call(
-                "fan", "set_percentage", self.entity_id, {"percentage": pct}
-            )
-        ]
+        return [self._build_service_call("fan", "set_percentage", self.entity_id, {"percentage": pct})]

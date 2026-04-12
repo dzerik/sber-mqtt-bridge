@@ -153,9 +153,7 @@ class MqttClientService:
         from .config_flow import create_ssl_context
 
         self._running = True
-        ssl_context = await self._hass.async_add_executor_job(
-            create_ssl_context, self._credentials.verify_ssl
-        )
+        ssl_context = await self._hass.async_add_executor_job(create_ssl_context, self._credentials.verify_ssl)
         while self._running:
             try:
                 async with self._build_client(ssl_context) as client:
@@ -212,9 +210,7 @@ class MqttClientService:
         if not keep_running or not self._running:
             return False
         await asyncio.sleep(self._reconnect_interval)
-        self._reconnect_interval = min(
-            self._reconnect_interval * 2, self._reconnect_max
-        )
+        self._reconnect_interval = min(self._reconnect_interval * 2, self._reconnect_max)
         return True
 
     async def publish(self, topic: str, payload: str | bytes) -> None:

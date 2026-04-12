@@ -212,9 +212,7 @@ class SimpleReadOnlySensor(BaseEntity):
                 )
             )
         if self._sensor_sensitive is not None:
-            states.append(
-                make_state(SberFeature.SENSOR_SENSITIVE, make_enum_value(self._sensor_sensitive))
-            )
+            states.append(make_state(SberFeature.SENSOR_SENSITIVE, make_enum_value(self._sensor_sensitive)))
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[dict]:

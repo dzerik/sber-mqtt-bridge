@@ -30,7 +30,6 @@ HA_TO_SBER_HUMIDIFIER_MODE: dict[str, str] = {
 """Map HA humidifier modes to Sber-standard enum values (case-insensitive lookup)."""
 
 
-
 class HumidifierEntity(BaseEntity):
     """Sber humidifier entity for humidity control devices.
 
@@ -179,13 +178,9 @@ class HumidifierEntity(BaseEntity):
             make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
         if self.current_humidity is not None:
-            states.append(
-                make_state(SberFeature.HUMIDITY, make_integer_value(round(self.current_humidity)))
-            )
+            states.append(make_state(SberFeature.HUMIDITY, make_integer_value(round(self.current_humidity))))
         if self.target_humidity is not None:
-            states.append(
-                make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(round(self.target_humidity)))
-            )
+            states.append(make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(round(self.target_humidity))))
         if self.mode:
             sber_mode = HA_TO_SBER_HUMIDIFIER_MODE.get(self.mode.lower(), self.mode.lower())
             states.append(make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(sber_mode)))
@@ -193,13 +188,9 @@ class HumidifierEntity(BaseEntity):
             is_night = self.mode in ("sleep", "night")
             states.append(make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(is_night)))
         if self._water_level is not None:
-            states.append(
-                make_state(SberFeature.HVAC_WATER_PERCENTAGE, make_integer_value(self._water_level))
-            )
+            states.append(make_state(SberFeature.HVAC_WATER_PERCENTAGE, make_integer_value(self._water_level)))
         if self._water_low_level is not None:
-            states.append(
-                make_state(SberFeature.HVAC_WATER_LOW_LEVEL, make_bool_value(self._water_low_level))
-            )
+            states.append(make_state(SberFeature.HVAC_WATER_LOW_LEVEL, make_bool_value(self._water_low_level)))
         if self._child_lock is not None:
             states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}
@@ -238,11 +229,7 @@ class HumidifierEntity(BaseEntity):
         humidity = self._safe_int(value.get("integer_value"))
         if humidity is None:
             return []
-        return [
-            self._build_service_call(
-                "humidifier", "set_humidity", self.entity_id, {"humidity": humidity}
-            )
-        ]
+        return [self._build_service_call("humidifier", "set_humidity", self.entity_id, {"humidity": humidity})]
 
     def _cmd_mode(self, value: dict) -> list[dict]:
         sber_mode = value.get("enum_value")
@@ -254,26 +241,14 @@ class HumidifierEntity(BaseEntity):
             if HA_TO_SBER_HUMIDIFIER_MODE.get(ha_m.lower(), ha_m.lower()) == sber_mode:
                 ha_mode = ha_m
                 break
-        return [
-            self._build_service_call(
-                "humidifier", "set_mode", self.entity_id, {"mode": ha_mode}
-            )
-        ]
+        return [self._build_service_call("humidifier", "set_mode", self.entity_id, {"mode": ha_mode})]
 
     def _cmd_night_mode(self, value: dict) -> list[dict]:
         night_on = value.get("bool_value", False)
         if night_on:
             mode = "sleep" if "sleep" in self.available_modes else "night"
-            return [
-                self._build_service_call(
-                    "humidifier", "set_mode", self.entity_id, {"mode": mode}
-                )
-            ]
+            return [self._build_service_call("humidifier", "set_mode", self.entity_id, {"mode": mode})]
         normal_modes = [m for m in self.available_modes if m not in ("sleep", "night")]
         if not normal_modes:
             return []
-        return [
-            self._build_service_call(
-                "humidifier", "set_mode", self.entity_id, {"mode": normal_modes[0]}
-            )
-        ]
+        return [self._build_service_call("humidifier", "set_mode", self.entity_id, {"mode": normal_modes[0]})]
