@@ -48,7 +48,7 @@ async def ws_get_devices(
             "features": features,
             "name": entity.name,
             "room": entity.effective_room,
-            "is_online": entity._is_online,
+            "is_online": entity.is_online,
             "state": entity.state,
             "is_filled": entity.is_filled_by_state,
         }
@@ -263,7 +263,7 @@ async def ws_device_detail(
         "sber_category": entity.category,
         "features": features,
         "room": resolved_room,
-        "is_online": entity._is_online,
+        "is_online": entity.is_online,
         "is_filled": entity.is_filled_by_state,
         "state": entity.state,
     }

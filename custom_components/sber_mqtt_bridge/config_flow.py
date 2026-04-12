@@ -7,6 +7,7 @@ entity type overrides, and label-based filtering.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import ssl
 from typing import Any
@@ -149,6 +150,8 @@ async def _validate_sber_connection(
     except aiomqtt.MqttCodeError as err:
         _LOGGER.error("Sber MQTT auth failed: %s", err)
         return "invalid_auth"
+    except asyncio.CancelledError:
+        raise
     except Exception:
         _LOGGER.exception("Cannot connect to Sber MQTT broker")
         return "cannot_connect"
