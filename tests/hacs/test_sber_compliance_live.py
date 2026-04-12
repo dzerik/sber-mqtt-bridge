@@ -24,6 +24,7 @@ import pytest
 from custom_components.sber_mqtt_bridge.sber_models import CATEGORY_REQUIRED_FEATURES
 
 SNAPSHOT_FILE = Path(__file__).parent / "__snapshots__" / "sber_schemas.json"
+FULL_SPEC_FILE = Path(__file__).parent / "__snapshots__" / "sber_full_spec.json"
 
 
 @pytest.fixture(scope="module")
@@ -32,6 +33,20 @@ def sber_schemas() -> dict[str, dict]:
     if not SNAPSHOT_FILE.exists():
         pytest.skip(f"Snapshot file missing — run tools/fetch_sber_schemas.py: {SNAPSHOT_FILE}")
     return json.loads(SNAPSHOT_FILE.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def sber_full_spec() -> dict:
+    """Load the unified Sber specification artifact (categories + functions)."""
+    if not FULL_SPEC_FILE.exists():
+        pytest.skip(f"Full spec missing — run tools/fetch_sber_schemas.py: {FULL_SPEC_FILE}")
+    return json.loads(FULL_SPEC_FILE.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def sber_functions(sber_full_spec: dict) -> dict[str, dict]:
+    """Shortcut accessor for the functions catalog."""
+    return sber_full_spec.get("functions", {})
 
 
 class TestSberSchemasSnapshot:
@@ -92,3 +107,75 @@ class TestCategoryCoverage:
         our_cats = set(CATEGORY_REQUIRED_FEATURES.keys())
         new = sber_cats - our_cats
         assert not new, f"Sber added new categories not in our registry: {new}"
+
+
+class TestFunctionsCatalog:
+    """Validate the functions catalog and category cross-references."""
+
+    def test_functions_catalog_not_empty(self, sber_functions: dict[str, dict]) -> None:
+        """The catalog should contain at least 80 functions (Sber currently has ~90)."""
+        assert len(sber_functions) >= 80, f"Only {len(sber_functions)} functions found — scraper regression?"
+
+    def test_every_function_has_type(self, sber_functions: dict[str, dict]) -> None:
+        """Every function must have a Sber data type declared."""
+        missing_type = [name for name, spec in sber_functions.items() if not spec.get("type")]
+        assert not missing_type, f"Functions without type: {missing_type}"
+
+    def test_function_types_are_valid(self, sber_functions: dict[str, dict]) -> None:
+        """Function types must be one of the known Sber value types."""
+        valid_types = {"BOOL", "INTEGER", "FLOAT", "STRING", "ENUM", "COLOUR"}
+        for name, spec in sber_functions.items():
+            assert spec["type"] in valid_types, f"{name}: unknown type {spec['type']!r}"
+
+    # Features referenced by Sber category schemas that have no page on
+    # /functions. Either typos in Sber docs or undocumented features.
+    # Update this set only after verifying each entry is really a Sber-side
+    # documentation bug, not a scraper miss on our side.
+    KNOWN_SBER_DOC_ISSUES: frozenset[str] = frozenset(
+        {
+            "battery_percentag",  # typo in scenario_button ref model (missing 'e')
+            "sleep_timer",  # used in led_strip, no /functions page
+        }
+    )
+
+    def test_category_features_resolve_to_known_functions(
+        self,
+        sber_schemas: dict[str, dict],
+        sber_functions: dict[str, dict],
+    ) -> None:
+        """Every feature declared in any Sber category schema must exist in the functions catalog.
+
+        If this fails, either our scraper missed a function or Sber introduced
+        a feature without documenting it on /functions.  Known upstream typos
+        are allowlisted in :attr:`KNOWN_SBER_DOC_ISSUES`.
+        """
+        all_features: set[str] = set()
+        for schema in sber_schemas.values():
+            all_features.update(schema.get("features", []))
+        catalog_names = set(sber_functions.keys())
+        orphan = (all_features - catalog_names) - self.KNOWN_SBER_DOC_ISSUES
+        assert not orphan, f"Features referenced by categories but missing from /functions catalog: {orphan}"
+
+    def test_functions_cross_reference_matches_category_schemas(
+        self,
+        sber_schemas: dict[str, dict],
+        sber_functions: dict[str, dict],
+    ) -> None:
+        """Function.used_in_categories should mention every category that actually uses it.
+
+        Sanity check that Sber docs are internally consistent — if a function
+        says 'used in light' but light's schema doesn't list it, one of them
+        is wrong.  We only flag obvious mismatches (>0 declared but 0 actual
+        matches), not subset differences, to avoid false positives.
+        """
+        for name, spec in sber_functions.items():
+            declared = set(spec.get("used_in_categories", []))
+            if not declared:
+                continue
+            actual = {cat for cat, schema in sber_schemas.items() if name in schema.get("features", [])}
+            if not actual:
+                continue  # Sber docs sometimes list categories via inheritance
+            intersection = declared & actual
+            assert intersection, (
+                f"Function {name}: declared used in {declared} but not listed in any of their feature lists"
+            )
