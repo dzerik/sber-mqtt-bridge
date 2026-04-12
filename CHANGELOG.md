@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.27.0] - 2026-04-12
+
+### Changed
+
+- **Architecture debt fully resolved** (ARCHITECTURE_RESEARCH.md §10,
+  all 7 items closed):
+  - **10.1** `LightEntity.LINKABLE_ROLES` now accepts battery / signal
+    linked sensors (was empty tuple).
+  - **10.2** `_publish_config` / `_publish_states` now route through
+    `MqttClientService.publish()` instead of raw `_mqtt_client` access.
+  - **10.3** `SberCommandDispatcher` takes `BridgeCommandContext` Protocol
+    instead of full `SberBridge` reference — explicit, narrow coupling.
+  - **10.4** Extracted `ReconnectAckGuard` component (`reconnect_ack_guard.py`)
+    from scattered bridge fields.
+  - **10.5** Hardcoded `1.5s` in `_delayed_confirm` → configurable
+    `CONF_CONFIRM_DELAY` in `SETTINGS_DEFAULTS`.
+  - **10.6** `process_cmd` returns `list[CommandResult]` (union of
+    `ServiceCallResult | UpdateStateResult` TypedDicts) instead of
+    untyped `list[dict]`. Applied across all 14 device classes.
+  - **10.7** All 8 complex device classes migrated to declarative
+    `AttrSpec` (extended with `converter` field for full-attrs access):
+    tv, hvac_fan, hvac_air_purifier, humidifier, kettle,
+    vacuum_cleaner, light, climate.
+
 ## [1.26.1] - 2026-04-12
 
 ### Fixed

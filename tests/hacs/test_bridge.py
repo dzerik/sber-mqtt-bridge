@@ -69,47 +69,36 @@ class TestSberBridgeMessageRouting:
 
     @pytest.mark.asyncio
     async def test_route_commands(self, bridge):
-        await bridge._handle_mqtt_message(
-            "sberdevices/v1/test/down/commands", b'{"devices": {}}'
-        )
+        await bridge._handle_mqtt_message("sberdevices/v1/test/down/commands", b'{"devices": {}}')
         bridge._handle_sber_command.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_route_status_request(self, bridge):
-        await bridge._handle_mqtt_message(
-            "sberdevices/v1/test/down/status_request", b'{"devices": []}'
-        )
+        await bridge._handle_mqtt_message("sberdevices/v1/test/down/status_request", b'{"devices": []}')
         bridge._handle_sber_status_request.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_route_config_request(self, bridge):
-        await bridge._handle_mqtt_message(
-            "sberdevices/v1/test/down/config_request", b''
-        )
+        await bridge._handle_mqtt_message("sberdevices/v1/test/down/config_request", b"")
         bridge._handle_sber_config_request.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_route_change_group(self, bridge):
         await bridge._handle_mqtt_message(
-            "sberdevices/v1/test/down/change_group_device_request",
-            b'{"device_id": "light.a"}'
+            "sberdevices/v1/test/down/change_group_device_request", b'{"device_id": "light.a"}'
         )
         bridge._handle_change_group.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_route_rename(self, bridge):
         await bridge._handle_mqtt_message(
-            "sberdevices/v1/test/down/rename_device_request",
-            b'{"device_id": "light.a", "new_name": "New"}'
+            "sberdevices/v1/test/down/rename_device_request", b'{"device_id": "light.a", "new_name": "New"}'
         )
         bridge._handle_rename_device.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_route_global_config(self, bridge):
-        await bridge._handle_mqtt_message(
-            "sberdevices/v1/__config",
-            b'{"http_api_endpoint": "https://test"}'
-        )
+        await bridge._handle_mqtt_message("sberdevices/v1/__config", b'{"http_api_endpoint": "https://test"}')
         bridge._handle_global_config.assert_called_once()
 
 
@@ -133,13 +122,9 @@ class TestSberBridgeCommandHandling:
         entity.fill_by_ha_state({"entity_id": "switch.lamp", "state": "off", "attributes": {}})
         bridge._entities["switch.lamp"] = entity
 
-        payload = json.dumps({
-            "devices": {
-                "switch.lamp": {
-                    "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]
-                }
-            }
-        })
+        payload = json.dumps(
+            {"devices": {"switch.lamp": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}}}
+        )
 
         await bridge._handle_sber_command(payload.encode())
 
@@ -154,9 +139,7 @@ class TestSberBridgeCommandHandling:
 
     @pytest.mark.asyncio
     async def test_handle_command_unknown_entity(self, bridge):
-        payload = json.dumps({
-            "devices": {"unknown.entity": {"states": []}}
-        })
+        payload = json.dumps({"devices": {"unknown.entity": {"states": []}}})
         await bridge._handle_sber_command(payload.encode())
         bridge._hass.services.async_call.assert_not_called()
 
@@ -174,11 +157,13 @@ class TestSberBridgeRedefinitions:
 
     @pytest.mark.asyncio
     async def test_change_group(self, bridge):
-        payload = json.dumps({
-            "device_id": "light.room",
-            "home": "My House",
-            "room": "Bedroom",
-        })
+        payload = json.dumps(
+            {
+                "device_id": "light.room",
+                "home": "My House",
+                "room": "Bedroom",
+            }
+        )
         await bridge._handle_change_group(payload.encode())
 
         assert bridge._redefinitions["light.room"]["home"] == "My House"
@@ -188,10 +173,12 @@ class TestSberBridgeRedefinitions:
 
     @pytest.mark.asyncio
     async def test_rename_device(self, bridge):
-        payload = json.dumps({
-            "device_id": "switch.lamp",
-            "new_name": "Night Lamp",
-        })
+        payload = json.dumps(
+            {
+                "device_id": "switch.lamp",
+                "new_name": "Night Lamp",
+            }
+        )
         await bridge._handle_rename_device(payload.encode())
 
         assert bridge._redefinitions["switch.lamp"]["name"] == "Night Lamp"
@@ -220,6 +207,7 @@ class TestSberBridgePublish:
         entry = _make_entry()
         b = SberBridge(hass, entry)
         b._mqtt_client = AsyncMock()
+        b._mqtt_service.publish = AsyncMock()
         b._connected = True
         return b
 
@@ -234,15 +222,15 @@ class TestSberBridgePublish:
 
         await bridge._publish_states(["switch.lamp"])
 
-        bridge._mqtt_client.publish.assert_called_once()
-        call_args = bridge._mqtt_client.publish.call_args
+        bridge._mqtt_service.publish.assert_called_once()
+        call_args = bridge._mqtt_service.publish.call_args
         assert "up/status" in call_args[0][0]
 
     @pytest.mark.asyncio
     async def test_publish_skips_when_disconnected(self, bridge):
         bridge._connected = False
         await bridge._publish_states(["switch.lamp"])
-        bridge._mqtt_client.publish.assert_not_called()
+        bridge._mqtt_service.publish.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_publish_config(self, bridge):
@@ -255,8 +243,8 @@ class TestSberBridgePublish:
 
         await bridge._publish_config()
 
-        bridge._mqtt_client.publish.assert_called_once()
-        call_args = bridge._mqtt_client.publish.call_args
+        bridge._mqtt_service.publish.assert_called_once()
+        call_args = bridge._mqtt_service.publish.call_args
         assert "up/config" in call_args[0][0]
         payload = json.loads(call_args[0][1])
         assert len(payload["devices"]) == 2  # hub + lamp
@@ -286,9 +274,7 @@ class TestSberBridgeEchoFix:
         b._connected = True
 
         entity = RelayEntity({"entity_id": "switch.lamp", "name": "Lamp"})
-        entity.fill_by_ha_state(
-            {"entity_id": "switch.lamp", "state": "off", "attributes": {}}
-        )
+        entity.fill_by_ha_state({"entity_id": "switch.lamp", "state": "off", "attributes": {}})
         b._entities["switch.lamp"] = entity
         b._enabled_entity_ids = ["switch.lamp"]
 
@@ -303,15 +289,9 @@ class TestSberBridgeEchoFix:
         still publish the state confirmation back to Sber.
         """
         # Arrange: send Sber command to turn on the relay
-        payload = json.dumps({
-            "devices": {
-                "switch.lamp": {
-                    "states": [
-                        {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}
-                    ]
-                }
-            }
-        })
+        payload = json.dumps(
+            {"devices": {"switch.lamp": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}}}
+        )
         await bridge._handle_sber_command(payload.encode())
 
         # Capture the Context that was passed to async_call
@@ -338,9 +318,7 @@ class TestSberBridgeEchoFix:
             "new_state": new_state,
         }
 
-        with patch.object(
-            bridge._state_forwarder, "_schedule_debounced_publish"
-        ) as mock_publish:
+        with patch.object(bridge._state_forwarder, "_schedule_debounced_publish") as mock_publish:
             bridge._on_ha_state_changed(event)
 
             # Assert: publish is NOT suppressed
@@ -366,9 +344,7 @@ class TestSberBridgeEchoFix:
             "new_state": new_state,
         }
 
-        with patch.object(
-            bridge._state_forwarder, "_schedule_debounced_publish"
-        ) as mock_publish:
+        with patch.object(bridge._state_forwarder, "_schedule_debounced_publish") as mock_publish:
             bridge._on_ha_state_changed(event)
 
             mock_publish.assert_called_once_with("switch.lamp")
@@ -376,21 +352,13 @@ class TestSberBridgeEchoFix:
     @pytest.mark.asyncio
     async def test_sber_command_creates_ha_context(self, bridge):
         """Sber command must create an HA Context for logbook attribution."""
-        payload = json.dumps({
-            "devices": {
-                "switch.lamp": {
-                    "states": [
-                        {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}
-                    ]
-                }
-            }
-        })
+        payload = json.dumps(
+            {"devices": {"switch.lamp": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}}}
+        )
 
         await bridge._handle_sber_command(payload.encode())
 
         bridge._hass.services.async_call.assert_called_once()
         call_kwargs = bridge._hass.services.async_call.call_args
         context_arg = call_kwargs.kwargs.get("context") or call_kwargs[1].get("context")
-        assert isinstance(context_arg, Context), (
-            "async_call must receive a Context instance for HA logbook attribution"
-        )
+        assert isinstance(context_arg, Context), "async_call must receive a Context instance for HA logbook attribution"

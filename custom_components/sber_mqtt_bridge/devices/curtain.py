@@ -12,6 +12,7 @@ from .base_entity import (
     SENSOR_LINK_ROLES,
     AttrSpec,
     BaseEntity,
+    CommandResult,
     _safe_int_parser,
 )
 from .utils.signal import rssi_to_signal_strength
@@ -154,7 +155,7 @@ class CurtainEntity(BaseEntity):
     }
     """Map Sber ``open_set`` enum values to HA cover services."""
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber curtain commands and produce HA service calls.
 
         Handles the following Sber keys:

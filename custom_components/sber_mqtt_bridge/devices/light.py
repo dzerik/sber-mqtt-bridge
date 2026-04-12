@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import (
@@ -17,7 +18,7 @@ from ..sber_models import (
     make_integer_value,
     make_state,
 )
-from .base_entity import BaseEntity
+from .base_entity import SENSOR_LINK_ROLES, AttrSpec, BaseEntity, CommandResult, _safe_int_parser
 from .utils.color_converter import ColorConverter
 from .utils.linear_converter import LinearConverter
 
@@ -39,7 +40,48 @@ class LightEntity(BaseEntity):
     - Color temperature (mireds ↔ 0-1000 Sber, reversed)
     - RGB color via HSV conversion
     - Light mode (white / colour)
+
+    Accepts battery / battery_low / signal_strength linked sensors via
+    :attr:`LINKABLE_ROLES` (Zigbee lights commonly report these).
     """
+
+    LINKABLE_ROLES = SENSOR_LINK_ROLES
+
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(
+            field="supported_features",
+            attr_keys=("supported_features",),
+            parser=_safe_int_parser,
+            default=0,
+        ),
+        AttrSpec(
+            field="supported_color_modes",
+            converter=lambda attrs: attrs.get("supported_color_modes") or [],
+            default=[],
+        ),
+        AttrSpec(
+            field="current_color_mode",
+            attr_keys=("color_mode",),
+        ),
+        AttrSpec(
+            field="_ha_brightness_raw",
+            attr_keys=("brightness",),
+            parser=_safe_int_parser,
+            default=0,
+        ),
+        AttrSpec(
+            field="hs_color",
+            attr_keys=("hs_color",),
+        ),
+        AttrSpec(
+            field="rgb_color",
+            attr_keys=("rgb_color",),
+        ),
+        AttrSpec(
+            field="xy_color",
+            attr_keys=("xy_color",),
+        ),
+    )
 
     def __init__(self, ha_entity_data: dict) -> None:
         """Initialize light entity from HA entity data.
@@ -73,37 +115,35 @@ class LightEntity(BaseEntity):
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update all light attributes.
 
+        Simple attribute extraction is handled declaratively via
+        :attr:`ATTR_SPECS`.  Instance-specific LinearConverter transforms
+        and state derivation remain here.
+
         Args:
             ha_state: HA state dict with 'state' and 'attributes' keys.
         """
         super().fill_by_ha_state(ha_state)
         attrs = ha_state.get("attributes", {})
+        self._apply_attr_specs(attrs)
 
+        # Update color_temp converter limits from entity-specific mireds range
         self.max_mireds = attrs.get("max_mireds", 500)
         self.min_mireds = attrs.get("min_mireds", 153)
         if self.max_mireds is not None and self.min_mireds is not None:
             self.color_temp_converter.set_ha_limits(self.min_mireds, self.max_mireds)
 
+        # Derive on/off state from HA state string
         self.current_state = ha_state.get("state", "off") == "on"
-        ha_brightness = attrs.get("brightness", 0)
-        ha_brightness = int(ha_brightness) if ha_brightness is not None else 0
-        self._ha_brightness_raw = ha_brightness
 
-        self.current_sber_brightness = self.brightness_converter.ha_to_sber(ha_brightness)
+        # Apply LinearConverter to raw brightness → Sber scale
+        self.current_sber_brightness = self.brightness_converter.ha_to_sber(self._ha_brightness_raw)
 
+        # Apply LinearConverter to raw color_temp → Sber scale
         ha_color_temp = attrs.get("color_temp", 0)
         if ha_color_temp is not None:
             self.current_sber_color_temp = self.color_temp_converter.ha_to_sber(ha_color_temp)
         else:
             self.current_sber_color_temp = None
-
-        self.current_color_mode = attrs.get("color_mode")
-        self.supported_features = attrs.get("supported_features", 0)
-        self.supported_color_modes = attrs.get("supported_color_modes") or []
-
-        self.hs_color = attrs.get("hs_color")
-        self.rgb_color = attrs.get("rgb_color")
-        self.xy_color = attrs.get("xy_color")
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list based on available light capabilities.
@@ -222,7 +262,7 @@ class LightEntity(BaseEntity):
 
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber light commands and produce HA service calls.
 
         Uses a command handler dispatch table (``_cmd_handlers``) instead

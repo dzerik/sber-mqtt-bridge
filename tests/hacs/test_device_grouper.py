@@ -188,11 +188,11 @@ class TestLightDevices:
         assert group.area == "Living Room"
         assert group.primary.entity_id == "light.living_room_lamp"
         assert group.primary.role == EntityRole.PRIMARY
-        # NOTE: LightEntity.LINKABLE_ROLES = () in current code, so these will
-        # actually end up in unsupported rather than linked_native.  Test
-        # asserts the current (documented in ARCHITECTURE_RESEARCH §1.3) state.
-        assert len(group.linked_native) == 0
-        assert len(group.unsupported) == 2
+        # LightEntity.LINKABLE_ROLES = SENSOR_LINK_ROLES, so battery + signal
+        # are correctly classified as linked_native.
+        assert len(group.linked_native) == 2
+        assert {e.link_role for e in group.linked_native} == {"battery", "signal_strength"}
+        assert len(group.unsupported) == 0
 
     def test_no_light_devices_returns_empty(self, hass, mock_registries):
         entity_reg, device_reg, _ = mock_registries

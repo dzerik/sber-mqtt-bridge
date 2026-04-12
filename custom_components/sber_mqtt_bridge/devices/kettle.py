@@ -6,15 +6,21 @@ Supports on/off control, water temperature reading, and target temperature setti
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_integer_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_int_parser
 
 _LOGGER = logging.getLogger(__name__)
 
 KETTLE_CATEGORY = "kettle"
 """Sber device category for kettle entities."""
+
+
+def _child_lock_parser(value: object) -> bool:
+    """Parse child_lock attribute, defaulting to False."""
+    return bool(value) if value is not None else False
 
 
 class KettleEntity(BaseEntity):
@@ -27,6 +33,30 @@ class KettleEntity(BaseEntity):
     - Child lock (read-only from HA attributes)
     - Water level and low water level indicators
     """
+
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(
+            field="_current_temperature",
+            attr_keys=("current_temperature",),
+            parser=_safe_int_parser,
+        ),
+        AttrSpec(
+            field="_target_temperature",
+            attr_keys=("temperature",),
+            parser=_safe_int_parser,
+        ),
+        AttrSpec(
+            field="_child_lock",
+            attr_keys=("child_lock",),
+            parser=_child_lock_parser,
+            default=False,
+        ),
+        AttrSpec(
+            field="_water_level",
+            attr_keys=("water_level",),
+            parser=_safe_int_parser,
+        ),
+    )
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize kettle entity.
@@ -48,14 +78,10 @@ class KettleEntity(BaseEntity):
             ha_state: HA state dict with 'state' and 'attributes' keys.
         """
         super().fill_by_ha_state(ha_state)
+        attrs = ha_state.get("attributes", {})
+        self._apply_attr_specs(attrs)
         state_str = ha_state.get("state", "")
         self.current_state = state_str not in ("off", "idle", "unavailable", "unknown")
-        attrs = ha_state.get("attributes", {})
-
-        self._current_temperature = self._safe_int(attrs.get("current_temperature"))
-        self._target_temperature = self._safe_int(attrs.get("temperature"))
-        self._child_lock = bool(attrs.get("child_lock", False))
-        self._water_level = self._safe_int(attrs.get("water_level"))
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for kettle capabilities.
@@ -110,7 +136,7 @@ class KettleEntity(BaseEntity):
         states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber kettle commands and produce HA service calls.
 
         Handles the following Sber keys:

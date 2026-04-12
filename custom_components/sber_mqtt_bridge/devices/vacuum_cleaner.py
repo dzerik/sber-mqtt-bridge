@@ -7,10 +7,11 @@ cleaning program (fan speed), and battery level.
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_int_parser
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +50,27 @@ class VacuumCleanerEntity(BaseEntity):
     - Battery percentage
     """
 
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(
+            field="_fan_speed",
+            attr_keys=("fan_speed",),
+        ),
+        AttrSpec(
+            field="_fan_speed_list",
+            converter=lambda attrs: attrs.get("fan_speed_list") or [],
+            default=[],
+        ),
+        AttrSpec(
+            field="_battery_level",
+            attr_keys=("battery_level",),
+            parser=_safe_int_parser,
+        ),
+        AttrSpec(
+            field="_cleaning_type",
+            attr_keys=("cleaning_type",),
+        ),
+    )
+
     def __init__(self, entity_data: dict) -> None:
         """Initialize vacuum cleaner entity.
 
@@ -69,14 +91,10 @@ class VacuumCleanerEntity(BaseEntity):
             ha_state: HA state dict with 'state' and 'attributes' keys.
         """
         super().fill_by_ha_state(ha_state)
+        attrs = ha_state.get("attributes", {})
+        self._apply_attr_specs(attrs)
         ha_status = ha_state.get("state", "")
         self._status = _HA_STATE_TO_SBER_STATUS.get(ha_status, "standby")
-        attrs = ha_state.get("attributes", {})
-        self._fan_speed = attrs.get("fan_speed")
-        self._fan_speed_list = attrs.get("fan_speed_list") or []
-        self._battery_level = self._safe_int(attrs.get("battery_level"))
-        # cleaning_type from custom attribute (dry/wet/dry_and_wet)
-        self._cleaning_type = attrs.get("cleaning_type")
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for vacuum capabilities.
@@ -137,7 +155,7 @@ class VacuumCleanerEntity(BaseEntity):
             states.append(make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level)))
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber vacuum commands and produce HA service calls.
 
         Handles the following Sber keys:

@@ -11,6 +11,7 @@ from ..sber_constants import (
     SberFeature,
     SberValueType,
 )
+from .base_entity import CommandResult
 from .on_off_entity import OnOffEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ class RelayEntity(OnOffEntity):
         """
         super().__init__(category, entity_data)
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber on/off command and produce HA service calls.
 
         Handles the ``on_off`` key to generate ``turn_on``/``turn_off`` (or

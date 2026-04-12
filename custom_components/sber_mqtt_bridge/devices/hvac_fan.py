@@ -6,10 +6,11 @@ Supports on/off control and fan speed via the ``hvac_air_flow_power`` feature.
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import AttrSpec, BaseEntity, CommandResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,6 +63,22 @@ class HvacFanEntity(BaseEntity):
     - Fan speed via preset_mode or percentage-based speed mapping
     """
 
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(
+            field="preset_modes",
+            converter=lambda attrs: attrs.get("preset_modes") or [],
+            default=[],
+        ),
+        AttrSpec(
+            field="preset_mode",
+            attr_keys=("preset_mode",),
+        ),
+        AttrSpec(
+            field="percentage",
+            attr_keys=("percentage",),
+        ),
+    )
+
     def __init__(self, entity_data: dict) -> None:
         """Initialize fan entity.
 
@@ -81,11 +98,9 @@ class HvacFanEntity(BaseEntity):
             ha_state: HA state dict with 'state' and 'attributes' keys.
         """
         super().fill_by_ha_state(ha_state)
-        self.current_state = ha_state.get("state") != "off"
         attrs = ha_state.get("attributes", {})
-        self.preset_modes = attrs.get("preset_modes") or []
-        self.preset_mode = attrs.get("preset_mode")
-        self.percentage = attrs.get("percentage")
+        self._apply_attr_specs(attrs)
+        self.current_state = ha_state.get("state") != "off"
 
     def _get_sber_speed(self) -> str | None:
         """Get current fan speed as Sber ENUM value.
@@ -154,7 +169,7 @@ class HvacFanEntity(BaseEntity):
             states.append(make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(speed)))
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber fan commands and produce HA service calls.
 
         Handles the following Sber keys:
