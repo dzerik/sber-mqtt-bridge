@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 from .devices.base_entity import BaseEntity
-from .sber_models import validate_config_payload, validate_status_payload
+from .sber_models import validate_config_payload, validate_device, validate_status_payload
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,10 +73,12 @@ def build_devices_list_json(
             parent_id.  This creates a proper hierarchy in Sber cloud.
 
     Returns:
-        Tuple ``(json_string, validation_passed)``.  Callers may use the
-        validation flag to decide whether to mark entities as published.
+        Tuple ``(json_string, validation_passed, invalid_entity_ids)``.
+        ``invalid_entity_ids`` lists entities that failed per-device
+        validation and were excluded from the payload.
     """
     device_list: dict[str, Any] = {"devices": [build_hub_device(home=default_home, room=default_room)]}
+    invalid_ids: list[str] = []
 
     for entity_id in enabled_entity_ids:
         entity = entities.get(entity_id)
@@ -87,6 +89,7 @@ def build_devices_list_json(
             device_data = entity.to_sber_state()
         except (TypeError, ValueError, KeyError, AttributeError):
             _LOGGER.exception("Error building Sber state for %s", entity_id)
+            invalid_ids.append(entity_id)
             continue
 
         if device_data is None:
@@ -111,11 +114,24 @@ def build_devices_list_json(
             device_data["parent_id"] = "root"
 
         filtered = {k: v for k, v in device_data.items() if v is not None}
+
+        # Per-device strict pydantic validation — exclude invalid devices
+        # instead of poisoning the entire config payload.
+        device_valid, error_msg = validate_device(filtered)
+        if not device_valid:
+            _LOGGER.warning(
+                "Device %s excluded from config (validation failed): %s",
+                entity_id,
+                error_msg,
+            )
+            invalid_ids.append(entity_id)
+            continue
+
         device_list["devices"].append(filtered)
 
     valid = validate_config_payload(device_list)
 
-    return json.dumps(device_list), valid
+    return json.dumps(device_list), valid, invalid_ids
 
 
 def build_states_list_json(
