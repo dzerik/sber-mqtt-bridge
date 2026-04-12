@@ -8,12 +8,89 @@ from __future__ import annotations
 
 import copy
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, TypedDict
 
-# DeviceData type alias — linked_device is stored as a plain dict with keys:
-# id, name, area_id, manufacturer, model, model_id, hw_version, sw_version
-DeviceData = dict[str, str]
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+
+from ..sber_constants import SERVICE_CALL_TYPE, SERVICE_TURN_OFF, SERVICE_TURN_ON
+
+
+@dataclass(frozen=True, slots=True)
+class AttrSpec:
+    """Declarative spec for parsing a single HA attribute into an instance field.
+
+    Subclasses of :class:`BaseEntity` can declare a class-level
+    ``ATTR_SPECS`` tuple and rely on
+    :meth:`BaseEntity._apply_attr_specs` to do the parsing in one line
+    instead of hand-rolling ``attrs.get(...) / try-except / int()``
+    boilerplate for every attribute.
+
+    Attributes:
+        field: Instance attribute name to assign (e.g. ``"_battery_level"``).
+        attr_keys: HA attribute key(s) to read in fallback order.  First
+            non-``None`` match wins.  Pass a single string for one key.
+        parser: Conversion function applied to the raw value.  Defaults to
+            identity.  Should raise ``(TypeError, ValueError)`` for bad input.
+        default: Value to assign when no key matched or parsing failed.
+        preserve_on_missing: When ``True`` and no attr key matched, leave
+            the existing field value untouched instead of assigning
+            ``default``.  Used by sensors that receive values from linked
+            companion entities via ``update_linked_data`` — we don't want
+            to clobber those when the primary HA state is refreshed.
+    """
+
+    field: str
+    attr_keys: tuple[str, ...]
+    parser: Callable[[object], object] = lambda v: v  # noqa: E731
+    default: object = None
+    preserve_on_missing: bool = False
+
+
+def _safe_int_parser(value: object) -> int | None:
+    """AttrSpec parser: convert to int via float (handles ``"22.5"`` strings)."""
+    if value is None:
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_float_parser(value: object) -> float | None:
+    """AttrSpec parser: convert to float."""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_bool_parser(value: object) -> bool | None:
+    """AttrSpec parser: convert to bool, preserving ``None``."""
+    if value is None:
+        return None
+    return bool(value)
+
+
+class DeviceData(TypedDict, total=False):
+    """Typed device registry data linked to an entity.
+
+    All keys are optional because linked device data may come from partial
+    HA device registry entries. Missing values fall back to sensible defaults
+    in ``BaseEntity.to_sber_state``.
+    """
+
+    id: str
+    name: str
+    area_id: str
+    manufacturer: str
+    model: str
+    model_id: str
+    hw_version: str
+    sw_version: str
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +194,14 @@ class BaseEntity(ABC):
     LINKABLE_ROLES: ClassVar[tuple[LinkableRole, ...]] = ()
     """Linkable roles this device class accepts. Override in subclasses."""
 
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = ()
+    """Declarative HA-attribute parsing specs.
+
+    Subclasses can populate this tuple to drive
+    :meth:`_apply_attr_specs` instead of hand-rolling per-attribute
+    parsing inside ``fill_by_ha_state``.
+    """
+
     category: str
     area_id: str
     categories: list[str]
@@ -190,6 +275,39 @@ class BaseEntity(ABC):
 
             if self.area_id is None:
                 self.area_id = ""
+
+    def _apply_attr_specs(self, attrs: dict) -> None:
+        """Apply all declared :class:`AttrSpec` entries to ``self``.
+
+        For each spec, reads the first non-``None`` key from ``attrs``,
+        pipes the value through ``spec.parser`` and assigns the result
+        to ``self.<spec.field>``.  When no key matches:
+
+            * if ``spec.preserve_on_missing`` is ``True`` → leave the
+              existing value alone (don't touch ``self.<field>``);
+            * otherwise → assign ``spec.default``.
+
+        Args:
+            attrs: HA attributes dict extracted from a state dict.
+        """
+        for spec in self.ATTR_SPECS:
+            raw: object = None
+            for key in spec.attr_keys:
+                candidate = attrs.get(key)
+                if candidate is not None:
+                    raw = candidate
+                    break
+            if raw is None:
+                if not spec.preserve_on_missing:
+                    setattr(self, spec.field, spec.default)
+                continue
+            try:
+                parsed = spec.parser(raw)
+            except (TypeError, ValueError):
+                parsed = spec.default
+            if parsed is None and spec.preserve_on_missing:
+                continue
+            setattr(self, spec.field, parsed if parsed is not None else spec.default)
 
     def fill_by_ha_state(self, ha_entity_state: dict) -> None:
         """Parse HA state dict and update internal state.
@@ -291,6 +409,10 @@ class BaseEntity(ABC):
     def to_sber_state(self) -> dict:
         """Build Sber device config JSON for MQTT publish.
 
+        Handles both ``device_id is None`` (standalone HA entity) and
+        ``device_id is set`` (entity linked to a device registry entry)
+        cases through a unified source-resolver approach.
+
         Returns:
             Dict with device descriptor for Sber (id, name, room, model, features).
             Optionally includes nicknames, groups, parent_id, and partner_meta
@@ -301,59 +423,26 @@ class BaseEntity(ABC):
             RuntimeError: If device has device_id but linked_device is not set.
         """
         if not self.is_filled_by_state:
-            raise RuntimeError(f"Entity {self.entity_id}: fill_by_ha_state must be called before to_sber_state")
+            raise RuntimeError(
+                f"Entity {self.entity_id}: fill_by_ha_state must be called before to_sber_state"
+            )
+        if self.device_id is not None and self.linked_device is None:
+            raise RuntimeError(
+                f"Entity {self.entity_id}: linked_device required when device_id is set"
+            )
 
-        if self.device_id is None:
-            res: dict = {
-                "id": self.entity_id,
-                "name": self.name,
-                "default_name": self.entity_id,
-                "room": self.area_id,
-                "model": {
-                    "id": f"Mdl_{self.category}",
-                    "manufacturer": "Unknown",
-                    "model": "Unknown",
-                    "description": self.name,
-                    "category": self.category,
-                    "features": self.get_final_features_list(),
-                },
-                "hw_version": "1",
-                "sw_version": "1",
-            }
-        else:
-            if self.linked_device is None:
-                raise RuntimeError(f"Entity {self.entity_id}: linked_device required when device_id is set")
-            # Use overridden name (e.g. sber_name from YAML) if set, otherwise device name
-            device_name = self.linked_device.get("name", self.original_name)
-            display_name = self.name if self.name != self.original_name else device_name
-            # Append category suffix to model_id to prevent Sber cloud from
-            # overriding our category based on its own model database.
-            raw_model_id = self.linked_device["model_id"]
-            model_id = f"{raw_model_id}_{self.category}" if raw_model_id else f"Mdl_{self.category}"
-            res = {
-                "id": self.entity_id,
-                "name": display_name,
-                "default_name": self.original_name or self.entity_id,
-                "room": self.linked_device.get("area_id", self.area_id),
-                "model": {
-                    "id": model_id,
-                    "manufacturer": self.linked_device["manufacturer"],
-                    "model": self.linked_device["model"],
-                    "description": display_name,
-                    "category": self.category,
-                    "features": self.get_final_features_list(),
-                },
-                "hw_version": self.linked_device["hw_version"],
-                "sw_version": self.linked_device["sw_version"],
-            }
+        device: DeviceData = self.linked_device or {}
+        display_name = self._resolve_display_name(device)
 
-        # Inject allowed_values and dependencies from subclass hooks
-        allowed = self.create_allowed_values_list()
-        if allowed:
-            res["model"]["allowed_values"] = allowed
-        deps = self.create_dependencies()
-        if deps:
-            res["model"]["dependencies"] = deps
+        res: dict = {
+            "id": self.entity_id,
+            "name": display_name,
+            "default_name": self._resolve_default_name(),
+            "room": device.get("area_id") or self.area_id,
+            "model": self._build_model_descriptor(device, display_name),
+            "hw_version": device.get("hw_version") or "1",
+            "sw_version": device.get("sw_version") or "1",
+        }
 
         if self.nicknames:
             res["nicknames"] = self.nicknames
@@ -365,6 +454,62 @@ class BaseEntity(ABC):
             res["partner_meta"] = self.partner_meta
 
         return res
+
+    def _resolve_display_name(self, device: DeviceData) -> str:
+        """Resolve the display name for Sber device descriptor.
+
+        Priority:
+            1. User-customized name (``self.name != self.original_name``) — wins.
+            2. Device name from registry (when linked_device present).
+            3. Entity name as last resort.
+
+        Args:
+            device: Device registry data dict (may be empty).
+
+        Returns:
+            Display name string.
+        """
+        if not self.linked_device:
+            return self.name
+        device_name = device.get("name") or self.original_name or self.name
+        return self.name if self.name != self.original_name else device_name
+
+    def _resolve_default_name(self) -> str:
+        """Resolve the fallback default name for Sber device descriptor."""
+        if self.linked_device:
+            return self.original_name or self.entity_id
+        return self.entity_id
+
+    def _build_model_descriptor(self, device: DeviceData, display_name: str) -> dict:
+        """Build the ``model`` block of a Sber device descriptor.
+
+        Appends category suffix to model_id to prevent Sber cloud from
+        overriding our category based on its own model database.
+
+        Args:
+            device: Device registry data dict (may be empty).
+            display_name: Resolved display name for description.
+
+        Returns:
+            Model descriptor dict ready for ``to_sber_state`` output.
+        """
+        raw_model_id = device.get("model_id", "") if self.linked_device else ""
+        model_id = f"{raw_model_id}_{self.category}" if raw_model_id else f"Mdl_{self.category}"
+        descriptor: dict = {
+            "id": model_id,
+            "manufacturer": device.get("manufacturer") or "Unknown",
+            "model": device.get("model") or "Unknown",
+            "description": display_name,
+            "category": self.category,
+            "features": self.get_final_features_list(),
+        }
+        allowed = self.create_allowed_values_list()
+        if allowed:
+            descriptor["allowed_values"] = allowed
+        deps = self.create_dependencies()
+        if deps:
+            descriptor["dependencies"] = deps
+        return descriptor
 
     @abstractmethod
     def to_sber_current_state(self) -> dict:
@@ -390,8 +535,43 @@ class BaseEntity(ABC):
         return domain
 
     @staticmethod
-    def _build_on_off_service_call(entity_id: str, domain: str, on: bool) -> dict:
-        """Build a HA service call dict for turning a device on or off.
+    def _build_service_call(
+        domain: str,
+        service: str,
+        entity_id: str,
+        service_data: dict | None = None,
+    ) -> dict:
+        """Build a HA service call dict for Sber → HA forwarding.
+
+        This is the canonical helper for all device ``process_cmd`` methods.
+        It replaces hand-written ``{"url": {"type": "call_service", ...}}``
+        literals with a single, typo-safe call.
+
+        Args:
+            domain: HA service domain (e.g., 'climate', 'light').
+            service: HA service name (e.g., 'set_temperature', 'turn_on').
+            entity_id: Target HA entity identifier.
+            service_data: Optional service data payload; omitted if None.
+
+        Returns:
+            Dict with 'url' key containing the HA service call descriptor.
+        """
+        url: dict = {
+            "type": SERVICE_CALL_TYPE,
+            "domain": domain,
+            "service": service,
+            "target": {"entity_id": entity_id},
+        }
+        if service_data is not None:
+            url["service_data"] = service_data
+        return {"url": url}
+
+    @classmethod
+    def _build_on_off_service_call(cls, entity_id: str, domain: str, on: bool) -> dict:
+        """Build a HA turn_on / turn_off service call dict.
+
+        Convenience wrapper over :meth:`_build_service_call` for the common
+        on/off case.
 
         Args:
             entity_id: HA entity identifier (e.g., 'climate.living_room').
@@ -401,14 +581,9 @@ class BaseEntity(ABC):
         Returns:
             Dict with 'url' key containing the HA service call descriptor.
         """
-        return {
-            "url": {
-                "type": "call_service",
-                "domain": domain,
-                "service": "turn_on" if on else "turn_off",
-                "target": {"entity_id": entity_id},
-            }
-        }
+        return cls._build_service_call(
+            domain, SERVICE_TURN_ON if on else SERVICE_TURN_OFF, entity_id
+        )
 
     @abstractmethod
     def process_cmd(self, cmd_data: dict) -> list[dict]:
@@ -427,15 +602,15 @@ class BaseEntity(ABC):
     def _is_online(self) -> bool:
         """Check if entity is online (reachable).
 
-        By default, ``unavailable``, ``unknown``, and ``None`` (not loaded)
-        all indicate offline. Subclasses for event-based sensors (binary_sensor)
-        override this to treat ``unknown`` as online — it means "no event yet",
-        not "device unreachable".
+        By default, ``STATE_UNAVAILABLE``, ``STATE_UNKNOWN``, and ``None``
+        (not loaded) all indicate offline. Subclasses for event-based
+        sensors (binary_sensor) override this to treat ``STATE_UNKNOWN``
+        as online — it means "no event yet", not "device unreachable".
 
         Returns:
             True if the entity state indicates it is reachable.
         """
-        return self.state not in ("unavailable", "unknown", None)
+        return self.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN, None)
 
     @property
     def is_online(self) -> bool:
@@ -479,6 +654,23 @@ class BaseEntity(ABC):
             return int(float(value))
         except (TypeError, ValueError):
             return None
+
+    @staticmethod
+    def _safe_clamped_int(value: object, low: int, high: int) -> int | None:
+        """Safely convert value to int and clamp into ``[low, high]``.
+
+        Args:
+            value: Value to convert.
+            low: Inclusive lower bound.
+            high: Inclusive upper bound.
+
+        Returns:
+            Clamped integer, or None if conversion fails.
+        """
+        parsed = BaseEntity._safe_int(value)
+        if parsed is None:
+            return None
+        return max(low, min(high, parsed))
 
     def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
         """Handle a state change event from Home Assistant.

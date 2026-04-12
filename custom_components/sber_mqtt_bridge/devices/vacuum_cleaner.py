@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from ..sber_constants import SberFeature
+from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import BaseEntity
 
@@ -156,38 +156,22 @@ class VacuumCleanerEntity(BaseEntity):
         """
         results: list[dict] = []
         for item in cmd_data.get("states", []):
-            key = item.get("key")
+            key = item.get("key", "")
             value = item.get("value", {})
-
-            if key == "vacuum_cleaner_command" and value.get("type") == "ENUM":
-                cmd = value.get("enum_value")
-                ha_service = _SBER_CMD_TO_HA_SERVICE.get(cmd or "")
+            if value.get("type") != SberValueType.ENUM:
+                continue
+            if key == SberFeature.VACUUM_CLEANER_COMMAND:
+                ha_service = _SBER_CMD_TO_HA_SERVICE.get(value.get("enum_value") or "")
                 if ha_service is None:
                     continue
-                results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "vacuum",
-                            "service": ha_service,
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
-
-            elif key == "vacuum_cleaner_program" and value.get("type") == "ENUM":
+                results.append(self._build_service_call("vacuum", ha_service, self.entity_id))
+            elif key == SberFeature.VACUUM_CLEANER_PROGRAM:
                 fan_speed = value.get("enum_value")
                 if not fan_speed:
                     continue
                 results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "vacuum",
-                            "service": "set_fan_speed",
-                            "service_data": {"fan_speed": fan_speed},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
+                    self._build_service_call(
+                        "vacuum", "set_fan_speed", self.entity_id, {"fan_speed": fan_speed}
+                    )
                 )
         return results

@@ -62,7 +62,7 @@ def test_devices_list_multiple_entities(snapshot: SnapshotAssertion) -> None:
     entities = {"switch.lamp": relay, "sensor.temp": sensor}
     enabled = ["switch.lamp", "sensor.temp"]
 
-    result = json.loads(build_devices_list_json(entities, enabled))
+    result = json.loads(build_devices_list_json(entities, enabled)[0])
     assert result == snapshot
 
 
@@ -89,7 +89,7 @@ def test_devices_list_with_redefinitions(snapshot: SnapshotAssertion) -> None:
     enabled = ["switch.lamp"]
     redefs = {"switch.lamp": {"home": "My Home", "room": "Kitchen", "name": "New Lamp"}}
 
-    result = json.loads(build_devices_list_json(entities, enabled, redefs))
+    result = json.loads(build_devices_list_json(entities, enabled, redefs)[0])
     assert result == snapshot
 
 

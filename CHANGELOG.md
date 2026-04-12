@@ -7,6 +7,130 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.25.1] - 2026-04-12
+
+### Changed
+
+- **P1 completion — physical class extraction**: finished the architectural
+  decomposition left open in 1.25.0.
+  - New module **`mqtt_client_service.py`** (`MqttClientService`,
+    `MqttServiceHooks`, `SberMqttCredentials`) owns the persistent MQTT
+    connection, exponential-backoff reconnect loop, publish / subscribe
+    primitives and message consumption.  `SberBridge` no longer hosts
+    the transport logic — it only injects callbacks.
+  - New module **`command_dispatcher.py`** (`SberCommandDispatcher`) owns
+    all Sber-protocol command handling: ``handle_command``,
+    ``handle_status_request``, ``handle_config_request``,
+    ``handle_error``, ``handle_change_group``, ``handle_rename_device``,
+    ``handle_global_config``.  Bridge methods ``_handle_sber_*`` are now
+    thin proxies kept only for test compatibility.
+  - New module **`ha_state_forwarder.py`** (`HaStateForwarder`) owns HA
+    state-change subscription, linked-entity routing, debouncing and
+    feature-change detection.  Bridge methods ``_on_ha_state_changed``
+    and ``_schedule_debounced_publish`` are now thin proxies for tests.
+  - `SberBridge` shrank from 1440 → 1007 LOC and now acts as a
+    coordinator around five collaborators: `MqttClientService`,
+    `SberCommandDispatcher`, `HaStateForwarder`, `SberEntityLoader`,
+    `MessageLogger`.  Further LOC reduction is gated on rewriting ~2000
+    lines of mock-heavy tests that reach into bridge internals.
+
+- **P2.1 — declarative attribute parsing**: added a mini-framework in
+  `devices/base_entity.py`:
+  - New dataclass **`AttrSpec`** (field / attr_keys / parser / default /
+    preserve_on_missing) describes how to read one HA attribute into one
+    instance field.
+  - New method **`BaseEntity._apply_attr_specs(attrs)`** walks the
+    class-level ``ATTR_SPECS`` tuple and does the parsing in one pass,
+    replacing 6–15 lines of hand-rolled try/except/int() boilerplate per
+    device.
+  - Migrated device classes: `OnOffEntity` (power / voltage / current /
+    child_lock), `SimpleReadOnlySensor` (battery / signal, with
+    ``preserve_on_missing=True`` to honour linked-sensor injection),
+    `CurtainEntity` (battery / tilt / signal), `ValveEntity` (battery /
+    signal).  These base classes cascade to 12 of 15 device
+    implementations.  Sensors with special mapping logic (climate,
+    humidifier, light, tv, kettle, vacuum_cleaner) keep imperative
+    parsing — the AttrSpec system is opt-in and coexists cleanly.
+
+- **P2.4 — `SETTINGS_DEFAULTS`-driven init**: new
+  `SberBridge._load_settings_from_options(options)` drives attribute
+  assignment from `const.SETTINGS_DEFAULTS` instead of scattered
+  `opts.get(key, hardcoded_default)` calls.  `apply_settings()` now
+  reuses the same loader, eliminating duplicate default values.
+
+### Fixed
+
+- `_delayed_confirm` tasks now use ``self._create_safe_task`` (unified
+  error logging) and stop pointlessly re-raising `CancelledError`.
+
+## [1.25.0] - 2026-04-12
+
+### Changed
+
+- **Large-scale refactoring** per deep code review (P0 + P1 + P2 tasks):
+  - **Device classes**: all 15 `process_cmd` implementations migrated to the new
+    `BaseEntity._build_service_call(domain, service, entity_id, service_data)`
+    helper, eliminating ~60 hand-written `{"url": {"type": "call_service"...}}`
+    literals and the typo surface they carried.
+  - **Command pattern**: `ClimateEntity.process_cmd` (220 lines) and
+    `LightEntity.process_cmd` (156 lines) rewritten via dispatch tables
+    plus small per-feature handler methods; cognitive complexity dropped
+    from ~45 to ~3 per handler.
+  - **`SberFeature` enum everywhere**: magic string keys (`"on_off"`,
+    `"hvac_temp_set"`, …) in `process_cmd` replaced with `SberFeature.*`
+    constants across all device modules.
+  - **`BaseEntity` cleanup**:
+    - Added `_build_service_call` and `_safe_clamped_int` helpers.
+    - Unified `to_sber_state` `device_id is None / else` branches into a
+      single code path via `_resolve_display_name`, `_resolve_default_name`
+      and `_build_model_descriptor` helpers.
+    - Replaced raw `"unavailable" / "unknown"` literals with
+      `STATE_UNAVAILABLE` / `STATE_UNKNOWN` imports.
+    - `DeviceData` promoted to `TypedDict` for better type safety.
+  - **`SberBridge` decomposition**:
+    - `_mqtt_connection_loop` split into `_handle_connected`,
+      `_mark_connected`, `_wait_for_ha_ready`, `_perform_initial_publish`,
+      `_subscribe_down_topics`, `_setup_ack_guard`, `_consume_messages`.
+    - `_on_ha_state_changed` split into `_handle_linked_state_change` and
+      `_handle_primary_state_change`.
+    - `_handle_mqtt_message` replaced with a dispatch table keyed by topic
+      suffix (`_mqtt_dispatch`).
+    - New **`SberEntityLoader`** (`entity_registry.py`) owns HA registry
+      lookup, YAML overrides, link resolution and conflict detection;
+      `SberBridge._load_exposed_entities` is now a 30-line orchestrator.
+    - New **`MessageLogger`** (`message_logger.py`) owns the DevTools ring
+      buffer and real-time subscriber fan-out.
+    - `_delayed_confirm` extracted from nested closure, routed through
+      `_create_safe_task` for consistent error handling.
+  - **WebSocket API split**: 1567-line `websocket_api.py` converted to a
+    package with 8 focused submodules (`status`, `entities`, `links`,
+    `raw`, `io_export`, `settings`, `log`, `_common`).  Package
+    `__init__.py` re-exports all `ws_*` commands for backwards compat.
+  - **Public API** for redefinitions: `SberBridge.async_update_redefinition`
+    and `async_republish_config`; WebSocket `ws_update_redefinitions` no
+    longer reaches into `bridge._redefinitions` / `bridge._publish_config`.
+  - **`validate_config_payload`** return value threaded through
+    `build_devices_list_json` — both serialisers now return
+    `(json_string, validation_passed)` for consistency.
+
+### Fixed
+
+- **TOCTOU race** in `SberBridge._publish_states` / `_publish_config`:
+  MQTT client reference is now snapshotted to a local variable before the
+  connectivity check, eliminating the `except (AttributeError, TypeError)`
+  fallback that previously masked unrelated bugs.
+- **Exception handling** in `_handle_sber_command`: replaced the narrow
+  `(TimeoutError, KeyError, ValueError, AttributeError)` catch with
+  `HomeAssistantError`, `ServiceNotFound`, `ServiceValidationError`,
+  `Unauthorized`, `TimeoutError` — the actual exception types raised by
+  `hass.services.async_call`.
+
+### Security
+
+- `create_ssl_context(verify=False)` now logs a `WARNING` — previously the
+  caller could silently disable certificate verification without any
+  audit trail.
+
 ## [1.24.2] - 2026-04-02
 
 ### Added
@@ -762,7 +886,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - jscpd duplication reduced: 13 clones → 9 (4.34% → 3.38%)
 
 ### Removed
-- Legacy addon `mqtt_sber_gate/` directory (fully superseded by HACS integration)
 - Wrong-project audit file `docs/audit/audit-02-architecture.md` (described xiaomi_miio)
 
 ## [0.2.0] - 2026-03-23
@@ -869,8 +992,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - LightEntity and CurtainEntity with full OOP implementation
 
-[Unreleased]: https://github.com/mberezovsky/MQTT-SberGate/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/mberezovsky/MQTT-SberGate/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/mberezovsky/MQTT-SberGate/releases/tag/v0.1.0
-[1.2.0]: https://github.com/mberezovsky/MQTT-SberGate/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/mberezovsky/MQTT-SberGate/releases/tag/v1.1.0
+[Unreleased]: https://github.com/dzerik/sber-mqtt-bridge/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/dzerik/sber-mqtt-bridge/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/dzerik/sber-mqtt-bridge/releases/tag/v0.1.0
+[1.2.0]: https://github.com/dzerik/sber-mqtt-bridge/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/dzerik/sber-mqtt-bridge/releases/tag/v1.1.0

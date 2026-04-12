@@ -338,7 +338,9 @@ class TestSberBridgeEchoFix:
             "new_state": new_state,
         }
 
-        with patch.object(bridge, "_schedule_debounced_publish") as mock_publish:
+        with patch.object(
+            bridge._state_forwarder, "_schedule_debounced_publish"
+        ) as mock_publish:
             bridge._on_ha_state_changed(event)
 
             # Assert: publish is NOT suppressed
@@ -364,7 +366,9 @@ class TestSberBridgeEchoFix:
             "new_state": new_state,
         }
 
-        with patch.object(bridge, "_schedule_debounced_publish") as mock_publish:
+        with patch.object(
+            bridge._state_forwarder, "_schedule_debounced_publish"
+        ) as mock_publish:
             bridge._on_ha_state_changed(event)
 
             mock_publish.assert_called_once_with("switch.lamp")

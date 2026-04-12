@@ -9,16 +9,29 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from typing import ClassVar
 
-from ..sber_constants import SberFeature
+from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import SENSOR_LINK_ROLES, BaseEntity
+from .base_entity import (
+    SENSOR_LINK_ROLES,
+    AttrSpec,
+    BaseEntity,
+    _safe_int_parser,
+)
 from .utils.signal import rssi_to_signal_strength
 
 _LOGGER = logging.getLogger(__name__)
 
 VALVE_CATEGORY = "valve"
 """Sber device category for valve entities."""
+
+_VALVE_OPEN_SET_SERVICES: dict[str, str] = {
+    "open": "open_valve",
+    "close": "close_valve",
+    "stop": "stop_valve",
+}
+"""Map Sber ``open_set`` ENUM values to HA valve services."""
 
 
 class ValveEntity(BaseEntity):
@@ -33,6 +46,19 @@ class ValveEntity(BaseEntity):
     """
 
     LINKABLE_ROLES = SENSOR_LINK_ROLES
+
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(
+            field="_battery_level",
+            attr_keys=("battery", "battery_level"),
+            parser=_safe_int_parser,
+        ),
+        AttrSpec(
+            field="_signal_strength_raw",
+            attr_keys=("signal_strength", "rssi", "linkquality"),
+            parser=_safe_int_parser,
+        ),
+    )
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize valve entity.
@@ -54,25 +80,7 @@ class ValveEntity(BaseEntity):
         """
         super().fill_by_ha_state(ha_state)
         self.is_open = ha_state.get("state") == "open"
-        attrs = ha_state.get("attributes", {})
-
-        battery = attrs.get("battery") or attrs.get("battery_level")
-        if battery is not None:
-            try:
-                self._battery_level = int(battery)
-            except (TypeError, ValueError):
-                self._battery_level = None
-        else:
-            self._battery_level = None
-
-        rssi = attrs.get("signal_strength") or attrs.get("rssi") or attrs.get("linkquality")
-        if rssi is not None:
-            try:
-                self._signal_strength_raw = int(rssi)
-            except (TypeError, ValueError):
-                self._signal_strength_raw = None
-        else:
-            self._signal_strength_raw = None
+        self._apply_attr_specs(ha_state.get("attributes", {}))
 
     def update_linked_data(self, role: str, ha_state: dict) -> None:
         """Inject data from a linked entity (battery, battery_low, signal).
@@ -162,27 +170,13 @@ class ValveEntity(BaseEntity):
             List of HA service call dicts to execute.
         """
         results: list[dict] = []
-        service_map = {
-            "open": "open_valve",
-            "close": "close_valve",
-            "stop": "stop_valve",
-        }
         for item in cmd_data.get("states", []):
-            key = item.get("key")
+            key = item.get("key", "")
             value = item.get("value", {})
-
-            if key == "open_set" and value.get("type") == "ENUM":
-                action = value.get("enum_value")
-                service = service_map.get(action)
-                if service:
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "valve",
-                                "service": service,
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
+            if key != SberFeature.OPEN_SET or value.get("type") != SberValueType.ENUM:
+                continue
+            service = _VALVE_OPEN_SET_SERVICES.get(value.get("enum_value") or "")
+            if service is None:
+                continue
+            results.append(self._build_service_call("valve", service, self.entity_id))
         return results

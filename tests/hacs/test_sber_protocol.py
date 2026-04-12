@@ -64,28 +64,28 @@ class TestBuildDevicesListJson(unittest.TestCase):
         self.entities = {"switch.lamp": self.relay}
 
     def test_includes_hub(self):
-        result = json.loads(build_devices_list_json(self.entities, ["switch.lamp"]))
+        result = json.loads(build_devices_list_json(self.entities, ["switch.lamp"])[0])
         devices = result["devices"]
         hub = devices[0]
         self.assertEqual(hub["id"], "root")
 
     def test_includes_enabled_entity(self):
-        result = json.loads(build_devices_list_json(self.entities, ["switch.lamp"]))
+        result = json.loads(build_devices_list_json(self.entities, ["switch.lamp"])[0])
         self.assertEqual(len(result["devices"]), 2)
 
     def test_excludes_not_enabled(self):
-        result = json.loads(build_devices_list_json(self.entities, []))
+        result = json.loads(build_devices_list_json(self.entities, [])[0])
         self.assertEqual(len(result["devices"]), 1)
 
     def test_skips_unfilled_entity(self):
         unfilled = RelayEntity(RELAY_ENTITY_DATA)
         entities = {"switch.lamp": unfilled}
-        result = json.loads(build_devices_list_json(entities, ["switch.lamp"]))
+        result = json.loads(build_devices_list_json(entities, ["switch.lamp"])[0])
         self.assertEqual(len(result["devices"]), 1)
 
     def test_applies_redefinitions(self):
         redefs = {"switch.lamp": {"home": "My Home", "room": "Kitchen", "name": "New Lamp"}}
-        result = json.loads(build_devices_list_json(self.entities, ["switch.lamp"], redefs))
+        result = json.loads(build_devices_list_json(self.entities, ["switch.lamp"], redefs)[0])
         device = result["devices"][1]
         self.assertEqual(device["home"], "My Home")
         self.assertEqual(device["room"], "Kitchen")

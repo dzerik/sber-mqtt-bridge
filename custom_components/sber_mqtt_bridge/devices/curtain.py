@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from typing import ClassVar
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import SENSOR_LINK_ROLES, BaseEntity
+from .base_entity import (
+    SENSOR_LINK_ROLES,
+    AttrSpec,
+    BaseEntity,
+    _safe_int_parser,
+)
 from .utils.signal import rssi_to_signal_strength
 
 CURTAIN_ENTITY_CATEGORY = "curtain"
@@ -26,6 +32,24 @@ class CurtainEntity(BaseEntity):
     """
 
     LINKABLE_ROLES = SENSOR_LINK_ROLES
+
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(
+            field="_battery_level",
+            attr_keys=("battery", "battery_level"),
+            parser=_safe_int_parser,
+        ),
+        AttrSpec(
+            field="_tilt_position",
+            attr_keys=("current_tilt_position",),
+            parser=_safe_int_parser,
+        ),
+        AttrSpec(
+            field="_signal_strength_raw",
+            attr_keys=("signal_strength", "rssi", "linkquality"),
+            parser=_safe_int_parser,
+        ),
+    )
 
     current_position: int = 0
     """Current cover position (0-100%)."""
@@ -57,55 +81,39 @@ class CurtainEntity(BaseEntity):
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Update state from Home Assistant data.
 
-        Reads ``current_position`` from attributes; falls back to 100
-        if state is 'opened', otherwise 0. Also reads signal strength
-        from ``signal_strength``, ``rssi``, or ``linkquality``.
+        Battery level, tilt position and signal strength are parsed via
+        :class:`AttrSpec`.  ``current_position`` and ``open_rate`` have
+        custom fallback / mapping logic and stay imperative.
 
         Args:
             ha_state: HA state dict with 'state' and 'attributes' keys.
         """
         super().fill_by_ha_state(ha_state)
         attrs = ha_state.get("attributes", {})
+        self._apply_attr_specs(attrs)
+        self.current_position = self._parse_current_position(attrs)
+        self._open_rate = self._parse_open_rate(attrs)
 
+    def _parse_current_position(self, attrs: dict) -> int:
+        """Parse ``current_position`` with fallback based on HA state."""
         position = attrs.get("current_position")
         if position is not None:
             try:
-                self.current_position = max(0, min(100, int(float(position))))
+                return max(0, min(100, int(float(position))))
             except (TypeError, ValueError):
-                self.current_position = 100 if self.state in ("open", "opening") else 0
-        else:
-            self.current_position = 100 if self.state in ("open", "opening") else 0
+                pass
+        return 100 if self.state in ("open", "opening") else 0
 
-        battery = attrs.get("battery") or attrs.get("battery_level")
-        if battery is not None:
-            try:
-                self._battery_level = int(battery)
-            except (TypeError, ValueError):
-                self._battery_level = None
-
-        # Tilt position → light_transmission_percentage (blinds)
-        tilt = attrs.get("current_tilt_position")
-        self._tilt_position = int(tilt) if tilt is not None else None
-
-        # Motor speed (open_rate) — some Tuya/Zigbee covers expose this
+    @staticmethod
+    def _parse_open_rate(attrs: dict) -> str | None:
+        """Parse ``speed`` / ``motor_speed`` into a Sber ``open_rate`` value."""
         speed = attrs.get("speed") or attrs.get("motor_speed")
-        if speed is not None:
-            speed_str = str(speed).lower()
-            if speed_str in ("auto", "low", "high"):
-                self._open_rate = speed_str
-            else:
-                self._open_rate = None
-        else:
-            self._open_rate = None
-
-        rssi = attrs.get("signal_strength") or attrs.get("rssi") or attrs.get("linkquality")
-        if rssi is not None:
-            try:
-                self._signal_strength_raw = int(rssi)
-            except (TypeError, ValueError):
-                self._signal_strength_raw = None
-        else:
-            self._signal_strength_raw = None
+        if speed is None:
+            return None
+        speed_str = str(speed).lower()
+        if speed_str not in ("auto", "low", "high"):
+            return None
+        return speed_str
 
     def update_linked_data(self, role: str, ha_state: dict) -> None:
         """Inject data from a linked entity (battery, battery_low, signal).
@@ -139,13 +147,19 @@ class CurtainEntity(BaseEntity):
         """
         return int(ha_position)
 
+    _OPEN_SET_SERVICE_MAP: ClassVar[dict[str, str]] = {
+        "open": "open_cover",
+        "close": "close_cover",
+        "stop": "stop_cover",
+    }
+    """Map Sber ``open_set`` enum values to HA cover services."""
+
     def process_cmd(self, cmd_data: dict) -> list[dict]:
         """Process Sber curtain commands and produce HA service calls.
 
         Handles the following Sber keys:
-        - ``open_percentage``: set_cover_position (INTEGER 0-100)
-        - ``cover_position``: set_cover_position (INTEGER 0-100)
-        - ``open_set``: open_cover / close_cover / stop_cover (ENUM)
+        - ``open_percentage`` / ``cover_position``: set_cover_position (0-100)
+        - ``open_set``: open_cover / close_cover / stop_cover
 
         Args:
             cmd_data: Sber command dict with 'states' list.
@@ -153,74 +167,34 @@ class CurtainEntity(BaseEntity):
         Returns:
             List of HA service call dicts to execute.
         """
-        processing_result = []
-
+        results: list[dict] = []
         for data_item in cmd_data.get("states", []):
             key = data_item.get("key")
             value = data_item.get("value", {})
-
             if key is None:
                 continue
+            if key in (SberFeature.OPEN_PERCENTAGE, "cover_position"):
+                results.extend(self._cmd_set_position(value))
+            elif key == SberFeature.OPEN_SET:
+                results.extend(self._cmd_open_set(value))
+        return results
 
-            if key in ("open_percentage", "cover_position"):
-                ha_position = self._safe_int(value.get("integer_value"))
-                if ha_position is None:
-                    continue
-                ha_position = max(0, min(100, ha_position))
-                processing_result.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "cover",
-                            "service": "set_cover_position",
-                            "service_data": {"position": ha_position},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
+    def _cmd_set_position(self, value: dict) -> list[dict]:
+        ha_position = self._safe_clamped_int(value.get("integer_value"), 0, 100)
+        if ha_position is None:
+            return []
+        return [
+            self._build_service_call(
+                "cover", "set_cover_position", self.entity_id, {"position": ha_position}
+            )
+        ]
 
-            if key == "open_set":
-                action = value.get("enum_value", None)
-                if action is None:
-                    continue
-
-                if action == "open":
-                    processing_result.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "cover",
-                                "service": "open_cover",
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-
-                elif action == "close":
-                    processing_result.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "cover",
-                                "service": "close_cover",
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-
-                elif action == "stop":
-                    processing_result.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "cover",
-                                "service": "stop_cover",
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-
-        return processing_result
+    def _cmd_open_set(self, value: dict) -> list[dict]:
+        action = value.get("enum_value")
+        service = self._OPEN_SET_SERVICE_MAP.get(action or "")
+        if service is None:
+            return []
+        return [self._build_service_call("cover", service, self.entity_id)]
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for curtain capabilities.

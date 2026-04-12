@@ -357,12 +357,6 @@ Go to **Settings** > **Devices & Services** > **Sber Smart Home MQTT Bridge** > 
 - List of acknowledged/unacknowledged entities
 - Entity configuration
 
-## Acknowledgments
-
-This project is a fork and evolution of [MQTT-SberGate](https://gitverse.ru/mberezovsky/MQTT-SberGate) by [@mberezovsky](https://gitverse.ru/mberezovsky). The original project provided the Sber Smart Home MQTT protocol implementation as a Home Assistant addon. This version has been rewritten as a native HACS custom integration with full async support, Config Flow UI, and comprehensive test coverage.
-
-Thank you to the original author for the foundational work and Sber protocol reverse-engineering.
-
 ## Trademarks & Legal Notice
 
 All product names, logos, and brands mentioned in this project are property of their respective owners:

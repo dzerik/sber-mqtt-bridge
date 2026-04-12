@@ -107,6 +107,11 @@ def create_ssl_context(verify: bool = True) -> ssl.SSLContext:
     """
     ssl_context = ssl.create_default_context()
     if not verify:
+        _LOGGER.warning(
+            "SSL verification DISABLED for Sber broker — "
+            "connection is vulnerable to MITM attacks. "
+            "Only use this with a trusted private / self-signed broker."
+        )
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
     return ssl_context

@@ -92,6 +92,7 @@ class SberFeature(StrEnum):
     BUTTON_EVENT = "button_event"
 
     # TV / Media
+    VOLUME = "volume"
     VOLUME_INT = "volume_int"
     MUTE = "mute"
     SOURCE = "source"

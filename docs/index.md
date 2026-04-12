@@ -67,4 +67,3 @@ See the navigation menu for installation, configuration, and device documentatio
 - [Портал разработчиков Sber Smart Home](https://developers.sber.ru/docs/ru/smarthome)
 - [Руководство MQTT-to-Cloud](https://developers.sber.ru/docs/ru/smarthome/mqtt-diy/mqtt-to-diy)
 - [Поддерживаемые категории устройств Sber](https://developers.sber.ru/docs/ru/smarthome/c2c/devices)
-- [Telegram-сообщество](https://t.me/+k_w9uO0h73FkNjJi)

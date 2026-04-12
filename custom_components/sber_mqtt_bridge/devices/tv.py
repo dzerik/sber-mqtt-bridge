@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from ..sber_constants import SberFeature
+from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import BaseEntity
 
@@ -16,6 +16,43 @@ _LOGGER = logging.getLogger(__name__)
 
 TV_CATEGORY = "tv"
 """Sber device category for TV entities."""
+
+_MP_DOMAIN = "media_player"
+"""HA domain for TV / media player entities."""
+
+_CUSTOM_KEY_SERVICE_MAP: dict[str, str] = {
+    "play": "media_play",
+    "pause": "media_pause",
+    "stop": "media_stop",
+    "rewind": "media_previous_track",
+    "fast_forward": "media_next_track",
+}
+"""Mapping of Sber custom_key values to HA media_player service names.
+
+Keys like 'back', 'home', 'menu' have no direct media_player equivalent
+and are logged as unsupported.
+"""
+
+_CHANNEL_ENUM_SERVICE: dict[str, str] = {
+    "+": "media_next_track",
+    "-": "media_previous_track",
+}
+"""Sber ``channel`` ENUM direction to HA media_player service."""
+
+_VOLUME_ENUM_SERVICE: dict[str, str] = {
+    "+": "volume_up",
+    "-": "volume_down",
+}
+"""Sber ``volume`` ENUM direction to HA media_player service."""
+
+_DIRECTION_SERVICE: dict[str, str] = {
+    "up": "volume_up",
+    "down": "volume_down",
+    "left": "media_previous_track",
+    "right": "media_next_track",
+    "ok": "media_play_pause",
+}
+"""Sber ``direction`` ENUM to HA media_player service."""
 
 
 class TvEntity(BaseEntity):
@@ -66,10 +103,10 @@ class TvEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), "on_off", "volume_int", "mute"]
+        features = [*super().create_features_list(), "on_off", "volume_int", "volume", "mute"]
         if self._source_list:
             features.append("source")
-        features.extend(["channel", "channel_int", "direction"])
+        features.extend(["channel", "channel_int", "direction", "custom_key", "number"])
         return features
 
     def create_allowed_values_list(self) -> dict[str, dict]:
@@ -94,6 +131,29 @@ class TvEntity(BaseEntity):
             "direction": {
                 "type": "ENUM",
                 "enum_values": {"values": ["up", "down", "left", "right", "ok"]},
+            },
+            "volume": {
+                "type": "ENUM",
+                "enum_values": {"values": ["+", "-"]},
+            },
+            "custom_key": {
+                "type": "ENUM",
+                "enum_values": {
+                    "values": [
+                        "play",
+                        "pause",
+                        "stop",
+                        "rewind",
+                        "fast_forward",
+                        "back",
+                        "home",
+                        "menu",
+                    ]
+                },
+            },
+            "number": {
+                "type": "INTEGER",
+                "integer_values": {"min": "0", "max": "9", "step": "1"},
             },
         }
         if self._source_list:
@@ -125,8 +185,11 @@ class TvEntity(BaseEntity):
         Handles the following Sber keys:
         - ``on_off``: media_player.turn_on / media_player.turn_off
         - ``volume_int``: media_player.volume_set (Sber 0-100 → HA 0.0-1.0)
+        - ``volume``: media_player.volume_up / media_player.volume_down
         - ``mute``: media_player.volume_mute
         - ``source``: media_player.select_source
+        - ``custom_key``: media_player.media_play / pause / stop / etc.
+        - ``number``: media_player.play_media (channel digit)
 
         Args:
             cmd_data: Sber command dict with 'states' list.
@@ -136,134 +199,104 @@ class TvEntity(BaseEntity):
         """
         results: list[dict] = []
         for item in cmd_data.get("states", []):
-            key = item.get("key")
+            key = item.get("key", "")
             value = item.get("value", {})
-
-            if key == "on_off" and value.get("type") == "BOOL":
-                on = value.get("bool_value", False)
-                results.append(self._build_on_off_service_call(self.entity_id, "media_player", on))
-
-            elif key == "volume_int" and value.get("type") == "INTEGER":
-                raw = value.get("integer_value")
-                if raw is None:
-                    continue
-                vol = self._safe_int(raw)
-                if vol is None:
-                    continue
-                ha_volume = vol / 100.0
-                results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "media_player",
-                            "service": "volume_set",
-                            "service_data": {"volume_level": ha_volume},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
-
-            elif key == "mute" and value.get("type") == "BOOL":
-                muted = value.get("bool_value", False)
-                results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "media_player",
-                            "service": "volume_mute",
-                            "service_data": {"is_volume_muted": muted},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
-
-            elif key == "source" and value.get("type") == "ENUM":
-                source = value.get("enum_value")
-                if not source:
-                    continue
-                results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "media_player",
-                            "service": "select_source",
-                            "service_data": {"source": source},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
-
-            elif key == "channel_int" and value.get("type") == "INTEGER":
-                raw_ch = value.get("integer_value")
-                if raw_ch is None:
-                    continue
-                ch = self._safe_int(raw_ch)
-                if ch is not None:
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "media_player",
-                                "service": "play_media",
-                                "service_data": {
-                                    "media_content_type": "channel",
-                                    "media_content_id": str(ch),
-                                },
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-
-            elif key == "channel" and value.get("type") == "ENUM":
-                direction = value.get("enum_value")
-                if direction == "+":
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "media_player",
-                                "service": "media_next_track",
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-                elif direction == "-":
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "media_player",
-                                "service": "media_previous_track",
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-
-            elif key == "direction" and value.get("type") == "ENUM":
-                direction_cmd = value.get("enum_value")
-                if not direction_cmd:
-                    continue
-                # Map Sber direction to HA media_player commands
-                # Sber docs: up, down, left, right, ok
-                if direction_cmd == "up":
-                    results.append(
-                        {"url": {"type": "call_service", "domain": "media_player", "service": "volume_up", "target": {"entity_id": self.entity_id}}}
-                    )
-                elif direction_cmd == "down":
-                    results.append(
-                        {"url": {"type": "call_service", "domain": "media_player", "service": "volume_down", "target": {"entity_id": self.entity_id}}}
-                    )
-                elif direction_cmd == "left":
-                    results.append(
-                        {"url": {"type": "call_service", "domain": "media_player", "service": "media_previous_track", "target": {"entity_id": self.entity_id}}}
-                    )
-                elif direction_cmd == "right":
-                    results.append(
-                        {"url": {"type": "call_service", "domain": "media_player", "service": "media_next_track", "target": {"entity_id": self.entity_id}}}
-                    )
-                elif direction_cmd == "ok":
-                    results.append(
-                        {"url": {"type": "call_service", "domain": "media_player", "service": "media_play_pause", "target": {"entity_id": self.entity_id}}}
-                    )
-
+            vtype = value.get("type", "")
+            if key == SberFeature.ON_OFF and vtype == SberValueType.BOOL:
+                results.extend(self._cmd_on_off(value))
+            elif key == SberFeature.VOLUME_INT and vtype == SberValueType.INTEGER:
+                results.extend(self._cmd_volume_int(value))
+            elif key == SberFeature.MUTE and vtype == SberValueType.BOOL:
+                results.extend(self._cmd_mute(value))
+            elif key == SberFeature.SOURCE and vtype == SberValueType.ENUM:
+                results.extend(self._cmd_source(value))
+            elif key == SberFeature.CHANNEL_INT and vtype == SberValueType.INTEGER:
+                results.extend(self._cmd_channel_int(value))
+            elif key == SberFeature.CHANNEL and vtype == SberValueType.ENUM:
+                results.extend(self._cmd_simple_enum(value, _CHANNEL_ENUM_SERVICE))
+            elif key == SberFeature.DIRECTION and vtype == SberValueType.ENUM:
+                results.extend(self._cmd_simple_enum(value, _DIRECTION_SERVICE))
+            elif key == SberFeature.VOLUME and vtype == SberValueType.ENUM:
+                results.extend(self._cmd_simple_enum(value, _VOLUME_ENUM_SERVICE))
+            elif key == SberFeature.NUMBER and vtype == SberValueType.INTEGER:
+                results.extend(self._cmd_number(value))
+            elif key == SberFeature.CUSTOM_KEY and vtype == SberValueType.ENUM:
+                results.extend(self._cmd_custom_key(value))
         return results
+
+    def _cmd_on_off(self, value: dict) -> list[dict]:
+        on = value.get("bool_value", False)
+        return [self._build_on_off_service_call(self.entity_id, _MP_DOMAIN, on)]
+
+    def _cmd_volume_int(self, value: dict) -> list[dict]:
+        vol = self._safe_int(value.get("integer_value"))
+        if vol is None:
+            return []
+        return [
+            self._build_service_call(
+                _MP_DOMAIN, "volume_set", self.entity_id,
+                {"volume_level": vol / 100.0},
+            )
+        ]
+
+    def _cmd_mute(self, value: dict) -> list[dict]:
+        muted = value.get("bool_value", False)
+        return [
+            self._build_service_call(
+                _MP_DOMAIN, "volume_mute", self.entity_id,
+                {"is_volume_muted": muted},
+            )
+        ]
+
+    def _cmd_source(self, value: dict) -> list[dict]:
+        source = value.get("enum_value")
+        if not source:
+            return []
+        return [
+            self._build_service_call(
+                _MP_DOMAIN, "select_source", self.entity_id, {"source": source}
+            )
+        ]
+
+    def _cmd_channel_int(self, value: dict) -> list[dict]:
+        ch = self._safe_int(value.get("integer_value"))
+        if ch is None:
+            return []
+        return [self._build_play_channel_call(ch)]
+
+    def _cmd_number(self, value: dict) -> list[dict]:
+        digit = self._safe_int(value.get("integer_value"))
+        if digit is None:
+            return []
+        return [self._build_play_channel_call(digit)]
+
+    def _build_play_channel_call(self, channel: int) -> dict:
+        return self._build_service_call(
+            _MP_DOMAIN, "play_media", self.entity_id,
+            {
+                "media_content_type": "channel",
+                "media_content_id": str(channel),
+            },
+        )
+
+    def _cmd_simple_enum(self, value: dict, service_map: dict[str, str]) -> list[dict]:
+        """Dispatch helper for ENUM features mapping to parameterless services."""
+        enum_value = value.get("enum_value")
+        service = service_map.get(enum_value or "")
+        if service is None:
+            return []
+        return [self._build_service_call(_MP_DOMAIN, service, self.entity_id)]
+
+    def _cmd_custom_key(self, value: dict) -> list[dict]:
+        custom = value.get("enum_value")
+        if not custom:
+            return []
+        service = _CUSTOM_KEY_SERVICE_MAP.get(custom)
+        if not service:
+            _LOGGER.debug(
+                "Unsupported custom_key '%s' for %s (no media_player equivalent)",
+                custom,
+                self.entity_id,
+            )
+            return []
+        return [self._build_service_call(_MP_DOMAIN, service, self.entity_id)]

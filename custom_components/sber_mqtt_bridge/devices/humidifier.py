@@ -207,12 +207,6 @@ class HumidifierEntity(BaseEntity):
     def process_cmd(self, cmd_data: dict) -> list[dict]:
         """Process Sber humidifier commands and produce HA service calls.
 
-        Handles the following Sber keys:
-        - ``on_off``: turn_on / turn_off
-        - ``humidity``: set_humidity (INTEGER 0-100, plain percentage)
-        - ``hvac_work_mode``: set_mode (ENUM)
-        - ``hvac_night_mode``: set_mode to sleep/normal (BOOL)
-
         State is NOT mutated here -- it will be updated when HA fires a
         ``state_changed`` event that is handled by ``fill_by_ha_state``.
 
@@ -222,80 +216,64 @@ class HumidifierEntity(BaseEntity):
         Returns:
             List of HA service call dicts to execute.
         """
-        results = []
+        results: list[dict] = []
         for item in cmd_data.get("states", []):
-            key = item.get("key")
+            key = item.get("key", "")
             value = item.get("value", {})
-
-            if key == "on_off":
-                on = value.get("bool_value", False)
-                results.append(self._build_on_off_service_call(self.entity_id, "humidifier", on))
-            elif key in ("humidity", "hvac_humidity_set"):
-                raw_humidity = value.get("integer_value")
-                humidity = self._safe_int(raw_humidity)
-                if humidity is None:
-                    continue
-                results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "humidifier",
-                            "service": "set_humidity",
-                            "service_data": {"humidity": humidity},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
-            elif key in ("hvac_air_flow_power", "hvac_work_mode"):
-                sber_mode = value.get("enum_value")
-                if sber_mode is None:
-                    continue
-                # Reverse map: find HA mode that maps to this Sber mode
-                ha_mode = sber_mode
-                for ha_m in self.available_modes:
-                    if HA_TO_SBER_HUMIDIFIER_MODE.get(ha_m.lower(), ha_m.lower()) == sber_mode:
-                        ha_mode = ha_m
-                        break
-                results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "humidifier",
-                            "service": "set_mode",
-                            "service_data": {"mode": ha_mode},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
-            elif key == "hvac_night_mode":
-                night_on = value.get("bool_value", False)
-                if night_on:
-                    # Find the night/sleep mode
-                    mode = "sleep" if "sleep" in self.available_modes else "night"
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "humidifier",
-                                "service": "set_mode",
-                                "service_data": {"mode": mode},
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-                else:
-                    # Find the first non-night mode to revert to
-                    normal_modes = [m for m in self.available_modes if m not in ("sleep", "night")]
-                    if normal_modes:
-                        results.append(
-                            {
-                                "url": {
-                                    "type": "call_service",
-                                    "domain": "humidifier",
-                                    "service": "set_mode",
-                                    "service_data": {"mode": normal_modes[0]},
-                                    "target": {"entity_id": self.entity_id},
-                                }
-                            }
-                        )
+            if key == SberFeature.ON_OFF:
+                results.extend(self._cmd_on_off(value))
+            elif key in (SberFeature.HUMIDITY, SberFeature.HVAC_HUMIDITY_SET):
+                results.extend(self._cmd_humidity(value))
+            elif key in (SberFeature.HVAC_AIR_FLOW_POWER, SberFeature.HVAC_WORK_MODE):
+                results.extend(self._cmd_mode(value))
+            elif key == SberFeature.HVAC_NIGHT_MODE:
+                results.extend(self._cmd_night_mode(value))
         return results
+
+    def _cmd_on_off(self, value: dict) -> list[dict]:
+        on = value.get("bool_value", False)
+        return [self._build_on_off_service_call(self.entity_id, "humidifier", on)]
+
+    def _cmd_humidity(self, value: dict) -> list[dict]:
+        humidity = self._safe_int(value.get("integer_value"))
+        if humidity is None:
+            return []
+        return [
+            self._build_service_call(
+                "humidifier", "set_humidity", self.entity_id, {"humidity": humidity}
+            )
+        ]
+
+    def _cmd_mode(self, value: dict) -> list[dict]:
+        sber_mode = value.get("enum_value")
+        if sber_mode is None:
+            return []
+        # Reverse map: find HA mode that maps to this Sber mode
+        ha_mode = sber_mode
+        for ha_m in self.available_modes:
+            if HA_TO_SBER_HUMIDIFIER_MODE.get(ha_m.lower(), ha_m.lower()) == sber_mode:
+                ha_mode = ha_m
+                break
+        return [
+            self._build_service_call(
+                "humidifier", "set_mode", self.entity_id, {"mode": ha_mode}
+            )
+        ]
+
+    def _cmd_night_mode(self, value: dict) -> list[dict]:
+        night_on = value.get("bool_value", False)
+        if night_on:
+            mode = "sleep" if "sleep" in self.available_modes else "night"
+            return [
+                self._build_service_call(
+                    "humidifier", "set_mode", self.entity_id, {"mode": mode}
+                )
+            ]
+        normal_modes = [m for m in self.available_modes if m not in ("sleep", "night")]
+        if not normal_modes:
+            return []
+        return [
+            self._build_service_call(
+                "humidifier", "set_mode", self.entity_id, {"mode": normal_modes[0]}
+            )
+        ]

@@ -338,3 +338,178 @@ class TestTvAllowedValues(unittest.TestCase):
         allowed = result["model"]["allowed_values"]
         self.assertIn("channel", allowed)
         self.assertEqual(allowed["channel"]["enum_values"]["values"], ["+", "-"])
+
+    def test_volume_relative_allowed_values(self):
+        """volume (relative) must have ENUM allowed values with +/-."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        result = entity.to_sber_state()
+        allowed = result["model"]["allowed_values"]
+        self.assertIn("volume", allowed)
+        self.assertEqual(allowed["volume"]["type"], "ENUM")
+        self.assertEqual(allowed["volume"]["enum_values"]["values"], ["+", "-"])
+
+    def test_custom_key_allowed_values(self):
+        """custom_key must have ENUM allowed values with remote button names."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        result = entity.to_sber_state()
+        allowed = result["model"]["allowed_values"]
+        self.assertIn("custom_key", allowed)
+        self.assertEqual(allowed["custom_key"]["type"], "ENUM")
+        values = allowed["custom_key"]["enum_values"]["values"]
+        for key in ("play", "pause", "stop", "rewind", "fast_forward", "back", "home", "menu"):
+            self.assertIn(key, values)
+
+    def test_number_allowed_values(self):
+        """number must have INTEGER allowed values with min=0, max=9."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        result = entity.to_sber_state()
+        allowed = result["model"]["allowed_values"]
+        self.assertIn("number", allowed)
+        self.assertEqual(allowed["number"]["type"], "INTEGER")
+        self.assertEqual(allowed["number"]["integer_values"]["min"], "0")
+        self.assertEqual(allowed["number"]["integer_values"]["max"], "9")
+        self.assertEqual(allowed["number"]["integer_values"]["step"], "1")
+
+
+class TestTvNewFeatures(unittest.TestCase):
+    """Test new TV features: custom_key, volume, number."""
+
+    def test_custom_key_in_features(self):
+        """custom_key must be in features list."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        self.assertIn("custom_key", entity.create_features_list())
+
+    def test_volume_in_features(self):
+        """volume (relative) must be in features list."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        self.assertIn("volume", entity.create_features_list())
+
+    def test_number_in_features(self):
+        """number must be in features list."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        self.assertIn("number", entity.create_features_list())
+
+
+class TestTvProcessCmdNewKeys(unittest.TestCase):
+    """Test process_cmd for custom_key, volume, number."""
+
+    def _make_entity(self, state="playing", **attrs):
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(state, **attrs))
+        return entity
+
+    def test_volume_plus(self):
+        """volume=+ must produce media_player.volume_up."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "volume", "value": {"type": "ENUM", "enum_value": "+"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "volume_up")
+        self.assertEqual(result[0]["url"]["domain"], "media_player")
+
+    def test_volume_minus(self):
+        """volume=- must produce media_player.volume_down."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "volume", "value": {"type": "ENUM", "enum_value": "-"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "volume_down")
+
+    def test_number_digit(self):
+        """number=5 must produce play_media with channel content type."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "number", "value": {"type": "INTEGER", "integer_value": "5"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "play_media")
+        self.assertEqual(url["service_data"]["media_content_type"], "channel")
+        self.assertEqual(url["service_data"]["media_content_id"], "5")
+
+    def test_number_zero(self):
+        """number=0 must produce play_media with channel '0'."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "number", "value": {"type": "INTEGER", "integer_value": "0"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service_data"]["media_content_id"], "0")
+
+    def test_number_none_skipped(self):
+        """number with no integer_value must be skipped."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "number", "value": {"type": "INTEGER"}}]}
+        )
+        self.assertEqual(len(result), 0)
+
+    def test_custom_key_play(self):
+        """custom_key=play must produce media_player.media_play."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "custom_key", "value": {"type": "ENUM", "enum_value": "play"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "media_play")
+        self.assertEqual(result[0]["url"]["domain"], "media_player")
+
+    def test_custom_key_pause(self):
+        """custom_key=pause must produce media_player.media_pause."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "custom_key", "value": {"type": "ENUM", "enum_value": "pause"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "media_pause")
+
+    def test_custom_key_stop(self):
+        """custom_key=stop must produce media_player.media_stop."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "custom_key", "value": {"type": "ENUM", "enum_value": "stop"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "media_stop")
+
+    def test_custom_key_rewind(self):
+        """custom_key=rewind must produce media_player.media_previous_track."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "custom_key", "value": {"type": "ENUM", "enum_value": "rewind"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "media_previous_track")
+
+    def test_custom_key_fast_forward(self):
+        """custom_key=fast_forward must produce media_player.media_next_track."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "custom_key", "value": {"type": "ENUM", "enum_value": "fast_forward"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "media_next_track")
+
+    def test_custom_key_unsupported_logged(self):
+        """custom_key=back (unsupported) must not produce service call."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "custom_key", "value": {"type": "ENUM", "enum_value": "back"}}]}
+        )
+        self.assertEqual(len(result), 0)
+
+    def test_custom_key_empty_skipped(self):
+        """custom_key with empty enum_value must be skipped."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "custom_key", "value": {"type": "ENUM", "enum_value": ""}}]}
+        )
+        self.assertEqual(len(result), 0)

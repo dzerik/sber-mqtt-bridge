@@ -4,6 +4,13 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import (
+    SERVICE_PRESS,
+    SERVICE_TURN_OFF,
+    SERVICE_TURN_ON,
+    SberFeature,
+    SberValueType,
+)
 from .on_off_entity import OnOffEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,25 +50,18 @@ class RelayEntity(OnOffEntity):
         Returns:
             List of HA service call dicts to execute.
         """
-        results = []
+        results: list[dict] = []
         for item in cmd_data.get("states", []):
             key = item.get("key")
             value = item.get("value", {})
-
-            if key == "on_off" and value.get("type") == "BOOL":
-                on = value.get("bool_value", False)
-                domain = self.entity_id.split(".")[0]
-
-                service = "press" if domain == "button" else "turn_on" if on else "turn_off"
-
-                results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": domain,
-                            "service": service,
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
+            if key != SberFeature.ON_OFF or value.get("type") != SberValueType.BOOL:
+                continue
+            on = value.get("bool_value", False)
+            domain = self.entity_id.split(".", 1)[0]
+            service = (
+                SERVICE_PRESS if domain == "button"
+                else SERVICE_TURN_ON if on
+                else SERVICE_TURN_OFF
+            )
+            results.append(self._build_service_call(domain, service, self.entity_id))
         return results

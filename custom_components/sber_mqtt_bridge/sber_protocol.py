@@ -15,7 +15,7 @@ from .sber_models import validate_config_payload, validate_status_payload
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.24.5"
+VERSION = "1.25.1"
 """Protocol version string included in the hub device descriptor."""
 
 
@@ -53,7 +53,7 @@ def build_devices_list_json(
     default_home: str = "",
     default_room: str = "",
     auto_parent_id: bool = True,
-) -> str:
+) -> tuple[str, bool]:
     """Build Sber device config JSON for MQTT publish.
 
     The resulting payload is validated against :class:`SberConfigPayload`
@@ -73,7 +73,8 @@ def build_devices_list_json(
             parent_id.  This creates a proper hierarchy in Sber cloud.
 
     Returns:
-        JSON string with the Sber device list payload.
+        Tuple ``(json_string, validation_passed)``.  Callers may use the
+        validation flag to decide whether to mark entities as published.
     """
     device_list: dict[str, Any] = {"devices": [build_hub_device(home=default_home, room=default_room)]}
 
@@ -112,9 +113,9 @@ def build_devices_list_json(
         filtered = {k: v for k, v in device_data.items() if v is not None}
         device_list["devices"].append(filtered)
 
-    validate_config_payload(device_list)
+    valid = validate_config_payload(device_list)
 
-    return json.dumps(device_list)
+    return json.dumps(device_list), valid
 
 
 def build_states_list_json(

@@ -418,8 +418,9 @@ class TestPersistRedefinitions:
         mock_reg_entry.disabled_by = None
         mock_reg_entry.hidden_by = None
 
-        with patch("custom_components.sber_mqtt_bridge.sber_bridge.er") as mock_er, \
-             patch("custom_components.sber_mqtt_bridge.sber_bridge.dr"), \
+        with patch("custom_components.sber_mqtt_bridge.entity_registry.er") as mock_er, \
+             patch("custom_components.sber_mqtt_bridge.entity_registry.dr"), \
+             patch("custom_components.sber_mqtt_bridge.entity_registry.ar"), \
              patch("custom_components.sber_mqtt_bridge.sber_bridge.check_and_create_issues"):
             mock_entity_reg = MagicMock()
             mock_entity_reg.async_get.return_value = mock_reg_entry

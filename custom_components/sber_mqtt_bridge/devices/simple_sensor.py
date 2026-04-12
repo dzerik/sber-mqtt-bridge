@@ -18,7 +18,7 @@ from typing import ClassVar
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import SENSOR_LINK_ROLES, BaseEntity
+from .base_entity import SENSOR_LINK_ROLES, AttrSpec, BaseEntity, _safe_int_parser
 from .utils.signal import rssi_to_signal_strength
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,6 +36,21 @@ class SimpleReadOnlySensor(BaseEntity):
     """
 
     LINKABLE_ROLES = SENSOR_LINK_ROLES
+
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(
+            field="_battery_level",
+            attr_keys=("battery", "battery_level"),
+            parser=_safe_int_parser,
+            preserve_on_missing=True,
+        ),
+        AttrSpec(
+            field="_signal_strength_raw",
+            attr_keys=("signal_strength", "rssi", "linkquality"),
+            parser=_safe_int_parser,
+            preserve_on_missing=True,
+        ),
+    )
 
     _sber_value_key: str
     """Sber state key name (e.g., 'temperature', 'pir', 'water_leak')."""
@@ -110,43 +125,34 @@ class SimpleReadOnlySensor(BaseEntity):
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update internal state including battery and signal.
 
-        Reads battery level from ``battery`` or ``battery_level`` attribute.
-        Reads signal strength from ``signal_strength``, ``rssi``, or
-        ``linkquality`` attribute.
+        Battery (``battery`` / ``battery_level``) and signal strength
+        (``signal_strength`` / ``rssi`` / ``linkquality``) are parsed via
+        :class:`AttrSpec` with ``preserve_on_missing=True`` so that values
+        injected by linked companion sensors via ``update_linked_data``
+        are not clobbered on every primary state refresh.
+
+        Sensor sensitivity (Aqara / Tuya) uses custom mapping logic that
+        is not expressible through ``AttrSpec`` — kept imperative.
 
         Args:
             ha_state: HA state dict with 'state' and 'attributes' keys.
         """
         super().fill_by_ha_state(ha_state)
         attrs = ha_state.get("attributes", {})
-        # Only overwrite battery/signal from primary entity attributes when
-        # a value IS found. When absent, preserve data injected by linked sensors
-        # via update_linked_data() to avoid flip-flopping on every state update.
-        battery = attrs.get("battery") or attrs.get("battery_level")
-        if battery is not None:
-            try:
-                self._battery_level = int(battery)
-            except (TypeError, ValueError):
-                pass  # preserve linked value
+        self._apply_attr_specs(attrs)
+        self._sensor_sensitive = self._parse_sensitivity(attrs)
 
-        rssi = attrs.get("signal_strength") or attrs.get("rssi") or attrs.get("linkquality")
-        if rssi is not None:
-            try:
-                self._signal_strength_raw = int(rssi)
-            except (TypeError, ValueError):
-                pass  # preserve linked value
-
-        # Sensor sensitivity (Aqara, Tuya, some Zigbee devices)
+    @staticmethod
+    def _parse_sensitivity(attrs: dict) -> str | None:
+        """Parse sensor sensitivity with HA → Sber value mapping."""
         sensitivity = attrs.get("sensitivity") or attrs.get("motion_sensitivity")
-        if sensitivity is not None:
-            s = str(sensitivity).lower()
-            if s in ("auto", "high", "low", "medium"):
-                # Sber only accepts auto/high, map medium→auto, low→low
-                self._sensor_sensitive = {"medium": "auto", "low": "low"}.get(s, s)
-            else:
-                self._sensor_sensitive = None
-        else:
-            self._sensor_sensitive = None
+        if sensitivity is None:
+            return None
+        s = str(sensitivity).lower()
+        if s not in ("auto", "high", "low", "medium"):
+            return None
+        # Sber only accepts auto/high/low; map medium→auto
+        return {"medium": "auto"}.get(s, s)
 
     def _build_sber_value_dict(self) -> dict:
         """Build the Sber value dict for the sensor's feature.

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from ..sber_constants import SberFeature
+from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_state
 from .base_entity import BaseEntity
 from .hvac_fan import _SBER_SPEED_TO_PERCENTAGE, SBER_SPEED_VALUES, _percentage_to_sber_speed
@@ -159,53 +159,33 @@ class HvacAirPurifierEntity(BaseEntity):
         """
         results: list[dict] = []
         for item in cmd_data.get("states", []):
-            key = item.get("key")
+            key = item.get("key", "")
             value = item.get("value", {})
-
-            if key == "on_off" and value.get("type") == "BOOL":
+            vtype = value.get("type", "")
+            if key == SberFeature.ON_OFF and vtype == SberValueType.BOOL:
                 on = value.get("bool_value", False)
                 results.append(self._build_on_off_service_call(self.entity_id, "fan", on))
-
-            elif key == "hvac_air_flow_power" and value.get("type") == "ENUM":
-                speed = value.get("enum_value")
-                if not speed:
-                    continue
-                if speed in self.preset_modes:
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "fan",
-                                "service": "set_preset_mode",
-                                "service_data": {"preset_mode": speed},
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-                else:
-                    pct = _SBER_SPEED_TO_PERCENTAGE.get(speed)
-                    if pct is not None:
-                        if pct == 0:
-                            results.append(
-                                {
-                                    "url": {
-                                        "type": "call_service",
-                                        "domain": "fan",
-                                        "service": "turn_on",
-                                        "target": {"entity_id": self.entity_id},
-                                    }
-                                }
-                            )
-                        else:
-                            results.append(
-                                {
-                                    "url": {
-                                        "type": "call_service",
-                                        "domain": "fan",
-                                        "service": "set_percentage",
-                                        "service_data": {"percentage": pct},
-                                        "target": {"entity_id": self.entity_id},
-                                    }
-                                }
-                            )
+            elif key == SberFeature.HVAC_AIR_FLOW_POWER and vtype == SberValueType.ENUM:
+                results.extend(self._cmd_fan_speed(value.get("enum_value")))
         return results
+
+    def _cmd_fan_speed(self, speed: str | None) -> list[dict]:
+        """Handle Sber air flow power ENUM → HA preset_mode or percentage."""
+        if not speed:
+            return []
+        if speed in self.preset_modes:
+            return [
+                self._build_service_call(
+                    "fan", "set_preset_mode", self.entity_id, {"preset_mode": speed}
+                )
+            ]
+        pct = _SBER_SPEED_TO_PERCENTAGE.get(speed)
+        if pct is None:
+            return []
+        if pct == 0:
+            return [self._build_service_call("fan", "turn_on", self.entity_id)]
+        return [
+            self._build_service_call(
+                "fan", "set_percentage", self.entity_id, {"percentage": pct}
+            )
+        ]

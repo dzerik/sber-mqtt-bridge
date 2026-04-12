@@ -11,15 +11,13 @@ HA entity reports those values via attributes.
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_integer_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import AttrSpec, BaseEntity, _safe_bool_parser, _safe_int_parser
 
 _LOGGER = logging.getLogger(__name__)
-
-_ENERGY_ATTRS = ("power", "voltage", "current")
-"""HA attribute names for energy monitoring features."""
 
 
 class OnOffEntity(BaseEntity):
@@ -42,6 +40,13 @@ class OnOffEntity(BaseEntity):
     _ha_on_state: str = "on"
     """HA state string that corresponds to 'on' (override in subclass if needed)."""
 
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(field="_power", attr_keys=("power",), parser=_safe_int_parser),
+        AttrSpec(field="_voltage", attr_keys=("voltage",), parser=_safe_int_parser),
+        AttrSpec(field="_current", attr_keys=("current",), parser=_safe_int_parser),
+        AttrSpec(field="_child_lock", attr_keys=("child_lock",), parser=_safe_bool_parser),
+    )
+
     def __init__(self, category: str, entity_data: dict) -> None:
         """Initialize on/off entity.
 
@@ -59,39 +64,17 @@ class OnOffEntity(BaseEntity):
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update on/off status, energy, and child_lock attributes.
 
+        Uses :class:`BaseEntity.ATTR_SPECS` for the declarative
+        attribute parsing of power / voltage / current / child_lock,
+        falling back to the ``current_state`` check which depends on
+        the subclass-overridable ``_ha_on_state``.
+
         Args:
             ha_state: HA state dict with 'state' and 'attributes' keys.
         """
         super().fill_by_ha_state(ha_state)
         self.current_state = ha_state.get("state") == self._ha_on_state
-        attrs = ha_state.get("attributes", {})
-        self._power = self._parse_int_attr(attrs, "power")
-        self._voltage = self._parse_int_attr(attrs, "voltage")
-        self._current = self._parse_int_attr(attrs, "current")
-        child_lock = attrs.get("child_lock")
-        if child_lock is not None:
-            self._child_lock = bool(child_lock)
-        else:
-            self._child_lock = None
-
-    @staticmethod
-    def _parse_int_attr(attrs: dict, key: str) -> int | None:
-        """Parse an optional integer attribute from HA attributes dict.
-
-        Args:
-            attrs: HA attributes dictionary.
-            key: Attribute key to read.
-
-        Returns:
-            Integer value or None if not present or not parseable.
-        """
-        val = attrs.get(key)
-        if val is None:
-            return None
-        try:
-            return int(val)
-        except (TypeError, ValueError):
-            return None
+        self._apply_attr_specs(ha_state.get("attributes", {}))
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list including 'on_off' and optional features.

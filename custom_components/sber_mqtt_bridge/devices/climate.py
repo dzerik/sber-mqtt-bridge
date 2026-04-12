@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Callable
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
@@ -39,7 +40,13 @@ SBER_TO_HA_WORK_MODE: dict[str, str] = {
     "auto": "auto",
     "eco": "eco",
 }
-"""Reverse mapping: Sber work mode → HA hvac_mode."""
+"""Reverse mapping: Sber work mode → HA hvac_mode.
+
+Note: kept as a separate literal (not auto-generated) because
+``HA_TO_SBER_WORK_MODE`` has ``heat_cool`` and ``auto`` both mapping to
+``auto`` — a naive reverse would lose ``heat_cool``.  The reverse here
+prefers the canonical HA mode for each Sber value.
+"""
 
 # HA swing_mode → Sber hvac_air_flow_direction mapping
 # TODO: Sber docs list "up/down/left/right" as default values, but real AC
@@ -70,7 +77,11 @@ SBER_TO_HA_THERMOSTAT_MODE: dict[str, str] = {
     "heating": "heat",
     "auto": "auto",
 }
-"""Reverse mapping: Sber thermostat mode → HA hvac_mode."""
+"""Reverse mapping: Sber thermostat mode → HA hvac_mode.
+
+Kept as explicit literal for the same reason as ``SBER_TO_HA_WORK_MODE``:
+``heat_cool`` and ``auto`` both forward-map to ``auto``.
+"""
 
 # HA fan_mode → Sber hvac_air_flow_power mapping
 # Sber standard values: auto, low, medium, high, turbo, quiet
@@ -334,14 +345,9 @@ class ClimateEntity(BaseEntity):
     def process_cmd(self, cmd_data: dict) -> list[dict]:
         """Process Sber climate commands and produce HA service calls.
 
-        Handles the following Sber keys:
-        - ``on_off``: turn_on / turn_off
-        - ``hvac_temp_set``: set_temperature (whole degrees, no scaling)
-        - ``hvac_air_flow_power``: set_fan_mode
-        - ``hvac_air_flow_direction``: set_swing_mode
-        - ``hvac_work_mode``: set_hvac_mode
-        - ``hvac_humidity_set``: set_humidity (INTEGER 0-100)
-        - ``hvac_night_mode``: set_preset_mode (sleep/none)
+        Uses a command handler dispatch table (``_cmd_handlers``) to route
+        each Sber feature key to a dedicated handler method.  Each handler
+        returns a list of service calls (possibly empty).
 
         State is NOT mutated here -- it will be updated when HA fires a
         ``state_changed`` event that is handled by ``fill_by_ha_state``.
@@ -352,203 +358,159 @@ class ClimateEntity(BaseEntity):
         Returns:
             List of HA service call dicts to execute.
         """
-        results = []
+        handlers = self._cmd_handlers
+        results: list[dict] = []
         for item in cmd_data.get("states", []):
-            key = item.get("key")
-            value = item.get("value", {})
-
-            if key == "on_off":
-                on = value.get("bool_value", False)
-                results.append(self._build_on_off_service_call(self.entity_id, "climate", on))
-            elif key == "hvac_temp_set":
-                raw_temp = value.get("integer_value")
-                temp = self._safe_float(raw_temp)
-                if temp is None:
-                    continue
-                results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "climate",
-                            "service": "set_temperature",
-                            "service_data": {"temperature": temp},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
-            elif key == "hvac_air_flow_power":
-                sber_mode = value.get("enum_value")
-                if not sber_mode:
-                    continue
-                # Reverse map: find HA fan_mode that maps to this Sber mode
-                ha_fan = sber_mode
-                for fm in self.fan_modes:
-                    if HA_TO_SBER_FAN_MODE.get(fm, fm) == sber_mode:
-                        ha_fan = fm
-                        break
-                if ha_fan and (not self.fan_modes or ha_fan in self.fan_modes):
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "climate",
-                                "service": "set_fan_mode",
-                                "service_data": {"fan_mode": ha_fan},
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-                elif sber_mode == "turbo" and "boost" in (self._preset_modes or []):
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "climate",
-                                "service": "set_preset_mode",
-                                "service_data": {"preset_mode": "boost"},
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-                elif sber_mode == "quiet" and "sleep" in (self._preset_modes or []):
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "climate",
-                                "service": "set_preset_mode",
-                                "service_data": {"preset_mode": "sleep"},
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-            elif key == "hvac_air_flow_direction":
-                sber_swing = value.get("enum_value")
-                ha_swing = SBER_TO_HA_SWING.get(sber_swing or "") if sber_swing else None
-                if ha_swing and (not self.swing_modes or ha_swing in self.swing_modes):
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "climate",
-                                "service": "set_swing_mode",
-                                "service_data": {"swing_mode": ha_swing},
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-            elif key == "hvac_work_mode":
-                sber_mode = value.get("enum_value")
-                if not sber_mode:
-                    continue
-                # Sber turbo/quiet work modes → HA preset_modes
-                if sber_mode == "turbo" and "boost" in (self._preset_modes or []):
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "climate",
-                                "service": "set_preset_mode",
-                                "service_data": {"preset_mode": "boost"},
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-                elif sber_mode == "quiet" and "sleep" in (self._preset_modes or []):
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "climate",
-                                "service": "set_preset_mode",
-                                "service_data": {"preset_mode": "sleep"},
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-                else:
-                    ha_mode = SBER_TO_HA_WORK_MODE.get(sber_mode)
-                    if ha_mode and (not self.hvac_modes or ha_mode in self.hvac_modes):
-                        results.append(
-                            {
-                                "url": {
-                                    "type": "call_service",
-                                    "domain": "climate",
-                                    "service": "set_hvac_mode",
-                                    "service_data": {"hvac_mode": ha_mode},
-                                    "target": {"entity_id": self.entity_id},
-                                }
-                            }
-                        )
-            elif key == "hvac_thermostat_mode":
-                sber_mode = value.get("enum_value")
-                ha_mode = SBER_TO_HA_THERMOSTAT_MODE.get(sber_mode or "") if sber_mode else None
-                if ha_mode and (not self.hvac_modes or ha_mode in self.hvac_modes):
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "climate",
-                                "service": "set_hvac_mode",
-                                "service_data": {"hvac_mode": ha_mode},
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-            elif key == "hvac_humidity_set":
-                humidity = self._safe_int(value.get("integer_value"))
-                if humidity is None:
-                    continue
-                humidity = max(0, min(100, humidity))
-                results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "climate",
-                            "service": "set_humidity",
-                            "service_data": {"humidity": humidity},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
-            elif key == "hvac_night_mode":
-                night_on = value.get("bool_value", False)
-                if night_on:
-                    # Find the night/sleep preset mode
-                    preset = "sleep" if "sleep" in self._preset_modes else "night"
-                    results.append(
-                        {
-                            "url": {
-                                "type": "call_service",
-                                "domain": "climate",
-                                "service": "set_preset_mode",
-                                "service_data": {"preset_mode": preset},
-                                "target": {"entity_id": self.entity_id},
-                            }
-                        }
-                    )
-                else:
-                    # Find first non-night preset, or use "none" as last resort
-                    normal_presets = [
-                        p for p in self._preset_modes
-                        if p not in ("sleep", "night")
-                    ]
-                    fallback_preset = normal_presets[0] if normal_presets else "none"
-                    if "none" in self._preset_modes or normal_presets:
-                        results.append(
-                            {
-                                "url": {
-                                    "type": "call_service",
-                                    "domain": "climate",
-                                    "service": "set_preset_mode",
-                                    "service_data": {"preset_mode": fallback_preset},
-                                    "target": {"entity_id": self.entity_id},
-                                }
-                            }
-                        )
-                    else:
-                        _LOGGER.warning(
-                            "Cannot turn off night mode for %s: no non-night presets available",
-                            self.entity_id,
-                        )
+            handler = handlers.get(item.get("key", ""))
+            if handler is None:
+                continue
+            results.extend(handler(item.get("value", {})))
         return results
+
+    @property
+    def _cmd_handlers(self) -> dict[str, Callable[[dict], list[dict]]]:
+        """Return dispatch map from Sber feature key to handler method."""
+        return {
+            SberFeature.ON_OFF: self._cmd_on_off,
+            SberFeature.HVAC_TEMP_SET: self._cmd_temp_set,
+            SberFeature.HVAC_AIR_FLOW_POWER: self._cmd_air_flow_power,
+            SberFeature.HVAC_AIR_FLOW_DIRECTION: self._cmd_air_flow_direction,
+            SberFeature.HVAC_WORK_MODE: self._cmd_work_mode,
+            SberFeature.HVAC_THERMOSTAT_MODE: self._cmd_thermostat_mode,
+            SberFeature.HVAC_HUMIDITY_SET: self._cmd_humidity_set,
+            SberFeature.HVAC_NIGHT_MODE: self._cmd_night_mode,
+        }
+
+    def _cmd_on_off(self, value: dict) -> list[dict]:
+        on = value.get("bool_value", False)
+        return [self._build_on_off_service_call(self.entity_id, "climate", on)]
+
+    def _cmd_temp_set(self, value: dict) -> list[dict]:
+        temp = self._safe_float(value.get("integer_value"))
+        if temp is None:
+            return []
+        return [
+            self._build_service_call(
+                "climate", "set_temperature", self.entity_id, {"temperature": temp}
+            )
+        ]
+
+    def _cmd_air_flow_power(self, value: dict) -> list[dict]:
+        """Handle fan speed: prefer ``set_fan_mode``, fall back to presets."""
+        sber_mode = value.get("enum_value")
+        if not sber_mode:
+            return []
+        # Reverse map: find HA fan_mode that maps to this Sber mode
+        ha_fan = sber_mode
+        for fm in self.fan_modes:
+            if HA_TO_SBER_FAN_MODE.get(fm, fm) == sber_mode:
+                ha_fan = fm
+                break
+        if ha_fan and (not self.fan_modes or ha_fan in self.fan_modes):
+            return [
+                self._build_service_call(
+                    "climate", "set_fan_mode", self.entity_id, {"fan_mode": ha_fan}
+                )
+            ]
+        # Fallback: turbo / quiet → preset_mode
+        preset = self._sber_fan_mode_to_preset(sber_mode)
+        if preset is not None:
+            return [
+                self._build_service_call(
+                    "climate", "set_preset_mode", self.entity_id, {"preset_mode": preset}
+                )
+            ]
+        return []
+
+    def _sber_fan_mode_to_preset(self, sber_mode: str) -> str | None:
+        """Map Sber turbo/quiet modes to HA preset names when available."""
+        presets = self._preset_modes or []
+        if sber_mode == "turbo" and "boost" in presets:
+            return "boost"
+        if sber_mode == "quiet" and "sleep" in presets:
+            return "sleep"
+        return None
+
+    def _cmd_air_flow_direction(self, value: dict) -> list[dict]:
+        sber_swing = value.get("enum_value")
+        if not sber_swing:
+            return []
+        ha_swing = SBER_TO_HA_SWING.get(sber_swing)
+        if not ha_swing or (self.swing_modes and ha_swing not in self.swing_modes):
+            return []
+        return [
+            self._build_service_call(
+                "climate", "set_swing_mode", self.entity_id, {"swing_mode": ha_swing}
+            )
+        ]
+
+    def _cmd_work_mode(self, value: dict) -> list[dict]:
+        """Handle ``hvac_work_mode``: prefer ``set_hvac_mode``, fall back to presets."""
+        sber_mode = value.get("enum_value")
+        if not sber_mode:
+            return []
+        # Sber turbo/quiet work modes map to HA preset_modes
+        preset = self._sber_fan_mode_to_preset(sber_mode)
+        if preset is not None:
+            return [
+                self._build_service_call(
+                    "climate", "set_preset_mode", self.entity_id, {"preset_mode": preset}
+                )
+            ]
+        ha_mode = SBER_TO_HA_WORK_MODE.get(sber_mode)
+        if not ha_mode or (self.hvac_modes and ha_mode not in self.hvac_modes):
+            return []
+        return [
+            self._build_service_call(
+                "climate", "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode}
+            )
+        ]
+
+    def _cmd_thermostat_mode(self, value: dict) -> list[dict]:
+        sber_mode = value.get("enum_value")
+        if not sber_mode:
+            return []
+        ha_mode = SBER_TO_HA_THERMOSTAT_MODE.get(sber_mode)
+        if not ha_mode or (self.hvac_modes and ha_mode not in self.hvac_modes):
+            return []
+        return [
+            self._build_service_call(
+                "climate", "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode}
+            )
+        ]
+
+    def _cmd_humidity_set(self, value: dict) -> list[dict]:
+        humidity = self._safe_clamped_int(value.get("integer_value"), 0, 100)
+        if humidity is None:
+            return []
+        return [
+            self._build_service_call(
+                "climate", "set_humidity", self.entity_id, {"humidity": humidity}
+            )
+        ]
+
+    def _cmd_night_mode(self, value: dict) -> list[dict]:
+        """Handle ``hvac_night_mode``: toggle sleep/night preset."""
+        night_on = value.get("bool_value", False)
+        presets = self._preset_modes or []
+        if night_on:
+            preset = "sleep" if "sleep" in presets else "night"
+            return [
+                self._build_service_call(
+                    "climate", "set_preset_mode", self.entity_id, {"preset_mode": preset}
+                )
+            ]
+        # Turn off: fall back to first non-night preset or "none"
+        normal_presets = [p for p in presets if p not in ("sleep", "night")]
+        if "none" in presets or normal_presets:
+            fallback = normal_presets[0] if normal_presets else "none"
+            return [
+                self._build_service_call(
+                    "climate", "set_preset_mode", self.entity_id, {"preset_mode": fallback}
+                )
+            ]
+        _LOGGER.warning(
+            "Cannot turn off night mode for %s: no non-night presets available",
+            self.entity_id,
+        )
+        return []

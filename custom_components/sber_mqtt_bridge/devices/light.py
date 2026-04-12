@@ -7,8 +7,9 @@ Uses LinearConverter for value range mapping and ColorConverter for HSV.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
-from ..sber_constants import SberFeature
+from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import (
     make_bool_value,
     make_colour_value,
@@ -222,19 +223,9 @@ class LightEntity(BaseEntity):
     def process_cmd(self, cmd_data: dict) -> list[dict]:
         """Process Sber light commands and produce HA service calls.
 
-        Handles the following Sber keys:
-        - ``on_off``: turn_on / turn_off
-        - ``light_brightness``: set brightness via turn_on
-        - ``light_colour``: set HSV color via turn_on
-        - ``light_mode``: switch between white/colour mode (local state only)
-        - ``light_colour_temp``: set color temperature via turn_on
-
-        Note: ``light_mode`` is tracked locally and triggers a state update
-        to Sber without a HA service call (HA does not have a mode concept).
-
-        State is NOT mutated here for on/off — it will be updated when HA fires
-        a ``state_changed`` event. However, ``light_mode`` is a Sber-only concept
-        and must be tracked locally.
+        Uses a command handler dispatch table (``_cmd_handlers``) instead
+        of an inline ``if/elif`` chain.  Each handler returns a list of
+        service calls (possibly empty) for its sber key.
 
         Args:
             cmd_data: Sber command dict with 'states' list.
@@ -245,134 +236,120 @@ class LightEntity(BaseEntity):
         if cmd_data is None:
             return []
 
-        processing_result: list[dict] = []
+        handlers = self._cmd_handlers
+        results: list[dict] = []
+        for item in cmd_data.get("states", []):
+            handler = handlers.get(item.get("key", ""))
+            if handler is None:
+                continue
+            results.extend(handler(item.get("value", {})))
 
-        for data_item in cmd_data.get("states", []):
-            cmd_key = data_item.get("key", "")
-            cmd_value = data_item.get("value", {})
+        _LOGGER.debug("(LightEntity.process_cmd) processing res: %s", results)
+        return results
 
-            if cmd_key == "on_off" and cmd_value.get("type", "") == "BOOL":
-                new_state = cmd_value.get("bool_value", False)
-                processing_result.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "light",
-                            "service": "turn_on" if new_state else "turn_off",
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
+    @property
+    def _cmd_handlers(self) -> dict[str, Callable[[dict], list[dict]]]:
+        """Return dispatch map from Sber feature key to handler method."""
+        return {
+            SberFeature.ON_OFF: self._cmd_on_off,
+            SberFeature.LIGHT_BRIGHTNESS: self._cmd_brightness,
+            SberFeature.LIGHT_COLOUR: self._cmd_colour,
+            SberFeature.LIGHT_MODE: self._cmd_mode,
+            SberFeature.LIGHT_COLOUR_TEMP: self._cmd_colour_temp,
+        }
 
-            elif cmd_key == "light_brightness":
-                sber_br_value = self._safe_int(cmd_value.get("integer_value"))
-                if sber_br_value is None:
-                    continue
-                ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
-                brightness = max(0, min(int(ha_br_value), 255))
-                processing_result.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "light",
-                            "service": "turn_on",
-                            "service_data": {"brightness": brightness},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
+    def _cmd_on_off(self, value: dict) -> list[dict]:
+        """Handle ``on_off`` feature: produce turn_on / turn_off call."""
+        if value.get("type") != SberValueType.BOOL:
+            return []
+        on = value.get("bool_value", False)
+        return [self._build_on_off_service_call(self.entity_id, "light", on)]
 
-            elif cmd_key == "light_colour":
-                hsv_color = cmd_value.get("colour_value")
-                if hsv_color is not None:
-                    color = ColorConverter.sber_to_ha_hsv(
-                        max(0, min(hsv_color.get("h", 0), 360)),
-                        max(0, min(hsv_color.get("s", 0), 1000)),
-                        max(0, min(hsv_color.get("v", 0), 1000)),
+    def _cmd_brightness(self, value: dict) -> list[dict]:
+        """Handle ``light_brightness``: set brightness via ``light.turn_on``."""
+        sber_br_value = self._safe_int(value.get("integer_value"))
+        if sber_br_value is None:
+            return []
+        ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
+        brightness = max(0, min(int(ha_br_value), 255))
+        return [
+            self._build_service_call(
+                "light", "turn_on", self.entity_id, {"brightness": brightness}
+            )
+        ]
+
+    def _cmd_colour(self, value: dict) -> list[dict]:
+        """Handle ``light_colour``: set HSV color via ``light.turn_on``."""
+        hsv_color = value.get("colour_value")
+        if hsv_color is not None:
+            color = ColorConverter.sber_to_ha_hsv(
+                max(0, min(hsv_color.get("h", 0), 360)),
+                max(0, min(hsv_color.get("s", 0), 1000)),
+                max(0, min(hsv_color.get("v", 0), 1000)),
+            )
+        else:
+            color = (0, 0, 0)
+        # Ensure brightness >= 1 to avoid turning off the lamp
+        brightness = max(color[2], 1)
+        return [
+            self._build_service_call(
+                "light",
+                "turn_on",
+                self.entity_id,
+                {
+                    "hs_color": [color[0], color[1]],
+                    "brightness": brightness,
+                },
+            )
+        ]
+
+    def _cmd_mode(self, value: dict) -> list[dict]:
+        """Handle ``light_mode``: switch between white / colour.
+
+        ``light_mode`` is a Sber-only concept — HA doesn't have it.  To
+        actually switch the lamp's mode, we send the current colour or
+        colour_temp to HA so it transitions into the requested mode.
+
+        NOTE: Do NOT mutate ``self.current_color_mode`` here — the actual
+        mode will be updated by ``fill_by_ha_state`` when HA confirms the
+        state change.  Premature mutation creates a window where the
+        debounced publish can send stale / wrong mode to Sber.
+        """
+        mode_value = value.get("enum_value")
+        if mode_value == "colour":
+            if isinstance(self.hs_color, (list, tuple)) and len(self.hs_color) >= 2:
+                return [
+                    self._build_service_call(
+                        "light",
+                        "turn_on",
+                        self.entity_id,
+                        {"hs_color": [self.hs_color[0], self.hs_color[1]]},
                     )
-                else:
-                    color = (0, 0, 0)
-
-                # Ensure brightness >= 1 to avoid turning off the lamp
-                brightness = max(color[2], 1)
-                processing_result.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "light",
-                            "service": "turn_on",
-                            "service_data": {
-                                "hs_color": [color[0], color[1]],
-                                "brightness": brightness,
-                            },
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
+                ]
+            return [{"update_state": True}]
+        # white mode
+        if self.current_sber_color_temp is not None:
+            ha_mireds = self.color_temp_converter.sber_to_ha(self.current_sber_color_temp)
+            ha_kelvin = int(1_000_000 / max(ha_mireds, 1))
+            return [
+                self._build_service_call(
+                    "light",
+                    "turn_on",
+                    self.entity_id,
+                    {"color_temp_kelvin": ha_kelvin},
                 )
+            ]
+        return [{"update_state": True}]
 
-            elif cmd_key == "light_mode":
-                # light_mode is a Sber-only concept — HA doesn't have it.
-                # To actually switch the lamp's mode, send current color or
-                # color_temp to HA so it transitions into the requested mode.
-                # NOTE: Do NOT mutate self.current_color_mode here — the actual
-                # mode will be updated by fill_by_ha_state when HA confirms
-                # the state change.  Premature mutation creates a window where
-                # the debounced publish can send stale/wrong mode to Sber.
-                mode_value = cmd_value.get("enum_value")
-                if mode_value == "colour":
-                    # Force HA into color mode by sending current hs_color
-                    if isinstance(self.hs_color, (list, tuple)) and len(self.hs_color) >= 2:
-                        processing_result.append(
-                            {
-                                "url": {
-                                    "type": "call_service",
-                                    "domain": "light",
-                                    "service": "turn_on",
-                                    "service_data": {
-                                        "hs_color": [self.hs_color[0], self.hs_color[1]],
-                                    },
-                                    "target": {"entity_id": self.entity_id},
-                                }
-                            }
-                        )
-                    else:
-                        processing_result.append({"update_state": True})
-                else:
-                    # Force HA into white mode by sending current color_temp
-                    if self.current_sber_color_temp is not None:
-                        ha_mireds = self.color_temp_converter.sber_to_ha(self.current_sber_color_temp)
-                        ha_kelvin = int(1_000_000 / max(ha_mireds, 1))
-                        processing_result.append(
-                            {
-                                "url": {
-                                    "type": "call_service",
-                                    "domain": "light",
-                                    "service": "turn_on",
-                                    "service_data": {"color_temp_kelvin": ha_kelvin},
-                                    "target": {"entity_id": self.entity_id},
-                                }
-                            }
-                        )
-                    else:
-                        processing_result.append({"update_state": True})
-
-            elif cmd_key == "light_colour_temp":
-                sber_color_temp = self._safe_int(cmd_value.get("integer_value"))
-                if sber_color_temp is None:
-                    continue
-                ha_mireds = self.color_temp_converter.sber_to_ha(sber_color_temp)
-                ha_kelvin = int(1_000_000 / max(ha_mireds, 1))
-                processing_result.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": "light",
-                            "service": "turn_on",
-                            "service_data": {"color_temp_kelvin": ha_kelvin},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
-                )
-
-        _LOGGER.debug("(LightEntity.process_cmd) processing res: %s", processing_result)
-        return processing_result
+    def _cmd_colour_temp(self, value: dict) -> list[dict]:
+        """Handle ``light_colour_temp``: set colour temperature via turn_on."""
+        sber_color_temp = self._safe_int(value.get("integer_value"))
+        if sber_color_temp is None:
+            return []
+        ha_mireds = self.color_temp_converter.sber_to_ha(sber_color_temp)
+        ha_kelvin = int(1_000_000 / max(ha_mireds, 1))
+        return [
+            self._build_service_call(
+                "light", "turn_on", self.entity_id, {"color_temp_kelvin": ha_kelvin}
+            )
+        ]

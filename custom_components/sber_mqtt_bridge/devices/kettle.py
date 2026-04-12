@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 
-from ..sber_constants import SberFeature
+from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_integer_value, make_state
 from .base_entity import BaseEntity
 
@@ -127,28 +127,23 @@ class KettleEntity(BaseEntity):
         """
         results: list[dict] = []
         domain = self.get_entity_domain()
-
         for item in cmd_data.get("states", []):
-            key = item.get("key")
+            key = item.get("key", "")
             value = item.get("value", {})
-
-            if key == "on_off" and value.get("type") == "BOOL":
+            vtype = value.get("type", "")
+            if key == SberFeature.ON_OFF and vtype == SberValueType.BOOL:
                 on = value.get("bool_value", False)
                 results.append(self._build_on_off_service_call(self.entity_id, domain, on))
-
-            elif key == "kitchen_water_temperature_set" and value.get("type") == "INTEGER":
+            elif (
+                key == SberFeature.KITCHEN_WATER_TEMPERATURE_SET
+                and vtype == SberValueType.INTEGER
+            ):
                 temp = self._safe_int(value.get("integer_value"))
                 if temp is None:
                     continue
                 results.append(
-                    {
-                        "url": {
-                            "type": "call_service",
-                            "domain": domain,
-                            "service": "set_temperature",
-                            "service_data": {"temperature": temp},
-                            "target": {"entity_id": self.entity_id},
-                        }
-                    }
+                    self._build_service_call(
+                        domain, "set_temperature", self.entity_id, {"temperature": temp}
+                    )
                 )
         return results
