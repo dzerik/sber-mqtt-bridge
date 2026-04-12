@@ -523,10 +523,10 @@ class TestCategoryCompliance:
         assert "pir" in str(violations[0])
 
     def test_valve_with_required_features_passes(self):
-        """PASS: valve only requires {online}."""
+        """PASS: valve requires {online, open_set, open_state, open_percentage} per Sber ✔︎."""
         device = _minimal_device(
             category="valve",
-            features=["online", "open_set", "open_state"],
+            features=["online", "open_set", "open_state", "open_percentage"],
         )
         violations = validate_category_compliance(device)
         assert violations == []
@@ -554,12 +554,14 @@ class TestCategoryCompliance:
         assert len(violations) >= 1
         assert "doorcontact_state" in str(violations[0])
 
-    def test_sensor_temp_without_temperature_fails(self):
-        """FAIL: sensor_temp without temperature."""
+    def test_sensor_temp_only_requires_online(self):
+        """PASS: sensor_temp has a pragmatic override — HA models temperature
+        and humidity as separate entities, Sber's combo reference has both
+        marked ✔︎.  We loosen the check to {online} so a standalone temperature
+        or humidity sensor is still considered compliant."""
         device = _minimal_device(category="sensor_temp", features=["online"])
         violations = validate_category_compliance(device)
-        assert len(violations) >= 1
-        assert "temperature" in str(violations[0])
+        assert violations == []
 
     def test_tv_with_required_features_passes(self):
         """PASS: tv with {online, on_off} and extras."""

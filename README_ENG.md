@@ -60,6 +60,7 @@ flowchart LR
 - Pydantic protocol validation -- strict typing for Sber JSON messages
 - **Automatic Sber spec drift detection** -- weekly CI scraper pulls canonical schemas from `developers.sber.ru`, diffs against our models, opens a PR on divergence (see `tools/fetch_sber_schemas.py`, `tools/codegen.py`)
 - **Runtime feature-type validation** -- a `FEATURE_TYPES` dict generated from Sber docs catches mismatches (e.g. PIR sent as BOOL instead of ENUM) before any MQTT publish
+- **Obligatory-feature validation (✔︎ markers)** -- `CATEGORY_OBLIGATORY_FEATURES` is auto-built from Sber's "Available device functions" table and guarantees each device emits the full mandatory feature set (e.g. a `valve` missing `open_percentage` is caught before publish)
 - Connection health monitoring and diagnostics
 - Device acknowledgment tracking -- see which devices Sber has confirmed
 - Automatic MQTT reconnection with exponential backoff (5s -> 5min)

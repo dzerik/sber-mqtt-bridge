@@ -88,7 +88,12 @@ class TestOurRequiredFeaturesMatchSber:
             pytest.skip(f"No Sber schema snapshot for {category}")
 
         our_required = set(CATEGORY_REQUIRED_FEATURES[category])
-        sber_features = set(schema["features"])
+        # ``features`` is the minimal reference JSON example; ``all_features``
+        # is the full table column from the category page.  Obligatory
+        # features may appear in ``all_features`` but be omitted from the
+        # minimal example, so we check the wider set (fall back to
+        # ``features`` if the scraper couldn't extract the table).
+        sber_features = set(schema.get("all_features") or schema["features"])
 
         unknown = our_required - sber_features
         assert not unknown, f"{category}: we require {unknown} but Sber schema has only {sber_features}"
