@@ -30,6 +30,7 @@ from custom_components.sber_mqtt_bridge.devices.water_leak_sensor import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _find_state(states: list[dict], key: str) -> dict | None:
     """Find a state entry by key in the Sber states list."""
     for s in states:
@@ -63,9 +64,7 @@ def _assert_bool_value(states: list[dict], key: str, expected: bool) -> None:
     assert entry is not None, f"key '{key}' not found in states"
     value = entry["value"]
     assert value["type"] == "BOOL", f"Expected BOOL type for '{key}', got {value['type']}"
-    assert value["bool_value"] is expected, (
-        f"Expected bool_value={expected} for '{key}', got {value['bool_value']}"
-    )
+    assert value["bool_value"] is expected, f"Expected bool_value={expected} for '{key}', got {value['bool_value']}"
 
 
 def _assert_enum_value(states: list[dict], key: str, expected: str) -> None:
@@ -74,9 +73,7 @@ def _assert_enum_value(states: list[dict], key: str, expected: str) -> None:
     assert entry is not None, f"key '{key}' not found in states"
     value = entry["value"]
     assert value["type"] == "ENUM", f"Expected ENUM type for '{key}', got {value['type']}"
-    assert value["enum_value"] == expected, (
-        f"Expected enum_value='{expected}' for '{key}', got '{value['enum_value']}'"
-    )
+    assert value["enum_value"] == expected, f"Expected enum_value='{expected}' for '{key}', got '{value['enum_value']}'"
 
 
 def _assert_config_has_required_fields(config: dict) -> None:
@@ -92,6 +89,7 @@ def _assert_config_has_required_fields(config: dict) -> None:
 # SensorTempEntity -- category: sensor_temp
 # ---------------------------------------------------------------------------
 
+
 class TestSensorTempCompliance:
     """Sber C2C compliance tests for SensorTempEntity."""
 
@@ -100,11 +98,13 @@ class TestSensorTempCompliance:
 
     def _make_entity(self, state="22.5", **attrs) -> SensorTempEntity:
         entity = SensorTempEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": self.ENTITY_ID,
-            "state": state,
-            "attributes": attrs,
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": self.ENTITY_ID,
+                "state": state,
+                "attributes": attrs,
+            }
+        )
         return entity
 
     def test_category_is_sensor_temp(self):
@@ -251,6 +251,7 @@ class TestSensorTempCompliance:
 # HumiditySensorEntity -- category: sensor_temp
 # ---------------------------------------------------------------------------
 
+
 class TestHumiditySensorCompliance:
     """Sber C2C compliance tests for HumiditySensorEntity."""
 
@@ -259,11 +260,13 @@ class TestHumiditySensorCompliance:
 
     def _make_entity(self, state="55", **attrs) -> HumiditySensorEntity:
         entity = HumiditySensorEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": self.ENTITY_ID,
-            "state": state,
-            "attributes": attrs,
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": self.ENTITY_ID,
+                "state": state,
+                "attributes": attrs,
+            }
+        )
         return entity
 
     def test_category_is_sensor_temp(self):
@@ -345,6 +348,7 @@ class TestHumiditySensorCompliance:
 # MotionSensorEntity -- category: sensor_pir
 # ---------------------------------------------------------------------------
 
+
 class TestMotionSensorCompliance:
     """Sber C2C compliance tests for MotionSensorEntity."""
 
@@ -353,11 +357,13 @@ class TestMotionSensorCompliance:
 
     def _make_entity(self, state="off", **attrs) -> MotionSensorEntity:
         entity = MotionSensorEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": self.ENTITY_ID,
-            "state": state,
-            "attributes": attrs,
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": self.ENTITY_ID,
+                "state": state,
+                "attributes": attrs,
+            }
+        )
         return entity
 
     def test_category_is_sensor_pir(self):
@@ -396,10 +402,7 @@ class TestMotionSensorCompliance:
         entity = self._make_entity("off")
         states = _get_states(entity, self.ENTITY_ID)
         pir_entry = _find_state(states, "pir")
-        assert pir_entry is None, (
-            f"pir key must NOT be in state when motion_detected=False, "
-            f"but found: {pir_entry}"
-        )
+        assert pir_entry is None, f"pir key must NOT be in state when motion_detected=False, but found: {pir_entry}"
 
     def test_pir_absent_when_unknown(self):
         """pir key must be absent when state is 'unknown' (no event yet)."""
@@ -453,6 +456,7 @@ class TestMotionSensorCompliance:
 # DoorSensorEntity -- category: sensor_door
 # ---------------------------------------------------------------------------
 
+
 class TestDoorSensorCompliance:
     """Sber C2C compliance tests for DoorSensorEntity."""
 
@@ -461,11 +465,13 @@ class TestDoorSensorCompliance:
 
     def _make_entity(self, state="off", **attrs) -> DoorSensorEntity:
         entity = DoorSensorEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": self.ENTITY_ID,
-            "state": state,
-            "attributes": attrs,
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": self.ENTITY_ID,
+                "state": state,
+                "attributes": attrs,
+            }
+        )
         return entity
 
     def test_category_is_sensor_door(self):
@@ -521,6 +527,7 @@ class TestDoorSensorCompliance:
 # WaterLeakSensorEntity -- category: sensor_water_leak
 # ---------------------------------------------------------------------------
 
+
 class TestWaterLeakSensorCompliance:
     """Sber C2C compliance tests for WaterLeakSensorEntity."""
 
@@ -529,11 +536,13 @@ class TestWaterLeakSensorCompliance:
 
     def _make_entity(self, state="off", **attrs) -> WaterLeakSensorEntity:
         entity = WaterLeakSensorEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": self.ENTITY_ID,
-            "state": state,
-            "attributes": attrs,
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": self.ENTITY_ID,
+                "state": state,
+                "attributes": attrs,
+            }
+        )
         return entity
 
     def test_category_is_sensor_water_leak(self):
@@ -590,6 +599,7 @@ class TestWaterLeakSensorCompliance:
 # SmokeSensorEntity -- category: sensor_smoke
 # ---------------------------------------------------------------------------
 
+
 class TestSmokeSensorCompliance:
     """Sber C2C compliance tests for SmokeSensorEntity."""
 
@@ -598,11 +608,13 @@ class TestSmokeSensorCompliance:
 
     def _make_entity(self, state="off", **attrs) -> SmokeSensorEntity:
         entity = SmokeSensorEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": self.ENTITY_ID,
-            "state": state,
-            "attributes": attrs,
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": self.ENTITY_ID,
+                "state": state,
+                "attributes": attrs,
+            }
+        )
         return entity
 
     def test_category_is_sensor_smoke(self):
@@ -659,6 +671,7 @@ class TestSmokeSensorCompliance:
 # GasSensorEntity -- category: sensor_gas
 # ---------------------------------------------------------------------------
 
+
 class TestGasSensorCompliance:
     """Sber C2C compliance tests for GasSensorEntity."""
 
@@ -667,11 +680,13 @@ class TestGasSensorCompliance:
 
     def _make_entity(self, state="off", **attrs) -> GasSensorEntity:
         entity = GasSensorEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": self.ENTITY_ID,
-            "state": state,
-            "attributes": attrs,
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": self.ENTITY_ID,
+                "state": state,
+                "attributes": attrs,
+            }
+        )
         return entity
 
     def test_category_is_sensor_gas(self):
@@ -728,6 +743,7 @@ class TestGasSensorCompliance:
 # CurtainEntity -- category: curtain
 # ---------------------------------------------------------------------------
 
+
 class TestCurtainCompliance:
     """Sber C2C compliance tests for CurtainEntity."""
 
@@ -736,11 +752,13 @@ class TestCurtainCompliance:
 
     def _make_entity(self, state="open", position=100, **attrs) -> CurtainEntity:
         entity = CurtainEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": self.ENTITY_ID,
-            "state": state,
-            "attributes": {"current_position": position, **attrs},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": self.ENTITY_ID,
+                "state": state,
+                "attributes": {"current_position": position, **attrs},
+            }
+        )
         return entity
 
     def test_category_is_curtain(self):
@@ -853,12 +871,16 @@ class TestCurtainCompliance:
     def test_cmd_open_percentage_set_cover_position(self):
         """open_percentage command must produce set_cover_position service call."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "open_percentage",
-                "value": {"type": "INTEGER", "integer_value": "50"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "open_percentage",
+                        "value": {"type": "INTEGER", "integer_value": "50"},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         call = result[0]["url"]
         assert call["service"] == "set_cover_position"
@@ -868,58 +890,74 @@ class TestCurtainCompliance:
     def test_cmd_open_set_open(self):
         """open_set=open must produce open_cover service call."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"enum_value": "open"}}],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [{"key": "open_set", "value": {"enum_value": "open"}}],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["service"] == "open_cover"
 
     def test_cmd_open_set_close(self):
         """open_set=close must produce close_cover service call."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"enum_value": "close"}}],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [{"key": "open_set", "value": {"enum_value": "close"}}],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["service"] == "close_cover"
 
     def test_cmd_open_set_stop(self):
         """open_set=stop must produce stop_cover service call."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"enum_value": "stop"}}],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [{"key": "open_set", "value": {"enum_value": "stop"}}],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["service"] == "stop_cover"
 
     def test_cmd_unknown_key_no_crash(self):
         """Unknown command key must not crash, returns empty list."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "nonexistent_key", "value": {"enum_value": "test"}}],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [{"key": "nonexistent_key", "value": {"enum_value": "test"}}],
+            }
+        )
         assert result == []
 
     def test_cmd_open_percentage_clamped_to_100(self):
         """Position above 100 must be clamped to 100."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "open_percentage",
-                "value": {"type": "INTEGER", "integer_value": "150"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "open_percentage",
+                        "value": {"type": "INTEGER", "integer_value": "150"},
+                    }
+                ],
+            }
+        )
         assert result[0]["url"]["service_data"]["position"] == 100
 
     def test_cmd_open_percentage_clamped_to_0(self):
         """Negative position must be clamped to 0."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "open_percentage",
-                "value": {"type": "INTEGER", "integer_value": "-10"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "open_percentage",
+                        "value": {"type": "INTEGER", "integer_value": "-10"},
+                    }
+                ],
+            }
+        )
         assert result[0]["url"]["service_data"]["position"] == 0
 
     def test_cmd_empty_states_no_crash(self):
@@ -952,6 +990,7 @@ class TestCurtainCompliance:
 # TvEntity -- category: tv
 # ---------------------------------------------------------------------------
 
+
 class TestTvCompliance:
     """Sber C2C compliance tests for TvEntity."""
 
@@ -960,11 +999,13 @@ class TestTvCompliance:
 
     def _make_entity(self, state="playing", **attrs) -> TvEntity:
         entity = TvEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": self.ENTITY_ID,
-            "state": state,
-            "attributes": attrs,
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": self.ENTITY_ID,
+                "state": state,
+                "attributes": attrs,
+            }
+        )
         return entity
 
     def test_category_is_tv(self):
@@ -1060,32 +1101,16 @@ class TestTvCompliance:
         states = _get_states(entity, self.ENTITY_ID)
         assert _find_state(states, "source") is None
 
-    def test_allowed_values_volume_int(self):
-        """volume_int allowed_values must be INTEGER 0/100/1."""
-        entity = self._make_entity()
-        allowed = entity.create_allowed_values_list()
-        assert "volume_int" in allowed
-        assert allowed["volume_int"]["type"] == "INTEGER"
-        iv = allowed["volume_int"]["integer_values"]
-        assert iv["min"] == "0"
-        assert iv["max"] == "100"
-        assert iv["step"] == "1"
+    def test_no_allowed_values_for_default_features(self):
+        """TV must NOT send allowed_values for volume_int/channel/direction etc.
 
-    def test_allowed_values_channel_enum(self):
-        """channel allowed_values must have ENUM with +/-."""
+        Per Sber TV reference, only ``source`` gets explicit allowed_values.
+        Sending extra keys causes silent device rejection by Sber cloud.
+        """
         entity = self._make_entity()
         allowed = entity.create_allowed_values_list()
-        assert "channel" in allowed
-        assert set(allowed["channel"]["enum_values"]["values"]) == {"+", "-"}
-
-    def test_allowed_values_direction_enum(self):
-        """direction allowed_values must have ENUM with up/down/left/right/ok."""
-        entity = self._make_entity()
-        allowed = entity.create_allowed_values_list()
-        assert "direction" in allowed
-        assert set(allowed["direction"]["enum_values"]["values"]) == {
-            "up", "down", "left", "right", "ok",
-        }
+        for key in ("volume_int", "channel", "channel_int", "direction", "volume", "custom_key", "number"):
+            assert key not in allowed, f"{key} must not be in TV allowed_values"
 
     def test_allowed_values_source_enum(self):
         """source allowed_values must list source_list entries."""
@@ -1097,12 +1122,16 @@ class TestTvCompliance:
     def test_cmd_on_off_turn_on(self):
         """on_off=true must produce media_player.turn_on."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "on_off",
-                "value": {"type": "BOOL", "bool_value": True},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "on_off",
+                        "value": {"type": "BOOL", "bool_value": True},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["domain"] == "media_player"
         assert result[0]["url"]["service"] == "turn_on"
@@ -1110,24 +1139,32 @@ class TestTvCompliance:
     def test_cmd_on_off_turn_off(self):
         """on_off=false must produce media_player.turn_off."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "on_off",
-                "value": {"type": "BOOL", "bool_value": False},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "on_off",
+                        "value": {"type": "BOOL", "bool_value": False},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["service"] == "turn_off"
 
     def test_cmd_volume_int_conversion(self):
         """CRITICAL: Sber volume_int 50 must convert to HA volume_level 0.5."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "volume_int",
-                "value": {"type": "INTEGER", "integer_value": "50"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "volume_int",
+                        "value": {"type": "INTEGER", "integer_value": "50"},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         call = result[0]["url"]
         assert call["service"] == "volume_set"
@@ -1136,34 +1173,46 @@ class TestTvCompliance:
     def test_cmd_volume_int_zero(self):
         """Sber volume_int 0 -> HA volume_level 0.0."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "volume_int",
-                "value": {"type": "INTEGER", "integer_value": "0"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "volume_int",
+                        "value": {"type": "INTEGER", "integer_value": "0"},
+                    }
+                ],
+            }
+        )
         assert result[0]["url"]["service_data"]["volume_level"] == pytest.approx(0.0)
 
     def test_cmd_volume_int_100(self):
         """Sber volume_int 100 -> HA volume_level 1.0."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "volume_int",
-                "value": {"type": "INTEGER", "integer_value": "100"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "volume_int",
+                        "value": {"type": "INTEGER", "integer_value": "100"},
+                    }
+                ],
+            }
+        )
         assert result[0]["url"]["service_data"]["volume_level"] == pytest.approx(1.0)
 
     def test_cmd_mute_on(self):
         """mute=true must produce volume_mute with is_volume_muted=true."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "mute",
-                "value": {"type": "BOOL", "bool_value": True},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "mute",
+                        "value": {"type": "BOOL", "bool_value": True},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         call = result[0]["url"]
         assert call["service"] == "volume_mute"
@@ -1172,12 +1221,16 @@ class TestTvCompliance:
     def test_cmd_source_select(self):
         """source ENUM must produce select_source."""
         entity = self._make_entity(source_list=["HDMI 1", "TV"])
-        result = entity.process_cmd({
-            "states": [{
-                "key": "source",
-                "value": {"type": "ENUM", "enum_value": "HDMI 1"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "source",
+                        "value": {"type": "ENUM", "enum_value": "HDMI 1"},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         call = result[0]["url"]
         assert call["service"] == "select_source"
@@ -1186,36 +1239,48 @@ class TestTvCompliance:
     def test_cmd_channel_plus_next_track(self):
         """channel '+' must produce media_next_track."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "channel",
-                "value": {"type": "ENUM", "enum_value": "+"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "channel",
+                        "value": {"type": "ENUM", "enum_value": "+"},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["service"] == "media_next_track"
 
     def test_cmd_channel_minus_previous_track(self):
         """channel '-' must produce media_previous_track."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "channel",
-                "value": {"type": "ENUM", "enum_value": "-"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "channel",
+                        "value": {"type": "ENUM", "enum_value": "-"},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["service"] == "media_previous_track"
 
     def test_cmd_channel_int_play_media(self):
         """channel_int must produce play_media with media_content_type=channel."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "channel_int",
-                "value": {"type": "INTEGER", "integer_value": "42"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "channel_int",
+                        "value": {"type": "INTEGER", "integer_value": "42"},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         call = result[0]["url"]
         assert call["service"] == "play_media"
@@ -1225,24 +1290,32 @@ class TestTvCompliance:
     def test_cmd_direction_up_volume_up(self):
         """direction 'up' must produce volume_up."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "direction",
-                "value": {"type": "ENUM", "enum_value": "up"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "direction",
+                        "value": {"type": "ENUM", "enum_value": "up"},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["service"] == "volume_up"
 
     def test_cmd_direction_down_volume_down(self):
         """direction 'down' must produce volume_down."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "direction",
-                "value": {"type": "ENUM", "enum_value": "down"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "direction",
+                        "value": {"type": "ENUM", "enum_value": "down"},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["service"] == "volume_down"
 
@@ -1250,21 +1323,27 @@ class TestTvCompliance:
         """Unknown direction (left/right/ok) must not crash, may produce no service calls."""
         entity = self._make_entity()
         for direction in ("left", "right", "ok"):
-            result = entity.process_cmd({
-                "states": [{
-                    "key": "direction",
-                    "value": {"type": "ENUM", "enum_value": direction},
-                }],
-            })
+            result = entity.process_cmd(
+                {
+                    "states": [
+                        {
+                            "key": "direction",
+                            "value": {"type": "ENUM", "enum_value": direction},
+                        }
+                    ],
+                }
+            )
             # left/right/ok are not mapped to services in current implementation
             assert isinstance(result, list)
 
     def test_cmd_unknown_key_no_crash(self):
         """Unknown command key must not crash."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "unknown_key", "value": {"type": "BOOL", "bool_value": True}}],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [{"key": "unknown_key", "value": {"type": "BOOL", "bool_value": True}}],
+            }
+        )
         assert result == []
 
     def test_cmd_empty_states_no_crash(self):
@@ -1285,6 +1364,7 @@ class TestTvCompliance:
 # HvacFanEntity -- category: hvac_fan
 # ---------------------------------------------------------------------------
 
+
 class TestHvacFanCompliance:
     """Sber C2C compliance tests for HvacFanEntity."""
 
@@ -1293,11 +1373,13 @@ class TestHvacFanCompliance:
 
     def _make_entity(self, state="on", **attrs) -> HvacFanEntity:
         entity = HvacFanEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": self.ENTITY_ID,
-            "state": state,
-            "attributes": attrs,
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": self.ENTITY_ID,
+                "state": state,
+                "attributes": attrs,
+            }
+        )
         return entity
 
     def test_category_is_hvac_fan(self):
@@ -1311,9 +1393,7 @@ class TestHvacFanCompliance:
         features = entity.create_features_list()
         assert "online" in features
         assert "on_off" in features
-        assert "hvac_air_flow_power" not in features, (
-            "hvac_air_flow_power must NOT appear for a simple on/off fan"
-        )
+        assert "hvac_air_flow_power" not in features, "hvac_air_flow_power must NOT appear for a simple on/off fan"
 
     def test_features_with_preset_modes(self):
         """Fan with preset_modes must include hvac_air_flow_power."""
@@ -1375,14 +1455,17 @@ class TestHvacFanCompliance:
         assert entry["value"]["type"] == "ENUM"
         assert entry["value"]["enum_value"] in ("auto", "high", "low", "medium", "quiet", "turbo")
 
-    @pytest.mark.parametrize("percentage,expected_speed", [
-        (0, "quiet"),
-        (10, "quiet"),
-        (25, "low"),
-        (50, "medium"),
-        (75, "high"),
-        (100, "turbo"),
-    ])
+    @pytest.mark.parametrize(
+        "percentage,expected_speed",
+        [
+            (0, "quiet"),
+            (10, "quiet"),
+            (25, "low"),
+            (50, "medium"),
+            (75, "high"),
+            (100, "turbo"),
+        ],
+    )
     def test_percentage_to_speed_mapping(self, percentage, expected_speed):
         """Percentage must map to correct Sber speed ENUM."""
         entity = self._make_entity(percentage=percentage)
@@ -1400,12 +1483,16 @@ class TestHvacFanCompliance:
     def test_cmd_on_off_turn_on(self):
         """on_off=true must produce fan.turn_on."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "on_off",
-                "value": {"type": "BOOL", "bool_value": True},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "on_off",
+                        "value": {"type": "BOOL", "bool_value": True},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["domain"] == "fan"
         assert result[0]["url"]["service"] == "turn_on"
@@ -1413,24 +1500,32 @@ class TestHvacFanCompliance:
     def test_cmd_on_off_turn_off(self):
         """on_off=false must produce fan.turn_off."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{
-                "key": "on_off",
-                "value": {"type": "BOOL", "bool_value": False},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "on_off",
+                        "value": {"type": "BOOL", "bool_value": False},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["service"] == "turn_off"
 
     def test_cmd_speed_preset_mode(self):
         """Speed command matching preset_mode must produce set_preset_mode."""
         entity = self._make_entity(preset_modes=["low", "medium", "high"])
-        result = entity.process_cmd({
-            "states": [{
-                "key": "hvac_air_flow_power",
-                "value": {"type": "ENUM", "enum_value": "medium"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "hvac_air_flow_power",
+                        "value": {"type": "ENUM", "enum_value": "medium"},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         call = result[0]["url"]
         assert call["service"] == "set_preset_mode"
@@ -1439,12 +1534,16 @@ class TestHvacFanCompliance:
     def test_cmd_speed_percentage_fallback(self):
         """Speed command not matching preset_mode must produce set_percentage."""
         entity = self._make_entity(preset_modes=[])
-        result = entity.process_cmd({
-            "states": [{
-                "key": "hvac_air_flow_power",
-                "value": {"type": "ENUM", "enum_value": "high"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "hvac_air_flow_power",
+                        "value": {"type": "ENUM", "enum_value": "high"},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         call = result[0]["url"]
         assert call["service"] == "set_percentage"
@@ -1453,21 +1552,27 @@ class TestHvacFanCompliance:
     def test_cmd_speed_auto_turn_on(self):
         """Speed 'auto' (percentage=0) must produce fan.turn_on."""
         entity = self._make_entity(preset_modes=[])
-        result = entity.process_cmd({
-            "states": [{
-                "key": "hvac_air_flow_power",
-                "value": {"type": "ENUM", "enum_value": "auto"},
-            }],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {
+                        "key": "hvac_air_flow_power",
+                        "value": {"type": "ENUM", "enum_value": "auto"},
+                    }
+                ],
+            }
+        )
         assert len(result) == 1
         assert result[0]["url"]["service"] == "turn_on"
 
     def test_cmd_unknown_key_no_crash(self):
         """Unknown command key must not crash."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "unknown", "value": {"type": "BOOL", "bool_value": True}}],
-        })
+        result = entity.process_cmd(
+            {
+                "states": [{"key": "unknown", "value": {"type": "BOOL", "bool_value": True}}],
+            }
+        )
         assert result == []
 
     def test_cmd_empty_states_no_crash(self):
@@ -1494,6 +1599,7 @@ class TestHvacFanCompliance:
 # Cross-entity compliance: integer_value always string
 # ---------------------------------------------------------------------------
 
+
 class TestIntegerValueAlwaysString:
     """Verify that ALL integer_value fields across all entity types are strings.
 
@@ -1513,7 +1619,9 @@ class TestIntegerValueAlwaysString:
     def test_sensor_temp_all_integers_are_strings(self):
         """All integer_value in SensorTempEntity state must be strings."""
         entity = SensorTempEntity({"entity_id": "sensor.t", "name": "T"})
-        entity.fill_by_ha_state({"entity_id": "sensor.t", "state": "22.5", "attributes": {"battery": 80, "pressure": 1013}})
+        entity.fill_by_ha_state(
+            {"entity_id": "sensor.t", "state": "22.5", "attributes": {"battery": 80, "pressure": 1013}}
+        )
         entity.update_linked_data("humidity", {"state": "55"})
         states = _get_states(entity, "sensor.t")
         for key, val in self._collect_integer_values(states):
@@ -1522,10 +1630,13 @@ class TestIntegerValueAlwaysString:
     def test_curtain_all_integers_are_strings(self):
         """All integer_value in CurtainEntity state must be strings."""
         entity = CurtainEntity({"entity_id": "cover.c", "name": "C"})
-        entity.fill_by_ha_state({
-            "entity_id": "cover.c", "state": "open",
-            "attributes": {"current_position": 50, "battery": 60, "current_tilt_position": 30},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "cover.c",
+                "state": "open",
+                "attributes": {"current_position": 50, "battery": 60, "current_tilt_position": 30},
+            }
+        )
         states = _get_states(entity, "cover.c")
         for key, val in self._collect_integer_values(states):
             assert isinstance(val, str), f"integer_value for '{key}' is {type(val).__name__}, must be str"
@@ -1533,10 +1644,13 @@ class TestIntegerValueAlwaysString:
     def test_tv_all_integers_are_strings(self):
         """All integer_value in TvEntity state must be strings."""
         entity = TvEntity({"entity_id": "media_player.tv", "name": "TV"})
-        entity.fill_by_ha_state({
-            "entity_id": "media_player.tv", "state": "playing",
-            "attributes": {"volume_level": 0.75},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "media_player.tv",
+                "state": "playing",
+                "attributes": {"volume_level": 0.75},
+            }
+        )
         states = _get_states(entity, "media_player.tv")
         for key, val in self._collect_integer_values(states):
             assert isinstance(val, str), f"integer_value for '{key}' is {type(val).__name__}, must be str"
