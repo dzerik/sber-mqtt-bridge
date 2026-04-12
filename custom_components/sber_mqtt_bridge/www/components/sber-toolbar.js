@@ -204,11 +204,6 @@ class SberToolbar extends LitElement {
     this._bulkOpen = false;
   }
 
-  _onBulkAddAll() {
-    this._closeBulk();
-    this._dispatch("toolbar-bulk-add");
-  }
-
   _onAutoLink() {
     this._closeBulk();
     this._dispatch("toolbar-auto-link");
@@ -252,25 +247,16 @@ class SberToolbar extends LitElement {
     return html`
       <!-- Primary action -->
       <button class="btn btn-success" @click=${() => this._dispatch("toolbar-wizard")}>
-        \u{1F9D9} Wizard
+        \u{2795} Add device
       </button>
 
-      <div class="divider"></div>
-
-      <!-- Entity management -->
-      <button class="btn btn-success" @click=${() => this._dispatch("toolbar-add")}>
-        \u{2795} Add Devices
-      </button>
       <div class="dropdown">
         <button class="btn btn-secondary" @click=${this._toggleBulk}>
-          Bulk \u25BE
+          Maintenance \u25BE
         </button>
         ${this._bulkOpen
           ? html`
               <div class="dropdown-menu">
-                <button class="dropdown-item" @click=${this._onBulkAddAll}>
-                  Add All Entities
-                </button>
                 <button class="dropdown-item" @click=${this._onAutoLink}>
                   Auto-Link Sensors
                 </button>

@@ -97,6 +97,10 @@ class TvEntity(BaseEntity):
         self._source_list = attrs.get("source_list") or []
         self._media_content_id = attrs.get("media_content_id")
 
+    def _has_instance_allowed_values(self) -> bool:
+        """TV source_list varies per device — model_id must be unique."""
+        return bool(self._source_list)
+
     def create_features_list(self) -> list[str]:
         """Return Sber feature list for TV capabilities.
 
@@ -110,52 +114,17 @@ class TvEntity(BaseEntity):
         return features
 
     def create_allowed_values_list(self) -> dict[str, dict]:
-        """Build allowed values map for volume and source features.
+        """Build allowed values map for TV features.
+
+        Per Sber TV reference, only ``source`` needs explicit allowed_values
+        (instance-specific source list).  All other TV features (volume_int,
+        channel, direction, etc.) use Sber cloud defaults and MUST NOT be
+        overridden — sending extra keys causes silent device rejection.
 
         Returns:
             Dict mapping feature key to its allowed values descriptor.
         """
-        allowed: dict[str, dict] = {
-            "volume_int": {
-                "type": "INTEGER",
-                "integer_values": {"min": "0", "max": "100", "step": "1"},
-            },
-            "channel": {
-                "type": "ENUM",
-                "enum_values": {"values": ["+", "-"]},
-            },
-            "channel_int": {
-                "type": "INTEGER",
-                "integer_values": {"min": "1", "max": "999", "step": "1"},
-            },
-            "direction": {
-                "type": "ENUM",
-                "enum_values": {"values": ["up", "down", "left", "right", "ok"]},
-            },
-            "volume": {
-                "type": "ENUM",
-                "enum_values": {"values": ["+", "-"]},
-            },
-            "custom_key": {
-                "type": "ENUM",
-                "enum_values": {
-                    "values": [
-                        "play",
-                        "pause",
-                        "stop",
-                        "rewind",
-                        "fast_forward",
-                        "back",
-                        "home",
-                        "menu",
-                    ]
-                },
-            },
-            "number": {
-                "type": "INTEGER",
-                "integer_values": {"min": "0", "max": "9", "step": "1"},
-            },
-        }
+        allowed: dict[str, dict] = {}
         if self._source_list:
             allowed["source"] = {
                 "type": "ENUM",

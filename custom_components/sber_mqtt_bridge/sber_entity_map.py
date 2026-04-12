@@ -3,12 +3,18 @@
 Provides factory functions that create the appropriate Sber entity
 subclass based on the HA entity domain and device class.
 Supports user-defined overrides via ``sber_category`` parameter.
+
+Also hosts the **single source of truth** for Sber category → HA domain
+promotion: :data:`CATEGORY_DOMAIN_MAP` + :func:`categories_for_domain` +
+:data:`CATEGORY_UI_META` drive the device-centric wizard introduced in
+v1.26.0.  See ``docs/DEVICE_WIZARD_PLAN.md`` for the full design.
 """
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from .devices.base_entity import BaseEntity
 from .devices.climate import ClimateEntity
@@ -102,6 +108,305 @@ OVERRIDABLE_CATEGORIES: list[str] = [
     "intercom",
 ]
 """Sber categories that users can select as type overrides."""
+
+
+# ---------------------------------------------------------------------------
+# Category promotion registry — v1.26.0 device-centric wizard
+# ---------------------------------------------------------------------------
+#
+# CATEGORY_DOMAIN_MAP answers the question:
+#   "Given a Sber category the user picked in Step 1 of the wizard, which
+#    HA (domain, device_class) combinations can be promoted into it?"
+#
+# This is the inverse of CATEGORY_CONSTRUCTORS / ENTITY_CONSTRUCTORS — those
+# give you a *class* when you already know what you want to build.
+# CATEGORY_DOMAIN_MAP lets the wizard *filter* HA devices to just those
+# compatible with the chosen category before showing them.
+
+
+@dataclass(frozen=True, slots=True)
+class CategorySpec:
+    """Rules for promoting an HA entity to a specific Sber category.
+
+    Attributes:
+        domains: HA domains that can match this category.  Order matters for
+            presentation but not correctness — any listed domain is accepted.
+        device_classes: If ``None`` — the category matches any device_class
+            inside the allowed domains (domain-only match).  If a tuple — the
+            entity must have one of these ``original_device_class`` values.
+            Use an empty string ``""`` in the tuple to also accept entities
+            without a declared device_class.
+        preferred_rank: Tie-breaking priority when the same ``(domain,
+            device_class)`` pair matches several categories.  Lower wins.
+            Mirrors the domain rank used for primary-entity selection.
+        fallback_when_no_device_class: When ``True`` and the entity has no
+            declared ``device_class`` at all, this category accepts it as a
+            fallback.  Used by ``relay`` so that a plain ``switch`` without
+            device_class becomes a relay rather than silently unmatched.
+    """
+
+    domains: tuple[str, ...]
+    device_classes: tuple[str, ...] | None = None
+    preferred_rank: int = 50
+    fallback_when_no_device_class: bool = False
+
+    def matches(self, domain: str, device_class: str | None) -> bool:
+        """Return True if an HA entity of ``(domain, device_class)`` promotes here."""
+        if domain not in self.domains:
+            return False
+        if self.device_classes is None:
+            return True
+        dc = device_class or ""
+        if dc in self.device_classes:
+            return True
+        return self.fallback_when_no_device_class and dc == ""
+
+
+CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
+    # ── Lights ──────────────────────────────────────────────────────────
+    "light": CategorySpec(domains=("light",), preferred_rank=1),
+    "led_strip": CategorySpec(domains=("light",), preferred_rank=5),
+    # ── Switches / outlets / relays ────────────────────────────────────
+    "socket": CategorySpec(
+        domains=("switch",),
+        device_classes=("outlet",),
+        preferred_rank=8,
+    ),
+    "relay": CategorySpec(
+        domains=("switch", "script", "button"),
+        device_classes=None,
+        preferred_rank=10,
+        fallback_when_no_device_class=True,
+    ),
+    "scenario_button": CategorySpec(
+        domains=("input_boolean",),
+        preferred_rank=12,
+    ),
+    # ── Covers ──────────────────────────────────────────────────────────
+    "gate": CategorySpec(
+        domains=("cover",),
+        device_classes=("gate", "garage_door", "garage", "door"),
+        preferred_rank=3,
+    ),
+    "window_blind": CategorySpec(
+        domains=("cover",),
+        device_classes=("blind", "shade", "shutter"),
+        preferred_rank=4,
+    ),
+    "curtain": CategorySpec(
+        domains=("cover",),
+        device_classes=("curtain", "awning"),
+        preferred_rank=6,
+        fallback_when_no_device_class=True,
+    ),
+    # ── Climate ─────────────────────────────────────────────────────────
+    "hvac_radiator": CategorySpec(
+        domains=("climate",),
+        device_classes=("radiator",),
+        preferred_rank=3,
+    ),
+    "hvac_heater": CategorySpec(
+        domains=("climate",),
+        device_classes=("heater",),
+        preferred_rank=4,
+    ),
+    "hvac_underfloor_heating": CategorySpec(
+        domains=("climate",),
+        device_classes=("underfloor", "underfloor_heating"),
+        preferred_rank=5,
+    ),
+    "hvac_ac": CategorySpec(
+        domains=("climate",),
+        device_classes=None,
+        preferred_rank=6,
+        fallback_when_no_device_class=True,
+    ),
+    "hvac_boiler": CategorySpec(
+        domains=("water_heater",),
+        preferred_rank=5,
+    ),
+    # ── Fan / air purifier / humidifier ────────────────────────────────
+    "hvac_air_purifier": CategorySpec(
+        domains=("fan",),
+        device_classes=("purifier", "air_purifier"),
+        preferred_rank=4,
+    ),
+    "hvac_fan": CategorySpec(
+        domains=("fan",),
+        device_classes=None,
+        preferred_rank=6,
+        fallback_when_no_device_class=True,
+    ),
+    "hvac_humidifier": CategorySpec(
+        domains=("humidifier",),
+        preferred_rank=5,
+    ),
+    # ── Valves / kitchen ───────────────────────────────────────────────
+    "valve": CategorySpec(
+        domains=("valve",),
+        preferred_rank=5,
+    ),
+    "kettle": CategorySpec(
+        # Kettle is a niche promotion: a water_heater or plain switch can
+        # become one, but socket (rank 8) / relay (rank 10) / hvac_boiler
+        # (rank 5) win for their respective domains.  Users still access
+        # kettle by explicitly picking it in Step 1 of the wizard — rank
+        # only affects auto-detection, not category filtering.
+        domains=("water_heater", "switch"),
+        device_classes=None,
+        preferred_rank=40,
+        fallback_when_no_device_class=True,
+    ),
+    # ── Media / appliances ──────────────────────────────────────────────
+    "tv": CategorySpec(
+        domains=("media_player",),
+        device_classes=None,
+        preferred_rank=5,
+        fallback_when_no_device_class=True,
+    ),
+    "vacuum_cleaner": CategorySpec(
+        domains=("vacuum",),
+        preferred_rank=5,
+    ),
+    "intercom": CategorySpec(
+        domains=("lock", "switch"),
+        device_classes=None,
+        preferred_rank=30,
+    ),
+    # ── Read-only sensors ──────────────────────────────────────────────
+    "sensor_temp": CategorySpec(
+        domains=("sensor",),
+        device_classes=("temperature",),
+        preferred_rank=30,
+    ),
+    "sensor_humidity": CategorySpec(
+        domains=("sensor",),
+        device_classes=("humidity",),
+        preferred_rank=30,
+    ),
+    # ── Binary sensors ─────────────────────────────────────────────────
+    "sensor_pir": CategorySpec(
+        domains=("binary_sensor",),
+        device_classes=("motion", "occupancy", "presence"),
+        preferred_rank=20,
+    ),
+    "sensor_door": CategorySpec(
+        domains=("binary_sensor",),
+        device_classes=("door", "window", "garage_door", "opening"),
+        preferred_rank=20,
+    ),
+    "sensor_water_leak": CategorySpec(
+        domains=("binary_sensor",),
+        device_classes=("moisture", "water"),
+        preferred_rank=20,
+    ),
+    "sensor_smoke": CategorySpec(
+        domains=("binary_sensor",),
+        device_classes=("smoke",),
+        preferred_rank=20,
+    ),
+    "sensor_gas": CategorySpec(
+        domains=("binary_sensor",),
+        device_classes=("gas", "carbon_monoxide"),
+        preferred_rank=20,
+    ),
+}
+"""Authoritative Sber-category → HA-domain promotion table.
+
+Keys must be a subset of :data:`CATEGORY_CONSTRUCTORS` — enforced by the
+consistency test ``test_category_domain_map.py::test_all_mapped_categories_constructible``.
+"""
+
+
+@dataclass(frozen=True, slots=True)
+class CategoryUiMeta:
+    """Presentation metadata for a Sber category in the wizard UI.
+
+    Attributes:
+        icon: Unicode emoji shown in the Step 1 grid tile.
+        group: UI group identifier (``"control"`` / ``"sensors"`` /
+            ``"automations"``) for collapsed grouping.
+        label_key: Translation key suffix; frontend resolves it against
+            its i18n table.  For the panel which currently uses hard-coded
+            strings, this is also used as a short English fallback label.
+        user_selectable: When ``False``, the category is excluded from the
+            Step 1 grid — it still participates in grouping classification
+            (``sensor_humidity`` is a concrete subcategory of the user-
+            visible ``sensor_temp``, etc.) but the user doesn't pick it
+            explicitly.
+    """
+
+    icon: str
+    group: str
+    label_key: str
+    user_selectable: bool = True
+
+
+CATEGORY_UI_META: dict[str, CategoryUiMeta] = {
+    "light": CategoryUiMeta("💡", "control", "Light"),
+    "led_strip": CategoryUiMeta("🎚️", "control", "LED strip"),
+    "relay": CategoryUiMeta("🔌", "control", "Relay"),
+    "socket": CategoryUiMeta("🔋", "control", "Socket"),
+    "hvac_ac": CategoryUiMeta("❄️", "control", "Air conditioner"),
+    "hvac_radiator": CategoryUiMeta("🔥", "control", "Radiator"),
+    "hvac_heater": CategoryUiMeta("♨️", "control", "Heater"),
+    "hvac_underfloor_heating": CategoryUiMeta("🧱", "control", "Underfloor heating"),
+    "hvac_boiler": CategoryUiMeta("🫖", "control", "Boiler"),
+    "hvac_humidifier": CategoryUiMeta("💧", "control", "Humidifier"),
+    "hvac_air_purifier": CategoryUiMeta("🌬️", "control", "Air purifier"),
+    "hvac_fan": CategoryUiMeta("🌀", "control", "Fan"),
+    "kettle": CategoryUiMeta("☕", "control", "Kettle"),
+    "vacuum_cleaner": CategoryUiMeta("🤖", "control", "Vacuum"),
+    "valve": CategoryUiMeta("🚰", "control", "Valve"),
+    "curtain": CategoryUiMeta("🟨", "control", "Curtain"),
+    "window_blind": CategoryUiMeta("🪟", "control", "Window blind"),
+    "gate": CategoryUiMeta("🚪", "control", "Gate / Garage"),
+    "tv": CategoryUiMeta("📺", "control", "TV / Media player"),
+    "intercom": CategoryUiMeta("🔔", "control", "Intercom"),
+    "sensor_temp": CategoryUiMeta("🌡️", "sensors", "Temperature"),
+    "sensor_humidity": CategoryUiMeta("💦", "sensors", "Humidity", user_selectable=False),
+    "sensor_pir": CategoryUiMeta("🚶", "sensors", "Motion"),
+    "sensor_door": CategoryUiMeta("🚪", "sensors", "Door / Window"),
+    "sensor_water_leak": CategoryUiMeta("🌊", "sensors", "Water leak"),
+    "sensor_smoke": CategoryUiMeta("💨", "sensors", "Smoke"),
+    "sensor_gas": CategoryUiMeta("⚠️", "sensors", "Gas"),
+    "scenario_button": CategoryUiMeta("🔔", "automations", "Scenario button"),
+}
+"""Presentation data for each Sber category in the wizard UI.
+
+Keys must be a subset of :data:`CATEGORY_DOMAIN_MAP`.  See the consistency
+test ``test_category_domain_map.py::test_ui_meta_is_subset_of_domain_map``.
+"""
+
+
+CATEGORY_GROUPS: tuple[tuple[str, str], ...] = (
+    ("control", "Control"),
+    ("sensors", "Sensors"),
+    ("automations", "Automations"),
+)
+"""Ordered list of ``(group_id, label)`` for Step 1 grid grouping."""
+
+
+def categories_for_domain(
+    domain: str,
+    device_class: str | None = None,
+) -> list[str]:
+    """Return all Sber categories matching the given HA ``(domain, device_class)``.
+
+    Result is sorted by :attr:`CategorySpec.preferred_rank` ascending — so
+    the first item is the auto-detected category, subsequent items are
+    alternatives the user could pick.
+
+    Args:
+        domain: HA entity domain (e.g. ``"light"``, ``"sensor"``).
+        device_class: Optional ``original_device_class`` value.
+
+    Returns:
+        List of Sber category IDs.  Empty when no category matches.
+    """
+    matches = [(category, spec) for category, spec in CATEGORY_DOMAIN_MAP.items() if spec.matches(domain, device_class)]
+    matches.sort(key=lambda pair: pair[1].preferred_rank)
+    return [category for category, _ in matches]
 
 
 def _create_sensor(entity_data: dict) -> BaseEntity | None:
