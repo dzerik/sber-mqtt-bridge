@@ -1,0 +1,660 @@
+{
+  "curtain": {
+    "allowed_values": {
+      "open_rate": {
+        "enum_values": {
+          "values": [
+            "auto",
+            "low",
+            "high"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "curtain",
+    "dependencies": {},
+    "features": [
+      "battery_low_power",
+      "battery_percentage",
+      "online",
+      "open_left_percentage",
+      "open_rate",
+      "open_right_percentage",
+      "open_right_set",
+      "open_right_state",
+      "open_set",
+      "open_state",
+      "signal_strength"
+    ]
+  },
+  "gate": {
+    "allowed_values": {
+      "open_rate": {
+        "enum_values": {
+          "values": [
+            "auto",
+            "low",
+            "high"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "gate",
+    "dependencies": {},
+    "features": [
+      "online",
+      "open_left_percentage",
+      "open_left_set",
+      "open_left_state",
+      "open_rate",
+      "open_right_percentage",
+      "open_right_set",
+      "open_right_state",
+      "open_set",
+      "open_state",
+      "signal_strength"
+    ]
+  },
+  "hub": {
+    "allowed_values": {},
+    "category": "hub",
+    "dependencies": {},
+    "features": [
+      "online"
+    ]
+  },
+  "hvac_ac": {
+    "allowed_values": {
+      "hvac_air_flow_power": {
+        "enum_values": {
+          "values": [
+            "auto",
+            "high",
+            "low",
+            "medium",
+            "turbo"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "hvac_ac",
+    "dependencies": {},
+    "features": [
+      "hvac_air_flow_direction",
+      "hvac_air_flow_power",
+      "hvac_humidity_set",
+      "hvac_night_mode",
+      "hvac_temp_set",
+      "hvac_work_mode",
+      "on_off",
+      "online"
+    ]
+  },
+  "hvac_air_purifier": {
+    "allowed_values": {
+      "hvac_air_flow_power": {
+        "enum_values": {
+          "values": [
+            "auto",
+            "high",
+            "low",
+            "medium",
+            "turbo"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "hvac_air_purifier",
+    "dependencies": {},
+    "features": [
+      "hvac_air_flow_power",
+      "hvac_aromatization",
+      "hvac_ionization",
+      "hvac_night_mode",
+      "hvac_replace_filter",
+      "hvac_replace_ionizator",
+      "on_off",
+      "online"
+    ]
+  },
+  "hvac_boiler": {
+    "allowed_values": {
+      "hvac_temp_set": {
+        "integer_values": {
+          "max": "80",
+          "min": "25",
+          "step": "5"
+        },
+        "type": "INTEGER"
+      }
+    },
+    "category": "hvac_boiler",
+    "dependencies": {},
+    "features": [
+      "hvac_temp_set",
+      "hvac_thermostat_mode",
+      "on_off",
+      "online",
+      "temperature"
+    ]
+  },
+  "hvac_fan": {
+    "allowed_values": {
+      "hvac_air_flow_power": {
+        "enum_values": {
+          "values": [
+            "auto",
+            "high",
+            "low",
+            "medium",
+            "turbo"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "hvac_fan",
+    "dependencies": {},
+    "features": [
+      "hvac_air_flow_power",
+      "on_off",
+      "online"
+    ]
+  },
+  "hvac_heater": {
+    "allowed_values": {
+      "hvac_air_flow_power": {
+        "enum_values": {
+          "values": [
+            "auto",
+            "high",
+            "low",
+            "medium",
+            "turbo"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "hvac_heater",
+    "dependencies": {},
+    "features": [
+      "hvac_air_flow_power",
+      "hvac_temp_set",
+      "hvac_thermostat_mode",
+      "on_off",
+      "online",
+      "temperature"
+    ]
+  },
+  "hvac_humidifier": {
+    "allowed_values": {
+      "hvac_air_flow_power": {
+        "enum_values": {
+          "values": [
+            "auto",
+            "high",
+            "low",
+            "medium",
+            "turbo"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "hvac_humidifier",
+    "dependencies": {},
+    "features": [
+      "humidity",
+      "hvac_air_flow_power",
+      "hvac_humidity_set",
+      "hvac_ionization",
+      "hvac_night_mode",
+      "hvac_replace_filter",
+      "hvac_replace_ionizator",
+      "hvac_water_low_level",
+      "hvac_water_percentage",
+      "on_off",
+      "online"
+    ]
+  },
+  "hvac_radiator": {
+    "allowed_values": {
+      "hvac_temp_set": {
+        "integer_values": {
+          "max": "40",
+          "min": "25",
+          "step": "5"
+        },
+        "type": "INTEGER"
+      }
+    },
+    "category": "hvac_radiator",
+    "dependencies": {},
+    "features": [
+      "hvac_temp_set",
+      "on_off",
+      "online",
+      "temperature"
+    ]
+  },
+  "hvac_underfloor_heating": {
+    "allowed_values": {
+      "hvac_temp_set": {
+        "integer_values": {
+          "max": "50",
+          "min": "25",
+          "step": "5"
+        },
+        "type": "INTEGER"
+      }
+    },
+    "category": "hvac_underfloor_heating",
+    "dependencies": {},
+    "features": [
+      "hvac_temp_set",
+      "hvac_thermostat_mode",
+      "on_off",
+      "online",
+      "temperature"
+    ]
+  },
+  "intercom": {
+    "allowed_values": {},
+    "category": "intercom",
+    "dependencies": {},
+    "features": [
+      "incoming_call",
+      "online",
+      "reject_call",
+      "unlock"
+    ]
+  },
+  "kettle": {
+    "allowed_values": {
+      "kitchen_water_temperature_set": {
+        "integer_values": {
+          "max": "100",
+          "min": "60",
+          "step": "10"
+        },
+        "type": "INTEGER"
+      }
+    },
+    "category": "kettle",
+    "dependencies": {},
+    "features": [
+      "child_lock",
+      "kitchen_water_level",
+      "kitchen_water_low_level",
+      "kitchen_water_temperature",
+      "kitchen_water_temperature_set",
+      "on_off",
+      "online"
+    ]
+  },
+  "led_strip": {
+    "allowed_values": {
+      "light_brightness": {
+        "integer_values": {
+          "max": "900",
+          "min": "100",
+          "step": "1"
+        },
+        "type": "INTEGER"
+      }
+    },
+    "category": "led_strip",
+    "dependencies": {},
+    "features": [
+      "light_brightness",
+      "light_colour",
+      "light_colour_temp",
+      "light_mode",
+      "on_off",
+      "online",
+      "sleep_timer"
+    ]
+  },
+  "light": {
+    "allowed_values": {
+      "light_brightness": {
+        "integer_values": {
+          "max": "900",
+          "min": "100",
+          "step": "1"
+        },
+        "type": "INTEGER"
+      }
+    },
+    "category": "light",
+    "dependencies": {},
+    "features": [
+      "light_brightness",
+      "light_colour",
+      "light_colour_temp",
+      "light_mode",
+      "on_off",
+      "online"
+    ]
+  },
+  "relay": {
+    "allowed_values": {
+      "power": {
+        "integer_values": {
+          "max": "45000",
+          "min": "10",
+          "step": "1"
+        },
+        "type": "INTEGER"
+      }
+    },
+    "category": "relay",
+    "dependencies": {},
+    "features": [
+      "current",
+      "on_off",
+      "online",
+      "power",
+      "voltage"
+    ]
+  },
+  "scenario_button": {
+    "allowed_values": {
+      "button_1_event": {
+        "enum_values": {
+          "values": [
+            "click",
+            "double_click"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "scenario_button",
+    "dependencies": {},
+    "features": [
+      "battery_percentag",
+      "button_1_event",
+      "button_2_event",
+      "online",
+      "signal_strength"
+    ]
+  },
+  "sensor_door": {
+    "allowed_values": {
+      "sensor_sensitive": {
+        "enum_values": {
+          "values": [
+            "auto",
+            "high"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "sensor_door",
+    "dependencies": {},
+    "features": [
+      "battery_low_power",
+      "battery_percentage",
+      "doorcontact_state",
+      "online",
+      "sensor_sensitive",
+      "signal_strength",
+      "tamper_alarm"
+    ]
+  },
+  "sensor_gas": {
+    "allowed_values": {
+      "signal_strength": {
+        "enum_values": {
+          "values": [
+            "low",
+            "high"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "sensor_gas",
+    "dependencies": {},
+    "features": [
+      "alarm_mute",
+      "battery_low_power",
+      "battery_percentage",
+      "gas_leak_state",
+      "online",
+      "sensor_sensitive",
+      "signal_strength"
+    ]
+  },
+  "sensor_pir": {
+    "allowed_values": {
+      "sensor_sensitive": {
+        "enum_values": {
+          "values": [
+            "auto",
+            "high"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "sensor_pir",
+    "dependencies": {},
+    "features": [
+      "battery_low_power",
+      "battery_percentage",
+      "online",
+      "pir",
+      "sensor_sensitive",
+      "signal_strength"
+    ]
+  },
+  "sensor_smoke": {
+    "allowed_values": {
+      "signal_strength": {
+        "enum_values": {
+          "values": [
+            "low",
+            "high"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "sensor_smoke",
+    "dependencies": {},
+    "features": [
+      "alarm_mute",
+      "battery_low_power",
+      "battery_percentage",
+      "online",
+      "signal_strength",
+      "smoke_state"
+    ]
+  },
+  "sensor_temp": {
+    "allowed_values": {
+      "sensor_sensitive": {
+        "enum_values": {
+          "values": [
+            "auto",
+            "high"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "sensor_temp",
+    "dependencies": {},
+    "features": [
+      "air_pressure",
+      "battery_low_power",
+      "battery_percentage",
+      "humidity",
+      "online",
+      "sensor_sensitive",
+      "signal_strength",
+      "temp_unit_view",
+      "temperature"
+    ]
+  },
+  "sensor_water_leak": {
+    "allowed_values": {
+      "signal_strength": {
+        "enum_values": {
+          "values": [
+            "low",
+            "high"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "sensor_water_leak",
+    "dependencies": {},
+    "features": [
+      "battery_low_power",
+      "battery_percentage",
+      "online",
+      "signal_strength",
+      "water_leak_state"
+    ]
+  },
+  "socket": {
+    "allowed_values": {
+      "power": {
+        "integer_values": {
+          "max": "45000",
+          "min": "10",
+          "step": "1"
+        },
+        "type": "INTEGER"
+      }
+    },
+    "category": "socket",
+    "dependencies": {},
+    "features": [
+      "child_lock",
+      "current",
+      "on_off",
+      "online",
+      "power",
+      "voltage"
+    ]
+  },
+  "tv": {
+    "allowed_values": {
+      "source": {
+        "enum_values": {
+          "values": [
+            "hdmi1",
+            "hdmi2",
+            "hdmi3",
+            "tv",
+            "av",
+            "content",
+            "+",
+            "-"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "tv",
+    "dependencies": {},
+    "features": [
+      "channel",
+      "channel_int",
+      "custom_key",
+      "direction",
+      "mute",
+      "number",
+      "on_off",
+      "online",
+      "source",
+      "volume",
+      "volume_int"
+    ]
+  },
+  "vacuum_cleaner": {
+    "allowed_values": {
+      "vacuum_cleaner_program": {
+        "enum_values": {
+          "values": [
+            "perimeter",
+            "spot",
+            "smart"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "vacuum_cleaner",
+    "dependencies": {},
+    "features": [
+      "battery_percentage",
+      "child_lock",
+      "online",
+      "vacuum_cleaner_cleaning_type",
+      "vacuum_cleaner_command",
+      "vacuum_cleaner_program",
+      "vacuum_cleaner_status"
+    ]
+  },
+  "valve": {
+    "allowed_values": {
+      "signal_strength": {
+        "enum_values": {
+          "values": [
+            "low",
+            "high"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "valve",
+    "dependencies": {},
+    "features": [
+      "battery_low_power",
+      "battery_percentage",
+      "online",
+      "open_set",
+      "open_state",
+      "signal_strength"
+    ]
+  },
+  "window_blind": {
+    "allowed_values": {
+      "open_rate": {
+        "enum_values": {
+          "values": [
+            "auto",
+            "low",
+            "high"
+          ]
+        },
+        "type": "ENUM"
+      }
+    },
+    "category": "window_blind",
+    "dependencies": {},
+    "features": [
+      "battery_low_power",
+      "battery_percentage",
+      "online",
+      "open_percentage",
+      "open_rate",
+      "open_set",
+      "open_state",
+      "signal_strength"
+    ]
+  }
+}

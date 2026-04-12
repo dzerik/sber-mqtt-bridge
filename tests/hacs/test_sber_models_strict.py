@@ -586,12 +586,16 @@ class TestCategoryCompliance:
         violations = validate_category_compliance(device)
         assert violations == []
 
-    def test_scenario_button_requires_button_event(self):
-        """FAIL: scenario_button without button_event."""
+    def test_scenario_button_only_requires_online(self):
+        """PASS: scenario_button with just online.
+
+        Per Sber spec, scenario_button may use `button_event` OR any of
+        `button_1_event`..`button_10_event` — the device class picks the
+        right variant, our required set only enforces `online`.
+        """
         device = _minimal_device(category="scenario_button", features=["online"])
         violations = validate_category_compliance(device)
-        assert len(violations) >= 1
-        assert "button_event" in str(violations[0])
+        assert violations == []
 
     def test_hvac_ac_requires_on_off(self):
         """FAIL: hvac_ac without on_off."""

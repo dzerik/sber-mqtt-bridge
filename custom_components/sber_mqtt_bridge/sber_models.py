@@ -408,7 +408,8 @@ CATEGORY_REQUIRED_FEATURES: dict[str, frozenset[str]] = {
     "relay": frozenset({"online", "on_off"}),
     "socket": frozenset({"online", "on_off"}),
     "tv": frozenset({"online", "on_off"}),
-    "intercom": frozenset({"online", "on_off"}),
+    # intercom uses unlock/incoming_call/reject_call, NOT on_off (Sber spec)
+    "intercom": frozenset({"online"}),
     # HVAC (on_off required)
     "hvac_ac": frozenset({"online", "on_off"}),
     "hvac_radiator": frozenset({"online", "on_off"}),
@@ -431,8 +432,10 @@ CATEGORY_REQUIRED_FEATURES: dict[str, frozenset[str]] = {
     "sensor_water_leak": frozenset({"online", "water_leak_state"}),
     "sensor_smoke": frozenset({"online", "smoke_state"}),
     "sensor_gas": frozenset({"online", "gas_leak_state"}),
-    # Automation
-    "scenario_button": frozenset({"online", "button_event"}),
+    # Automation — button_event OR button_1_event..button_10_event all valid
+    # per Sber spec, so we only require 'online' here and let the device class
+    # choose which button_* variant fits.
+    "scenario_button": frozenset({"online"}),
     # Appliances
     "vacuum_cleaner": frozenset({"online"}),
     # Hub
