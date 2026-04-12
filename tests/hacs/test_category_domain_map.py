@@ -162,9 +162,7 @@ class TestRegistryConsistency:
 
     def test_all_mapped_categories_are_constructible(self):
         """Every category in CATEGORY_DOMAIN_MAP must have a constructor."""
-        missing = [
-            cat for cat in CATEGORY_DOMAIN_MAP if cat not in CATEGORY_CONSTRUCTORS
-        ]
+        missing = [cat for cat in CATEGORY_DOMAIN_MAP if cat not in CATEGORY_CONSTRUCTORS]
         assert not missing, f"Categories without constructor: {missing}"
 
     def test_ui_meta_is_subset_of_domain_map(self):
@@ -175,29 +173,19 @@ class TestRegistryConsistency:
     def test_domain_map_covers_all_user_selectable(self):
         """Every user_selectable=True category must be in CATEGORY_DOMAIN_MAP."""
         missing = [
-            cat
-            for cat, meta in CATEGORY_UI_META.items()
-            if meta.user_selectable and cat not in CATEGORY_DOMAIN_MAP
+            cat for cat, meta in CATEGORY_UI_META.items() if meta.user_selectable and cat not in CATEGORY_DOMAIN_MAP
         ]
         assert not missing, f"User-selectable without domain mapping: {missing}"
 
     def test_ui_meta_group_values_are_known(self):
         known_groups = {group_id for group_id, _ in CATEGORY_GROUPS}
-        bad = [
-            (cat, meta.group)
-            for cat, meta in CATEGORY_UI_META.items()
-            if meta.group not in known_groups
-        ]
+        bad = [(cat, meta.group) for cat, meta in CATEGORY_UI_META.items() if meta.group not in known_groups]
         assert not bad, f"Unknown UI groups: {bad}"
 
     def test_every_user_selectable_has_ui_meta(self):
         """Every category that can be shown in the wizard Step 1 grid must have a UI meta entry."""
         # Reverse direction: catch domain_map categories missing UI meta
-        missing_meta = [
-            cat
-            for cat in CATEGORY_DOMAIN_MAP
-            if cat not in CATEGORY_UI_META
-        ]
+        missing_meta = [cat for cat in CATEGORY_DOMAIN_MAP if cat not in CATEGORY_UI_META]
         assert not missing_meta, f"Domain-map categories without UI meta: {missing_meta}"
 
 
@@ -209,9 +197,7 @@ class TestCategoryUiMeta:
         assert meta.user_selectable is True
 
     def test_user_selectable_can_be_false(self):
-        meta = CategoryUiMeta(
-            icon="X", group="control", label_key="X", user_selectable=False
-        )
+        meta = CategoryUiMeta(icon="X", group="control", label_key="X", user_selectable=False)
         assert meta.user_selectable is False
 
     def test_ui_meta_is_frozen(self):

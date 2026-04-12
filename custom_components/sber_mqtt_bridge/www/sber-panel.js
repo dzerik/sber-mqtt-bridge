@@ -16,7 +16,6 @@ await Promise.all([
   import(`./components/sber-device-table.js${_q}`),
   import(`./components/sber-status-card.js${_q}`),
   import(`./components/sber-stats-grid.js${_q}`),
-  import(`./components/sber-add-dialog.js${_q}`),
   import(`./components/sber-toolbar.js${_q}`),
   import(`./components/sber-wizard.js${_q}`),
   import(`./components/sber-toast.js${_q}`),
@@ -131,23 +130,6 @@ class SberMqttPanel extends LitElement {
     }
   }
 
-  async _addEntities(entityIds) {
-    this._loading = true;
-    try {
-      await this.hass.callWS({
-        type: "sber_mqtt_bridge/add_entities",
-        entity_ids: entityIds,
-      });
-      // Wait a short moment for the reload to settle
-      await new Promise((r) => setTimeout(r, 1500));
-      await this._fetchAll();
-    } catch (e) {
-      this._error = e.message || String(e);
-    } finally {
-      this._loading = false;
-    }
-  }
-
   async _removeEntities(entityIds) {
     this._loading = true;
     try {
@@ -171,22 +153,6 @@ class SberMqttPanel extends LitElement {
         type: "sber_mqtt_bridge/set_override",
         entity_id: entityId,
         category: category,
-      });
-      await new Promise((r) => setTimeout(r, 1500));
-      await this._fetchAll();
-    } catch (e) {
-      this._error = e.message || String(e);
-    } finally {
-      this._loading = false;
-    }
-  }
-
-  async _bulkAddAll() {
-    this._loading = true;
-    try {
-      await this.hass.callWS({
-        type: "sber_mqtt_bridge/bulk_add",
-        domains: [],
       });
       await new Promise((r) => setTimeout(r, 1500));
       await this._fetchAll();
@@ -221,12 +187,9 @@ class SberMqttPanel extends LitElement {
   }
 
   _onToolbarAdd() {
-    const dialog = this.shadowRoot.querySelector("sber-add-dialog");
-    if (dialog) dialog.show();
-  }
-
-  _onToolbarBulkAdd() {
-    this._bulkAddAll();
+    /* v1.26.0: "Add Devices" toolbar button now opens the same
+     * device-centric wizard as the primary "Wizard" button. */
+    this._onToolbarWizard();
   }
 
   _onToolbarClearAll() {
@@ -249,10 +212,6 @@ class SberMqttPanel extends LitElement {
     } finally {
       this._loading = false;
     }
-  }
-
-  _onAddEntities(e) {
-    this._addEntities(e.detail.entityIds);
   }
 
   _onRemoveEntities(e) {
@@ -330,26 +289,19 @@ class SberMqttPanel extends LitElement {
   }
 
   async _onWizardComplete(e) {
-    const d = e.detail;
+    /* Wizard itself has already called ``ws_add_ha_device`` atomically.
+     * We only refresh the device table and show a success toast. */
+    const d = e.detail || {};
     this._loading = true;
     try {
-      /* Single atomic call — add + override + links + one reload */
-      const result = await this.hass.callWS({
-        type: "sber_mqtt_bridge/add_device_wizard",
-        entity_id: d.entity_id,
-        category: d.category,
-        entity_links: d.entity_links || {},
-        name: d.name || "",
-        room: d.room || "",
-      });
       await new Promise((r) => setTimeout(r, 1500));
       await this._fetchAll();
-      const msg = result.links_count > 0
-        ? `Device added with ${result.links_count} linked sensor(s)`
+      const msg = d.linked_count > 0
+        ? `Device added with ${d.linked_count} linked sensor(s)`
         : "Device added via wizard";
       this._showToast(msg, "success");
     } catch (err) {
-      this._showToast("Wizard failed: " + (err.message || err), "error");
+      this._showToast("Refresh after add failed: " + (err.message || err), "error");
     } finally {
       this._loading = false;
     }
@@ -498,7 +450,6 @@ class SberMqttPanel extends LitElement {
           @toolbar-wizard=${this._onToolbarWizard}
           @toolbar-export=${this._onToolbarExport}
           @toolbar-import=${this._onToolbarImport}
-          @toolbar-bulk-add=${this._onToolbarBulkAdd}
           @toolbar-clear-all=${this._onToolbarClearAll}
           @toolbar-auto-link=${this._onToolbarAutoLink}
         ></sber-toolbar>
@@ -524,14 +475,8 @@ class SberMqttPanel extends LitElement {
         : this._tab === 2 ? this._renderDevtools()
         : this._renderSettings()}
 
-      <sber-add-dialog
-        .hass=${this.hass}
-        @add-entities=${this._onAddEntities}
-      ></sber-add-dialog>
-
       <sber-wizard
         .hass=${this.hass}
-        .exposedIds=${this._devices.map(d => d.entity_id)}
         @wizard-complete=${this._onWizardComplete}
       ></sber-wizard>
 

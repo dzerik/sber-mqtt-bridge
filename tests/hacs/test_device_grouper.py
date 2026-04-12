@@ -15,10 +15,8 @@ import pytest
 from custom_components.sber_mqtt_bridge.device_grouper import (
     DeviceGroup,
     EntityRole,
-    GroupedEntity,
     HaDeviceGrouper,
 )
-
 
 # ---------------------------------------------------------------------------
 # Test fixtures — minimal HA registry stubs
@@ -95,15 +93,9 @@ def hass():
 def mock_registries():
     """Patch the three HA registries at the device_grouper module level."""
     with (
-        patch(
-            "custom_components.sber_mqtt_bridge.device_grouper.er"
-        ) as mock_er,
-        patch(
-            "custom_components.sber_mqtt_bridge.device_grouper.dr"
-        ) as mock_dr,
-        patch(
-            "custom_components.sber_mqtt_bridge.device_grouper.ar"
-        ) as mock_ar,
+        patch("custom_components.sber_mqtt_bridge.device_grouper.er") as mock_er,
+        patch("custom_components.sber_mqtt_bridge.device_grouper.dr") as mock_dr,
+        patch("custom_components.sber_mqtt_bridge.device_grouper.ar") as mock_ar,
     ):
         entity_reg = MagicMock()
         entity_reg.entities = {}
@@ -224,7 +216,7 @@ class TestCurtainDevices:
     """CurtainEntity.LINKABLE_ROLES = SENSOR_LINK_ROLES — proper linking works."""
 
     def test_curtain_with_native_battery_signal(self, hass, mock_registries):
-        entity_reg, device_reg, area_reg = mock_registries
+        entity_reg, device_reg, _area_reg = mock_registries
         _set_devices(device_reg, [_make_device("curt_dev", name="Curtain")])
         _set_entities(
             entity_reg,
@@ -325,9 +317,7 @@ class TestDisabledHiddenEntities:
 
 
 class TestCrossDeviceLinks:
-    def test_cross_device_battery_added_to_linked_compatible(
-        self, hass, mock_registries
-    ):
+    def test_cross_device_battery_added_to_linked_compatible(self, hass, mock_registries):
         entity_reg, device_reg, _ = mock_registries
         _set_devices(
             device_reg,
@@ -359,9 +349,7 @@ class TestCrossDeviceLinks:
         assert comp.origin_device_name == "Orphan Battery"
         assert comp.preselected is False
 
-    def test_cross_device_skipped_when_native_fills_role(
-        self, hass, mock_registries
-    ):
+    def test_cross_device_skipped_when_native_fills_role(self, hass, mock_registries):
         entity_reg, device_reg, _ = mock_registries
         _set_devices(
             device_reg,
@@ -545,11 +533,7 @@ class TestMultipleNativeSameRole:
         assert group.primary.entity_id == "climate.thermostat"
         # ClimateEntity.LINKABLE_ROLES = (ROLE_TEMPERATURE,), so both temps
         # should land in linked_native.
-        temp_ids = {
-            e.entity_id
-            for e in group.linked_native
-            if e.link_role == "temperature"
-        }
+        temp_ids = {e.entity_id for e in group.linked_native if e.link_role == "temperature"}
         assert temp_ids == {"sensor.temp_indoor", "sensor.temp_outdoor"}
 
 

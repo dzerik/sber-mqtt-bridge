@@ -32,6 +32,7 @@ from .devices_grouped import (
     ws_add_ha_device,
     ws_list_categories,
     ws_list_devices_for_category,
+    ws_suggest_links,
 )
 from .entities import (
     ws_add_entities,
@@ -83,6 +84,7 @@ __all__ = [
     "ws_set_entity_links",
     "ws_set_type_override",
     "ws_subscribe_messages",
+    "ws_suggest_links",
     "ws_update_redefinitions",
     "ws_update_settings",
 ]
@@ -108,6 +110,7 @@ _COMMANDS = (
     # Linking
     ws_set_entity_links,
     ws_auto_link_all,
+    ws_suggest_links,
     # Import / export / redefinitions
     ws_export,
     ws_import,

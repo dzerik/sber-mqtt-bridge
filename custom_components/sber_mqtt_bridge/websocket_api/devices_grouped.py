@@ -33,7 +33,7 @@ from ..sber_entity_map import (
     CATEGORY_UI_META,
     create_sber_entity,
 )
-from ._common import get_config_entry
+from ._common import get_bridge, get_config_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -283,5 +283,103 @@ async def ws_add_ha_device(
             "primary_entity_id": primary_id,
             "category": category,
             "linked_count": len(role_mapping),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Command 4: suggest_links (post-add edit flow)
+# ---------------------------------------------------------------------------
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/suggest_links",
+        vol.Required("entity_id"): str,
+        vol.Optional("category"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_suggest_links(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return link candidates for an already-exposed primary entity.
+
+    Used by ``sber-link-dialog`` to let the user re-edit linked sensors
+    after a device has been added.  Thin wrapper over
+    :class:`HaDeviceGrouper.preview_for_category` that flattens
+    ``linked_native`` + ``linked_compatible`` into the legacy
+    ``candidates`` list shape the frontend expects.
+    """
+    from homeassistant.helpers import entity_registry as er
+
+    entity_id: str = msg["entity_id"]
+    entity_reg = er.async_get(hass)
+    primary_entry = entity_reg.async_get(entity_id)
+    if not primary_entry or not primary_entry.device_id:
+        connection.send_result(msg["id"], {"candidates": [], "allowed_roles": [], "category": ""})
+        return
+
+    bridge = get_bridge(hass)
+    primary_category = msg.get("category") or ""
+    if not primary_category and bridge is not None:
+        entity = bridge.entities.get(entity_id)
+        if entity is not None:
+            primary_category = entity.category
+    if not primary_category:
+        # Fallback to auto-detect via create_sber_entity
+        sber = create_sber_entity(
+            entity_id,
+            {
+                "entity_id": entity_id,
+                "original_device_class": primary_entry.original_device_class or "",
+            },
+        )
+        primary_category = sber.category if sber is not None else ""
+    if primary_category not in CATEGORY_DOMAIN_MAP:
+        connection.send_result(msg["id"], {"candidates": [], "allowed_roles": [], "category": primary_category})
+        return
+
+    grouper = HaDeviceGrouper(hass)
+    group = grouper.preview_for_category(primary_entry.device_id, primary_category)
+    if group is None:
+        connection.send_result(msg["id"], {"candidates": [], "allowed_roles": [], "category": primary_category})
+        return
+
+    existing_links: dict[str, str] = {}
+    if bridge is not None:
+        existing_links = bridge.entity_links.get(entity_id, {})
+
+    candidates: list[dict[str, Any]] = []
+    allowed_roles: set[str] = set()
+    for link in [*group.linked_native, *group.linked_compatible]:
+        if link.link_role:
+            allowed_roles.add(link.link_role)
+        candidates.append(
+            {
+                "entity_id": link.entity_id,
+                "domain": link.domain,
+                "device_class": link.device_class,
+                "friendly_name": link.friendly_name,
+                "suggested_role": link.link_role or "",
+                "compatible": True,
+                "same_device": not link.is_cross_device,
+                "currently_linked": link.entity_id in existing_links.values(),
+                "linked_role": next(
+                    (role for role, eid in existing_links.items() if eid == link.entity_id),
+                    "",
+                ),
+            }
+        )
+    candidates.sort(key=lambda c: (not c["same_device"], c["friendly_name"]))
+
+    connection.send_result(
+        msg["id"],
+        {
+            "candidates": candidates,
+            "allowed_roles": sorted(allowed_roles),
+            "category": primary_category,
         },
     )

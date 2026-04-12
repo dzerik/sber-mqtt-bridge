@@ -7,7 +7,6 @@ business logic of ``ws_list_categories`` / ``ws_list_devices_for_category``
 
 from __future__ import annotations
 
-from types import MappingProxyType
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -17,7 +16,6 @@ from custom_components.sber_mqtt_bridge.websocket_api.devices_grouped import (
     ws_list_categories,
     ws_list_devices_for_category,
 )
-
 
 # ---------------------------------------------------------------------------
 # Test fixtures — minimal HA + connection stubs
@@ -91,9 +89,7 @@ def _make_device(device_id: str, **kwargs):
 @pytest.fixture
 def mock_get_config_entry(hass):
     entry = _make_entry()
-    with patch(
-        "custom_components.sber_mqtt_bridge.websocket_api.devices_grouped.get_config_entry"
-    ) as mock:
+    with patch("custom_components.sber_mqtt_bridge.websocket_api.devices_grouped.get_config_entry") as mock:
         mock.return_value = entry
         yield mock, entry
 
@@ -175,9 +171,7 @@ class TestListCategories:
         msg = {"id": 5}
         ws_list_categories(hass, connection, msg)
         payload = connection.send_result.call_args[0][1]
-        assert all(
-            set(g.keys()) == {"id", "label"} for g in payload["groups"]
-        )
+        assert all(set(g.keys()) == {"id", "label"} for g in payload["groups"])
 
     def test_categories_sorted_stable(self, hass, connection):
         msg = {"id": 6}
@@ -202,18 +196,14 @@ class TestListCategories:
 
 class TestListDevicesForCategory:
     @pytest.mark.asyncio
-    async def test_unknown_category_returns_error(
-        self, hass, connection, mock_get_config_entry, mock_registries
-    ):
+    async def test_unknown_category_returns_error(self, hass, connection, mock_get_config_entry, mock_registries):
         msg = {"id": 10, "category": "nonexistent_xyz"}
         await ws_list_devices_for_category.__wrapped__(hass, connection, msg)
         connection.send_error.assert_called_once()
         assert connection.send_error.call_args[0][1] == "unknown_category"
 
     @pytest.mark.asyncio
-    async def test_empty_registry_returns_empty_list(
-        self, hass, connection, mock_get_config_entry, mock_registries
-    ):
+    async def test_empty_registry_returns_empty_list(self, hass, connection, mock_get_config_entry, mock_registries):
         msg = {"id": 11, "category": "light"}
         await ws_list_devices_for_category.__wrapped__(hass, connection, msg)
         connection.send_result.assert_called_once()
@@ -225,9 +215,7 @@ class TestListDevicesForCategory:
         assert payload["summary"]["unexposed"] == 0
 
     @pytest.mark.asyncio
-    async def test_returns_grouped_device_structure(
-        self, hass, connection, mock_get_config_entry, mock_registries
-    ):
+    async def test_returns_grouped_device_structure(self, hass, connection, mock_get_config_entry, mock_registries):
         entity_reg, device_reg, _ = mock_registries
         device_reg.devices = {"dev1": _make_device("dev1", name="Lamp")}
         entity_reg.entities = {
@@ -243,9 +231,7 @@ class TestListDevicesForCategory:
         assert device["primary"]["entity_id"] == "light.lamp"
 
     @pytest.mark.asyncio
-    async def test_already_exposed_counted_in_summary(
-        self, hass, connection, mock_registries
-    ):
+    async def test_already_exposed_counted_in_summary(self, hass, connection, mock_registries):
         entity_reg, device_reg, _ = mock_registries
         device_reg.devices = {"dev1": _make_device("dev1")}
         entity_reg.entities = {
@@ -450,9 +436,7 @@ class TestAddHaDevice:
         assert payload["linked_count"] == 1
 
         options = hass.config_entries.async_update_entry.call_args[1]["options"]
-        assert options["entity_links"]["cover.curtain"] == {
-            "battery": "sensor.curtain_battery"
-        }
+        assert options["entity_links"]["cover.curtain"] == {"battery": "sensor.curtain_battery"}
 
     @pytest.mark.asyncio
     async def test_role_conflict_rejected(self, hass, connection):
