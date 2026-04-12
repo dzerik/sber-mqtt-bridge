@@ -72,10 +72,14 @@ class AttrSpec:
     """
 
     field: str
-    attr_keys: tuple[str, ...]
+    attr_keys: tuple[str, ...] = ()
     parser: Callable[[object], object] = lambda v: v
     default: object = None
     preserve_on_missing: bool = False
+    converter: Callable[[dict], object] | None = None
+    """Full-attrs converter.  When set, receives the entire HA attributes dict
+    instead of a single value looked up by ``attr_keys``.  ``parser`` and
+    ``attr_keys`` are ignored when ``converter`` is provided."""
 
 
 def _safe_int_parser(value: object) -> int | None:
@@ -321,6 +325,18 @@ class BaseEntity(ABC):
             attrs: HA attributes dict extracted from a state dict.
         """
         for spec in self.ATTR_SPECS:
+            # Full-attrs converter path: receives entire attrs dict
+            if spec.converter is not None:
+                try:
+                    parsed = spec.converter(attrs)
+                except (TypeError, ValueError, KeyError):
+                    parsed = spec.default
+                if parsed is None and spec.preserve_on_missing:
+                    continue
+                setattr(self, spec.field, parsed if parsed is not None else spec.default)
+                continue
+
+            # Standard path: look up single value by attr_keys
             raw: object = None
             for key in spec.attr_keys:
                 candidate = attrs.get(key)
