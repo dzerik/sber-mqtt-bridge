@@ -108,6 +108,14 @@
     "broken_entity_links": {
       "title": "Broken entity links",
       "description": "{count} linked entities are not available: {links}. Check that the linked entities exist and are not disabled."
+    },
+    "unacknowledged_entities": {
+      "title": "Devices not recognized by Sber",
+      "description": "{count} devices were published to Sber cloud but not acknowledged. Sber may have silently rejected them due to invalid features or allowed_values. Affected entities: {entities}. Try removing and re-adding them, or check the Sber protocol documentation."
+    },
+    "sber_errors": {
+      "title": "Sber cloud errors",
+      "description": "Received {count} error(s) from Sber cloud. Last error: {detail}"
     }
   }
 }

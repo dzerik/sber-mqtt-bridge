@@ -24,6 +24,7 @@ from homeassistant.core import Event, HomeAssistant, callback
 
 from .command_dispatcher import SberCommandDispatcher
 from .const import (
+    CONF_ACK_AUDIT_DELAY,
     CONF_CONFIRM_DELAY,
     CONF_DEBOUNCE_DELAY,
     CONF_HUB_AUTO_PARENT,
@@ -112,6 +113,12 @@ class BridgeStats:
     acknowledged_entities: set[str] = field(default_factory=set)
     """Entity IDs that Sber has acknowledged (via status_request or command)."""
 
+    last_error_detail: str = ""
+    """Human-readable detail of the last error message from Sber cloud."""
+
+    last_ack_time: float | None = None
+    """Timestamp (monotonic) of the last Sber acknowledgment received."""
+
     def as_dict(self) -> dict:
         """Return stats as a serializable dict."""
         now = time.monotonic()
@@ -127,6 +134,7 @@ class BridgeStats:
             "publish_errors": self.publish_errors,
             "reconnect_count": self.reconnect_count,
             "acknowledged_entities": sorted(self.acknowledged_entities),
+            "last_error_detail": self.last_error_detail,
         }
 
 
@@ -217,6 +225,9 @@ class SberBridge:
 
         # Delayed confirm tasks per entity (dedup: cancel previous on new command)
         self._confirm_tasks: dict[str, asyncio.Task] = {}
+
+        # Ack audit: detect silently rejected entities after config publish
+        self._ack_audit_handle: asyncio.TimerHandle | None = None
 
         # Debounced redefinitions persistence (avoid reload mid-MQTT-loop)
         self._redef_dirty = False
@@ -388,6 +399,7 @@ class SberBridge:
         self._max_payload_size: int = int(options.get(CONF_MAX_MQTT_PAYLOAD, SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]))
         self._message_log_size: int = int(options.get(CONF_MESSAGE_LOG_SIZE, SETTINGS_DEFAULTS[CONF_MESSAGE_LOG_SIZE]))
         self._confirm_delay: float = float(options.get(CONF_CONFIRM_DELAY, SETTINGS_DEFAULTS[CONF_CONFIRM_DELAY]))
+        self._ack_audit_delay: float = float(options.get(CONF_ACK_AUDIT_DELAY, SETTINGS_DEFAULTS[CONF_ACK_AUDIT_DELAY]))
         # verify_ssl has a special path: config_entry.data fallback for migrated entries
         self._verify_ssl: bool = bool(
             options.get(
@@ -675,6 +687,37 @@ class SberBridge:
         """
         self._ack_guard.activate(RECONNECT_GRACE_TIMEOUT, self._hass.loop)
 
+    def _schedule_ack_audit(self) -> None:
+        """Schedule an ack audit after config publish.
+
+        After ``_ack_audit_delay`` seconds, checks which entities remain
+        unacknowledged and creates HA repair issues for silent rejections.
+        Cancels any previous pending audit to avoid duplicate checks.
+        """
+        if self._ack_audit_handle is not None:
+            self._ack_audit_handle.cancel()
+        self._ack_audit_handle = self._hass.loop.call_later(self._ack_audit_delay, self._run_ack_audit)
+
+    def _run_ack_audit(self) -> None:
+        """Execute the ack audit — detect silently rejected entities.
+
+        Creates HA repair issues for entities that Sber cloud accepted
+        in the config but never sent a ``status_request`` for.
+        """
+        self._ack_audit_handle = None
+        unack = self.unacknowledged_entities
+        if unack:
+            _LOGGER.warning(
+                "Sber silent rejection detected: %d entities unacknowledged after %ds: %s",
+                len(unack),
+                int(self._ack_audit_delay),
+                ", ".join(unack),
+            )
+        self._create_safe_task(
+            check_and_create_issues(self._hass, self),
+            name="ack_audit_issues",
+        )
+
     async def _handle_disconnect(self, err: Exception, *, unexpected: bool = False) -> bool:
         """Handle MQTT disconnection: reset state, log, backoff, check repairs.
 
@@ -951,11 +994,16 @@ class SberBridge:
         # DevTools: log outgoing message
         self._log_message("out", topic, payload if isinstance(payload, str) else "")
 
+        # Schedule ack audit — will create repair issues if entities
+        # remain unacknowledged after the grace period.
+        self._schedule_ack_audit()
+
         # Log unacknowledged entities for debugging
         unack = self.unacknowledged_entities
         if unack:
-            _LOGGER.debug(
-                "Entities not yet acknowledged by Sber (%d): %s",
+            _LOGGER.info(
+                "Waiting for Sber ack on %d entities (audit in %ds): %s",
                 len(unack),
+                int(self._ack_audit_delay),
                 ", ".join(unack),
             )

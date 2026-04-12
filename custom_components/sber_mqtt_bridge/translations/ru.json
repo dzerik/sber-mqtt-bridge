@@ -108,6 +108,14 @@
     "broken_entity_links": {
       "title": "Нерабочие связи сущностей",
       "description": "{count} связанных сущностей недоступны: {links}. Проверьте, что связанные сущности существуют и не отключены."
+    },
+    "unacknowledged_entities": {
+      "title": "Устройства не распознаны Sber",
+      "description": "{count} устройств были опубликованы в Sber cloud, но не подтверждены. Sber мог молча отклонить их из-за некорректных features или allowed_values. Затронутые сущности: {entities}. Попробуйте удалить и повторно добавить их."
+    },
+    "sber_errors": {
+      "title": "Ошибки Sber cloud",
+      "description": "Получено {count} ошибок от Sber cloud. Последняя ошибка: {detail}"
     }
   }
 }
