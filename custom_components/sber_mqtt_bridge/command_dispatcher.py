@@ -13,12 +13,12 @@ operations.  The coupling is explicit and one-way.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
-import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from homeassistant.core import Context
+from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import (
     HomeAssistantError,
     ServiceNotFound,
@@ -29,7 +29,43 @@ from homeassistant.exceptions import (
 from .sber_protocol import parse_sber_command, parse_sber_status_request
 
 if TYPE_CHECKING:
-    from .sber_bridge import SberBridge
+    from .devices.base_entity import BaseEntity
+    from .reconnect_ack_guard import ReconnectAckGuard
+
+
+class _BridgeStats(Protocol):
+    """Minimal stats interface used by the dispatcher."""
+
+    commands_received: int
+    status_requests: int
+    config_requests: int
+    errors_from_sber: int
+    acknowledged_entities: set[str]
+
+
+@runtime_checkable
+class BridgeCommandContext(Protocol):
+    """Narrow interface for SberCommandDispatcher's bridge dependency.
+
+    Replaces the full ``SberBridge`` reference to make the coupling
+    explicit and testable.  Every field/method the dispatcher touches
+    is declared here.
+    """
+
+    _hass: HomeAssistant
+    _stats: _BridgeStats
+    _ack_guard: ReconnectAckGuard
+    _entities: dict[str, BaseEntity]
+    _enabled_entity_ids: list[str]
+    _redefinitions: dict[str, dict]
+    _confirm_tasks: dict[str, asyncio.Task]
+
+    async def _publish_states(self, ids: list[str] | None, *, force: bool = False) -> None: ...
+    async def _publish_config(self, entity_ids: list[str] | None = None) -> None: ...
+    def _persist_redefinitions(self) -> None: ...
+    def _create_safe_task(self, coro: object, name: str = "") -> asyncio.Task: ...
+    async def _delayed_confirm(self, entity_id: str) -> None: ...
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,8 +78,8 @@ class SberCommandDispatcher:
     incoming messages to the matching handler.
     """
 
-    def __init__(self, bridge: SberBridge) -> None:
-        """Initialize the dispatcher bound to a bridge instance."""
+    def __init__(self, bridge: BridgeCommandContext) -> None:
+        """Initialize the dispatcher bound to a bridge context."""
         self._bridge = bridge
 
     async def handle_command(self, payload: bytes) -> None:
@@ -59,10 +95,9 @@ class SberCommandDispatcher:
 
         devices = data.get("devices", {})
 
-        if bridge._awaiting_sber_ack:
-            if time.monotonic() >= bridge._awaiting_sber_ack_deadline:
-                _LOGGER.info("Sber ack timeout reached — accepting commands")
-                bridge._awaiting_sber_ack = False
+        if bridge._ack_guard.is_awaiting:
+            if bridge._ack_guard.timeout_check():
+                pass  # Guard cleared by timeout — fall through to process
             else:
                 entity_ids = [eid for eid in devices if eid in bridge._entities]
                 _LOGGER.warning(
@@ -159,9 +194,7 @@ class SberCommandDispatcher:
         requested_ids = parse_sber_status_request(payload)
         bridge._stats.status_requests += 1
 
-        if bridge._awaiting_sber_ack:
-            bridge._awaiting_sber_ack = False
-            _LOGGER.info("Sber ack received (status_request) — now accepting commands")
+        bridge._ack_guard.acknowledge()
 
         if requested_ids:
             unknown = [eid for eid in requested_ids if eid not in bridge._entities and eid != "root"]
@@ -193,9 +226,7 @@ class SberCommandDispatcher:
         """Handle config request from Sber cloud — send device list."""
         bridge = self._bridge
         bridge._stats.config_requests += 1
-        if bridge._awaiting_sber_ack:
-            bridge._awaiting_sber_ack = False
-            _LOGGER.info("Sber ack received (config_request) — now accepting commands")
+        bridge._ack_guard.acknowledge()
         _LOGGER.info(
             "Sber config request received (will publish %d entities)",
             len(bridge._enabled_entity_ids),

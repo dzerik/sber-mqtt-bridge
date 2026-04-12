@@ -211,11 +211,9 @@ class SberBridge:
 
         # Reconnect guard: reject Sber commands until Sber acknowledges
         # our published states (via status_request or config_request).
-        # This prevents Sber cloud from overriding HA state with stale cache.
-        self._awaiting_sber_ack: bool = False
-        """True while waiting for Sber to acknowledge our states after (re)connect."""
-        self._awaiting_sber_ack_deadline: float = 0.0
-        """Fallback deadline: stop waiting even without acknowledgment."""
+        from .reconnect_ack_guard import ReconnectAckGuard
+
+        self._ack_guard = ReconnectAckGuard()
 
         # Delayed confirm tasks per entity (dedup: cancel previous on new command)
         self._confirm_tasks: dict[str, asyncio.Task] = {}
@@ -249,7 +247,7 @@ class SberBridge:
             return "starting"
         if not self._connected:
             return "connecting"
-        if self._awaiting_sber_ack:
+        if self._ack_guard.is_awaiting:
             return "awaiting_ack"
         return "ready"
 
@@ -672,21 +670,10 @@ class SberBridge:
     def _setup_ack_guard(self) -> None:
         """Activate the reconnect-ack guard with a fallback timeout.
 
-        Rejects Sber commands until Sber acknowledges our published states
-        (via status_request / config_request).  Sber cloud may send
-        "corrective" commands based on stale cache — accepting them would
-        override the real HA device state.  The fallback timer ensures we
-        don't block forever even if Sber never sends a message.
+        Delegates to :class:`ReconnectAckGuard` which manages the flag,
+        deadline, and fallback timer.
         """
-        self._awaiting_sber_ack = True
-        self._awaiting_sber_ack_deadline = time.monotonic() + RECONNECT_GRACE_TIMEOUT
-        self._hass.loop.call_later(RECONNECT_GRACE_TIMEOUT, self._ack_timeout_cb)
-
-    def _ack_timeout_cb(self) -> None:
-        """Fallback timer: auto-clear ack flag after grace period."""
-        if self._awaiting_sber_ack:
-            _LOGGER.info("Sber ack timeout reached (timer) — accepting commands")
-            self._awaiting_sber_ack = False
+        self._ack_guard.activate(RECONNECT_GRACE_TIMEOUT, self._hass.loop)
 
     async def _handle_disconnect(self, err: Exception, *, unexpected: bool = False) -> bool:
         """Handle MQTT disconnection: reset state, log, backoff, check repairs.
@@ -895,8 +882,7 @@ class SberBridge:
         # may become None between the connectivity check and the ``publish``
         # call if the transport drops mid-await.  The local reference is
         # stable even if the attribute is cleared concurrently.
-        client = self._mqtt_client
-        if not self._connected or client is None:
+        if not self._connected or self._mqtt_service is None:
             return
 
         # Value change diffing: skip entities whose Sber state has not changed
@@ -912,8 +898,8 @@ class SberBridge:
         payload, payload_valid = build_states_list_json(self._entities, entity_ids, self._enabled_entity_ids)
         topic = f"{self._root_topic}/up/status"
         try:
-            await client.publish(topic, payload)
-        except aiomqtt.MqttError:
+            await self._mqtt_service.publish(topic, payload)
+        except (aiomqtt.MqttError, RuntimeError):
             self._stats.publish_errors += 1
             _LOGGER.exception("Error publishing states to Sber")
             return
@@ -931,8 +917,7 @@ class SberBridge:
 
     async def _publish_config(self, entity_ids: list[str] | None = None) -> None:
         """Publish device config to Sber MQTT."""
-        client = self._mqtt_client
-        if not self._connected or client is None:
+        if not self._connected or self._mqtt_service is None:
             return
 
         ids_to_publish = entity_ids or self._enabled_entity_ids
@@ -951,8 +936,8 @@ class SberBridge:
         )
         topic = f"{self._root_topic}/up/config"
         try:
-            await client.publish(topic, payload)
-        except aiomqtt.MqttError:
+            await self._mqtt_service.publish(topic, payload)
+        except (aiomqtt.MqttError, RuntimeError):
             self._stats.publish_errors += 1
             _LOGGER.exception("Error publishing config to Sber")
             return

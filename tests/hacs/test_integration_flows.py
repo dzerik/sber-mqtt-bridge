@@ -75,16 +75,23 @@ def _make_bridge(hass, entity_cls, entity_id, ha_state, ha_attrs=None, *, cls_kw
     entry = _make_entry()
     bridge = SberBridge(hass, entry)
     bridge._mqtt_client = AsyncMock()
+    bridge._mqtt_service.publish = AsyncMock()
     bridge._connected = True
-    bridge._awaiting_sber_ack = False
+    bridge._ack_guard.clear()
 
     kwargs = cls_kwargs or {}
-    entity = entity_cls({"entity_id": entity_id, "name": "Test"}, **kwargs) if kwargs else entity_cls({"entity_id": entity_id, "name": "Test"})
-    entity.fill_by_ha_state({
-        "entity_id": entity_id,
-        "state": ha_state,
-        "attributes": ha_attrs or {},
-    })
+    entity = (
+        entity_cls({"entity_id": entity_id, "name": "Test"}, **kwargs)
+        if kwargs
+        else entity_cls({"entity_id": entity_id, "name": "Test"})
+    )
+    entity.fill_by_ha_state(
+        {
+            "entity_id": entity_id,
+            "state": ha_state,
+            "attributes": ha_attrs or {},
+        }
+    )
     bridge._entities[entity_id] = entity
     bridge._enabled_entity_ids = [entity_id]
     return bridge
@@ -102,7 +109,7 @@ def _sber_cmd_payload(devices_dict: dict) -> bytes:
 def _get_published_payloads(bridge) -> list[dict]:
     """Extract all published state payloads from the mqtt mock."""
     results = []
-    for c in bridge._mqtt_client.publish.call_args_list:
+    for c in bridge._mqtt_service.publish.call_args_list:
         args = c.args if c.args else c[0]
         topic = args[0]
         if "up/status" in str(topic):
@@ -113,7 +120,7 @@ def _get_published_payloads(bridge) -> list[dict]:
 def _get_published_config_payloads(bridge) -> list[dict]:
     """Extract all published config payloads from the mqtt mock."""
     results = []
-    for c in bridge._mqtt_client.publish.call_args_list:
+    for c in bridge._mqtt_service.publish.call_args_list:
         args = c.args if c.args else c[0]
         topic = args[0]
         if "up/config" in str(topic):
@@ -171,13 +178,15 @@ class TestBridgeFlowBasic:
         ha_state_after = _mock_ha_state("on")
         hass.states.get = MagicMock(return_value=ha_state_after)
 
-        payload = _sber_cmd_payload({
-            "switch.lamp": {
-                "states": [
-                    {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "switch.lamp": {
+                    "states": [
+                        {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -209,13 +218,15 @@ class TestBridgeFlowBasic:
         ha_state_after = _mock_ha_state("off")
         hass.states.get = MagicMock(return_value=ha_state_after)
 
-        payload = _sber_cmd_payload({
-            "switch.lamp": {
-                "states": [
-                    {"key": "on_off", "value": {"type": "BOOL", "bool_value": False}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "switch.lamp": {
+                    "states": [
+                        {"key": "on_off", "value": {"type": "BOOL", "bool_value": False}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -256,21 +267,26 @@ class TestBridgeFlowDelayedConfirm:
             },
         )
 
-        ha_state_after = _mock_ha_state("on", {
-            "brightness": 128,
-            "color_mode": "color_temp",
-            "supported_color_modes": ["color_temp", "hs"],
-            "color_temp": 300,
-        })
+        ha_state_after = _mock_ha_state(
+            "on",
+            {
+                "brightness": 128,
+                "color_mode": "color_temp",
+                "supported_color_modes": ["color_temp", "hs"],
+                "color_temp": 300,
+            },
+        )
         hass.states.get = MagicMock(return_value=ha_state_after)
 
-        payload = _sber_cmd_payload({
-            "light.lamp": {
-                "states": [
-                    {"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": 500}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "light.lamp": {
+                    "states": [
+                        {"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": 500}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -306,28 +322,33 @@ class TestBridgeFlowDelayedConfirm:
         bridge._entities["light.lamp"].mark_state_published()
 
         # After command, HA now reports color mode as "rgb" with a TUPLE hs_color
-        ha_state_after = _mock_ha_state("on", {
-            "brightness": 255,
-            "color_mode": "rgb",
-            "supported_color_modes": ["color_temp", "hs", "rgb"],
-            "hs_color": (283.0, 100.0),
-            "color_temp": 300,
-        })
+        ha_state_after = _mock_ha_state(
+            "on",
+            {
+                "brightness": 255,
+                "color_mode": "rgb",
+                "supported_color_modes": ["color_temp", "hs", "rgb"],
+                "hs_color": (283.0, 100.0),
+                "color_temp": 300,
+            },
+        )
         hass.states.get = MagicMock(return_value=ha_state_after)
 
-        payload = _sber_cmd_payload({
-            "light.lamp": {
-                "states": [
-                    {
-                        "key": "light_colour",
-                        "value": {
-                            "type": "COLOUR",
-                            "colour_value": {"h": 283, "s": 1000, "v": 1000},
+        payload = _sber_cmd_payload(
+            {
+                "light.lamp": {
+                    "states": [
+                        {
+                            "key": "light_colour",
+                            "value": {
+                                "type": "COLOUR",
+                                "colour_value": {"h": 283, "s": 1000, "v": 1000},
+                            },
                         },
-                    },
-                ],
-            },
-        })
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -366,29 +387,34 @@ class TestBridgeFlowDelayedConfirm:
         bridge._entities["light.lamp"].mark_state_published()
 
         # After command, HA reports rgb mode with TUPLE hs_color
-        ha_state_after = _mock_ha_state("on", {
-            "brightness": 255,
-            "color_mode": "rgb",
-            "supported_color_modes": ["color_temp", "hs", "rgb"],
-            "hs_color": (283.0, 100.0),
-            "color_temp": 300,
-        })
+        ha_state_after = _mock_ha_state(
+            "on",
+            {
+                "brightness": 255,
+                "color_mode": "rgb",
+                "supported_color_modes": ["color_temp", "hs", "rgb"],
+                "hs_color": (283.0, 100.0),
+                "color_temp": 300,
+            },
+        )
         hass.states.get = MagicMock(return_value=ha_state_after)
 
-        payload = _sber_cmd_payload({
-            "light.lamp": {
-                "states": [
-                    {"key": "light_mode", "value": {"type": "ENUM", "enum_value": "colour"}},
-                    {
-                        "key": "light_colour",
-                        "value": {
-                            "type": "COLOUR",
-                            "colour_value": {"h": 283, "s": 1000, "v": 1000},
+        payload = _sber_cmd_payload(
+            {
+                "light.lamp": {
+                    "states": [
+                        {"key": "light_mode", "value": {"type": "ENUM", "enum_value": "colour"}},
+                        {
+                            "key": "light_colour",
+                            "value": {
+                                "type": "COLOUR",
+                                "colour_value": {"h": 283, "s": 1000, "v": 1000},
+                            },
                         },
-                    },
-                ],
-            },
-        })
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -402,9 +428,7 @@ class TestBridgeFlowDelayedConfirm:
         device_states = payloads[-1]["devices"]["light.lamp"]["states"]
         mode_val = _find_state_value(device_states, "light_mode")
         assert mode_val is not None
-        assert mode_val["enum_value"] == "colour", (
-            "Delayed confirm must publish 'colour' mode, not 'white'"
-        )
+        assert mode_val["enum_value"] == "colour", "Delayed confirm must publish 'colour' mode, not 'white'"
 
 
 # ---------------------------------------------------------------------------
@@ -420,29 +444,33 @@ class TestBridgeFlowDebounce:
         entity = LightEntity({"entity_id": "light.lamp", "name": "Test"})
 
         # First fill: color_temp mode
-        entity.fill_by_ha_state({
-            "entity_id": "light.lamp",
-            "state": "on",
-            "attributes": {
-                "brightness": 255,
-                "color_mode": "color_temp",
-                "supported_color_modes": ["color_temp", "hs"],
-                "color_temp": 300,
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "light.lamp",
+                "state": "on",
+                "attributes": {
+                    "brightness": 255,
+                    "color_mode": "color_temp",
+                    "supported_color_modes": ["color_temp", "hs"],
+                    "color_temp": 300,
+                },
+            }
+        )
         entity.mark_state_published()
 
         # Second fill: rgb mode, different hs_color
-        entity.fill_by_ha_state({
-            "entity_id": "light.lamp",
-            "state": "on",
-            "attributes": {
-                "brightness": 255,
-                "color_mode": "rgb",
-                "supported_color_modes": ["color_temp", "hs"],
-                "hs_color": (283.0, 100.0),
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "light.lamp",
+                "state": "on",
+                "attributes": {
+                    "brightness": 255,
+                    "color_mode": "rgb",
+                    "supported_color_modes": ["color_temp", "hs"],
+                    "hs_color": (283.0, 100.0),
+                },
+            }
+        )
 
         assert entity.has_significant_change() is True
 
@@ -466,13 +494,15 @@ class TestBridgeFlowDebounce:
         ):
             for on_val in commands:
                 last_cmd_state["state"] = "on" if on_val else "off"
-                payload = _sber_cmd_payload({
-                    "switch.lamp": {
-                        "states": [
-                            {"key": "on_off", "value": {"type": "BOOL", "bool_value": on_val}},
-                        ],
-                    },
-                })
+                payload = _sber_cmd_payload(
+                    {
+                        "switch.lamp": {
+                            "states": [
+                                {"key": "on_off", "value": {"type": "BOOL", "bool_value": on_val}},
+                            ],
+                        },
+                    }
+                )
                 await bridge._handle_sber_command(payload)
             await _drain_tasks(hass)
 
@@ -502,16 +532,17 @@ class TestBridgeFlowReconnect:
         hass.states.get = MagicMock(return_value=ha_state_after)
 
         # Activate reconnect guard
-        bridge._awaiting_sber_ack = True
-        bridge._awaiting_sber_ack_deadline = time.monotonic() + 30
+        bridge._ack_guard.activate(30, hass.loop)
 
-        payload = _sber_cmd_payload({
-            "switch.lamp": {
-                "states": [
-                    {"key": "on_off", "value": {"type": "BOOL", "bool_value": False}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "switch.lamp": {
+                    "states": [
+                        {"key": "on_off", "value": {"type": "BOOL", "bool_value": False}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -527,9 +558,9 @@ class TestBridgeFlowReconnect:
         assert len(payloads) >= 1
 
         # Clear reconnect guard
-        bridge._awaiting_sber_ack = False
+        bridge._ack_guard.clear()
         hass.services.async_call.reset_mock()
-        bridge._mqtt_client.publish.reset_mock()
+        bridge._mqtt_service.publish.reset_mock()
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -555,13 +586,15 @@ class TestBridgeFlowEdgeCases:
         hass = _make_hass()
         bridge = _make_bridge(hass, RelayEntity, "switch.lamp", "on")
 
-        payload = _sber_cmd_payload({
-            "switch.unknown": {
-                "states": [
-                    {"key": "on_off", "value": {"type": "BOOL", "bool_value": False}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "switch.unknown": {
+                    "states": [
+                        {"key": "on_off", "value": {"type": "BOOL", "bool_value": False}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -579,8 +612,9 @@ class TestBridgeFlowEdgeCases:
         entry = _make_entry()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
+        bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._awaiting_sber_ack = False
+        bridge._ack_guard.clear()
 
         entity_a = RelayEntity({"entity_id": "switch.a", "name": "A"})
         entity_a.fill_by_ha_state({"entity_id": "switch.a", "state": "off", "attributes": {}})
@@ -600,14 +634,16 @@ class TestBridgeFlowEdgeCases:
 
         hass.states.get = MagicMock(side_effect=_states_get)
 
-        payload = _sber_cmd_payload({
-            "switch.a": {
-                "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}],
-            },
-            "switch.b": {
-                "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": False}}],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "switch.a": {
+                    "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}],
+                },
+                "switch.b": {
+                    "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": False}}],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -654,22 +690,27 @@ class TestClimateFlows:
             },
         )
 
-        ha_state_after = _mock_ha_state("heat", {
-            "fan_modes": ["auto", "low", "medium", "high"],
-            "hvac_modes": ["off", "cool", "heat", "auto"],
-            "fan_mode": "auto",
-            "temperature": 24,
-            "current_temperature": 22,
-        })
+        ha_state_after = _mock_ha_state(
+            "heat",
+            {
+                "fan_modes": ["auto", "low", "medium", "high"],
+                "hvac_modes": ["off", "cool", "heat", "auto"],
+                "fan_mode": "auto",
+                "temperature": 24,
+                "current_temperature": 22,
+            },
+        )
         hass.states.get = MagicMock(return_value=ha_state_after)
 
-        payload = _sber_cmd_payload({
-            "climate.ac": {
-                "states": [
-                    {"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": "heating"}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "climate.ac": {
+                    "states": [
+                        {"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": "heating"}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -680,10 +721,7 @@ class TestClimateFlows:
 
         # Verify set_hvac_mode was called
         calls = hass.services.async_call.call_args_list
-        hvac_mode_calls = [
-            c for c in calls
-            if c.kwargs.get("service") == "set_hvac_mode"
-        ]
+        hvac_mode_calls = [c for c in calls if c.kwargs.get("service") == "set_hvac_mode"]
         assert len(hvac_mode_calls) == 1
         assert hvac_mode_calls[0].kwargs["service_data"]["hvac_mode"] == "heat"
 
@@ -708,14 +746,16 @@ class TestClimateFlows:
         ha_state_after = _mock_ha_state("cool", {"temperature": 25})
         hass.states.get = MagicMock(return_value=ha_state_after)
 
-        payload = _sber_cmd_payload({
-            "climate.ac": {
-                "states": [
-                    {"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": 25}},
-                    {"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": "cooling"}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "climate.ac": {
+                    "states": [
+                        {"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": 25}},
+                        {"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": "cooling"}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -724,9 +764,7 @@ class TestClimateFlows:
             await bridge._handle_sber_command(payload)
             await _drain_tasks(hass)
 
-        services_called = [
-            c.kwargs.get("service") for c in hass.services.async_call.call_args_list
-        ]
+        services_called = [c.kwargs.get("service") for c in hass.services.async_call.call_args_list]
         assert "set_temperature" in services_called
         assert "set_hvac_mode" in services_called
 
@@ -752,13 +790,15 @@ class TestClimateFlows:
         ha_state_after = _mock_ha_state("cool", {"preset_mode": "sleep"})
         hass.states.get = MagicMock(return_value=ha_state_after)
 
-        payload = _sber_cmd_payload({
-            "climate.ac": {
-                "states": [
-                    {"key": "hvac_night_mode", "value": {"type": "BOOL", "bool_value": True}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "climate.ac": {
+                    "states": [
+                        {"key": "hvac_night_mode", "value": {"type": "BOOL", "bool_value": True}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -799,14 +839,16 @@ class TestHumidifierFlows:
         ha_state_after = _mock_ha_state("on", {"humidity": 60, "mode": "high"})
         hass.states.get = MagicMock(return_value=ha_state_after)
 
-        payload = _sber_cmd_payload({
-            "humidifier.room": {
-                "states": [
-                    {"key": "hvac_humidity_set", "value": {"type": "INTEGER", "integer_value": "60"}},
-                    {"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": "high"}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "humidifier.room": {
+                    "states": [
+                        {"key": "hvac_humidity_set", "value": {"type": "INTEGER", "integer_value": "60"}},
+                        {"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": "high"}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -815,9 +857,7 @@ class TestHumidifierFlows:
             await bridge._handle_sber_command(payload)
             await _drain_tasks(hass)
 
-        services_called = [
-            c.kwargs.get("service") for c in hass.services.async_call.call_args_list
-        ]
+        services_called = [c.kwargs.get("service") for c in hass.services.async_call.call_args_list]
         assert "set_humidity" in services_called
         assert "set_mode" in services_called
 
@@ -844,13 +884,15 @@ class TestCurtainFlows:
         ha_state_after = _mock_ha_state("closed", {"current_position": 0})
         hass.states.get = MagicMock(return_value=ha_state_after)
 
-        payload = _sber_cmd_payload({
-            "cover.blinds": {
-                "states": [
-                    {"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": "0"}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "cover.blinds": {
+                    "states": [
+                        {"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": "0"}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -888,13 +930,15 @@ class TestCurtainFlows:
         ]
         for enum_val, expected_service in test_cases:
             hass.services.async_call.reset_mock()
-            payload = _sber_cmd_payload({
-                "cover.blinds": {
-                    "states": [
-                        {"key": "open_set", "value": {"type": "ENUM", "enum_value": enum_val}},
-                    ],
-                },
-            })
+            payload = _sber_cmd_payload(
+                {
+                    "cover.blinds": {
+                        "states": [
+                            {"key": "open_set", "value": {"type": "ENUM", "enum_value": enum_val}},
+                        ],
+                    },
+                }
+            )
 
             with patch(
                 "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -904,9 +948,7 @@ class TestCurtainFlows:
 
             calls = hass.services.async_call.call_args_list
             service_calls = [c for c in calls if c.kwargs.get("service") == expected_service]
-            assert len(service_calls) >= 1, (
-                f"Expected {expected_service} for open_set={enum_val}"
-            )
+            assert len(service_calls) >= 1, f"Expected {expected_service} for open_set={enum_val}"
 
 
 # ---------------------------------------------------------------------------
@@ -931,18 +973,18 @@ class TestTvFlows:
                 "source": "TV",
             },
         )
-        hass.states.get = MagicMock(
-            return_value=_mock_ha_state("playing", {"volume_level": 0.3, "source": "HDMI"})
-        )
+        hass.states.get = MagicMock(return_value=_mock_ha_state("playing", {"volume_level": 0.3, "source": "HDMI"}))
 
-        payload = _sber_cmd_payload({
-            "media_player.tv": {
-                "states": [
-                    {"key": "volume_int", "value": {"type": "INTEGER", "integer_value": 30}},
-                    {"key": "source", "value": {"type": "ENUM", "enum_value": "HDMI"}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "media_player.tv": {
+                    "states": [
+                        {"key": "volume_int", "value": {"type": "INTEGER", "integer_value": 30}},
+                        {"key": "source", "value": {"type": "ENUM", "enum_value": "HDMI"}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -951,17 +993,12 @@ class TestTvFlows:
             await bridge._handle_sber_command(payload)
             await _drain_tasks(hass)
 
-        services_called = [
-            c.kwargs.get("service") for c in hass.services.async_call.call_args_list
-        ]
+        services_called = [c.kwargs.get("service") for c in hass.services.async_call.call_args_list]
         assert "volume_set" in services_called
         assert "select_source" in services_called
 
         # Verify volume level = 30/100 = 0.3
-        vol_calls = [
-            c for c in hass.services.async_call.call_args_list
-            if c.kwargs.get("service") == "volume_set"
-        ]
+        vol_calls = [c for c in hass.services.async_call.call_args_list if c.kwargs.get("service") == "volume_set"]
         assert vol_calls[0].kwargs["service_data"]["volume_level"] == pytest.approx(0.3, abs=0.01)
 
     async def test_tv_channel_int_and_direction(self):
@@ -974,18 +1011,18 @@ class TestTvFlows:
             "playing",
             {"volume_level": 0.5},
         )
-        hass.states.get = MagicMock(
-            return_value=_mock_ha_state("playing", {"volume_level": 0.5})
-        )
+        hass.states.get = MagicMock(return_value=_mock_ha_state("playing", {"volume_level": 0.5}))
 
         # channel_int=5 -> play_media
-        payload = _sber_cmd_payload({
-            "media_player.tv": {
-                "states": [
-                    {"key": "channel_int", "value": {"type": "INTEGER", "integer_value": 5}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "media_player.tv": {
+                    "states": [
+                        {"key": "channel_int", "value": {"type": "INTEGER", "integer_value": 5}},
+                    ],
+                },
+            }
+        )
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
             new_callable=AsyncMock,
@@ -1002,13 +1039,15 @@ class TestTvFlows:
         # direction=ok -> media_play_pause
         hass.services.async_call.reset_mock()
         hass._created_tasks.clear()
-        payload = _sber_cmd_payload({
-            "media_player.tv": {
-                "states": [
-                    {"key": "direction", "value": {"type": "ENUM", "enum_value": "ok"}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "media_player.tv": {
+                    "states": [
+                        {"key": "direction", "value": {"type": "ENUM", "enum_value": "ok"}},
+                    ],
+                },
+            }
+        )
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
             new_callable=AsyncMock,
@@ -1023,13 +1062,15 @@ class TestTvFlows:
         # channel="+" -> media_next_track
         hass.services.async_call.reset_mock()
         hass._created_tasks.clear()
-        payload = _sber_cmd_payload({
-            "media_player.tv": {
-                "states": [
-                    {"key": "channel", "value": {"type": "ENUM", "enum_value": "+"}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "media_player.tv": {
+                    "states": [
+                        {"key": "channel", "value": {"type": "ENUM", "enum_value": "+"}},
+                    ],
+                },
+            }
+        )
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
             new_callable=AsyncMock,
@@ -1063,15 +1104,19 @@ class TestVacuumFlows:
 
         # Command: start
         hass.states.get = MagicMock(
-            return_value=_mock_ha_state("cleaning", {"fan_speed": "standard", "fan_speed_list": ["quiet", "standard", "turbo"]})
+            return_value=_mock_ha_state(
+                "cleaning", {"fan_speed": "standard", "fan_speed_list": ["quiet", "standard", "turbo"]}
+            )
         )
-        payload = _sber_cmd_payload({
-            "vacuum.robo": {
-                "states": [
-                    {"key": "vacuum_cleaner_command", "value": {"type": "ENUM", "enum_value": "start"}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "vacuum.robo": {
+                    "states": [
+                        {"key": "vacuum_cleaner_command", "value": {"type": "ENUM", "enum_value": "start"}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -1095,18 +1140,22 @@ class TestVacuumFlows:
         # Command: return_to_dock
         hass.services.async_call.reset_mock()
         hass._created_tasks.clear()
-        bridge._mqtt_client.publish.reset_mock()
+        bridge._mqtt_service.publish.reset_mock()
 
         hass.states.get = MagicMock(
-            return_value=_mock_ha_state("returning", {"fan_speed": "standard", "fan_speed_list": ["quiet", "standard", "turbo"]})
+            return_value=_mock_ha_state(
+                "returning", {"fan_speed": "standard", "fan_speed_list": ["quiet", "standard", "turbo"]}
+            )
         )
-        payload = _sber_cmd_payload({
-            "vacuum.robo": {
-                "states": [
-                    {"key": "vacuum_cleaner_command", "value": {"type": "ENUM", "enum_value": "return_to_dock"}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "vacuum.robo": {
+                    "states": [
+                        {"key": "vacuum_cleaner_command", "value": {"type": "ENUM", "enum_value": "return_to_dock"}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -1125,9 +1174,7 @@ class TestVacuumFlows:
         device_states = payloads[-1]["devices"]["vacuum.robo"]["states"]
         status_val = _find_state_value(device_states, "vacuum_cleaner_status")
         assert status_val is not None
-        assert status_val["enum_value"] == "go_home", (
-            "Sber expects 'go_home', not 'returning'"
-        )
+        assert status_val["enum_value"] == "go_home", "Sber expects 'go_home', not 'returning'"
 
 
 # ---------------------------------------------------------------------------
@@ -1148,18 +1195,18 @@ class TestFanFlows:
             "on",
             {"percentage": 50},
         )
-        hass.states.get = MagicMock(
-            return_value=_mock_ha_state("on", {"percentage": 75})
-        )
+        hass.states.get = MagicMock(return_value=_mock_ha_state("on", {"percentage": 75}))
 
         # on_off=true
-        payload = _sber_cmd_payload({
-            "fan.ceiling": {
-                "states": [
-                    {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "fan.ceiling": {
+                    "states": [
+                        {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -1175,15 +1222,17 @@ class TestFanFlows:
         # hvac_air_flow_power=high -> set_percentage (no preset_modes available)
         hass.services.async_call.reset_mock()
         hass._created_tasks.clear()
-        bridge._mqtt_client.publish.reset_mock()
+        bridge._mqtt_service.publish.reset_mock()
 
-        payload = _sber_cmd_payload({
-            "fan.ceiling": {
-                "states": [
-                    {"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": "high"}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "fan.ceiling": {
+                    "states": [
+                        {"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": "high"}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -1209,11 +1258,13 @@ class TestSensorFlows:
     async def test_linked_sensor_propagation(self):
         """Linked humidity update triggers significant change and appears in state."""
         entity = SensorTempEntity({"entity_id": "sensor.temp", "name": "Temperature"})
-        entity.fill_by_ha_state({
-            "entity_id": "sensor.temp",
-            "state": "22.5",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "sensor.temp",
+                "state": "22.5",
+                "attributes": {},
+            }
+        )
         entity.mark_state_published()
 
         # Update linked humidity
@@ -1233,22 +1284,26 @@ class TestSensorFlows:
         entity = MotionSensorEntity({"entity_id": "binary_sensor.motion", "name": "Motion"})
 
         # Motion detected
-        entity.fill_by_ha_state({
-            "entity_id": "binary_sensor.motion",
-            "state": "on",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "binary_sensor.motion",
+                "state": "on",
+                "attributes": {},
+            }
+        )
         state = entity.to_sber_current_state()
         states_list = state["binary_sensor.motion"]["states"]
         pir_entry = _find_state_entry(states_list, "pir")
         assert pir_entry is not None, "pir key must be present when motion detected"
 
         # No motion
-        entity.fill_by_ha_state({
-            "entity_id": "binary_sensor.motion",
-            "state": "off",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "binary_sensor.motion",
+                "state": "off",
+                "attributes": {},
+            }
+        )
         state = entity.to_sber_current_state()
         states_list = state["binary_sensor.motion"]["states"]
         pir_entry = _find_state_entry(states_list, "pir")
@@ -1257,11 +1312,13 @@ class TestSensorFlows:
     async def test_temp_humidity_same_device(self):
         """Temperature sensor with linked humidity reports both in state."""
         entity = SensorTempEntity({"entity_id": "sensor.temp", "name": "TempSensor"})
-        entity.fill_by_ha_state({
-            "entity_id": "sensor.temp",
-            "state": "21.0",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "sensor.temp",
+                "state": "21.0",
+                "attributes": {},
+            }
+        )
 
         # Link humidity
         entity.update_linked_data("humidity", {"state": "55", "attributes": {}})
@@ -1294,13 +1351,15 @@ class TestValveFlows:
 
         hass.states.get = MagicMock(return_value=_mock_ha_state("closed"))
 
-        payload = _sber_cmd_payload({
-            "valve.water": {
-                "states": [
-                    {"key": "open_set", "value": {"type": "ENUM", "enum_value": "close"}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "valve.water": {
+                    "states": [
+                        {"key": "open_set", "value": {"type": "ENUM", "enum_value": "close"}},
+                    ],
+                },
+            }
+        )
 
         with patch(
             "custom_components.sber_mqtt_bridge.sber_bridge.asyncio.sleep",
@@ -1391,7 +1450,7 @@ def _make_entry_for_real_hass(options=None):
 def _extract_published_states(bridge) -> list[dict]:
     """Return all published up/status payloads from the mqtt mock."""
     results = []
-    for call in bridge._mqtt_client.publish.call_args_list:
+    for call in bridge._mqtt_service.publish.call_args_list:
         args = call.args if call.args else call[0]
         topic = str(args[0])
         if "up/status" in topic:
@@ -1422,15 +1481,18 @@ class TestRealHassFlows:
         entry = _make_entry_for_real_hass()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
+        bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._awaiting_sber_ack = False
+        bridge._ack_guard.clear()
 
         entity = RelayEntity({"entity_id": "switch.lamp", "name": "Test Lamp"})
-        entity.fill_by_ha_state({
-            "entity_id": "switch.lamp",
-            "state": "off",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "switch.lamp",
+                "state": "off",
+                "attributes": {},
+            }
+        )
         bridge._entities["switch.lamp"] = entity
         bridge._enabled_entity_ids = ["switch.lamp"]
 
@@ -1471,8 +1533,9 @@ class TestRealHassFlows:
         entry = _make_entry_for_real_hass()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
+        bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._awaiting_sber_ack = False
+        bridge._ack_guard.clear()
 
         initial_attrs = {
             "brightness": 255,
@@ -1481,11 +1544,13 @@ class TestRealHassFlows:
             "color_temp": 300,
         }
         entity = LightEntity({"entity_id": "light.test", "name": "Test Light"})
-        entity.fill_by_ha_state({
-            "entity_id": "light.test",
-            "state": "on",
-            "attributes": initial_attrs,
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "light.test",
+                "state": "on",
+                "attributes": initial_attrs,
+            }
+        )
         entity.mark_state_published()
         bridge._entities["light.test"] = entity
         bridge._enabled_entity_ids = ["light.test"]
@@ -1497,13 +1562,17 @@ class TestRealHassFlows:
         bridge._subscribe_ha_events()
 
         # Act: change to rgb color mode
-        hass.states.async_set("light.test", "on", {
-            "color_mode": "rgb",
-            "hs_color": (283.0, 100.0),
-            "rgb_color": (70, 0, 255),
-            "brightness": 255,
-            "supported_color_modes": ["color_temp", "hs", "rgb"],
-        })
+        hass.states.async_set(
+            "light.test",
+            "on",
+            {
+                "color_mode": "rgb",
+                "hs_color": (283.0, 100.0),
+                "rgb_color": (70, 0, 255),
+                "brightness": 255,
+                "supported_color_modes": ["color_temp", "hs", "rgb"],
+            },
+        )
         await hass.async_block_till_done()
 
         async_fire_time_changed(hass, fire_all=True)
@@ -1517,8 +1586,7 @@ class TestRealHassFlows:
         mode_val = _find_state_value(device_states, "light_mode")
         assert mode_val is not None
         assert mode_val["enum_value"] == "colour", (
-            "Expected light_mode='colour' after switching to rgb, "
-            f"got '{mode_val.get('enum_value')}'"
+            f"Expected light_mode='colour' after switching to rgb, got '{mode_val.get('enum_value')}'"
         )
 
         colour_val = _find_state_value(device_states, "light_colour")
@@ -1537,15 +1605,18 @@ class TestRealHassFlows:
         entry = _make_entry_for_real_hass()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
+        bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._awaiting_sber_ack = False
+        bridge._ack_guard.clear()
 
         entity = RelayEntity({"entity_id": "switch.lamp", "name": "Test Lamp"})
-        entity.fill_by_ha_state({
-            "entity_id": "switch.lamp",
-            "state": "off",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "switch.lamp",
+                "state": "off",
+                "attributes": {},
+            }
+        )
         bridge._entities["switch.lamp"] = entity
         bridge._enabled_entity_ids = ["switch.lamp"]
 
@@ -1590,17 +1661,18 @@ class TestRealHassFlows:
         entry = _make_entry_for_real_hass()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
+        bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._awaiting_sber_ack = False
+        bridge._ack_guard.clear()
 
-        entity = MotionSensorEntity(
-            {"entity_id": "binary_sensor.pir", "name": "PIR"}
+        entity = MotionSensorEntity({"entity_id": "binary_sensor.pir", "name": "PIR"})
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "binary_sensor.pir",
+                "state": "off",
+                "attributes": {},
+            }
         )
-        entity.fill_by_ha_state({
-            "entity_id": "binary_sensor.pir",
-            "state": "off",
-            "attributes": {},
-        })
         bridge._entities["binary_sensor.pir"] = entity
         bridge._enabled_entity_ids = ["binary_sensor.pir"]
 
@@ -1622,7 +1694,7 @@ class TestRealHassFlows:
         assert pir_entry is not None, "pir key must be present when motion detected"
 
         # Reset publish mock for second assertion
-        bridge._mqtt_client.publish.reset_mock()
+        bridge._mqtt_service.publish.reset_mock()
 
         # Act 2: motion cleared
         hass.states.async_set("binary_sensor.pir", "off")
@@ -1648,17 +1720,18 @@ class TestRealHassFlows:
         entry = _make_entry_for_real_hass()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
+        bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._awaiting_sber_ack = False
+        bridge._ack_guard.clear()
 
-        entity = CurtainEntity(
-            {"entity_id": "cover.curtain", "name": "Test Curtain"}
+        entity = CurtainEntity({"entity_id": "cover.curtain", "name": "Test Curtain"})
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "cover.curtain",
+                "state": "open",
+                "attributes": {"current_position": 100},
+            }
         )
-        entity.fill_by_ha_state({
-            "entity_id": "cover.curtain",
-            "state": "open",
-            "attributes": {"current_position": 100},
-        })
         bridge._entities["cover.curtain"] = entity
         bridge._enabled_entity_ids = ["cover.curtain"]
 
@@ -1679,9 +1752,7 @@ class TestRealHassFlows:
         device_states = payloads[-1]["devices"]["cover.curtain"]["states"]
         open_state_val = _find_state_value(device_states, "open_state")
         assert open_state_val is not None
-        assert open_state_val["enum_value"] == "close", (
-            "Sber requires 'close', not 'closed'"
-        )
+        assert open_state_val["enum_value"] == "close", "Sber requires 'close', not 'closed'"
 
         open_pct_val = _find_state_value(device_states, "open_percentage")
         assert open_pct_val is not None
@@ -1700,15 +1771,18 @@ class TestRealHassFlows:
         entry = _make_entry_for_real_hass()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
+        bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._awaiting_sber_ack = False
+        bridge._ack_guard.clear()
 
         entity = RelayEntity({"entity_id": "switch.lamp", "name": "Test Lamp"})
-        entity.fill_by_ha_state({
-            "entity_id": "switch.lamp",
-            "state": "off",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "switch.lamp",
+                "state": "off",
+                "attributes": {},
+            }
+        )
         bridge._entities["switch.lamp"] = entity
         bridge._enabled_entity_ids = ["switch.lamp"]
 
@@ -1725,13 +1799,15 @@ class TestRealHassFlows:
             if service == "turn_on":
                 hass.states.async_set("switch.lamp", "on", {})
 
-        payload = _sber_cmd_payload({
-            "switch.lamp": {
-                "states": [
-                    {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}},
-                ],
-            },
-        })
+        payload = _sber_cmd_payload(
+            {
+                "switch.lamp": {
+                    "states": [
+                        {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}},
+                    ],
+                },
+            }
+        )
 
         with (
             patch(
@@ -1751,12 +1827,8 @@ class TestRealHassFlows:
             await hass.async_block_till_done()
 
         # Assert: service call was made for turn_on
-        turn_on_calls = [
-            c for c in service_calls if c[1] == "turn_on"
-        ]
-        assert len(turn_on_calls) >= 1, (
-            f"Expected turn_on service call, got: {service_calls}"
-        )
+        turn_on_calls = [c for c in service_calls if c[1] == "turn_on"]
+        assert len(turn_on_calls) >= 1, f"Expected turn_on service call, got: {service_calls}"
 
         # Assert: MQTT publish was called with on_off=true
         payloads = _extract_published_states(bridge)
@@ -1781,17 +1853,18 @@ class TestRealHassFlows:
         entry = _make_entry_for_real_hass()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
+        bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._awaiting_sber_ack = False
+        bridge._ack_guard.clear()
 
-        entity = SensorTempEntity(
-            {"entity_id": "sensor.temp", "name": "Temperature"}
+        entity = SensorTempEntity({"entity_id": "sensor.temp", "name": "Temperature"})
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "sensor.temp",
+                "state": "22.5",
+                "attributes": {},
+            }
         )
-        entity.fill_by_ha_state({
-            "entity_id": "sensor.temp",
-            "state": "22.5",
-            "attributes": {},
-        })
         entity.mark_state_published()
 
         bridge._entities["sensor.temp"] = entity
@@ -1826,6 +1899,4 @@ class TestRealHassFlows:
         assert temp_val is not None, "temperature must be present in published state"
 
         humidity_val = _find_state_value(device_states, "humidity")
-        assert humidity_val is not None, (
-            "humidity must be present after linked sensor update"
-        )
+        assert humidity_val is not None, "humidity must be present after linked sensor update"
