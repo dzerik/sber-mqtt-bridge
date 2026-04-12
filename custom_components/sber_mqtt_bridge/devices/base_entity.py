@@ -16,6 +16,36 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 
 from ..sber_constants import SERVICE_CALL_TYPE, SERVICE_TURN_OFF, SERVICE_TURN_ON
 
+# ---------------------------------------------------------------------------
+#  Typed command result types for process_cmd return values
+# ---------------------------------------------------------------------------
+
+
+class ServiceCallUrl(TypedDict, total=False):
+    """Descriptor for a single HA service call."""
+
+    type: str
+    domain: str
+    service: str
+    target: dict
+    service_data: dict
+
+
+class ServiceCallResult(TypedDict):
+    """A process_cmd result instructing the bridge to call a HA service."""
+
+    url: ServiceCallUrl
+
+
+class UpdateStateResult(TypedDict):
+    """A process_cmd result instructing the bridge to re-publish current state."""
+
+    update_state: bool
+
+
+CommandResult = ServiceCallResult | UpdateStateResult
+"""Union type for all possible process_cmd return items."""
+
 
 @dataclass(frozen=True, slots=True)
 class AttrSpec:
@@ -557,7 +587,7 @@ class BaseEntity(ABC):
         service: str,
         entity_id: str,
         service_data: dict | None = None,
-    ) -> dict:
+    ) -> ServiceCallResult:
         """Build a HA service call dict for Sber → HA forwarding.
 
         This is the canonical helper for all device ``process_cmd`` methods.
@@ -584,7 +614,7 @@ class BaseEntity(ABC):
         return {"url": url}
 
     @classmethod
-    def _build_on_off_service_call(cls, entity_id: str, domain: str, on: bool) -> dict:
+    def _build_on_off_service_call(cls, entity_id: str, domain: str, on: bool) -> ServiceCallResult:
         """Build a HA turn_on / turn_off service call dict.
 
         Convenience wrapper over :meth:`_build_service_call` for the common
@@ -601,15 +631,15 @@ class BaseEntity(ABC):
         return cls._build_service_call(domain, SERVICE_TURN_ON if on else SERVICE_TURN_OFF, entity_id)
 
     @abstractmethod
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process a command from Sber cloud.
 
         Args:
             cmd_data: Command payload with 'states' list, or None.
 
         Returns:
-            List of dicts with 'url' key containing HA service call descriptors,
-            or empty list if no action needed or cmd_data is None.
+            List of :class:`ServiceCallResult` or :class:`UpdateStateResult`
+            items, or empty list if no action needed or cmd_data is None.
         """
         return []
 

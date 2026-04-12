@@ -18,7 +18,7 @@ from typing import ClassVar
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import SENSOR_LINK_ROLES, AttrSpec, BaseEntity, _safe_int_parser
+from .base_entity import SENSOR_LINK_ROLES, AttrSpec, BaseEntity, CommandResult, _safe_int_parser
 from .utils.signal import rssi_to_signal_strength
 
 _LOGGER = logging.getLogger(__name__)
@@ -215,7 +215,7 @@ class SimpleReadOnlySensor(BaseEntity):
             states.append(make_state(SberFeature.SENSOR_SENSITIVE, make_enum_value(self._sensor_sensitive)))
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber command (no-op for read-only sensor).
 
         Args:

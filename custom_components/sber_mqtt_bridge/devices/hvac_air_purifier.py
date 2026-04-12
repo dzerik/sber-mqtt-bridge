@@ -10,7 +10,7 @@ import logging
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import BaseEntity, CommandResult
 from .hvac_fan import _SBER_SPEED_TO_PERCENTAGE, SBER_SPEED_VALUES, _percentage_to_sber_speed
 
 _LOGGER = logging.getLogger(__name__)
@@ -141,7 +141,7 @@ class HvacAirPurifierEntity(BaseEntity):
             states.append(make_state(SberFeature.HVAC_DECONTAMINATE, make_bool_value(self._decontaminate)))
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber air purifier commands and produce HA service calls.
 
         Handles the following Sber keys:

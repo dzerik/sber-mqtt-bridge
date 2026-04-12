@@ -17,7 +17,7 @@ from ..sber_models import (
     make_integer_value,
     make_state,
 )
-from .base_entity import SENSOR_LINK_ROLES, BaseEntity
+from .base_entity import SENSOR_LINK_ROLES, BaseEntity, CommandResult
 from .utils.color_converter import ColorConverter
 from .utils.linear_converter import LinearConverter
 
@@ -227,7 +227,7 @@ class LightEntity(BaseEntity):
 
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber light commands and produce HA service calls.
 
         Uses a command handler dispatch table (``_cmd_handlers``) instead

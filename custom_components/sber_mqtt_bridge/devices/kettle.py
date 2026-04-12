@@ -9,7 +9,7 @@ import logging
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_integer_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import BaseEntity, CommandResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ class KettleEntity(BaseEntity):
         states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber kettle commands and produce HA service calls.
 
         Handles the following Sber keys:

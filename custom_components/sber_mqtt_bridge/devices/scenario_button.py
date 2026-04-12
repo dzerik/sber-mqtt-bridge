@@ -6,7 +6,7 @@ import logging
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import BaseEntity, CommandResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class ScenarioButtonEntity(BaseEntity):
         ]
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber command (no-op for scenario button).
 
         Args:

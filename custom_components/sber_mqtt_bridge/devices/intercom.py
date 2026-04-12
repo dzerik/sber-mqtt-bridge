@@ -10,6 +10,7 @@ import logging
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_state
+from .base_entity import CommandResult
 from .on_off_entity import OnOffEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -82,7 +83,7 @@ class IntercomEntity(OnOffEntity):
         )
         return base
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber intercom commands and produce HA service calls.
 
         Handles ``on_off`` key for turn_on/turn_off. Other features

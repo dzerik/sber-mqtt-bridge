@@ -17,6 +17,7 @@ from .base_entity import (
     SENSOR_LINK_ROLES,
     AttrSpec,
     BaseEntity,
+    CommandResult,
     _safe_int_parser,
 )
 from .utils.signal import rssi_to_signal_strength
@@ -148,7 +149,7 @@ class ValveEntity(BaseEntity):
             )
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber open_set command and produce HA valve service calls.
 
         Maps ``open_set`` ENUM values:

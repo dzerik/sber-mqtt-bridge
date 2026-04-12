@@ -10,7 +10,7 @@ import logging
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import BaseEntity
+from .base_entity import BaseEntity, CommandResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -148,7 +148,7 @@ class TvEntity(BaseEntity):
             states.append(make_state(SberFeature.SOURCE, make_enum_value(self._source)))
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber TV commands and produce HA service calls.
 
         Handles the following Sber keys:

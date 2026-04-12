@@ -8,7 +8,7 @@ from collections.abc import Callable
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import ROLE_TEMPERATURE, BaseEntity
+from .base_entity import ROLE_TEMPERATURE, BaseEntity, CommandResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -335,7 +335,7 @@ class ClimateEntity(BaseEntity):
             states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[dict]:
+    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber climate commands and produce HA service calls.
 
         Uses a command handler dispatch table (``_cmd_handlers``) to route
