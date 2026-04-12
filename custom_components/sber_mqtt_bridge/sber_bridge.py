@@ -15,6 +15,7 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Any
 
 import aiomqtt
@@ -138,6 +139,7 @@ class BridgeStats:
             "reconnect_count": self.reconnect_count,
             "acknowledged_entities": sorted(self.acknowledged_entities),
             "last_error_detail": self.last_error_detail,
+            "validation_failures": list(self.validation_failures),
         }
 
 
@@ -788,9 +790,9 @@ class SberBridge:
             return
         await handler(payload)
 
-    @property
+    @cached_property
     def _mqtt_dispatch(self) -> dict[str, Callable[[bytes], Any]]:
-        """Return dispatch table from ``down/*`` topic suffix to async handler."""
+        """Dispatch table from ``down/*`` topic suffix to async handler (cached)."""
         return {
             MqttTopicSuffix.COMMANDS: self._handle_sber_command,
             MqttTopicSuffix.STATUS_REQUEST: self._handle_sber_status_request,

@@ -7,6 +7,7 @@ It defines the contract for converting between HA states and Sber JSON protocol.
 from __future__ import annotations
 
 import copy
+import hashlib
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -543,8 +544,6 @@ class BaseEntity(ABC):
         # sharing an id with different allowed_values get silently rejected.
         allowed = self.create_allowed_values_list()
         if allowed and self._has_instance_allowed_values():
-            import hashlib
-
             digest = hashlib.md5(str(sorted(allowed.items())).encode(), usedforsecurity=False).hexdigest()[:8]
             model_id = f"{model_id}_{digest}"
 

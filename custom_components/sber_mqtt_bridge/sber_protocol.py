@@ -53,7 +53,7 @@ def build_devices_list_json(
     default_home: str = "",
     default_room: str = "",
     auto_parent_id: bool = True,
-) -> tuple[str, bool]:
+) -> tuple[str, bool, list[str]]:
     """Build Sber device config JSON for MQTT publish.
 
     The resulting payload is validated against :class:`SberConfigPayload`
