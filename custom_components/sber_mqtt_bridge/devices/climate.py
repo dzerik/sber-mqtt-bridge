@@ -5,10 +5,18 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Callable
+from typing import ClassVar
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import ROLE_TEMPERATURE, BaseEntity, CommandResult
+from .base_entity import (
+    ROLE_TEMPERATURE,
+    AttrSpec,
+    BaseEntity,
+    CommandResult,
+    _safe_float_parser,
+    _safe_int_parser,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -108,6 +116,21 @@ HA_TO_SBER_FAN_MODE: dict[str, str] = {
 """Map HA fan modes to Sber air flow power enum values."""
 
 
+def _finite_float_parser(value: object) -> float | None:
+    """Parse a value to float, returning None for non-finite results (NaN, Inf)."""
+    parsed = _safe_float_parser(value)
+    if parsed is not None and math.isfinite(parsed):
+        return parsed
+    return None
+
+
+def _safe_bool_or_none(value: object) -> bool | None:
+    """Parse to bool preserving None (for child_lock detection)."""
+    if value is None:
+        return None
+    return bool(value)
+
+
 class ClimateEntity(BaseEntity):
     """Sber climate entity for air conditioner control.
 
@@ -125,6 +148,73 @@ class ClimateEntity(BaseEntity):
     """
 
     LINKABLE_ROLES = (ROLE_TEMPERATURE,)
+
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
+        AttrSpec(
+            field="temperature",
+            attr_keys=("current_temperature",),
+            parser=_finite_float_parser,
+        ),
+        AttrSpec(
+            field="target_temperature",
+            attr_keys=("temperature",),
+            parser=_finite_float_parser,
+        ),
+        AttrSpec(
+            field="fan_modes",
+            converter=lambda attrs: attrs.get("fan_modes") or [],
+            default=[],
+        ),
+        AttrSpec(
+            field="swing_modes",
+            converter=lambda attrs: attrs.get("swing_modes") or [],
+            default=[],
+        ),
+        AttrSpec(
+            field="hvac_modes",
+            converter=lambda attrs: attrs.get("hvac_modes") or [],
+            default=[],
+        ),
+        AttrSpec(
+            field="fan_mode",
+            attr_keys=("fan_mode",),
+        ),
+        AttrSpec(
+            field="swing_mode",
+            attr_keys=("swing_mode",),
+        ),
+        AttrSpec(
+            field="min_temp",
+            attr_keys=("min_temp",),
+            parser=_safe_float_parser,
+            default=16.0,
+        ),
+        AttrSpec(
+            field="max_temp",
+            attr_keys=("max_temp",),
+            parser=_safe_float_parser,
+            default=32.0,
+        ),
+        AttrSpec(
+            field="_target_humidity",
+            attr_keys=("target_humidity",),
+            parser=_safe_int_parser,
+        ),
+        AttrSpec(
+            field="_preset_mode",
+            attr_keys=("preset_mode",),
+        ),
+        AttrSpec(
+            field="_preset_modes",
+            converter=lambda attrs: attrs.get("preset_modes") or [],
+            default=[],
+        ),
+        AttrSpec(
+            field="_child_lock",
+            attr_keys=("child_lock",),
+            parser=_safe_bool_or_none,
+        ),
+    )
 
     _supports_fan: bool = True
     _supports_swing: bool = True
@@ -169,6 +259,11 @@ class ClimateEntity(BaseEntity):
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update all climate attributes.
 
+        Simple attribute extraction is handled declaratively via
+        :attr:`ATTR_SPECS`.  State-derived values (``current_state``,
+        ``hvac_mode``) remain here since they come from the top-level
+        ``state`` field, not from ``attributes``.
+
         Args:
             ha_state: HA state dict with 'state' and 'attributes' keys.
                 Attributes may include current_temperature, temperature,
@@ -176,32 +271,12 @@ class ClimateEntity(BaseEntity):
                 preset_mode, preset_modes, etc.
         """
         super().fill_by_ha_state(ha_state)
-        self.current_state = ha_state.get("state", "off") != "off"
         attrs = ha_state.get("attributes", {})
-        raw_temp = self._safe_float(attrs.get("current_temperature"))
-        self.temperature = raw_temp if raw_temp is not None and math.isfinite(raw_temp) else None
-        raw_target = self._safe_float(attrs.get("temperature"))
-        self.target_temperature = raw_target if raw_target is not None and math.isfinite(raw_target) else None
-        self.fan_modes = attrs.get("fan_modes") or []
-        self.swing_modes = attrs.get("swing_modes") or []
-        self.hvac_modes = attrs.get("hvac_modes") or []
-        self.fan_mode = attrs.get("fan_mode")
-        self.swing_mode = attrs.get("swing_mode")
+        self._apply_attr_specs(attrs)
+
+        # Derive on/off state and hvac_mode from top-level state string
+        self.current_state = ha_state.get("state", "off") != "off"
         self.hvac_mode = ha_state.get("state")
-        self.min_temp = self._safe_float(attrs.get("min_temp")) or 16.0
-        self.max_temp = self._safe_float(attrs.get("max_temp")) or 32.0
-        target_humidity = attrs.get("target_humidity")
-        if target_humidity is not None:
-            try:
-                self._target_humidity = int(target_humidity)
-            except (TypeError, ValueError):
-                self._target_humidity = None
-        else:
-            self._target_humidity = None
-        self._preset_mode = attrs.get("preset_mode")
-        self._preset_modes = attrs.get("preset_modes", [])
-        child_lock = attrs.get("child_lock")
-        self._child_lock = bool(child_lock) if child_lock is not None else None
 
     def create_features_list(self) -> list[str]:
         """Return Sber feature list based on available climate capabilities.
