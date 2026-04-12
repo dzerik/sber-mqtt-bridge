@@ -51,7 +51,8 @@ class TestGeneratedArtifacts:
             assert "online" in features, f"{cat} reference missing 'online'"
 
     def test_provenance_constants_present(self):
-        assert SPEC_SOURCE.startswith("https://developers.sber.ru")
+        # Exact URL comparison (CodeQL flags startswith as incomplete URL sanitization)
+        assert SPEC_SOURCE == "https://developers.sber.ru/docs/ru/smarthome/c2c"
         assert SPEC_GENERATED_AT  # ISO 8601 timestamp
 
 
