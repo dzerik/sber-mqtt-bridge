@@ -181,7 +181,9 @@ async def ws_add_ha_device(
         return
 
     device_id: str = msg["device_id"]
-    if primary_entry.device_id != device_id:
+    # Orphan entities (no device_id, e.g. SmartIR) use entity_id as device_id
+    is_orphan = primary_entry.device_id is None and device_id == primary_id
+    if not is_orphan and primary_entry.device_id != device_id:
         connection.send_error(
             msg["id"],
             "primary_device_mismatch",

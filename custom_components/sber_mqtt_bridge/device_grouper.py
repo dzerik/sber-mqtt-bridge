@@ -188,12 +188,18 @@ class HaDeviceGrouper:
 
         # Group all enabled entities by device_id for O(1) sibling lookup
         entities_by_device: dict[str, list[er.RegistryEntry]] = {}
+        orphan_entries: list[er.RegistryEntry] = []
         for entry in self._entity_reg.entities.values():
-            if entry.device_id is None or entry.disabled_by is not None:
+            if entry.disabled_by is not None:
                 continue
-            entities_by_device.setdefault(entry.device_id, []).append(entry)
+            if entry.device_id is None:
+                orphan_entries.append(entry)
+            else:
+                entities_by_device.setdefault(entry.device_id, []).append(entry)
 
         results: list[DeviceGroup] = []
+
+        # Regular device-backed entities
         for device in self._device_reg.devices.values():
             if device.disabled_by is not None:
                 continue
@@ -207,6 +213,15 @@ class HaDeviceGrouper:
                 sber_category=sber_category,
                 all_entities_by_device=entities_by_device,
             )
+            if group is not None:
+                results.append(group)
+
+        # Orphan entities (no device_id) — e.g. SmartIR, template entities.
+        # Each becomes its own "virtual" device group.
+        for entry in orphan_entries:
+            if not spec.matches(entry.domain, entry.original_device_class or ""):
+                continue
+            group = self._build_orphan_group(entry, sber_category)
             if group is not None:
                 results.append(group)
 
@@ -331,6 +346,41 @@ class HaDeviceGrouper:
             linked_compatible=linked_compatible,
             unsupported=unsupported,
             already_exposed=primary_entry.entity_id in self._exposed,
+        )
+
+    def _build_orphan_group(
+        self,
+        entry: er.RegistryEntry,
+        sber_category: str,
+    ) -> DeviceGroup | None:
+        """Build a :class:`DeviceGroup` for an entity without a device_id.
+
+        Orphan entities (SmartIR, template, etc.) have no HA device.
+        We treat the entity itself as its own "virtual" device — no linked
+        sensors, no alternatives, no cross-device links.
+        """
+        friendly = entry.name or entry.original_name or entry.entity_id
+        area = self._resolve_area(entry.area_id) if hasattr(entry, "area_id") else ""
+        primary = self._build_grouped_entity(
+            entry=entry,
+            role=EntityRole.PRIMARY,
+            sber_category=sber_category,
+            device=None,
+            preselected=True,
+        )
+        return DeviceGroup(
+            device_id=entry.entity_id,
+            name=friendly,
+            manufacturer=entry.platform or "",
+            model="",
+            area=area or "",
+            identifiers=[],
+            primary=primary,
+            primary_alternatives=[],
+            linked_native=[],
+            linked_compatible=[],
+            unsupported=[],
+            already_exposed=entry.entity_id in self._exposed,
         )
 
     def _select_primary(
@@ -463,7 +513,7 @@ class HaDeviceGrouper:
         entry: er.RegistryEntry,
         role: EntityRole,
         sber_category: str | None,
-        device: dr.DeviceEntry,
+        device: dr.DeviceEntry | None,
         link_role: str | None = None,
         preselected: bool = False,
         is_cross_device: bool = False,
@@ -471,7 +521,8 @@ class HaDeviceGrouper:
         origin_device_name: str | None = None,
     ) -> GroupedEntity:
         """Fill a :class:`GroupedEntity` from a registry entry + classification."""
-        area = self._resolve_area(entry.area_id) or self._resolve_area(device.area_id)
+        device_area_id = device.area_id if device is not None else None
+        area = self._resolve_area(entry.area_id) or self._resolve_area(device_area_id)
         friendly = self._resolve_friendly_name(entry)
         # Auto-detect category for link-candidate display when the caller
         # hasn't specified one (e.g. UNSUPPORTED entities).
