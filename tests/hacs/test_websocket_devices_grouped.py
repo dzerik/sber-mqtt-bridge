@@ -360,17 +360,24 @@ class TestAddHaDevice:
 
     @pytest.mark.asyncio
     async def test_happy_path_atomic_update(self, hass, connection):
-        """Successful add must patch options in one atomic update_entry + reload."""
+        """Successful add must patch options and hot-reload entities (no full reload)."""
         entry = _make_entry()
         primary = _make_entity("light.lamp", device_id="dev1", original_name="Lamp")
         entity_reg = MagicMock()
         entity_reg.async_get.side_effect = lambda eid: primary if eid == "light.lamp" else None
+        mock_bridge = MagicMock()
+        mock_bridge.is_connected = True
+        mock_bridge._publish_config = AsyncMock()
         with (
             patch(
                 "custom_components.sber_mqtt_bridge.websocket_api.devices_grouped.get_config_entry",
                 return_value=entry,
             ),
             patch("homeassistant.helpers.entity_registry.async_get", return_value=entity_reg),
+            patch(
+                "custom_components.sber_mqtt_bridge.websocket_api.devices_grouped.get_bridge",
+                return_value=mock_bridge,
+            ),
         ):
             msg = {
                 "id": 25,
@@ -397,8 +404,10 @@ class TestAddHaDevice:
         assert options["redefinitions"]["light.lamp"]["name"] == "Living Room Light"
         assert options["redefinitions"]["light.lamp"]["room"] == "Living Room"
 
-        # ... followed by one reload
-        hass.config_entries.async_reload.assert_awaited_once_with("test_entry")
+        # Hot-reload: entities reloaded + config republished (no full entry reload)
+        mock_bridge._reload_entities_and_resubscribe.assert_called_once()
+        hass.async_create_task.assert_called_once()
+        hass.config_entries.async_reload.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_linked_sensors_stored_by_role(self, hass, connection):

@@ -273,7 +273,15 @@ async def ws_add_ha_device(
         new_options["redefinitions"] = redefs
 
     hass.config_entries.async_update_entry(entry, options=new_options)
-    await hass.config_entries.async_reload(entry.entry_id)
+
+    # Hot-reload entities without tearing down the entire config entry.
+    # A full async_reload would remove the sidebar panel mid-navigation,
+    # kicking the user out of the UI.
+    bridge = get_bridge(hass)
+    if bridge is not None:
+        bridge._reload_entities_and_resubscribe()
+        if bridge.is_connected:
+            hass.async_create_task(bridge._publish_config())
 
     connection.send_result(
         msg["id"],
