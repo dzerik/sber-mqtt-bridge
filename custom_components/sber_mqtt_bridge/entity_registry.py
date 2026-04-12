@@ -252,6 +252,17 @@ class SberEntityLoader:
             primary_entity = new_entities[primary_id]
             valid_roles: dict[str, str] = {}
             for role, linked_id in roles.items():
+                # Guard: prevent linking an entity that is itself a primary —
+                # would cause duplicate publication to Sber cloud.
+                if linked_id in new_entities:
+                    _LOGGER.warning(
+                        "Entity %s is both a primary and a linked sensor for %s "
+                        "(role=%s) — link ignored to prevent duplicate publication",
+                        linked_id,
+                        primary_id,
+                        role,
+                    )
+                    continue
                 valid_roles[role] = linked_id
                 new_reverse[linked_id] = (primary_id, role)
                 linked_state = self._hass.states.get(linked_id)
@@ -271,7 +282,7 @@ class SberEntityLoader:
                         "attributes": dict(linked_state.attributes),
                     }
                     primary_entity.update_linked_data(role, ha_state_dict)
-                    primary_entity._linked_entities[role] = linked_id
+                    primary_entity.register_link(role, linked_id)
             if valid_roles:
                 new_links[primary_id] = valid_roles
                 _LOGGER.info("Entity links for %s: %s", primary_id, valid_roles)

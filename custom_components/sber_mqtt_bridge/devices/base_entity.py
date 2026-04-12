@@ -229,6 +229,18 @@ class BaseEntity(ABC):
     LINKABLE_ROLES: ClassVar[tuple[LinkableRole, ...]] = ()
     """Linkable roles this device class accepts. Override in subclasses."""
 
+    def register_link(self, role: str, linked_entity_id: str) -> None:
+        """Register a linked companion entity for the given role.
+
+        Public API for :class:`SberEntityLoader` — replaces direct mutation
+        of ``self._linked_entities`` to preserve encapsulation.
+
+        Args:
+            role: The role name (e.g. ``"battery"``, ``"signal_strength"``).
+            linked_entity_id: HA entity_id of the linked companion.
+        """
+        self._linked_entities[role] = linked_entity_id
+
     ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = ()
     """Declarative HA-attribute parsing specs.
 

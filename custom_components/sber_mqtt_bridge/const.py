@@ -47,9 +47,6 @@ CONF_MESSAGE_LOG_SIZE = "message_log_size"
 CONF_MAX_MQTT_PAYLOAD = "max_mqtt_payload_size"
 """Options key for maximum allowed MQTT payload size in bytes."""
 
-CONF_CONTEXT_CLEANUP_THRESHOLD = "context_cleanup_threshold"
-"""Options key for echo-loop context ID set cleanup threshold."""
-
 CONF_HUB_AUTO_PARENT = "hub_auto_parent_id"
 """Options key for auto-assigning parent_id=root to all child devices."""
 
@@ -65,7 +62,6 @@ SETTINGS_DEFAULTS: dict[str, int | float | bool] = {
     CONF_DEBOUNCE_DELAY: 0.1,
     CONF_MESSAGE_LOG_SIZE: 50,
     CONF_MAX_MQTT_PAYLOAD: 1_000_000,
-    CONF_CONTEXT_CLEANUP_THRESHOLD: 200,
     CONF_SBER_VERIFY_SSL: True,
     CONF_HUB_AUTO_PARENT: False,
     CONF_CONFIRM_DELAY: 1.5,
