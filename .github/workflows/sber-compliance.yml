@@ -28,7 +28,7 @@ jobs:
         run: pip install --quiet playwright
 
       - name: Fetch Sber schemas
-        run: python scripts/fetch_sber_schemas.py
+        run: python tools/fetch_sber_schemas.py
 
       - name: Detect drift
         id: drift
