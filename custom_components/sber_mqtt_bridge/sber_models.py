@@ -23,7 +23,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from ._generated import CATEGORY_REFERENCE_FEATURES, FEATURE_TYPES
+from ._generated import (
+    CATEGORY_OBLIGATORY_FEATURES,
+    CATEGORY_REFERENCE_FEATURES,
+    FEATURE_TYPES,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -462,6 +466,27 @@ CATEGORY_REQUIRED_FEATURES: dict[str, frozenset[str]] = {
     "hub": frozenset({"online"}),
 }
 """Required features per Sber category, verified via Context7."""
+
+
+def missing_obligatory_features(category: str, features: set[str]) -> set[str]:
+    """Return obligatory features missing from the emitted set.
+
+    Uses :data:`CATEGORY_OBLIGATORY_FEATURES` (auto-generated from Sber
+    docs ``✔︎`` markers).  Missing obligatory features are a likely
+    cause of silent device rejection by Sber cloud.
+
+    Args:
+        category: Sber category slug.
+        features: Features our device would emit.
+
+    Returns:
+        Set of obligatory features absent from ``features``.  Empty set
+        for unknown categories (fail-open — we don't block unknown cats).
+    """
+    obligatory = CATEGORY_OBLIGATORY_FEATURES.get(category)
+    if obligatory is None:
+        return set()
+    return obligatory - set(features)
 
 
 def unknown_features_for_category(category: str, features: set[str]) -> set[str]:
