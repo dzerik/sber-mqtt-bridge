@@ -19,6 +19,8 @@ class SberToolbar extends LitElement {
       totalDevices: { type: Number },
       acknowledgedCount: { type: Number },
       loading: { type: Boolean },
+      healthScore: { type: String },
+      healthIssues: { type: Array },
       _bulkOpen: { type: Boolean },
     };
   }
@@ -30,6 +32,8 @@ class SberToolbar extends LitElement {
     this.totalDevices = 0;
     this.acknowledgedCount = 0;
     this.loading = false;
+    this.healthScore = "healthy";
+    this.healthIssues = [];
     this._bulkOpen = false;
   }
 
@@ -163,6 +167,22 @@ class SberToolbar extends LitElement {
         align-self: stretch;
         background: var(--divider-color, #e0e0e0);
         margin: 4px 4px;
+      }
+
+      .health-badge {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 10px;
+        text-transform: uppercase;
+      }
+      .health-yellow {
+        background: #fff3cd;
+        color: #856404;
+      }
+      .health-red {
+        background: #f8d7da;
+        color: #721c24;
       }
 
       /* ── Mobile ── */
@@ -308,6 +328,13 @@ class SberToolbar extends LitElement {
         <span class="dot ${this._phaseDot}"></span>
         ${this._phaseLabel}
       </span>
+
+      ${this.healthScore !== "healthy" ? html`
+        <span class="health-badge ${this.healthScore === "unhealthy" ? "health-red" : "health-yellow"}"
+              title="${(this.healthIssues || []).join(", ")}">
+          ${this.healthScore === "unhealthy" ? "\u26A0\uFE0F" : "\u26A0"} ${this.healthScore}
+        </span>
+      ` : ""}
     `;
   }
 

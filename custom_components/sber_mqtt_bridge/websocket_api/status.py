@@ -96,15 +96,39 @@ async def ws_get_status(
     entry = get_config_entry(hass)
     auto_parent = entry.options.get("hub_auto_parent_id", True) if entry else True
 
+    # Compute health score
+    stats = bridge.stats
+    unack = bridge.unacknowledged_entities
+    issues: list[str] = []
+    if unack:
+        issues.append(f"{len(unack)} entities unacknowledged")
+    if stats.get("errors_from_sber", 0) > 0:
+        issues.append(f"{stats['errors_from_sber']} Sber error(s)")
+    if stats.get("publish_errors", 0) > 0:
+        issues.append(f"{stats['publish_errors']} publish error(s)")
+    if not bridge.is_connected:
+        issues.append("disconnected")
+
+    if not bridge.is_connected:
+        health_score = "unhealthy"
+    elif unack or stats.get("errors_from_sber", 0) > 0:
+        health_score = "degraded"
+    else:
+        health_score = "healthy"
+
     connection.send_result(
         msg["id"],
         {
             "connected": bridge.is_connected,
             "phase": bridge.connection_phase,
-            "stats": bridge.stats,
+            "stats": stats,
             "entities_count": bridge.entities_count,
-            "unacknowledged": bridge.unacknowledged_entities,
+            "unacknowledged": unack,
             "version": VERSION,
+            "health": {
+                "score": health_score,
+                "issues": issues,
+            },
             "hub": {
                 "id": "root",
                 "name": "Home Assistant Bridge",
