@@ -1,7 +1,7 @@
 """Live Sber protocol compliance tests.
 
 Compares the canonical Sber schemas (fetched from developers.sber.ru via
-``scripts/fetch_sber_schemas.py``) against:
+``tools/fetch_sber_schemas.py``) against:
 
 1. Our ``CATEGORY_REQUIRED_FEATURES`` — must include all features Sber
    lists in its reference model.
@@ -30,7 +30,7 @@ SNAPSHOT_FILE = Path(__file__).parent / "__snapshots__" / "sber_schemas.json"
 def sber_schemas() -> dict[str, dict]:
     """Load the fetched Sber schemas snapshot."""
     if not SNAPSHOT_FILE.exists():
-        pytest.skip(f"Snapshot file missing — run scripts/fetch_sber_schemas.py: {SNAPSHOT_FILE}")
+        pytest.skip(f"Snapshot file missing — run tools/fetch_sber_schemas.py: {SNAPSHOT_FILE}")
     return json.loads(SNAPSHOT_FILE.read_text(encoding="utf-8"))
 
 
