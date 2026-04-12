@@ -392,3 +392,80 @@ def validate_status_payload(data: dict[str, Any]) -> bool:
         _LOGGER.warning("Status payload validation failed", exc_info=True)
         return False
     return True
+
+
+# ---------------------------------------------------------------------------
+# Category compliance validation (Context7-verified per Sber C2C docs)
+# ---------------------------------------------------------------------------
+
+# Required features per category — verified against
+# https://developers.sber.ru/docs/ru/smarthome/c2c/{category}
+# via Context7 on 2026-04-12.
+CATEGORY_REQUIRED_FEATURES: dict[str, frozenset[str]] = {
+    # Control devices (on_off required)
+    "light": frozenset({"online", "on_off"}),
+    "led_strip": frozenset({"online", "on_off"}),
+    "relay": frozenset({"online", "on_off"}),
+    "socket": frozenset({"online", "on_off"}),
+    "tv": frozenset({"online", "on_off"}),
+    "intercom": frozenset({"online", "on_off"}),
+    # HVAC (on_off required)
+    "hvac_ac": frozenset({"online", "on_off"}),
+    "hvac_radiator": frozenset({"online", "on_off"}),
+    "hvac_heater": frozenset({"online", "on_off"}),
+    "hvac_boiler": frozenset({"online", "on_off"}),
+    "hvac_underfloor_heating": frozenset({"online", "on_off"}),
+    "hvac_fan": frozenset({"online", "on_off"}),
+    "hvac_air_purifier": frozenset({"online", "on_off"}),
+    "hvac_humidifier": frozenset({"online", "on_off"}),
+    "kettle": frozenset({"online", "on_off"}),
+    # Covers (open_set/open_state, NO on_off)
+    "curtain": frozenset({"online"}),
+    "window_blind": frozenset({"online"}),
+    "gate": frozenset({"online"}),
+    "valve": frozenset({"online"}),
+    # Sensors (category-specific primary feature)
+    "sensor_temp": frozenset({"online", "temperature"}),
+    "sensor_pir": frozenset({"online", "pir"}),
+    "sensor_door": frozenset({"online", "doorcontact_state"}),
+    "sensor_water_leak": frozenset({"online", "water_leak_state"}),
+    "sensor_smoke": frozenset({"online", "smoke_state"}),
+    "sensor_gas": frozenset({"online", "gas_leak_state"}),
+    # Automation
+    "scenario_button": frozenset({"online", "button_event"}),
+    # Appliances
+    "vacuum_cleaner": frozenset({"online"}),
+    # Hub
+    "hub": frozenset({"online"}),
+}
+"""Required features per Sber category, verified via Context7."""
+
+
+def validate_category_compliance(device: dict[str, Any]) -> list[str]:
+    """Check a device descriptor for Sber category-specific violations.
+
+    Returns a list of human-readable violation messages (empty = compliant).
+    Does NOT raise — callers decide how to handle violations.
+
+    Args:
+        device: Raw device dict (already passed SberDevice schema validation).
+    """
+    violations: list[str] = []
+    model = device.get("model", {})
+    category = model.get("category", "")
+    features = set(model.get("features", []))
+
+    # VR-010..VR-016: required features per category
+    required = CATEGORY_REQUIRED_FEATURES.get(category)
+    if required is not None:
+        missing = required - features
+        if missing:
+            violations.append(f"Missing required features for {category}: {missing}")
+
+    # TV bug prevention: allowed_values keys must be subset of features
+    allowed_values = model.get("allowed_values") or {}
+    extra_av = set(allowed_values.keys()) - features
+    if extra_av:
+        violations.append(f"allowed_values contains keys not in features: {extra_av}")
+
+    return violations
