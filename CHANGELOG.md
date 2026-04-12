@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.29.1] - 2026-04-13
+
+### Fixed
+
+- **`ValveEntity` now emits `open_percentage`** (obligatory ✔︎ per Sber
+  docs for the `valve` category). Before this fix, Sber cloud could
+  silently reject any valve device since our payload was missing a
+  mandatory feature. Value is derived from `is_open` (0 or 100) —
+  HA valves are binary, so no position information is lost.
+
+### Changed
+
+- **`CATEGORY_REQUIRED_FEATURES` is now derived from the auto-generated
+  `CATEGORY_OBLIGATORY_FEATURES`** (scraped from the ✔︎ markers in
+  Sber's "Доступные функции устройства" table). Replaces the previous
+  hand-curated dict and closes six gaps where our list was looser than
+  Sber's spec: `curtain`, `window_blind`, `gate`, `valve` (now require
+  `open_percentage`/`open_set`/`open_state`), `hvac_ac` (now requires
+  `hvac_temp_set`).
+- **`sensor_temp` override**: Sber's reference device is a combo
+  temperature+humidity sensor (both ✔︎). HA models them as separate
+  entities, so we loosen compliance for `sensor_temp` to `{online}`
+  via an explicit, documented `_CATEGORY_OBLIGATORY_OVERRIDES`
+  mechanism. Users who want combo semantics can link a humidity
+  sensor to the temperature sensor via the panel.
+
 ## [1.29.0] - 2026-04-12
 
 ### Added

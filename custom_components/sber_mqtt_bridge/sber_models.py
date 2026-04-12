@@ -422,50 +422,46 @@ def validate_status_payload(data: dict[str, Any]) -> bool:
 # Category compliance validation (Context7-verified per Sber C2C docs)
 # ---------------------------------------------------------------------------
 
-# Required features per category — verified against
-# https://developers.sber.ru/docs/ru/smarthome/c2c/{category}
-# via Context7 on 2026-04-12.
-CATEGORY_REQUIRED_FEATURES: dict[str, frozenset[str]] = {
-    # Control devices (on_off required)
-    "light": frozenset({"online", "on_off"}),
-    "led_strip": frozenset({"online", "on_off"}),
-    "relay": frozenset({"online", "on_off"}),
-    "socket": frozenset({"online", "on_off"}),
-    "tv": frozenset({"online", "on_off"}),
-    # intercom uses unlock/incoming_call/reject_call, NOT on_off (Sber spec)
-    "intercom": frozenset({"online"}),
-    # HVAC (on_off required)
-    "hvac_ac": frozenset({"online", "on_off"}),
-    "hvac_radiator": frozenset({"online", "on_off"}),
-    "hvac_heater": frozenset({"online", "on_off"}),
-    "hvac_boiler": frozenset({"online", "on_off"}),
-    "hvac_underfloor_heating": frozenset({"online", "on_off"}),
-    "hvac_fan": frozenset({"online", "on_off"}),
-    "hvac_air_purifier": frozenset({"online", "on_off"}),
-    "hvac_humidifier": frozenset({"online", "on_off"}),
-    "kettle": frozenset({"online", "on_off"}),
-    # Covers (open_set/open_state, NO on_off)
-    "curtain": frozenset({"online"}),
-    "window_blind": frozenset({"online"}),
-    "gate": frozenset({"online"}),
-    "valve": frozenset({"online"}),
-    # Sensors (category-specific primary feature)
-    "sensor_temp": frozenset({"online", "temperature"}),
-    "sensor_pir": frozenset({"online", "pir"}),
-    "sensor_door": frozenset({"online", "doorcontact_state"}),
-    "sensor_water_leak": frozenset({"online", "water_leak_state"}),
-    "sensor_smoke": frozenset({"online", "smoke_state"}),
-    "sensor_gas": frozenset({"online", "gas_leak_state"}),
-    # Automation — button_event OR button_1_event..button_10_event all valid
-    # per Sber spec, so we only require 'online' here and let the device class
-    # choose which button_* variant fits.
-    "scenario_button": frozenset({"online"}),
-    # Appliances
-    "vacuum_cleaner": frozenset({"online"}),
-    # Hub
-    "hub": frozenset({"online"}),
+# Categories where the HA integration model differs from Sber's combo
+# reference device.  Keep this list minimal and well-justified.
+_CATEGORY_OBLIGATORY_OVERRIDES: dict[str, frozenset[str]] = {
+    # Sber's sensor_temp reference is a combo temperature+humidity device
+    # (both marked ✔︎).  HA models temperature and humidity as separate
+    # sensor entities — neither carries the other's value on its own.
+    # Users who want Sber-combo semantics can link a humidity sensor to
+    # the temperature sensor via the panel linking UI.  Until then the
+    # single-value device must be considered compliant.
+    "sensor_temp": frozenset({"online"}),
 }
-"""Required features per Sber category, verified via Context7."""
+"""Per-category overrides for :data:`CATEGORY_OBLIGATORY_FEATURES`.
+
+Used only when HA's entity model is architecturally incompatible with
+Sber's reference combo device.  Adding entries here is a trade-off:
+Sber may silently reject devices that miss features they mark ✔︎.
+"""
+
+
+def _effective_obligatory_features(category: str) -> frozenset[str] | None:
+    """Return obligatory set for category, honouring overrides."""
+    if category in _CATEGORY_OBLIGATORY_OVERRIDES:
+        return _CATEGORY_OBLIGATORY_OVERRIDES[category]
+    return CATEGORY_OBLIGATORY_FEATURES.get(category)
+
+
+# Single source of truth for "what features must a device in this category
+# emit": :data:`CATEGORY_OBLIGATORY_FEATURES`, auto-generated from the
+# ``✔︎`` markers in Sber's "Доступные функции устройства" table (see
+# ``tools/fetch_sber_schemas.py`` + ``tools/codegen.py``).  Overrides above
+# loosen the set for categories where HA's entity model does not match
+# Sber's combo reference device.
+CATEGORY_REQUIRED_FEATURES: dict[str, frozenset[str]] = {
+    cat: _CATEGORY_OBLIGATORY_OVERRIDES.get(cat, obligatory) for cat, obligatory in CATEGORY_OBLIGATORY_FEATURES.items()
+}
+"""Required features per Sber category.
+
+Derived from :data:`CATEGORY_OBLIGATORY_FEATURES` with the
+``_CATEGORY_OBLIGATORY_OVERRIDES`` applied.  Kept as the public name for
+backward compatibility — callers should continue using this constant."""
 
 
 def missing_obligatory_features(category: str, features: set[str]) -> set[str]:
@@ -483,7 +479,7 @@ def missing_obligatory_features(category: str, features: set[str]) -> set[str]:
         Set of obligatory features absent from ``features``.  Empty set
         for unknown categories (fail-open — we don't block unknown cats).
     """
-    obligatory = CATEGORY_OBLIGATORY_FEATURES.get(category)
+    obligatory = _effective_obligatory_features(category)
     if obligatory is None:
         return set()
     return obligatory - set(features)

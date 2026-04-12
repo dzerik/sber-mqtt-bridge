@@ -103,12 +103,16 @@ class ValveEntity(BaseEntity):
                 self._signal_strength_raw = int(float(state_val))
 
     def create_features_list(self) -> list[str]:
-        """Return Sber feature list with open_set, open_state, and optional battery/signal.
+        """Return Sber feature list with open_set, open_state, open_percentage and optional battery/signal.
+
+        ``open_percentage`` is marked obligatory for ``valve`` by Sber docs
+        (✔︎ in the "Доступные функции устройства" table).  HA valves are
+        binary (open/close), so we derive 0/100 from :attr:`is_open`.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), "open_set", "open_state"]
+        features = [*super().create_features_list(), "open_set", "open_state", "open_percentage"]
         if self._battery_level is not None or self._battery_low is not None:
             features.append("battery_percentage")
             features.append("battery_low_power")
@@ -134,6 +138,7 @@ class ValveEntity(BaseEntity):
         states = [
             make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
             make_state(SberFeature.OPEN_STATE, make_enum_value("open" if self.is_open else "close")),
+            make_state(SberFeature.OPEN_PERCENTAGE, make_integer_value(100 if self.is_open else 0)),
         ]
         if self._battery_level is not None:
             states.append(make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level)))
