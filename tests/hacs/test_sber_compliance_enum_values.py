@@ -58,7 +58,7 @@ SBER_SIGNAL_STRENGTH = {"low", "medium", "high"}
 SBER_SENSOR_SENSITIVE = {"auto", "high", "low"}
 """Sber docs: sensor_sensitive allowed values."""
 
-SBER_BUTTON_EVENT = {"click", "double_click"}
+SBER_BUTTON_EVENT = {"click", "double_click", "long_press"}
 """Sber docs: button_event allowed values (HA input_boolean can only produce click/double_click)."""
 
 SBER_TEMP_UNIT_VIEW = {"c", "f"}
@@ -77,6 +77,7 @@ SBER_LIGHT_MODE = {"white", "colour"}
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_entity_data(entity_id: str) -> dict:
     """Build minimal HA entity registry dict for testing."""
@@ -136,9 +137,7 @@ class TestHvacAirFlowDirection:
         """The set of mapped values is a subset of the documented set."""
         produced = set(HA_TO_SBER_SWING.values())
         undocumented = produced - SBER_HVAC_AIR_FLOW_DIRECTION
-        assert not undocumented, (
-            f"Undocumented hvac_air_flow_direction values: {undocumented}"
-        )
+        assert not undocumented, f"Undocumented hvac_air_flow_direction values: {undocumented}"
 
     @pytest.mark.parametrize(
         "ha_swing,expected_sber",
@@ -159,16 +158,18 @@ class TestHvacAirFlowDirection:
         """ClimateEntity.to_sber_current_state produces documented direction value."""
         entity_id = "climate.test_ac"
         entity = ClimateEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "cool",
-            "attributes": {
-                "swing_modes": ["off", "vertical", "horizontal", "both"],
-                "swing_mode": "vertical",
-                "fan_modes": ["auto"],
-                "fan_mode": "auto",
-                "hvac_modes": ["cool", "heat", "off"],
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "cool",
+                "attributes": {
+                    "swing_modes": ["off", "vertical", "horizontal", "both"],
+                    "swing_mode": "vertical",
+                    "fan_modes": ["auto"],
+                    "fan_mode": "auto",
+                    "hvac_modes": ["cool", "heat", "off"],
+                },
+            }
+        )
         states = _get_states(entity, entity_id)
         direction_val = _get_enum_value(states, "hvac_air_flow_direction")
         assert direction_val is not None, "hvac_air_flow_direction not found in state"
@@ -192,8 +193,7 @@ class TestVacuumCleanerStatus:
             if sber_status not in SBER_VACUUM_CLEANER_STATUS:
                 non_compliant[ha_state] = sber_status
         assert not non_compliant, (
-            f"Non-compliant HA→Sber status mappings: {non_compliant}. "
-            f"Documented values: {SBER_VACUUM_CLEANER_STATUS}"
+            f"Non-compliant HA→Sber status mappings: {non_compliant}. Documented values: {SBER_VACUUM_CLEANER_STATUS}"
         )
 
     def test_cleaning_status_is_documented(self):
@@ -222,10 +222,12 @@ class TestVacuumCleanerStatus:
         """VacuumCleanerEntity.to_sber_current_state produces a status value."""
         entity_id = "vacuum.robot"
         entity = VacuumCleanerEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "cleaning",
-            "attributes": {"battery_level": 80},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "cleaning",
+                "attributes": {"battery_level": 80},
+            }
+        )
         states = _get_states(entity, entity_id)
         status = _get_enum_value(states, "vacuum_cleaner_status")
         assert status is not None, "vacuum_cleaner_status not found in state"
@@ -234,10 +236,12 @@ class TestVacuumCleanerStatus:
         """Unknown HA state defaults to 'standby' (Sber-documented fallback)."""
         entity_id = "vacuum.robot"
         entity = VacuumCleanerEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "totally_unknown_state",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "totally_unknown_state",
+                "attributes": {},
+            }
+        )
         states = _get_states(entity, entity_id)
         status = _get_enum_value(states, "vacuum_cleaner_status")
         assert status == "standby"
@@ -290,8 +294,7 @@ class TestTvDirection:
         result = entity.process_cmd(self._build_direction_cmd("left"))
         if not result:
             pytest.skip(
-                "COMPLIANCE GAP: direction='left' not handled. "
-                "Sber docs define it but no HA service mapping exists."
+                "COMPLIANCE GAP: direction='left' not handled. Sber docs define it but no HA service mapping exists."
             )
 
     def test_right_direction_handled(self):
@@ -347,9 +350,7 @@ class TestSignalStrength:
     def test_all_outputs_are_documented(self, rssi: int):
         """Every possible output must be in the documented set."""
         result = rssi_to_signal_strength(rssi)
-        assert result in SBER_SIGNAL_STRENGTH, (
-            f"RSSI={rssi} produced '{result}' not in docs: {SBER_SIGNAL_STRENGTH}"
-        )
+        assert result in SBER_SIGNAL_STRENGTH, f"RSSI={rssi} produced '{result}' not in docs: {SBER_SIGNAL_STRENGTH}"
 
     def test_boundary_minus_50(self):
         """RSSI=-50 is the boundary between high and medium."""
@@ -365,9 +366,7 @@ class TestSignalStrength:
         for rssi in range(-120, 21):
             produced.add(rssi_to_signal_strength(rssi))
         undocumented = produced - SBER_SIGNAL_STRENGTH
-        assert not undocumented, (
-            f"Undocumented signal_strength values: {undocumented}"
-        )
+        assert not undocumented, f"Undocumented signal_strength values: {undocumented}"
 
 
 # ===========================================================================
@@ -395,10 +394,12 @@ class TestSensorSensitive:
         """HA sensitivity attribute maps to the correct Sber sensor_sensitive value."""
         entity_id = "binary_sensor.motion"
         entity = MotionSensorEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "off",
-            "attributes": {"sensitivity": sensitivity_input},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "off",
+                "attributes": {"sensitivity": sensitivity_input},
+            }
+        )
         states = _get_states(entity, entity_id)
         actual = _get_enum_value(states, "sensor_sensitive")
         assert actual == expected_sber
@@ -409,10 +410,12 @@ class TestSensorSensitive:
         """Invalid sensitivity values must not produce sensor_sensitive in state."""
         entity_id = "binary_sensor.motion"
         entity = MotionSensorEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "off",
-            "attributes": {"sensitivity": invalid_value},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "off",
+                "attributes": {"sensitivity": invalid_value},
+            }
+        )
         states = _get_states(entity, entity_id)
         assert _get_enum_value(states, "sensor_sensitive") is None
 
@@ -420,10 +423,12 @@ class TestSensorSensitive:
         """Missing sensitivity attribute must not produce sensor_sensitive in state."""
         entity_id = "binary_sensor.motion"
         entity = MotionSensorEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "off",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "off",
+                "attributes": {},
+            }
+        )
         states = _get_states(entity, entity_id)
         assert _get_enum_value(states, "sensor_sensitive") is None
 
@@ -431,10 +436,12 @@ class TestSensorSensitive:
         """The 'motion_sensitivity' HA attribute is also recognized."""
         entity_id = "binary_sensor.motion"
         entity = MotionSensorEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "off",
-            "attributes": {"motion_sensitivity": "high"},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "off",
+                "attributes": {"motion_sensitivity": "high"},
+            }
+        )
         states = _get_states(entity, entity_id)
         assert _get_enum_value(states, "sensor_sensitive") == "high"
 
@@ -444,16 +451,16 @@ class TestSensorSensitive:
         produced = set()
         for val in ("auto", "high", "low", "medium", "Auto", "HIGH", "LOW", "Medium"):
             entity = MotionSensorEntity(_make_entity_data(entity_id))
-            entity.fill_by_ha_state({
-                "state": "off",
-                "attributes": {"sensitivity": val},
-            })
+            entity.fill_by_ha_state(
+                {
+                    "state": "off",
+                    "attributes": {"sensitivity": val},
+                }
+            )
             if entity._sensor_sensitive is not None:
                 produced.add(entity._sensor_sensitive)
         undocumented = produced - SBER_SENSOR_SENSITIVE
-        assert not undocumented, (
-            f"Undocumented sensor_sensitive values: {undocumented}"
-        )
+        assert not undocumented, f"Undocumented sensor_sensitive values: {undocumented}"
 
 
 # ===========================================================================
@@ -507,19 +514,15 @@ class TestButtonEvent:
             if event:
                 produced.add(event)
         undocumented = produced - SBER_BUTTON_EVENT
-        assert not undocumented, (
-            f"Undocumented button_event values: {undocumented}"
-        )
+        assert not undocumented, f"Undocumented button_event values: {undocumented}"
 
-    def test_long_press_not_in_allowed_values(self):
-        """'long_press' must NOT be in allowed_values — HA input_boolean cannot produce it."""
+    def test_long_press_in_allowed_values(self):
+        """'long_press' must be in allowed_values for scenario button."""
         entity_id = "input_boolean.test"
         entity = ScenarioButtonEntity(_make_entity_data(entity_id))
         allowed = entity.create_allowed_values_list()
         enum_values = set(allowed["button_event"]["enum_values"]["values"])
-        assert "long_press" not in enum_values, (
-            "long_press should not be in allowed_values for input_boolean-based scenario button"
-        )
+        assert "long_press" in enum_values, "long_press should be in allowed_values for scenario button"
 
 
 # ===========================================================================
@@ -534,10 +537,12 @@ class TestTempUnitView:
         """HA unit '°C' maps to temp_unit_view='c'."""
         entity_id = "sensor.temperature"
         entity = SensorTempEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "22.5",
-            "attributes": {"unit_of_measurement": "°C"},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "22.5",
+                "attributes": {"unit_of_measurement": "°C"},
+            }
+        )
         states = _get_states(entity, entity_id)
         unit = _get_enum_value(states, "temp_unit_view")
         assert unit == "c"
@@ -547,10 +552,12 @@ class TestTempUnitView:
         """HA unit '°F' maps to temp_unit_view='f'."""
         entity_id = "sensor.temperature"
         entity = SensorTempEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "72.5",
-            "attributes": {"unit_of_measurement": "°F"},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "72.5",
+                "attributes": {"unit_of_measurement": "°F"},
+            }
+        )
         states = _get_states(entity, entity_id)
         unit = _get_enum_value(states, "temp_unit_view")
         assert unit == "f"
@@ -560,10 +567,12 @@ class TestTempUnitView:
         """Missing unit_of_measurement defaults to 'c'."""
         entity_id = "sensor.temperature"
         entity = SensorTempEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "22.5",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "22.5",
+                "attributes": {},
+            }
+        )
         states = _get_states(entity, entity_id)
         unit = _get_enum_value(states, "temp_unit_view")
         assert unit == "c"
@@ -581,15 +590,15 @@ class TestTempUnitView:
         """Every possible output must be in the documented set."""
         entity_id = "sensor.temperature"
         entity = SensorTempEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "22.5",
-            "attributes": {"unit_of_measurement": ha_unit},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "22.5",
+                "attributes": {"unit_of_measurement": ha_unit},
+            }
+        )
         states = _get_states(entity, entity_id)
         unit = _get_enum_value(states, "temp_unit_view")
-        assert unit in SBER_TEMP_UNIT_VIEW, (
-            f"HA unit '{ha_unit}' produced '{unit}' not in docs: {SBER_TEMP_UNIT_VIEW}"
-        )
+        assert unit in SBER_TEMP_UNIT_VIEW, f"HA unit '{ha_unit}' produced '{unit}' not in docs: {SBER_TEMP_UNIT_VIEW}"
         assert unit == expected
 
 
@@ -614,10 +623,12 @@ class TestOpenState:
         """Each HA cover state maps to the correct documented Sber open_state."""
         entity_id = "cover.curtain"
         entity = CurtainEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": ha_state,
-            "attributes": {"current_position": position},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": ha_state,
+                "attributes": {"current_position": position},
+            }
+        )
         states = _get_states(entity, entity_id)
         open_state = _get_enum_value(states, "open_state")
         assert open_state == expected_sber
@@ -627,24 +638,26 @@ class TestOpenState:
         """HA 'closed' must map to Sber 'close', NOT 'closed'."""
         entity_id = "cover.curtain"
         entity = CurtainEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "closed",
-            "attributes": {"current_position": 0},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "closed",
+                "attributes": {"current_position": 0},
+            }
+        )
         states = _get_states(entity, entity_id)
         open_state = _get_enum_value(states, "open_state")
-        assert open_state == "close", (
-            f"Expected 'close' for HA 'closed', got '{open_state}'"
-        )
+        assert open_state == "close", f"Expected 'close' for HA 'closed', got '{open_state}'"
 
     def test_position_zero_forces_close(self):
         """When position is 0 and state is not opening/closing, force 'close'."""
         entity_id = "cover.curtain"
         entity = CurtainEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "open",
-            "attributes": {"current_position": 0},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "open",
+                "attributes": {"current_position": 0},
+            }
+        )
         states = _get_states(entity, entity_id)
         open_state = _get_enum_value(states, "open_state")
         assert open_state == "close"
@@ -653,10 +666,12 @@ class TestOpenState:
         """When position > 0 and state is not opening/closing, force 'open'."""
         entity_id = "cover.curtain"
         entity = CurtainEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "closed",
-            "attributes": {"current_position": 50},
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "closed",
+                "attributes": {"current_position": 50},
+            }
+        )
         states = _get_states(entity, entity_id)
         open_state = _get_enum_value(states, "open_state")
         assert open_state == "open"
@@ -676,18 +691,18 @@ class TestOpenState:
         ]
         for ha_state, pos in test_cases:
             entity = CurtainEntity(_make_entity_data(entity_id))
-            entity.fill_by_ha_state({
-                "state": ha_state,
-                "attributes": {"current_position": pos},
-            })
+            entity.fill_by_ha_state(
+                {
+                    "state": ha_state,
+                    "attributes": {"current_position": pos},
+                }
+            )
             states = _get_states(entity, entity_id)
             val = _get_enum_value(states, "open_state")
             if val:
                 produced.add(val)
         undocumented = produced - SBER_OPEN_STATE
-        assert not undocumented, (
-            f"Undocumented open_state values: {undocumented}"
-        )
+        assert not undocumented, f"Undocumented open_state values: {undocumented}"
 
 
 # ===========================================================================
@@ -702,17 +717,14 @@ class TestHvacWorkMode:
         """Every value in HA_TO_SBER_WORK_MODE must be in Sber documented set."""
         for ha_mode, sber_mode in HA_TO_SBER_WORK_MODE.items():
             assert sber_mode in SBER_HVAC_WORK_MODE, (
-                f"HA hvac_mode '{ha_mode}' maps to '{sber_mode}' which is NOT "
-                f"in Sber docs: {SBER_HVAC_WORK_MODE}"
+                f"HA hvac_mode '{ha_mode}' maps to '{sber_mode}' which is NOT in Sber docs: {SBER_HVAC_WORK_MODE}"
             )
 
     def test_no_extra_undocumented_values(self):
         """The set of mapped values is a subset of the documented set."""
         produced = set(HA_TO_SBER_WORK_MODE.values())
         undocumented = produced - SBER_HVAC_WORK_MODE
-        assert not undocumented, (
-            f"Undocumented hvac_work_mode values: {undocumented}"
-        )
+        assert not undocumented, f"Undocumented hvac_work_mode values: {undocumented}"
 
     @pytest.mark.parametrize(
         "ha_mode,expected_sber",
@@ -734,33 +746,35 @@ class TestHvacWorkMode:
         """ClimateEntity.to_sber_current_state produces documented work_mode value."""
         entity_id = "climate.test_ac"
         entity = ClimateEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "cool",
-            "attributes": {
-                "hvac_modes": ["cool", "heat", "dry", "fan_only", "auto", "off"],
-                "fan_modes": ["auto"],
-                "fan_mode": "auto",
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "cool",
+                "attributes": {
+                    "hvac_modes": ["cool", "heat", "dry", "fan_only", "auto", "off"],
+                    "fan_modes": ["auto"],
+                    "fan_mode": "auto",
+                },
+            }
+        )
         states = _get_states(entity, entity_id)
         work_mode = _get_enum_value(states, "hvac_work_mode")
         assert work_mode is not None, "hvac_work_mode not found in state"
-        assert work_mode in SBER_HVAC_WORK_MODE, (
-            f"Produced '{work_mode}' not in docs: {SBER_HVAC_WORK_MODE}"
-        )
+        assert work_mode in SBER_HVAC_WORK_MODE, f"Produced '{work_mode}' not in docs: {SBER_HVAC_WORK_MODE}"
 
     def test_preset_boost_produces_turbo(self):
         """HA preset_mode='boost' produces hvac_work_mode='turbo'."""
         entity_id = "climate.test_ac"
         entity = ClimateEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "cool",
-            "attributes": {
-                "hvac_modes": ["cool", "heat", "off"],
-                "preset_mode": "boost",
-                "preset_modes": ["boost", "sleep"],
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "cool",
+                "attributes": {
+                    "hvac_modes": ["cool", "heat", "off"],
+                    "preset_mode": "boost",
+                    "preset_modes": ["boost", "sleep"],
+                },
+            }
+        )
         states = _get_states(entity, entity_id)
         work_mode = _get_enum_value(states, "hvac_work_mode")
         assert work_mode == "turbo"
@@ -770,14 +784,16 @@ class TestHvacWorkMode:
         """HA preset_mode='sleep' produces hvac_work_mode='quiet'."""
         entity_id = "climate.test_ac"
         entity = ClimateEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "heat",
-            "attributes": {
-                "hvac_modes": ["cool", "heat", "off"],
-                "preset_mode": "sleep",
-                "preset_modes": ["boost", "sleep"],
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "heat",
+                "attributes": {
+                    "hvac_modes": ["cool", "heat", "off"],
+                    "preset_mode": "sleep",
+                    "preset_modes": ["boost", "sleep"],
+                },
+            }
+        )
         states = _get_states(entity, entity_id)
         work_mode = _get_enum_value(states, "hvac_work_mode")
         assert work_mode == "quiet"
@@ -787,17 +803,17 @@ class TestHvacWorkMode:
         """HA hvac_mode='off' should NOT produce hvac_work_mode state."""
         entity_id = "climate.test_ac"
         entity = ClimateEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "off",
-            "attributes": {
-                "hvac_modes": ["cool", "heat", "off"],
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "off",
+                "attributes": {
+                    "hvac_modes": ["cool", "heat", "off"],
+                },
+            }
+        )
         states = _get_states(entity, entity_id)
         work_mode = _get_enum_value(states, "hvac_work_mode")
-        assert work_mode is None, (
-            f"hvac_work_mode should not be present when off, got '{work_mode}'"
-        )
+        assert work_mode is None, f"hvac_work_mode should not be present when off, got '{work_mode}'"
 
 
 # ===========================================================================
@@ -812,15 +828,17 @@ class TestLightMode:
         """Light with color_temp mode produces light_mode='white'."""
         entity_id = "light.test"
         entity = LightEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "on",
-            "attributes": {
-                "brightness": 200,
-                "color_mode": "color_temp",
-                "color_temp": 300,
-                "supported_color_modes": ["color_temp", "hs"],
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "on",
+                "attributes": {
+                    "brightness": 200,
+                    "color_mode": "color_temp",
+                    "color_temp": 300,
+                    "supported_color_modes": ["color_temp", "hs"],
+                },
+            }
+        )
         states = _get_states(entity, entity_id)
         mode = _get_enum_value(states, "light_mode")
         assert mode == "white"
@@ -830,15 +848,17 @@ class TestLightMode:
         """Light with hs color mode produces light_mode='colour'."""
         entity_id = "light.test"
         entity = LightEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "on",
-            "attributes": {
-                "brightness": 200,
-                "color_mode": "hs",
-                "hs_color": [180.0, 50.0],
-                "supported_color_modes": ["color_temp", "hs"],
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "on",
+                "attributes": {
+                    "brightness": 200,
+                    "color_mode": "hs",
+                    "hs_color": [180.0, 50.0],
+                    "supported_color_modes": ["color_temp", "hs"],
+                },
+            }
+        )
         states = _get_states(entity, entity_id)
         mode = _get_enum_value(states, "light_mode")
         assert mode == "colour"
@@ -848,15 +868,17 @@ class TestLightMode:
         """Light with rgb color mode produces light_mode='colour'."""
         entity_id = "light.test"
         entity = LightEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "on",
-            "attributes": {
-                "brightness": 200,
-                "color_mode": "rgb",
-                "hs_color": [120.0, 100.0],
-                "supported_color_modes": ["color_temp", "rgb"],
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "on",
+                "attributes": {
+                    "brightness": 200,
+                    "color_mode": "rgb",
+                    "hs_color": [120.0, 100.0],
+                    "supported_color_modes": ["color_temp", "rgb"],
+                },
+            }
+        )
         states = _get_states(entity, entity_id)
         mode = _get_enum_value(states, "light_mode")
         assert mode == "colour"
@@ -866,15 +888,17 @@ class TestLightMode:
         """Light with xy color mode produces light_mode='colour'."""
         entity_id = "light.test"
         entity = LightEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "on",
-            "attributes": {
-                "brightness": 200,
-                "color_mode": "xy",
-                "hs_color": [60.0, 80.0],
-                "supported_color_modes": ["color_temp", "xy"],
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "on",
+                "attributes": {
+                    "brightness": 200,
+                    "color_mode": "xy",
+                    "hs_color": [60.0, 80.0],
+                    "supported_color_modes": ["color_temp", "xy"],
+                },
+            }
+        )
         states = _get_states(entity, entity_id)
         mode = _get_enum_value(states, "light_mode")
         assert mode == "colour"
@@ -884,19 +908,19 @@ class TestLightMode:
         """Light mode is not included when light is off."""
         entity_id = "light.test"
         entity = LightEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({
-            "state": "off",
-            "attributes": {
-                "brightness": 0,
-                "color_mode": "color_temp",
-                "supported_color_modes": ["color_temp", "hs"],
-            },
-        })
+        entity.fill_by_ha_state(
+            {
+                "state": "off",
+                "attributes": {
+                    "brightness": 0,
+                    "color_mode": "color_temp",
+                    "supported_color_modes": ["color_temp", "hs"],
+                },
+            }
+        )
         states = _get_states(entity, entity_id)
         mode = _get_enum_value(states, "light_mode")
-        assert mode is None, (
-            f"light_mode should not be present when off, got '{mode}'"
-        )
+        assert mode is None, f"light_mode should not be present when off, got '{mode}'"
 
     def test_only_documented_values_produced(self):
         """Sweep color modes and verify only 'white' or 'colour' is produced."""
@@ -905,15 +929,17 @@ class TestLightMode:
         # White mode variants
         for color_mode in ("color_temp", "brightness", "onoff"):
             entity = LightEntity(_make_entity_data(entity_id))
-            entity.fill_by_ha_state({
-                "state": "on",
-                "attributes": {
-                    "brightness": 200,
-                    "color_mode": color_mode,
-                    "color_temp": 300,
-                    "supported_color_modes": [color_mode],
-                },
-            })
+            entity.fill_by_ha_state(
+                {
+                    "state": "on",
+                    "attributes": {
+                        "brightness": 200,
+                        "color_mode": color_mode,
+                        "color_temp": 300,
+                        "supported_color_modes": [color_mode],
+                    },
+                }
+            )
             states = _get_states(entity, entity_id)
             mode = _get_enum_value(states, "light_mode")
             if mode:
@@ -921,20 +947,20 @@ class TestLightMode:
         # Colour mode variants
         for color_mode in ("hs", "rgb", "xy", "rgbw", "rgbww"):
             entity = LightEntity(_make_entity_data(entity_id))
-            entity.fill_by_ha_state({
-                "state": "on",
-                "attributes": {
-                    "brightness": 200,
-                    "color_mode": color_mode,
-                    "hs_color": [180.0, 50.0],
-                    "supported_color_modes": [color_mode],
-                },
-            })
+            entity.fill_by_ha_state(
+                {
+                    "state": "on",
+                    "attributes": {
+                        "brightness": 200,
+                        "color_mode": color_mode,
+                        "hs_color": [180.0, 50.0],
+                        "supported_color_modes": [color_mode],
+                    },
+                }
+            )
             states = _get_states(entity, entity_id)
             mode = _get_enum_value(states, "light_mode")
             if mode:
                 produced.add(mode)
         undocumented = produced - SBER_LIGHT_MODE
-        assert not undocumented, (
-            f"Undocumented light_mode values: {undocumented}"
-        )
+        assert not undocumented, f"Undocumented light_mode values: {undocumented}"

@@ -147,9 +147,7 @@ class TestValveAllowedValues(unittest.TestCase):
         av = result["model"]["allowed_values"]
         self.assertIn("open_set", av)
         self.assertEqual(av["open_set"]["type"], "ENUM")
-        self.assertEqual(
-            av["open_set"]["enum_values"]["values"], ["open", "close", "stop"]
-        )
+        self.assertEqual(av["open_set"]["enum_values"]["values"], ["open", "close", "stop"])
 
     def test_allowed_values_structure(self):
         entity = ValveEntity(VALVE_DATA)
@@ -168,9 +166,7 @@ class TestCurtainAllowedValues(unittest.TestCase):
         av = result["model"]["allowed_values"]
         self.assertIn("open_set", av)
         self.assertIn("open_percentage", av)
-        self.assertEqual(
-            av["open_set"]["enum_values"]["values"], ["open", "close", "stop"]
-        )
+        self.assertEqual(av["open_set"]["enum_values"]["values"], ["open", "close", "stop"])
         self.assertEqual(av["open_percentage"]["type"], "INTEGER")
         self.assertEqual(av["open_percentage"]["integer_values"]["min"], "0")
         self.assertEqual(av["open_percentage"]["integer_values"]["max"], "100")
@@ -241,12 +237,13 @@ class TestScenarioButtonAllowedValues(unittest.TestCase):
         self.assertEqual(av["button_event"]["type"], "ENUM")
         self.assertIn("click", av["button_event"]["enum_values"]["values"])
         self.assertIn("double_click", av["button_event"]["enum_values"]["values"])
+
     def test_button_event_two_values(self):
         entity = ScenarioButtonEntity(BUTTON_DATA)
         entity.fill_by_ha_state(_button_state())
         result = entity.to_sber_state()
         av = result["model"]["allowed_values"]
-        self.assertEqual(len(av["button_event"]["enum_values"]["values"]), 2)
+        self.assertEqual(len(av["button_event"]["enum_values"]["values"]), 3)
 
 
 # === Task 13: nicknames ===

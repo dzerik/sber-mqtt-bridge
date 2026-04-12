@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.28.0] - 2026-04-12
+
+### Added
+
+- **Silent rejection detection** — ack audit runs 60s after config
+  publish, creates HA repair issue
+  (`Settings > System > Repairs`) when entities remain unacknowledged
+  by Sber cloud. Configurable via `CONF_ACK_AUDIT_DELAY`.
+- **Sber error tracking** — `handle_error` now parses error payload
+  and stores `last_error_detail` in stats. New repair issue
+  `sber_errors` with error count and detail.
+- **Health scoring** in `ws_get_status` response: `healthy` /
+  `degraded` / `unhealthy` with issue list.
+- **Health badge** in toolbar (yellow/red pill) when degraded or
+  unhealthy.
+
+### Fixed
+
+- **scenario_button** missing `long_press` in `button_event`
+  allowed_values (Sber protocol compliance).
+
 ## [1.27.0] - 2026-04-12
 
 ### Changed

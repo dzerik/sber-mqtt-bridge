@@ -60,7 +60,7 @@ class ScenarioButtonEntity(BaseEntity):
         return {
             "button_event": {
                 "type": "ENUM",
-                "enum_values": {"values": ["click", "double_click"]},
+                "enum_values": {"values": ["click", "double_click", "long_press"]},
             },
         }
 
