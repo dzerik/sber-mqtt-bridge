@@ -119,6 +119,9 @@ class BridgeStats:
     last_ack_time: float | None = None
     """Timestamp (monotonic) of the last Sber acknowledgment received."""
 
+    validation_failures: list[str] = field(default_factory=list)
+    """Entity IDs that failed pydantic validation and were excluded from last config."""
+
     def as_dict(self) -> dict:
         """Return stats as a serializable dict."""
         now = time.monotonic()
@@ -969,7 +972,7 @@ class SberBridge:
         ha_location = self._hass.config.location_name
         location = ha_location if ha_location and ha_location != "Home Assistant" else "Мой дом"
         auto_parent = self._entry.options.get(CONF_HUB_AUTO_PARENT, False)
-        payload, _config_valid = build_devices_list_json(
+        payload, _config_valid, invalid_ids = build_devices_list_json(
             self._entities,
             ids_to_publish,
             self._redefinitions,
@@ -977,6 +980,13 @@ class SberBridge:
             default_room=location,
             auto_parent_id=auto_parent,
         )
+        if invalid_ids:
+            self._stats.validation_failures = invalid_ids
+            _LOGGER.warning(
+                "%d devices excluded from config (validation failed): %s",
+                len(invalid_ids),
+                ", ".join(invalid_ids),
+            )
         topic = f"{self._root_topic}/up/config"
         try:
             await self._mqtt_service.publish(topic, payload)

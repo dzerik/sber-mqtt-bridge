@@ -116,6 +116,10 @@
     "sber_errors": {
       "title": "Ошибки Sber cloud",
       "description": "Получено {count} ошибок от Sber cloud. Последняя ошибка: {detail}"
+    },
+    "validation_failures": {
+      "title": "Устройства исключены из конфигурации Sber",
+      "description": "{count} устройств не прошли валидацию протокола и НЕ были опубликованы в Sber cloud. Исправьте конфигурацию устройств или сообщите об ошибке. Затронуты: {entities}"
     }
   }
 }

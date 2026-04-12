@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.29.0] - 2026-04-12
+
+### Added
+
+- **Strict pydantic validation** — all Sber protocol models rewritten
+  with `extra="forbid"`. Invalid payloads are now **rejected before
+  MQTT publish**, not after Sber silently drops the device.
+- **Per-device validation** — each device validated individually via
+  `validate_device()`. Invalid devices excluded from config payload
+  (logged at WARNING), valid devices proceed normally.
+- **Category compliance validator** — `CATEGORY_REQUIRED_FEATURES`
+  dict with required features per category (28 categories, verified
+  via Context7 against official Sber C2C docs). Catches missing
+  `on_off` for control devices, missing `pir` for sensors, etc.
+- **Typed allowed_values** — `SberAllowedValue` discriminated union
+  replaces `dict[str, Any]`. Catches type errors (e.g. integer
+  min/max as int instead of string).
+- **TV bug prevention** — validator checks `allowed_values` keys are
+  subset of `features` list. Extra keys (which caused silent device
+  rejection) now caught at validation time.
+- **Validation failure repair issue** — new HA repair issue
+  `validation_failures` with list of excluded entity IDs.
+- **97 new tests** in `test_sber_models_strict.py` — strict model
+  validation, category compliance, integration tests verifying real
+  device class output against schema.
+
 ## [1.28.0] - 2026-04-12
 
 ### Added

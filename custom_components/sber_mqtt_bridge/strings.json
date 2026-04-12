@@ -116,6 +116,10 @@
     "sber_errors": {
       "title": "Sber cloud errors",
       "description": "Received {count} error(s) from Sber cloud. Last error: {detail}"
+    },
+    "validation_failures": {
+      "title": "Devices excluded from Sber config",
+      "description": "{count} device(s) failed protocol validation and were NOT published to Sber cloud. Fix the device configuration or report a bug. Affected: {entities}"
     }
   }
 }

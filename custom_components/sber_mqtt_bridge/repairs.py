@@ -39,6 +39,7 @@ async def check_and_create_issues(hass: HomeAssistant, bridge: SberBridge) -> No
     _check_connection_issues(hass, bridge)
     _check_broken_links(hass, bridge)
     _check_unacknowledged_entities(hass, bridge)
+    _check_validation_failures(hass, bridge)
     _check_sber_errors(hass, bridge)
 
 
@@ -202,3 +203,32 @@ def _check_sber_errors(hass: HomeAssistant, bridge: SberBridge) -> None:
         )
     else:
         async_delete_issue(hass, DOMAIN, "sber_errors")
+
+
+def _check_validation_failures(hass: HomeAssistant, bridge: SberBridge) -> None:
+    """Create/delete issue for devices that failed pydantic validation.
+
+    These devices were excluded from the last config publish because
+    their ``to_sber_state()`` output didn't pass strict schema validation.
+
+    Args:
+        hass: Home Assistant core instance.
+        bridge: The active SberBridge instance.
+    """
+    stats = bridge.stats
+    failures = stats.get("validation_failures", [])
+    if failures:
+        async_create_issue(
+            hass,
+            DOMAIN,
+            "validation_failures",
+            is_fixable=False,
+            severity=IssueSeverity.ERROR,
+            translation_key="validation_failures",
+            translation_placeholders={
+                "count": str(len(failures)),
+                "entities": ", ".join(failures[:10]),
+            },
+        )
+    else:
+        async_delete_issue(hass, DOMAIN, "validation_failures")
