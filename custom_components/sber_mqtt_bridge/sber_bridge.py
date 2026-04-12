@@ -915,10 +915,6 @@ class SberBridge:
         """
         await self._publish_states([entity_id])
 
-    async def async_republish(self) -> None:
-        """Force republish full device config to Sber cloud."""
-        await self._publish_config()
-
     async def _publish_states(self, entity_ids: list[str] | None = None, *, force: bool = False) -> None:
         """Publish entity states to Sber MQTT.
 

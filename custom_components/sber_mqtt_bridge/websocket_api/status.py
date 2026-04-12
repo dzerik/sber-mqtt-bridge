@@ -159,7 +159,7 @@ async def ws_republish(
     if bridge is None:
         connection.send_error(msg["id"], "bridge_not_found", "Sber bridge not available")
         return
-    await bridge.async_republish()
+    await bridge.async_republish_config()
     connection.send_result(msg["id"], {"success": True})
 
 
