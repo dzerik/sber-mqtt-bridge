@@ -1,0 +1,68 @@
+name: Sber Spec Drift Check
+
+# Fetches canonical device schemas from developers.sber.ru weekly.
+# If Sber updated the documentation, a PR is opened with the diff so
+# we can audit the change and update device classes if needed.
+
+on:
+  schedule:
+    - cron: "7 6 * * 1"  # Mondays 06:07 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  fetch-and-check:
+    name: Fetch Sber schemas + detect drift
+    runs-on: ubuntu-latest
+    # Use the official Playwright image — chromium + all system deps
+    # are pre-installed, no download step needed.
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.48.0-jammy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: pip install --quiet playwright
+
+      - name: Fetch Sber schemas
+        run: python scripts/fetch_sber_schemas.py
+
+      - name: Detect drift
+        id: drift
+        run: |
+          if git diff --exit-code tests/hacs/__snapshots__/sber_schemas.json; then
+            echo "No drift detected."
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Drift detected in Sber schemas!"
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+            git diff tests/hacs/__snapshots__/sber_schemas.json | head -200
+          fi
+
+      - name: Create drift PR
+        if: steps.drift.outputs.drift == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: bot/sber-spec-drift
+          delete-branch: true
+          title: "chore: Sber spec drift detected"
+          commit-message: "chore: update Sber schemas snapshot"
+          body: |
+            The weekly `sber-compliance` job detected changes in
+            `developers.sber.ru` documentation.
+
+            Review the diff to decide whether our device classes need
+            updates (new required features, changed enum values, etc.).
+
+            - See `tests/hacs/__snapshots__/sber_schemas.json` for full diff.
+            - Compliance tests in `tests/hacs/test_sber_compliance_live.py`
+              will fail if our code diverges from the new spec.
+
+            Merge this PR only after verifying the Sber change is
+            intentional and our code is updated accordingly.
+          labels: |
+            sber-drift
+            automated
