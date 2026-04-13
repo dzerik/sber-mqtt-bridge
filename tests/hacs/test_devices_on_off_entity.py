@@ -24,7 +24,7 @@ class TestOnOffEntityEnergyFeatures(unittest.TestCase):
     def test_no_energy_attrs(self):
         entity = RelayEntity(RELAY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("power", features)
         self.assertNotIn("voltage", features)
         self.assertNotIn("current", features)
@@ -32,19 +32,19 @@ class TestOnOffEntityEnergyFeatures(unittest.TestCase):
     def test_power_in_features(self):
         entity = RelayEntity(RELAY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", power=150))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("power", features)
 
     def test_voltage_in_features(self):
         entity = RelayEntity(RELAY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", voltage=220))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("voltage", features)
 
     def test_current_in_features(self):
         entity = RelayEntity(RELAY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", current=500))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("current", features)
 
     def test_all_energy_in_state(self):
@@ -69,7 +69,7 @@ class TestOnOffEntityEnergyFeatures(unittest.TestCase):
             "state": "on",
             "attributes": {"power": 100},
         })
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("power", features)
 
     def test_no_energy_in_state_when_absent(self):

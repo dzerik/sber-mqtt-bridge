@@ -13,6 +13,7 @@ from .base_entity import (
     AttrSpec,
     BaseEntity,
     CommandResult,
+    _safe_clamped_int_parser,
     _safe_int_parser,
 )
 from .utils.signal import rssi_to_signal_strength
@@ -181,7 +182,7 @@ class CurtainEntity(BaseEntity):
         return results
 
     def _cmd_set_position(self, value: dict) -> list[dict]:
-        ha_position = self._safe_clamped_int(value.get("integer_value"), 0, 100)
+        ha_position = _safe_clamped_int_parser(value.get("integer_value"), 0, 100)
         if ha_position is None:
             return []
         return [self._build_service_call("cover", "set_cover_position", self.entity_id, {"position": ha_position})]
@@ -193,7 +194,7 @@ class CurtainEntity(BaseEntity):
             return []
         return [self._build_service_call("cover", service, self.entity_id)]
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list for curtain capabilities.
 
         Includes open_percentage, open_set, open_state, and optionally
@@ -203,7 +204,7 @@ class CurtainEntity(BaseEntity):
             List of Sber feature strings supported by this entity.
         """
         features = [
-            *super().create_features_list(),
+            *super()._create_features_list(),
             "open_percentage",
             "open_set",
             "open_state",

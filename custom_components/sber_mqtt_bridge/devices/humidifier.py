@@ -151,7 +151,7 @@ class HumidifierEntity(BaseEntity):
                 with contextlib.suppress(TypeError, ValueError):
                     self.current_humidity = float(state_val)
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list based on available humidifier capabilities.
 
         Dynamically includes work mode and night mode features only when
@@ -160,7 +160,7 @@ class HumidifierEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), "on_off", "humidity", "hvac_humidity_set"]
+        features = [*super()._create_features_list(), "on_off", "humidity", "hvac_humidity_set"]
         if self.available_modes:
             features.append("hvac_air_flow_power")
         if self._has_night_mode:
@@ -270,7 +270,7 @@ class HumidifierEntity(BaseEntity):
         return [self._build_on_off_service_call(self.entity_id, "humidifier", on)]
 
     def _cmd_humidity(self, value: dict) -> list[dict]:
-        humidity = self._safe_int(value.get("integer_value"))
+        humidity = _safe_int_parser(value.get("integer_value"))
         if humidity is None:
             return []
         return [self._build_service_call("humidifier", "set_humidity", self.entity_id, {"humidity": humidity})]

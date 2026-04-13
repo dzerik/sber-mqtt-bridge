@@ -58,7 +58,7 @@ class TestValveCreateFeaturesList(unittest.TestCase):
     def test_features_include_open_set_open_state(self):
         entity = ValveEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("open_set", features)
         self.assertIn("open_state", features)
         self.assertIn("online", features)
@@ -66,7 +66,7 @@ class TestValveCreateFeaturesList(unittest.TestCase):
     def test_features_do_not_include_on_off(self):
         entity = ValveEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("on_off", features)
 
 

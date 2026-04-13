@@ -145,7 +145,7 @@ class LightEntity(BaseEntity):
         else:
             self.current_sber_color_temp = None
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list based on available light capabilities.
 
         Dynamically includes color, brightness, and color temperature features
@@ -154,7 +154,7 @@ class LightEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), "on_off"]
+        features = [*super()._create_features_list(), "on_off"]
 
         if COLOR_MODES & set(self.supported_color_modes):
             features += ["light_colour", "light_mode", "light_brightness"]
@@ -200,7 +200,7 @@ class LightEntity(BaseEntity):
         Returns:
             Dependencies dict for Sber model descriptor.
         """
-        features = self.create_features_list()
+        features = self.get_final_features_list()
         if "light_colour" in features and "light_mode" in features:
             return {
                 "light_colour": {
@@ -309,7 +309,7 @@ class LightEntity(BaseEntity):
 
     def _cmd_brightness(self, value: dict) -> list[dict]:
         """Handle ``light_brightness``: set brightness via ``light.turn_on``."""
-        sber_br_value = self._safe_int(value.get("integer_value"))
+        sber_br_value = _safe_int_parser(value.get("integer_value"))
         if sber_br_value is None:
             return []
         ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
@@ -381,7 +381,7 @@ class LightEntity(BaseEntity):
 
     def _cmd_colour_temp(self, value: dict) -> list[dict]:
         """Handle ``light_colour_temp``: set colour temperature via turn_on."""
-        sber_color_temp = self._safe_int(value.get("integer_value"))
+        sber_color_temp = _safe_int_parser(value.get("integer_value"))
         if sber_color_temp is None:
             return []
         ha_mireds = self.color_temp_converter.sber_to_ha(sber_color_temp)

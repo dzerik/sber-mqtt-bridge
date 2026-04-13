@@ -30,7 +30,7 @@ class TestTvCreate(unittest.TestCase):
     def test_features_list(self):
         entity = TvEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(source_list=["HDMI 1", "TV"]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("online", features)
         self.assertIn("on_off", features)
         self.assertIn("volume_int", features)
@@ -42,7 +42,7 @@ class TestTvCreate(unittest.TestCase):
     def test_features_no_source_without_list(self):
         entity = TvEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("source", features)
         self.assertIn("channel", features)
         self.assertIn("direction", features)
@@ -253,21 +253,21 @@ class TestTvFeatures(unittest.TestCase):
         """channel_int must always be in features list."""
         entity = TvEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("channel_int", features)
 
     def test_direction_in_features(self):
         """direction must always be in features list."""
         entity = TvEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("direction", features)
 
     def test_channel_in_features(self):
         """channel must always be in features list."""
         entity = TvEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("channel", features)
 
 
@@ -299,19 +299,19 @@ class TestTvNewFeatures(unittest.TestCase):
         """custom_key must be in features list."""
         entity = TvEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
-        self.assertIn("custom_key", entity.create_features_list())
+        self.assertIn("custom_key", entity.get_final_features_list())
 
     def test_volume_in_features(self):
         """volume (relative) must be in features list."""
         entity = TvEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
-        self.assertIn("volume", entity.create_features_list())
+        self.assertIn("volume", entity.get_final_features_list())
 
     def test_number_in_features(self):
         """number must be in features list."""
         entity = TvEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
-        self.assertIn("number", entity.create_features_list())
+        self.assertIn("number", entity.get_final_features_list())
 
 
 class TestTvProcessCmdNewKeys(unittest.TestCase):

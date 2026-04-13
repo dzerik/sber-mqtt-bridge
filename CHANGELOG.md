@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.30.0] - 2026-04-13
+
+### Changed
+
+- **Architectural cleanup** of five long-standing duplications / API
+  smells identified by a code audit:
+  - Public feature-list API unified to `get_final_features_list()`; the
+    subclass extension point is `_create_features_list()`.  Removed the
+    `hasattr` fallback from two WebSocket endpoints (status, device).
+  - Module-level `_safe_int_parser` / `_safe_float_parser` /
+    `_safe_bool_parser` are now the single implementations; the static
+    `BaseEntity._safe_int` / `_safe_float` / `_safe_clamped_int` helpers
+    were duplicates and are gone.  `_safe_clamped_int_parser` added to
+    complete the set.
+  - `BaseEntity.update_linked_data` now has a concrete no-op default —
+    `ha_state_forwarder` and `entity_registry` no longer probe with
+    `hasattr` before calling it.
+  - Entity factory: `CATEGORY_DOMAIN_MAP` is now the single source of
+    truth for *every* Sber category, carrying the entity class via a
+    new `CategorySpec.cls` field.  Deleted the parallel
+    `CATEGORY_CONSTRUCTORS` / `ENTITY_CONSTRUCTORS` dicts and the seven
+    `_create_sensor` / `_create_binary_sensor` / `_create_switch` /
+    `_create_cover` / `_create_climate` / `_create_water_heater` /
+    `_create_fan` / `_create_media_player` dispatchers.
+  - New `AckAudit` helper collapses the reconnect guard, the
+    silent-rejection audit timer, and the shutdown cancellation into
+    one module.  The bridge loses three private methods and an
+    `asyncio.TimerHandle` field.
+
+### Added
+
+- `tests/hacs/test_safe_parsers.py` — 36 contract tests for the
+  `_safe_*_parser` helpers.
+- `tests/hacs/test_ack_audit.py` — 7 contract tests describing the
+  post-reconnect handshake protocol independent of bridge internals.
+- `tests/hacs/test_entity_linking.py` — 2 tests locking in the
+  `update_linked_data` no-op default.
+
 ## [1.29.1] - 2026-04-13
 
 ### Fixed

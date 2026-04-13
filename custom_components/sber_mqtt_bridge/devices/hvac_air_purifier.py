@@ -127,14 +127,14 @@ class HvacAirPurifierEntity(BaseEntity):
             return _percentage_to_sber_speed(self.percentage)
         return None
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list for air purifier capabilities.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
         features = [
-            *super().create_features_list(),
+            *super()._create_features_list(),
             "on_off",
             "hvac_air_flow_power",
             "hvac_ionization",

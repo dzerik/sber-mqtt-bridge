@@ -115,7 +115,7 @@ class TestSensorTempCompliance:
     def test_features_minimal(self):
         """Minimal features: online, temperature, temp_unit_view."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "temperature" in features
         assert "temp_unit_view" in features
@@ -124,26 +124,26 @@ class TestSensorTempCompliance:
         """When humidity is linked, 'humidity' feature must appear."""
         entity = self._make_entity()
         entity.update_linked_data("humidity", {"state": "55"})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "humidity" in features
 
     def test_features_no_humidity_without_link(self):
         """Without linked humidity, 'humidity' feature must not appear."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "humidity" not in features
 
     def test_features_with_battery(self):
         """When battery attr present, battery_percentage + battery_low_power appear."""
         entity = self._make_entity(battery=85)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "battery_percentage" in features
         assert "battery_low_power" in features
 
     def test_features_with_sensitivity(self):
         """When sensitivity attr present, sensor_sensitive feature appears."""
         entity = self._make_entity(sensitivity="high")
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "sensor_sensitive" in features
 
     def test_temperature_integer_value_is_string(self):
@@ -234,7 +234,7 @@ class TestSensorTempCompliance:
     def test_air_pressure_when_available(self):
         """When pressure attribute present, air_pressure feature and state appear."""
         entity = self._make_entity("22.5", pressure=1013)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "air_pressure" in features
         states = _get_states(entity, self.ENTITY_ID)
         _assert_integer_value_is_string(states, "air_pressure")
@@ -277,7 +277,7 @@ class TestHumiditySensorCompliance:
     def test_features_minimal(self):
         """Minimal features: online, humidity."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "humidity" in features
 
@@ -285,13 +285,13 @@ class TestHumiditySensorCompliance:
         """When temperature is linked, 'temperature' feature must appear."""
         entity = self._make_entity()
         entity.update_linked_data("temperature", {"state": "22.5"})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "temperature" in features
 
     def test_features_with_battery(self):
         """Battery features when battery attr present."""
         entity = self._make_entity(battery=60)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "battery_percentage" in features
         assert "battery_low_power" in features
 
@@ -374,20 +374,20 @@ class TestMotionSensorCompliance:
     def test_features_minimal(self):
         """Minimal features: online, pir."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "pir" in features
 
     def test_features_with_tamper(self):
         """When tamper attr present, tamper_alarm feature appears."""
         entity = self._make_entity(tamper=False)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "tamper_alarm" in features
 
     def test_features_with_battery(self):
         """Battery features when battery available."""
         entity = self._make_entity(battery=80)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "battery_percentage" in features
         assert "battery_low_power" in features
 
@@ -482,14 +482,14 @@ class TestDoorSensorCompliance:
     def test_features_minimal(self):
         """Minimal features: online, doorcontact_state."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "doorcontact_state" in features
 
     def test_features_with_tamper(self):
         """tamper_alarm feature when tamper attribute present."""
         entity = self._make_entity(tamper=False)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "tamper_alarm" in features
 
     def test_doorcontact_state_true_when_open(self):
@@ -553,14 +553,14 @@ class TestWaterLeakSensorCompliance:
     def test_features_minimal(self):
         """Minimal features: online, water_leak_state."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "water_leak_state" in features
 
     def test_features_with_tamper_and_alarm_mute(self):
         """tamper_alarm and alarm_mute features when attrs present."""
         entity = self._make_entity(tamper=False, alarm_mute=False)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "tamper_alarm" in features
         assert "alarm_mute" in features
 
@@ -625,14 +625,14 @@ class TestSmokeSensorCompliance:
     def test_features_minimal(self):
         """Minimal features: online, smoke_state."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "smoke_state" in features
 
     def test_features_with_tamper_and_alarm_mute(self):
         """tamper_alarm and alarm_mute features when attrs present."""
         entity = self._make_entity(tamper=False, alarm_mute=True)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "tamper_alarm" in features
         assert "alarm_mute" in features
 
@@ -697,14 +697,14 @@ class TestGasSensorCompliance:
     def test_features_minimal(self):
         """Minimal features: online, gas_leak_state."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "gas_leak_state" in features
 
     def test_features_with_tamper_and_alarm_mute(self):
         """tamper_alarm and alarm_mute features when attrs present."""
         entity = self._make_entity(tamper=False, alarm_mute=False)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "tamper_alarm" in features
         assert "alarm_mute" in features
 
@@ -769,7 +769,7 @@ class TestCurtainCompliance:
     def test_features_minimal(self):
         """Minimal features: online, open_percentage, open_set, open_state."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "open_percentage" in features
         assert "open_set" in features
@@ -778,26 +778,26 @@ class TestCurtainCompliance:
     def test_features_with_battery(self):
         """Battery features when battery attr present."""
         entity = self._make_entity(battery=75)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "battery_percentage" in features
         assert "battery_low_power" in features
 
     def test_features_with_signal_strength(self):
         """signal_strength feature when rssi attr present."""
         entity = self._make_entity(signal_strength=-60)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "signal_strength" in features
 
     def test_features_with_open_rate(self):
         """open_rate feature when speed attr present."""
         entity = self._make_entity(speed="low")
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "open_rate" in features
 
     def test_features_with_tilt(self):
         """light_transmission_percentage feature when tilt position attr present."""
         entity = self._make_entity(current_tilt_position=50)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "light_transmission_percentage" in features
 
     def test_open_percentage_integer_value_is_string(self):
@@ -1016,20 +1016,20 @@ class TestTvCompliance:
     def test_features_minimal(self):
         """Minimal features: online, on_off, volume_int, mute, channel, channel_int, direction."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         for feat in ("online", "on_off", "volume_int", "mute", "channel", "channel_int", "direction"):
             assert feat in features, f"Missing feature '{feat}'"
 
     def test_features_source_when_source_list(self):
         """source feature only when source_list is available."""
         entity = self._make_entity(source_list=["HDMI 1", "TV"])
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "source" in features
 
     def test_features_no_source_without_list(self):
         """source feature must not appear without source_list."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "source" not in features
 
     def test_volume_int_integer_value_is_string(self):
@@ -1390,7 +1390,7 @@ class TestHvacFanCompliance:
     def test_features_simple_on_off_fan(self):
         """Simple fan (no speed support) must have online + on_off only."""
         entity = self._make_entity()
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "on_off" in features
         assert "hvac_air_flow_power" not in features, "hvac_air_flow_power must NOT appear for a simple on/off fan"
@@ -1398,13 +1398,13 @@ class TestHvacFanCompliance:
     def test_features_with_preset_modes(self):
         """Fan with preset_modes must include hvac_air_flow_power."""
         entity = self._make_entity(preset_modes=["low", "medium", "high"])
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "hvac_air_flow_power" in features
 
     def test_features_with_percentage(self):
         """Fan with percentage must include hvac_air_flow_power."""
         entity = self._make_entity(percentage=50)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "hvac_air_flow_power" in features
 
     def test_no_speed_no_allowed_values(self):

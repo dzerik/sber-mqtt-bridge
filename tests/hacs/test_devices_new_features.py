@@ -79,13 +79,13 @@ class TestAirPressure(unittest.TestCase):
     def test_air_pressure_feature_present(self):
         entity = SensorTempEntity(TEMP_DATA)
         entity.fill_by_ha_state(_sensor_state(pressure=1013))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("air_pressure", features)
 
     def test_air_pressure_feature_absent(self):
         entity = SensorTempEntity(TEMP_DATA)
         entity.fill_by_ha_state(_sensor_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("air_pressure", features)
 
     def test_air_pressure_in_state(self):
@@ -108,7 +108,7 @@ class TestAirPressure(unittest.TestCase):
     def test_air_pressure_invalid_value(self):
         entity = SensorTempEntity(TEMP_DATA)
         entity.fill_by_ha_state(_sensor_state(pressure="invalid"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("air_pressure", features)
 
 
@@ -121,25 +121,25 @@ class TestSignalStrengthSensors(unittest.TestCase):
     def test_signal_from_rssi(self):
         entity = DoorSensorEntity(DOOR_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.door", rssi=-45))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("signal_strength", features)
 
     def test_signal_from_linkquality(self):
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.motion", linkquality=-60))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("signal_strength", features)
 
     def test_signal_from_signal_strength_attr(self):
         entity = WaterLeakSensorEntity(LEAK_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.leak", signal_strength=-80))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("signal_strength", features)
 
     def test_signal_absent(self):
         entity = DoorSensorEntity(DOOR_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.door"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("signal_strength", features)
 
     def test_signal_high(self):
@@ -169,7 +169,7 @@ class TestSignalStrengthSensors(unittest.TestCase):
     def test_signal_invalid_ignored(self):
         entity = DoorSensorEntity(DOOR_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.door", rssi="invalid"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("signal_strength", features)
 
 
@@ -179,13 +179,13 @@ class TestSignalStrengthCurtain(unittest.TestCase):
     def test_signal_present(self):
         entity = CurtainEntity(CURTAIN_DATA)
         entity.fill_by_ha_state(_cover_state(rssi=-55))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("signal_strength", features)
 
     def test_signal_absent(self):
         entity = CurtainEntity(CURTAIN_DATA)
         entity.fill_by_ha_state(_cover_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("signal_strength", features)
 
     def test_signal_in_state(self):
@@ -214,13 +214,13 @@ class TestTamperAlarmDoor(unittest.TestCase):
     def test_tamper_feature_present(self):
         entity = DoorSensorEntity(DOOR_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.door", tamper=True))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("tamper_alarm", features)
 
     def test_tamper_feature_absent(self):
         entity = DoorSensorEntity(DOOR_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.door"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("tamper_alarm", features)
 
     def test_tamper_true_in_state(self):
@@ -246,13 +246,13 @@ class TestTamperAlarmMotion(unittest.TestCase):
     def test_tamper_feature_present(self):
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.motion", tamper=True))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("tamper_alarm", features)
 
     def test_tamper_feature_absent(self):
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.motion"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("tamper_alarm", features)
 
     def test_tamper_in_state(self):
@@ -273,7 +273,7 @@ class TestBatteryLowPower(unittest.TestCase):
     def test_battery_low_feature_present(self):
         entity = DoorSensorEntity(DOOR_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.door", battery=15))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("battery_low_power", features)
 
     def test_battery_low_true_when_below_20(self):
@@ -295,7 +295,7 @@ class TestBatteryLowPower(unittest.TestCase):
     def test_battery_low_absent_without_battery(self):
         entity = DoorSensorEntity(DOOR_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.door"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("battery_low_power", features)
 
     def test_battery_low_at_boundary(self):
@@ -325,13 +325,13 @@ class TestChildLock(unittest.TestCase):
     def test_child_lock_feature_present(self):
         entity = SocketEntity(SOCKET_DATA)
         entity.fill_by_ha_state(_switch_state("switch.socket", child_lock=True))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("child_lock", features)
 
     def test_child_lock_feature_absent(self):
         entity = SocketEntity(SOCKET_DATA)
         entity.fill_by_ha_state(_switch_state("switch.socket"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("child_lock", features)
 
     def test_child_lock_true_in_state(self):
@@ -353,7 +353,7 @@ class TestChildLock(unittest.TestCase):
     def test_child_lock_on_relay(self):
         entity = RelayEntity(RELAY_DATA)
         entity.fill_by_ha_state(_switch_state("switch.relay", child_lock=True))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("child_lock", features)
 
 
@@ -366,13 +366,13 @@ class TestClimateHumiditySet(unittest.TestCase):
     def test_humidity_set_feature_present(self):
         entity = ClimateEntity(CLIMATE_DATA)
         entity.fill_by_ha_state(_climate_state(target_humidity=50))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("hvac_humidity_set", features)
 
     def test_humidity_set_feature_absent(self):
         entity = ClimateEntity(CLIMATE_DATA)
         entity.fill_by_ha_state(_climate_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("hvac_humidity_set", features)
 
     def test_humidity_set_in_state(self):
@@ -412,19 +412,19 @@ class TestClimateNightMode(unittest.TestCase):
     def test_night_mode_feature_present(self):
         entity = ClimateEntity(CLIMATE_DATA)
         entity.fill_by_ha_state(_climate_state(preset_modes=["none", "sleep", "eco"]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("hvac_night_mode", features)
 
     def test_night_mode_feature_absent(self):
         entity = ClimateEntity(CLIMATE_DATA)
         entity.fill_by_ha_state(_climate_state(preset_modes=["none", "eco"]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("hvac_night_mode", features)
 
     def test_night_mode_feature_absent_no_presets(self):
         entity = ClimateEntity(CLIMATE_DATA)
         entity.fill_by_ha_state(_climate_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("hvac_night_mode", features)
 
     def test_night_mode_true_in_state(self):
@@ -466,7 +466,7 @@ class TestClimateNightMode(unittest.TestCase):
     def test_night_mode_with_night_keyword(self):
         entity = ClimateEntity(CLIMATE_DATA)
         entity.fill_by_ha_state(_climate_state(preset_modes=["none", "night"]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("hvac_night_mode", features)
         cmd = {"states": [{"key": "hvac_night_mode", "value": {"type": "BOOL", "bool_value": True}}]}
         results = entity.process_cmd(cmd)
@@ -480,13 +480,13 @@ class TestHumidifierNightMode(unittest.TestCase):
     def test_night_mode_feature_present(self):
         entity = HumidifierEntity(HUMIDIFIER_DATA)
         entity.fill_by_ha_state(_humidifier_state())  # has "sleep" in modes
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("hvac_night_mode", features)
 
     def test_night_mode_feature_absent(self):
         entity = HumidifierEntity(HUMIDIFIER_DATA)
         entity.fill_by_ha_state(_humidifier_state(available_modes=["normal", "turbo"]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("hvac_night_mode", features)
 
     def test_night_mode_true_in_state(self):

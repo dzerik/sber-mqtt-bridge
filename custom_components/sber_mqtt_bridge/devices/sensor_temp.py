@@ -81,13 +81,13 @@ class SensorTempEntity(SimpleReadOnlySensor):
                 with contextlib.suppress(TypeError, ValueError):
                     self._linked_humidity = round(float(state_val))
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list including humidity and air_pressure when available.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = super().create_features_list()
+        features = super()._create_features_list()
         features.append("temp_unit_view")
         if self._linked_humidity is not None:
             features.append("humidity")

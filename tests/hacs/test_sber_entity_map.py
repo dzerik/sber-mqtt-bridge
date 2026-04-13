@@ -3,7 +3,7 @@
 import unittest
 
 from custom_components.sber_mqtt_bridge.sber_entity_map import (
-    ENTITY_CONSTRUCTORS,
+    CATEGORY_DOMAIN_MAP,
     create_sber_entity,
 )
 from custom_components.sber_mqtt_bridge.devices.light import LightEntity
@@ -35,12 +35,20 @@ def _data(entity_id, **kwargs):
 
 
 class TestEntityConstructorsMap(unittest.TestCase):
+    """Which HA domains does auto-detection cover? The answer is derived from
+    the union of ``domains`` across all entries in ``CATEGORY_DOMAIN_MAP``.
+
+    This list is the promised auto-detection surface -- anything missing here
+    means users in that domain get silently skipped.
+    """
 
     def test_all_supported_domains(self):
         expected = {"light", "cover", "sensor", "binary_sensor", "switch",
                     "script", "button", "input_boolean", "climate", "valve",
-                    "humidifier", "fan", "water_heater", "media_player", "vacuum"}
-        self.assertEqual(set(ENTITY_CONSTRUCTORS.keys()), expected)
+                    "humidifier", "fan", "water_heater", "media_player", "vacuum",
+                    "lock"}
+        supported = {d for spec in CATEGORY_DOMAIN_MAP.values() for d in spec.domains}
+        self.assertEqual(supported, expected)
 
 
 class TestCreateSberEntity(unittest.TestCase):

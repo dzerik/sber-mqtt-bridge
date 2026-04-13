@@ -110,6 +110,18 @@ def _safe_bool_parser(value: object) -> bool | None:
     return bool(value)
 
 
+def _safe_clamped_int_parser(value: object, low: int, high: int) -> int | None:
+    """Parse value as int and clamp into ``[low, high]`` inclusive.
+
+    Returns ``None`` when the value cannot be parsed.  Used by command
+    handlers that accept integer ranges (e.g. HSV brightness).
+    """
+    parsed = _safe_int_parser(value)
+    if parsed is None:
+        return None
+    return max(low, min(high, parsed))
+
+
 class DeviceData(TypedDict, total=False):
     """Typed device registry data linked to an entity.
 
@@ -219,7 +231,7 @@ class BaseEntity(ABC):
 
     Defines the interface that all device types must implement:
     - fill_by_ha_state: Parse HA state into internal representation
-    - create_features_list: Return Sber feature names
+    - _create_features_list: Return Sber feature names
     - to_sber_state: Build Sber device config JSON
     - to_sber_current_state: Build Sber current state JSON
     - process_cmd: Handle Sber commands, return HA service calls
@@ -404,10 +416,17 @@ class BaseEntity(ABC):
         entity_list = self.attributes.get("entity_id")
         return entity_list is not None and len(entity_list) > 0
 
-    def create_features_list(self) -> list[str]:
-        """Return list of Sber feature names supported by this entity.
+    def _create_features_list(self) -> list[str]:
+        """Return the raw feature list contributed by this class (subclass hook).
 
-        Base implementation returns ['online']. Child classes extend this.
+        Internal extension point — **subclasses override this** to add their
+        Sber features, typically returning ``[*super()._create_features_list(), ...]``.
+
+        External consumers must call :meth:`get_final_features_list` instead,
+        which applies user ``extra_features`` / ``removed_features`` overrides.
+
+        Base implementation returns ``["online"]`` (obligatory for every
+        Sber device per VR-010).
         """
         return ["online"]
 
@@ -444,13 +463,30 @@ class BaseEntity(ABC):
         Returns:
             Final list of Sber feature names.
         """
-        features = self.create_features_list()
+        features = self._create_features_list()
         if self.removed_features:
             features = [f for f in features if f not in self.removed_features]
         if self.extra_features:
             existing = set(features)
             features.extend(f for f in self.extra_features if f not in existing)
         return features
+
+    def update_linked_data(self, role: str, ha_state: dict) -> None:  # noqa: B027 — intentional concrete no-op, not abstract
+        """Inject state from a linked companion HA entity (default: no-op).
+
+        Device classes that accept linked entities (e.g. a binary battery
+        sensor paired with a valve) override this to apply the foreign
+        state to their own fields.  The default implementation does
+        nothing, which is correct for classes that don't advertise
+        :attr:`LINKABLE_ROLES`.
+
+        Providing a universal default also eliminates ``hasattr`` checks
+        at every call site -- callers may invoke it unconditionally.
+
+        Args:
+            role: The link role (e.g. ``"battery"``, ``"humidity"``).
+            ha_state: HA state dict of the linked entity.
+        """
 
     def link_device(self, device_data: DeviceData) -> None:
         """Link this entity to a HA device registry entry.
@@ -692,57 +728,6 @@ class BaseEntity(ABC):
             True if the entity state indicates it is reachable.
         """
         return self._is_online
-
-    @staticmethod
-    def _safe_float(value: object) -> float | None:
-        """Safely convert a value to float.
-
-        Args:
-            value: Value to convert (can be str, int, float, or None).
-
-        Returns:
-            Float value, or None if conversion fails.
-        """
-        if value is None:
-            return None
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return None
-
-    @staticmethod
-    def _safe_int(value: object) -> int | None:
-        """Safely convert a value to int (via float to handle "22.5" strings).
-
-        Args:
-            value: Value to convert (can be str, int, float, or None).
-
-        Returns:
-            Integer value, or None if conversion fails.
-        """
-        if value is None:
-            return None
-        try:
-            return int(float(value))
-        except (TypeError, ValueError):
-            return None
-
-    @staticmethod
-    def _safe_clamped_int(value: object, low: int, high: int) -> int | None:
-        """Safely convert value to int and clamp into ``[low, high]``.
-
-        Args:
-            value: Value to convert.
-            low: Inclusive lower bound.
-            high: Inclusive upper bound.
-
-        Returns:
-            Clamped integer, or None if conversion fails.
-        """
-        parsed = BaseEntity._safe_int(value)
-        if parsed is None:
-            return None
-        return max(low, min(high, parsed))
 
     def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
         """Handle a state change event from Home Assistant.

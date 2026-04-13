@@ -37,15 +37,10 @@ async def ws_get_devices(
     devices: list[dict[str, Any]] = []
     links = bridge.entity_links
     for eid, entity in bridge.entities.items():
-        features = (
-            entity.get_final_features_list()
-            if hasattr(entity, "get_final_features_list")
-            else entity.create_features_list()
-        )
         device_data: dict[str, Any] = {
             "entity_id": eid,
             "sber_category": entity.category,
-            "features": features,
+            "features": entity.get_final_features_list(),
             "name": entity.name,
             "room": entity.effective_room,
             "is_online": entity.is_online,
@@ -252,16 +247,11 @@ async def ws_device_detail(
     area_obj = area_reg.async_get_area(raw_area) if raw_area else None
     resolved_room = area_obj.name if area_obj else raw_area
 
-    features = (
-        entity.get_final_features_list()
-        if hasattr(entity, "get_final_features_list")
-        else entity.create_features_list()
-    )
     result: dict[str, Any] = {
         "entity_id": entity_id,
         "name": entity.name,
         "sber_category": entity.category,
-        "features": features,
+        "features": entity.get_final_features_list(),
         "room": resolved_room,
         "is_online": entity.is_online,
         "is_filled": entity.is_filled_by_state,

@@ -77,7 +77,7 @@ def _make_bridge(hass, entity_cls, entity_id, ha_state, ha_attrs=None, *, cls_kw
     bridge._mqtt_client = AsyncMock()
     bridge._mqtt_service.publish = AsyncMock()
     bridge._connected = True
-    bridge._ack_guard.clear()
+    bridge._ack_audit.cancel()
 
     kwargs = cls_kwargs or {}
     entity = (
@@ -532,7 +532,7 @@ class TestBridgeFlowReconnect:
         hass.states.get = MagicMock(return_value=ha_state_after)
 
         # Activate reconnect guard
-        bridge._ack_guard.activate(30, hass.loop)
+        bridge._ack_audit.activate_post_connect()
 
         payload = _sber_cmd_payload(
             {
@@ -558,7 +558,7 @@ class TestBridgeFlowReconnect:
         assert len(payloads) >= 1
 
         # Clear reconnect guard
-        bridge._ack_guard.clear()
+        bridge._ack_audit.cancel()
         hass.services.async_call.reset_mock()
         bridge._mqtt_service.publish.reset_mock()
 
@@ -614,7 +614,7 @@ class TestBridgeFlowEdgeCases:
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._ack_guard.clear()
+        bridge._ack_audit.cancel()
 
         entity_a = RelayEntity({"entity_id": "switch.a", "name": "A"})
         entity_a.fill_by_ha_state({"entity_id": "switch.a", "state": "off", "attributes": {}})
@@ -1483,7 +1483,7 @@ class TestRealHassFlows:
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._ack_guard.clear()
+        bridge._ack_audit.cancel()
 
         entity = RelayEntity({"entity_id": "switch.lamp", "name": "Test Lamp"})
         entity.fill_by_ha_state(
@@ -1535,7 +1535,7 @@ class TestRealHassFlows:
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._ack_guard.clear()
+        bridge._ack_audit.cancel()
 
         initial_attrs = {
             "brightness": 255,
@@ -1607,7 +1607,7 @@ class TestRealHassFlows:
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._ack_guard.clear()
+        bridge._ack_audit.cancel()
 
         entity = RelayEntity({"entity_id": "switch.lamp", "name": "Test Lamp"})
         entity.fill_by_ha_state(
@@ -1663,7 +1663,7 @@ class TestRealHassFlows:
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._ack_guard.clear()
+        bridge._ack_audit.cancel()
 
         entity = MotionSensorEntity({"entity_id": "binary_sensor.pir", "name": "PIR"})
         entity.fill_by_ha_state(
@@ -1722,7 +1722,7 @@ class TestRealHassFlows:
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._ack_guard.clear()
+        bridge._ack_audit.cancel()
 
         entity = CurtainEntity({"entity_id": "cover.curtain", "name": "Test Curtain"})
         entity.fill_by_ha_state(
@@ -1773,7 +1773,7 @@ class TestRealHassFlows:
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._ack_guard.clear()
+        bridge._ack_audit.cancel()
 
         entity = RelayEntity({"entity_id": "switch.lamp", "name": "Test Lamp"})
         entity.fill_by_ha_state(
@@ -1855,7 +1855,7 @@ class TestRealHassFlows:
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
-        bridge._ack_guard.clear()
+        bridge._ack_audit.cancel()
 
         entity = SensorTempEntity({"entity_id": "sensor.temp", "name": "Temperature"})
         entity.fill_by_ha_state(

@@ -96,7 +96,7 @@ class TestWindowBlindFillByHaState(unittest.TestCase):
             state="open", current_position=50, current_tilt_position=0,
         ))
         # Verify tilt is stored by checking features list
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("light_transmission_percentage", features)
 
     def test_fill_opening_state(self):
@@ -119,7 +119,7 @@ class TestWindowBlindCreateFeaturesList(unittest.TestCase):
         """Blind without tilt must have core features only."""
         entity = WindowBlindEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(state="open", current_position=50))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("online", features)
         self.assertIn("open_set", features)
         self.assertIn("open_state", features)
@@ -132,7 +132,7 @@ class TestWindowBlindCreateFeaturesList(unittest.TestCase):
         entity.fill_by_ha_state(_make_ha_state(
             state="open", current_position=50, current_tilt_position=45,
         ))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("light_transmission_percentage", features)
 
     def test_signal_strength_feature_when_rssi_present(self):
@@ -141,7 +141,7 @@ class TestWindowBlindCreateFeaturesList(unittest.TestCase):
         entity.fill_by_ha_state(_make_ha_state(
             state="open", current_position=50, signal_strength=-55,
         ))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("signal_strength", features)
 
 

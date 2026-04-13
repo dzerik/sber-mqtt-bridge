@@ -158,7 +158,7 @@ class HaStateForwarder:
         primary_id, role = linked_reverse[entity_id]
         entities = self._get_entities()
         primary_entity = entities.get(primary_id)
-        if primary_entity is None or not hasattr(primary_entity, "update_linked_data"):
+        if primary_entity is None:
             return
         features_before = primary_entity.get_final_features_list()
         primary_entity.update_linked_data(role, ha_state_dict)

@@ -83,13 +83,13 @@ class KettleEntity(BaseEntity):
         state_str = ha_state.get("state", "")
         self.current_state = state_str not in ("off", "idle", "unavailable", "unknown")
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list for kettle capabilities.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), "on_off"]
+        features = [*super()._create_features_list(), "on_off"]
         features.append("kitchen_water_temperature")
         features.append("kitchen_water_temperature_set")
         features.append("kitchen_water_level")
@@ -159,7 +159,7 @@ class KettleEntity(BaseEntity):
                 on = value.get("bool_value", False)
                 results.append(self._build_on_off_service_call(self.entity_id, domain, on))
             elif key == SberFeature.KITCHEN_WATER_TEMPERATURE_SET and vtype == SberValueType.INTEGER:
-                temp = self._safe_int(value.get("integer_value"))
+                temp = _safe_int_parser(value.get("integer_value"))
                 if temp is None:
                     continue
                 results.append(

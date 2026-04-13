@@ -29,8 +29,8 @@ from homeassistant.exceptions import (
 from .sber_protocol import parse_sber_command, parse_sber_status_request
 
 if TYPE_CHECKING:
+    from .ack_audit import AckAudit
     from .devices.base_entity import BaseEntity
-    from .reconnect_ack_guard import ReconnectAckGuard
 
 
 class _BridgeStats(Protocol):
@@ -54,7 +54,7 @@ class BridgeCommandContext(Protocol):
 
     _hass: HomeAssistant
     _stats: _BridgeStats
-    _ack_guard: ReconnectAckGuard
+    _ack_audit: AckAudit
     _entities: dict[str, BaseEntity]
     _enabled_entity_ids: list[str]
     _redefinitions: dict[str, dict]
@@ -95,8 +95,8 @@ class SberCommandDispatcher:
 
         devices = data.get("devices", {})
 
-        if bridge._ack_guard.is_awaiting:
-            if bridge._ack_guard.timeout_check():
+        if bridge._ack_audit.is_awaiting:
+            if bridge._ack_audit.timeout_check():
                 pass  # Guard cleared by timeout — fall through to process
             else:
                 entity_ids = [eid for eid in devices if eid in bridge._entities]
@@ -194,7 +194,7 @@ class SberCommandDispatcher:
         requested_ids = parse_sber_status_request(payload)
         bridge._stats.status_requests += 1
 
-        bridge._ack_guard.acknowledge()
+        bridge._ack_audit.acknowledge()
 
         if requested_ids:
             unknown = [eid for eid in requested_ids if eid not in bridge._entities and eid != "root"]
@@ -226,7 +226,7 @@ class SberCommandDispatcher:
         """Handle config request from Sber cloud — send device list."""
         bridge = self._bridge
         bridge._stats.config_requests += 1
-        bridge._ack_guard.acknowledge()
+        bridge._ack_audit.acknowledge()
         _LOGGER.info(
             "Sber config request received (will publish %d entities)",
             len(bridge._enabled_entity_ids),

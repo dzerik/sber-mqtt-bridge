@@ -47,13 +47,13 @@ class ScenarioButtonEntity(BaseEntity):
         else:
             self.button_event = "double_click"
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list including 'button_event'.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        return [*super().create_features_list(), "button_event"]
+        return [*super()._create_features_list(), "button_event"]
 
     def create_allowed_values_list(self) -> dict[str, dict]:
         """Return allowed values for button_event feature."""

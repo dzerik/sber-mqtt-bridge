@@ -59,9 +59,9 @@ class SmokeSensorEntity(SimpleReadOnlySensor):
         if alarm_mute is not None:
             self._alarm_mute = bool(alarm_mute)
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list including tamper_alarm and alarm_mute when available."""
-        features = super().create_features_list()
+        features = super()._create_features_list()
         if self._tamper is not None:
             features.append("tamper_alarm")
         if self._alarm_mute is not None:

@@ -122,7 +122,7 @@ class HvacFanEntity(BaseEntity):
         """Check if this fan has speed control (preset_modes or percentage)."""
         return bool(self.preset_modes) or self.percentage is not None
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list for fan capabilities.
 
         Only includes hvac_air_flow_power when the HA entity supports speed
@@ -132,7 +132,7 @@ class HvacFanEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), "on_off"]
+        features = [*super()._create_features_list(), "on_off"]
         if self._supports_speed:
             features.append("hvac_air_flow_power")
         return features

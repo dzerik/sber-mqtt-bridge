@@ -28,7 +28,7 @@ def _build_entity_diagnostics(bridge) -> list[dict[str, Any]]:
         entry: dict[str, Any] = {
             "entity_id": entity_id,
             "sber_category": entity.category,
-            "sber_features": entity.create_features_list(),
+            "sber_features": entity.get_final_features_list(),
             "is_filled_by_state": entity.is_filled_by_state,
             "has_linked_device": entity.linked_device is not None,
         }

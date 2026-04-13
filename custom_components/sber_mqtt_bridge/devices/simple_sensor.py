@@ -1,7 +1,7 @@
 """Base class for read-only Sber sensors with a single value feature.
 
 Provides shared implementations of ``process_cmd``,
-``create_features_list``, and ``to_sber_current_state`` so that concrete
+``_create_features_list``, and ``to_sber_current_state`` so that concrete
 sensor subclasses only need to define how their value is extracted and
 formatted for the Sber protocol.
 
@@ -168,7 +168,7 @@ class SimpleReadOnlySensor(BaseEntity):
             value = str(value)
         return {"type": self._sber_value_type, value_field: value}
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list including the sensor's value key.
 
         Adds ``battery_percentage`` and ``battery_low_power`` if battery
@@ -177,7 +177,7 @@ class SimpleReadOnlySensor(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), self._sber_value_key]
+        features = [*super()._create_features_list(), self._sber_value_key]
         if self._battery_level is not None or self._battery_low_linked is not None:
             features.append("battery_percentage")
             features.append("battery_low_power")

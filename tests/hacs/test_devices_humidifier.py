@@ -72,7 +72,7 @@ class TestHumidifierCreateFeaturesList(unittest.TestCase):
     def test_with_modes(self):
         entity = HumidifierEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("on_off", features)
         self.assertIn("humidity", features)
         self.assertIn("hvac_humidity_set", features)
@@ -82,7 +82,7 @@ class TestHumidifierCreateFeaturesList(unittest.TestCase):
     def test_without_modes(self):
         entity = HumidifierEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(available_modes=[]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("on_off", features)
         self.assertIn("humidity", features)
         self.assertIn("hvac_humidity_set", features)
@@ -295,7 +295,7 @@ class TestHumidifierChildLock(unittest.TestCase):
         ha = _make_ha_state()
         ha["attributes"]["child_lock"] = True
         entity.fill_by_ha_state(ha)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("child_lock", features)
 
     def test_child_lock_feature_present_when_false(self):
@@ -304,14 +304,14 @@ class TestHumidifierChildLock(unittest.TestCase):
         ha = _make_ha_state()
         ha["attributes"]["child_lock"] = False
         entity.fill_by_ha_state(ha)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("child_lock", features)
 
     def test_child_lock_feature_absent(self):
         """Humidifier without child_lock attribute must not include it."""
         entity = HumidifierEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("child_lock", features)
 
     def test_child_lock_true_in_state(self):

@@ -30,7 +30,7 @@ class TestVacuumCreate(unittest.TestCase):
     def test_features_list_basic(self):
         entity = VacuumCleanerEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("online", features)
         self.assertIn("vacuum_cleaner_command", features)
         self.assertIn("vacuum_cleaner_status", features)
@@ -38,13 +38,13 @@ class TestVacuumCreate(unittest.TestCase):
     def test_features_list_with_fan_speed(self):
         entity = VacuumCleanerEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(fan_speed="standard", fan_speed_list=["quiet", "standard", "turbo"]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("vacuum_cleaner_program", features)
 
     def test_features_list_with_battery(self):
         entity = VacuumCleanerEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(battery_level=80))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("battery_percentage", features)
 
 

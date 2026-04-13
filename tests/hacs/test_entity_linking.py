@@ -2,6 +2,7 @@
 
 import unittest
 
+from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
 from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
 from custom_components.sber_mqtt_bridge.devices.humidity_sensor import HumiditySensorEntity
 from custom_components.sber_mqtt_bridge.devices.motion_sensor import MotionSensorEntity
@@ -24,14 +25,14 @@ class TestSensorTempLinkedHumidity(unittest.TestCase):
     def test_no_linked_humidity_by_default(self):
         entity = SensorTempEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("humidity", features)
 
     def test_linked_humidity_adds_feature(self):
         entity = SensorTempEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
         entity.update_linked_data("humidity", {"state": "55", "attributes": {}})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("humidity", features)
         self.assertIn("temperature", features)
 
@@ -50,7 +51,7 @@ class TestSensorTempLinkedHumidity(unittest.TestCase):
         entity = SensorTempEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
         entity.update_linked_data("humidity", {"state": "unavailable", "attributes": {}})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("humidity", features)
 
 
@@ -61,7 +62,7 @@ class TestHumiditySensorLinkedTemperature(unittest.TestCase):
         entity = HumiditySensorEntity(HUMIDITY_DATA)
         entity.fill_by_ha_state({"state": "55", "attributes": {}})
         entity.update_linked_data("temperature", {"state": "22.5", "attributes": {}})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("temperature", features)
         self.assertIn("humidity", features)
 
@@ -81,10 +82,10 @@ class TestLinkedBattery(unittest.TestCase):
     def test_battery_adds_features(self):
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state({"state": "off", "attributes": {}})
-        self.assertNotIn("battery_percentage", entity.create_features_list())
+        self.assertNotIn("battery_percentage", entity.get_final_features_list())
 
         entity.update_linked_data("battery", {"state": "85", "attributes": {}})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("battery_percentage", features)
         self.assertIn("battery_low_power", features)
 
@@ -116,7 +117,7 @@ class TestLinkedSignalStrength(unittest.TestCase):
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state({"state": "off", "attributes": {}})
         entity.update_linked_data("signal_strength", {"state": "-45", "attributes": {}})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("signal_strength", features)
 
     def test_signal_in_state(self):
@@ -150,3 +151,29 @@ class TestFeaturesChangeDetection(unittest.TestCase):
         entity.update_linked_data("humidity", {"state": "60", "attributes": {}})
         second = entity.get_final_features_list()
         self.assertEqual(first, second)
+
+
+class TestBaseEntityDefaultLinkedData(unittest.TestCase):
+    """BaseEntity.update_linked_data default is a no-op.
+
+    This contract exists so callers (ha_state_forwarder, entity_registry)
+    can invoke the method unconditionally instead of probing with
+    ``hasattr``.  If this test regresses, every device class that has
+    no LINKABLE_ROLES will start blowing up when HA emits state events
+    for whatever happens to be linked to it.
+    """
+
+    def test_default_update_linked_data_does_not_raise(self):
+        # RelayEntity defines no update_linked_data override -- it must
+        # inherit the silent no-op and leave its state untouched.
+        entity = RelayEntity({"entity_id": "switch.lamp", "name": "Lamp"})
+        entity.fill_by_ha_state({"state": "on", "attributes": {}})
+        before = entity.to_sber_current_state()
+        entity.update_linked_data("battery", {"state": "50", "attributes": {}})
+        after = entity.to_sber_current_state()
+        self.assertEqual(before, after)
+
+    def test_default_update_linked_data_returns_none(self):
+        entity = RelayEntity({"entity_id": "switch.lamp", "name": "Lamp"})
+        result = entity.update_linked_data("any_role", {"state": "on"})
+        self.assertIsNone(result)

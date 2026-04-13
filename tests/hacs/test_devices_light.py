@@ -115,7 +115,7 @@ class TestLightCreateFeaturesList(unittest.TestCase):
         entity.fill_by_ha_state(
             _make_ha_state(supported_color_modes=["color_temp", "xy"])
         )
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("on_off", features)
         self.assertIn("light_colour", features)
         self.assertIn("light_mode", features)
@@ -129,7 +129,7 @@ class TestLightCreateFeaturesList(unittest.TestCase):
         entity.fill_by_ha_state(
             _make_ha_state(supported_color_modes=["color_temp"])
         )
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("on_off", features)
         self.assertIn("light_colour_temp", features)
         self.assertNotIn("light_colour", features)
@@ -139,7 +139,7 @@ class TestLightCreateFeaturesList(unittest.TestCase):
         """Only xy mode omits color_temp feature."""
         entity = LightEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(supported_color_modes=["xy"]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("light_colour", features)
         self.assertNotIn("light_colour_temp", features)
 
@@ -147,7 +147,7 @@ class TestLightCreateFeaturesList(unittest.TestCase):
         """No color modes means only on_off and online."""
         entity = LightEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(supported_color_modes=[]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("on_off", features)
         self.assertNotIn("light_colour", features)
         self.assertNotIn("light_colour_temp", features)

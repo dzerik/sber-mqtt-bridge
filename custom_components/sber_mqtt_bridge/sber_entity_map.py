@@ -13,7 +13,6 @@ v1.26.0.  See ``docs/DEVICE_WIZARD_PLAN.md`` for the full design.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass
 
 from .devices.base_entity import BaseEntity
@@ -48,40 +47,6 @@ from .devices.window_blind import WindowBlindEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-
-# Direct mapping from Sber category name to entity constructor.
-# Used by create_sber_entity when a user override specifies an explicit category.
-CATEGORY_CONSTRUCTORS: dict[str, Callable[[dict], BaseEntity]] = {
-    "light": lambda data: LightEntity(data),
-    "led_strip": lambda data: LedStripEntity(data),
-    "relay": lambda data: RelayEntity(data),
-    "socket": lambda data: SocketEntity(data),
-    "curtain": lambda data: CurtainEntity(data),
-    "window_blind": lambda data: WindowBlindEntity(data),
-    "gate": lambda data: GateEntity(data),
-    "hvac_ac": lambda data: ClimateEntity(data),
-    "hvac_radiator": lambda data: HvacRadiatorEntity(data),
-    "hvac_heater": lambda data: HvacHeaterEntity(data),
-    "hvac_boiler": lambda data: HvacBoilerEntity(data),
-    "hvac_underfloor_heating": lambda data: HvacUnderfloorEntity(data),
-    "hvac_fan": lambda data: HvacFanEntity(data),
-    "valve": lambda data: ValveEntity(data),
-    "hvac_humidifier": lambda data: HumidifierEntity(data),
-    "scenario_button": lambda data: ScenarioButtonEntity(data),
-    "sensor_temp": lambda data: SensorTempEntity(data),
-    "sensor_humidity": lambda data: HumiditySensorEntity(data),
-    "sensor_pir": lambda data: MotionSensorEntity(data),
-    "sensor_door": lambda data: DoorSensorEntity(data),
-    "sensor_water_leak": lambda data: WaterLeakSensorEntity(data),
-    "sensor_smoke": lambda data: SmokeSensorEntity(data),
-    "sensor_gas": lambda data: GasSensorEntity(data),
-    "hvac_air_purifier": lambda data: HvacAirPurifierEntity(data),
-    "kettle": lambda data: KettleEntity(data),
-    "tv": lambda data: TvEntity(data),
-    "vacuum_cleaner": lambda data: VacuumCleanerEntity(data),
-    "intercom": lambda data: IntercomEntity(data),
-}
-"""Mapping of Sber category names to entity constructor callables."""
 
 # Categories available for user overrides in Options Flow
 OVERRIDABLE_CATEGORIES: list[str] = [
@@ -129,6 +94,9 @@ class CategorySpec:
     """Rules for promoting an HA entity to a specific Sber category.
 
     Attributes:
+        cls: Entity class to instantiate for this category.  Serves as the
+            single source of truth for both auto-detection (pick by domain)
+            and user overrides (pick by explicit category name).
         domains: HA domains that can match this category.  Order matters for
             presentation but not correctness — any listed domain is accepted.
         device_classes: If ``None`` — the category matches any device_class
@@ -145,6 +113,7 @@ class CategorySpec:
             device_class becomes a relay rather than silently unmatched.
     """
 
+    cls: type[BaseEntity]
     domains: tuple[str, ...]
     device_classes: tuple[str, ...] | None = None
     preferred_rank: int = 50
@@ -164,36 +133,42 @@ class CategorySpec:
 
 CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
     # ── Lights ──────────────────────────────────────────────────────────
-    "light": CategorySpec(domains=("light",), preferred_rank=1),
-    "led_strip": CategorySpec(domains=("light",), preferred_rank=5),
+    "light": CategorySpec(cls=LightEntity, domains=("light",), preferred_rank=1),
+    "led_strip": CategorySpec(cls=LedStripEntity, domains=("light",), preferred_rank=5),
     # ── Switches / outlets / relays ────────────────────────────────────
     "socket": CategorySpec(
+        cls=SocketEntity,
         domains=("switch",),
         device_classes=("outlet",),
         preferred_rank=8,
     ),
     "relay": CategorySpec(
+        cls=RelayEntity,
         domains=("switch", "script", "button"),
         device_classes=None,
         preferred_rank=10,
         fallback_when_no_device_class=True,
     ),
     "scenario_button": CategorySpec(
+        cls=ScenarioButtonEntity,
         domains=("input_boolean",),
         preferred_rank=12,
     ),
     # ── Covers ──────────────────────────────────────────────────────────
     "gate": CategorySpec(
+        cls=GateEntity,
         domains=("cover",),
         device_classes=("gate", "garage_door", "garage", "door"),
         preferred_rank=3,
     ),
     "window_blind": CategorySpec(
+        cls=WindowBlindEntity,
         domains=("cover",),
         device_classes=("blind", "shade", "shutter"),
         preferred_rank=4,
     ),
     "curtain": CategorySpec(
+        cls=CurtainEntity,
         domains=("cover",),
         device_classes=("curtain", "awning"),
         preferred_rank=6,
@@ -201,48 +176,57 @@ CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
     ),
     # ── Climate ─────────────────────────────────────────────────────────
     "hvac_radiator": CategorySpec(
+        cls=HvacRadiatorEntity,
         domains=("climate",),
         device_classes=("radiator",),
         preferred_rank=3,
     ),
     "hvac_heater": CategorySpec(
+        cls=HvacHeaterEntity,
         domains=("climate",),
         device_classes=("heater",),
         preferred_rank=4,
     ),
     "hvac_underfloor_heating": CategorySpec(
+        cls=HvacUnderfloorEntity,
         domains=("climate",),
         device_classes=("underfloor", "underfloor_heating"),
         preferred_rank=5,
     ),
     "hvac_ac": CategorySpec(
+        cls=ClimateEntity,
         domains=("climate",),
         device_classes=None,
         preferred_rank=6,
         fallback_when_no_device_class=True,
     ),
     "hvac_boiler": CategorySpec(
+        cls=HvacBoilerEntity,
         domains=("water_heater",),
         preferred_rank=5,
     ),
     # ── Fan / air purifier / humidifier ────────────────────────────────
     "hvac_air_purifier": CategorySpec(
+        cls=HvacAirPurifierEntity,
         domains=("fan",),
         device_classes=("purifier", "air_purifier"),
         preferred_rank=4,
     ),
     "hvac_fan": CategorySpec(
+        cls=HvacFanEntity,
         domains=("fan",),
         device_classes=None,
         preferred_rank=6,
         fallback_when_no_device_class=True,
     ),
     "hvac_humidifier": CategorySpec(
+        cls=HumidifierEntity,
         domains=("humidifier",),
         preferred_rank=5,
     ),
     # ── Valves / kitchen ───────────────────────────────────────────────
     "valve": CategorySpec(
+        cls=ValveEntity,
         domains=("valve",),
         preferred_rank=5,
     ),
@@ -252,6 +236,7 @@ CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
         # (rank 5) win for their respective domains.  Users still access
         # kettle by explicitly picking it in Step 1 of the wizard — rank
         # only affects auto-detection, not category filtering.
+        cls=KettleEntity,
         domains=("water_heater", "switch"),
         device_classes=None,
         preferred_rank=40,
@@ -259,62 +244,73 @@ CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
     ),
     # ── Media / appliances ──────────────────────────────────────────────
     "tv": CategorySpec(
+        cls=TvEntity,
         domains=("media_player",),
         device_classes=None,
         preferred_rank=5,
         fallback_when_no_device_class=True,
     ),
     "vacuum_cleaner": CategorySpec(
+        cls=VacuumCleanerEntity,
         domains=("vacuum",),
         preferred_rank=5,
     ),
     "intercom": CategorySpec(
+        cls=IntercomEntity,
         domains=("lock", "switch"),
         device_classes=None,
         preferred_rank=30,
     ),
     # ── Read-only sensors ──────────────────────────────────────────────
     "sensor_temp": CategorySpec(
+        cls=SensorTempEntity,
         domains=("sensor",),
         device_classes=("temperature",),
         preferred_rank=30,
     ),
     "sensor_humidity": CategorySpec(
+        cls=HumiditySensorEntity,
         domains=("sensor",),
         device_classes=("humidity",),
         preferred_rank=30,
     ),
     # ── Binary sensors ─────────────────────────────────────────────────
     "sensor_pir": CategorySpec(
+        cls=MotionSensorEntity,
         domains=("binary_sensor",),
         device_classes=("motion", "occupancy", "presence"),
         preferred_rank=20,
     ),
     "sensor_door": CategorySpec(
+        cls=DoorSensorEntity,
         domains=("binary_sensor",),
         device_classes=("door", "window", "garage_door", "opening"),
         preferred_rank=20,
     ),
     "sensor_water_leak": CategorySpec(
+        cls=WaterLeakSensorEntity,
         domains=("binary_sensor",),
         device_classes=("moisture", "water"),
         preferred_rank=20,
     ),
     "sensor_smoke": CategorySpec(
+        cls=SmokeSensorEntity,
         domains=("binary_sensor",),
         device_classes=("smoke",),
         preferred_rank=20,
     ),
     "sensor_gas": CategorySpec(
+        cls=GasSensorEntity,
         domains=("binary_sensor",),
         device_classes=("gas", "carbon_monoxide"),
         preferred_rank=20,
     ),
 }
-"""Authoritative Sber-category → HA-domain promotion table.
+"""Authoritative Sber-category → HA-entity-class promotion table.
 
-Keys must be a subset of :data:`CATEGORY_CONSTRUCTORS` — enforced by the
-consistency test ``test_category_domain_map.py::test_all_mapped_categories_constructible``.
+Every entry carries its own entity constructor via :attr:`CategorySpec.cls`,
+so this single dict drives both auto-detection (by HA domain/device_class)
+and user overrides (by explicit category id).
 """
 
 
@@ -409,168 +405,6 @@ def categories_for_domain(
     return [category for category, _ in matches]
 
 
-def _create_sensor(entity_data: dict) -> BaseEntity | None:
-    """Create a Sber sensor entity based on device class.
-
-    Args:
-        entity_data: HA entity registry dict with 'original_device_class' key.
-
-    Returns:
-        SensorTempEntity for temperature, HumiditySensorEntity for humidity,
-        or None if the device class is not supported.
-    """
-    dc = entity_data.get("original_device_class", "")
-    if dc == "temperature":
-        return SensorTempEntity(entity_data)
-    if dc == "humidity":
-        return HumiditySensorEntity(entity_data)
-    return None
-
-
-def _create_binary_sensor(entity_data: dict) -> BaseEntity | None:
-    """Create a Sber binary sensor entity based on device class.
-
-    Args:
-        entity_data: HA entity registry dict with 'original_device_class' key.
-
-    Returns:
-        MotionSensorEntity for motion, DoorSensorEntity for door/window/garage,
-        WaterLeakSensorEntity for moisture, SmokeSensorEntity for smoke,
-        GasSensorEntity for gas, or None if unsupported.
-    """
-    dc = entity_data.get("original_device_class", "")
-    if dc in ("motion", "occupancy", "presence"):
-        return MotionSensorEntity(entity_data)
-    if dc in ("door", "window", "garage_door", "opening"):
-        return DoorSensorEntity(entity_data)
-    if dc in ("moisture", "water"):
-        return WaterLeakSensorEntity(entity_data)
-    if dc == "smoke":
-        return SmokeSensorEntity(entity_data)
-    if dc == "gas":
-        return GasSensorEntity(entity_data)
-    return None
-
-
-def _create_switch(entity_data: dict) -> BaseEntity:
-    """Create a Sber switch entity based on device class.
-
-    Args:
-        entity_data: HA entity registry dict with 'original_device_class' key.
-
-    Returns:
-        SocketEntity for outlets, RelayEntity for all other switches.
-    """
-    dc = entity_data.get("original_device_class", "")
-    if dc == "outlet":
-        return SocketEntity(entity_data)
-    return RelayEntity(entity_data)
-
-
-def _create_cover(entity_data: dict) -> BaseEntity:
-    """Create a Sber cover entity based on device class.
-
-    Args:
-        entity_data: HA entity registry dict with 'original_device_class' key.
-
-    Returns:
-        GateEntity for gate/garage_door, WindowBlindEntity for blind/shade/shutter,
-        CurtainEntity for others.
-    """
-    dc = entity_data.get("original_device_class", "")
-    if dc in ("gate", "garage_door"):
-        return GateEntity(entity_data)
-    if dc in ("blind", "shade", "shutter"):
-        return WindowBlindEntity(entity_data)
-    return CurtainEntity(entity_data)
-
-
-def _create_climate(entity_data: dict) -> BaseEntity:
-    """Create a Sber climate entity based on device class.
-
-    Args:
-        entity_data: HA entity registry dict with 'original_device_class' key.
-
-    Returns:
-        HvacRadiatorEntity for radiators, HvacHeaterEntity for heaters,
-        ClimateEntity for others.
-    """
-    dc = entity_data.get("original_device_class", "")
-    if dc == "radiator":
-        return HvacRadiatorEntity(entity_data)
-    if dc == "heater":
-        return HvacHeaterEntity(entity_data)
-    return ClimateEntity(entity_data)
-
-
-def _create_water_heater(entity_data: dict) -> BaseEntity:
-    """Create a Sber water heater entity (mapped to hvac_boiler).
-
-    Args:
-        entity_data: HA entity registry dict.
-
-    Returns:
-        HvacBoilerEntity instance.
-    """
-    return HvacBoilerEntity(entity_data)
-
-
-def _create_fan(entity_data: dict) -> BaseEntity:
-    """Create a Sber fan entity based on device class.
-
-    Args:
-        entity_data: HA entity registry dict with 'original_device_class' key.
-
-    Returns:
-        HvacAirPurifierEntity for purifier/air_purifier device classes,
-        HvacFanEntity for all other fans.
-    """
-    dc = entity_data.get("original_device_class", "")
-    if dc in ("purifier", "air_purifier"):
-        return HvacAirPurifierEntity(entity_data)
-    return HvacFanEntity(entity_data)
-
-
-def _create_media_player(entity_data: dict) -> BaseEntity:
-    """Create a Sber media player entity.
-
-    All HA media_player device classes (tv, speaker, receiver) map to Sber 'tv'
-    category — Sber protocol has no separate speaker/receiver categories.
-    Smart speakers (e.g. Yandex Station) get the same on_off/volume/mute/source
-    features as TVs.
-
-    Args:
-        entity_data: HA entity registry dict with 'original_device_class' key.
-
-    Returns:
-        TvEntity for all media player types.
-    """
-    dc = entity_data.get("original_device_class", "")
-    if dc and dc != "tv":
-        _LOGGER.debug("Media player device_class=%s maps to Sber 'tv' category", dc)
-    return TvEntity(entity_data)
-
-
-ENTITY_CONSTRUCTORS: dict[str, Callable] = {
-    "light": lambda data: LightEntity(data),
-    "cover": _create_cover,
-    "sensor": _create_sensor,
-    "binary_sensor": _create_binary_sensor,
-    "switch": _create_switch,
-    "script": lambda data: RelayEntity(data),
-    "button": lambda data: RelayEntity(data),
-    "input_boolean": lambda data: ScenarioButtonEntity(data),
-    "climate": _create_climate,
-    "valve": lambda data: ValveEntity(data),
-    "humidifier": lambda data: HumidifierEntity(data),
-    "fan": _create_fan,
-    "water_heater": _create_water_heater,
-    "media_player": _create_media_player,
-    "vacuum": lambda data: VacuumCleanerEntity(data),
-}
-"""Mapping of HA domain names to Sber entity constructor callables."""
-
-
 def create_sber_entity(
     entity_id: str,
     entity_data: dict,
@@ -578,31 +412,34 @@ def create_sber_entity(
 ) -> BaseEntity | None:
     """Create a Sber device entity from HA entity data.
 
-    When ``sber_category`` is provided (user override), it takes precedence
-    over the default domain-based mapping.
+    Uses :data:`CATEGORY_DOMAIN_MAP` as the single source of truth.  When
+    ``sber_category`` is provided, it resolves directly against the map;
+    otherwise :func:`categories_for_domain` picks the best-ranked match
+    for the entity's ``(domain, device_class)``.
 
     Args:
-        entity_id: HA entity ID (e.g., 'light.living_room').
-        entity_data: Dict with entity registry data (entity_id, device_id, area_id, etc.)
-        sber_category: Optional Sber category override (e.g., 'light', 'relay').
+        entity_id: HA entity ID (e.g., ``"light.living_room"``).
+        entity_data: Dict with entity registry data (entity_id, device_id,
+            area_id, original_device_class, etc.).
+        sber_category: Optional Sber category override (e.g. ``"light"``,
+            ``"relay"``).  Takes precedence over the domain-based pick.
 
     Returns:
-        BaseEntity subclass instance or None if domain not supported.
+        BaseEntity subclass instance, or ``None`` if no category matches.
     """
-    # User override takes precedence, but respect device_class for sensors
+    dc = entity_data.get("original_device_class", "")
+
     if sber_category:
-        # For sensor_temp category, pick the right subclass based on device_class
-        dc = entity_data.get("original_device_class", "")
+        # UX convenience: when a user picks "sensor_temp" but the HA entity
+        # is actually a humidity sensor, silently route to sensor_humidity
+        # so the resulting device emits the right Sber key.  Both categories
+        # live in CATEGORY_DOMAIN_MAP so this is just a category rewrite.
         if sber_category == "sensor_temp" and dc == "humidity":
             sber_category = "sensor_humidity"
-        constructor = CATEGORY_CONSTRUCTORS.get(sber_category)
-        if constructor is not None:
-            entity = constructor(entity_data)
-            _LOGGER.debug(
-                "Entity %s → Sber %s (override)",
-                entity_id,
-                entity.category,
-            )
+        spec = CATEGORY_DOMAIN_MAP.get(sber_category)
+        if spec is not None:
+            entity = spec.cls(entity_data)
+            _LOGGER.debug("Entity %s → Sber %s (override)", entity_id, entity.category)
             return entity
         _LOGGER.warning(
             "Unknown Sber category override '%s' for %s, falling back to domain mapping",
@@ -611,21 +448,22 @@ def create_sber_entity(
         )
 
     domain = entity_id.split(".")[0]
-    constructor = ENTITY_CONSTRUCTORS.get(domain)
-    if constructor is None:
-        _LOGGER.debug("Unsupported domain for Sber: %s", domain)
-        return None
-    entity = constructor(entity_data)
-    if entity is None:
+    matches = categories_for_domain(domain, dc)
+    if not matches:
         _LOGGER.debug(
-            "No Sber mapping for entity %s (device_class=%s)", entity_id, entity_data.get("original_device_class", "")
-        )
-    else:
-        _LOGGER.debug(
-            "Entity %s → Sber %s (domain=%s, device_class=%s)",
+            "No Sber category for entity %s (domain=%s, device_class=%s)",
             entity_id,
-            entity.category,
             domain,
-            entity_data.get("original_device_class", ""),
+            dc,
         )
+        return None
+    spec = CATEGORY_DOMAIN_MAP[matches[0]]
+    entity = spec.cls(entity_data)
+    _LOGGER.debug(
+        "Entity %s → Sber %s (domain=%s, device_class=%s)",
+        entity_id,
+        entity.category,
+        domain,
+        dc,
+    )
     return entity

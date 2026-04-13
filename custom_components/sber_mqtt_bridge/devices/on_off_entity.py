@@ -1,6 +1,6 @@
 """Base class for Sber on/off entities (relay, socket).
 
-Provides shared implementations of ``fill_by_ha_state``, ``create_features_list``,
+Provides shared implementations of ``fill_by_ha_state``, ``_create_features_list``,
 and ``to_sber_current_state`` for devices that expose a simple on/off state
 via the Sber ``on_off`` feature.
 
@@ -76,13 +76,13 @@ class OnOffEntity(BaseEntity):
         self.current_state = ha_state.get("state") == self._ha_on_state
         self._apply_attr_specs(ha_state.get("attributes", {}))
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list including 'on_off' and optional features.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), "on_off"]
+        features = [*super()._create_features_list(), "on_off"]
         if self._power is not None:
             features.append("power")
         if self._voltage is not None:

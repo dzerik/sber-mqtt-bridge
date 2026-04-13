@@ -68,21 +68,21 @@ class TestGasSensorTamperAlarm(unittest.TestCase):
         """Entity with tamper=True must include tamper_alarm in features."""
         entity = GasSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", tamper=True))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("tamper_alarm", features)
 
     def test_tamper_feature_present_when_false(self):
         """Entity with tamper=False must still include tamper_alarm in features."""
         entity = GasSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", tamper=False))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("tamper_alarm", features)
 
     def test_tamper_feature_absent_without_attribute(self):
         """Entity without tamper attribute must not include tamper_alarm."""
         entity = GasSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("tamper_alarm", features)
 
     def test_tamper_true_in_state(self):
@@ -120,14 +120,14 @@ class TestGasSensorAlarmMute(unittest.TestCase):
         """Entity with alarm_mute attribute must include alarm_mute in features."""
         entity = GasSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", alarm_mute=False))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("alarm_mute", features)
 
     def test_alarm_mute_feature_absent(self):
         """Entity without alarm_mute must not include it."""
         entity = GasSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("alarm_mute", features)
 
     def test_alarm_mute_in_state(self):

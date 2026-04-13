@@ -96,14 +96,14 @@ class VacuumCleanerEntity(BaseEntity):
         ha_status = ha_state.get("state", "")
         self._status = _HA_STATE_TO_SBER_STATUS.get(ha_status, "standby")
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list for vacuum capabilities.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
         features = [
-            *super().create_features_list(),
+            *super()._create_features_list(),
             "vacuum_cleaner_command",
             "vacuum_cleaner_status",
         ]
