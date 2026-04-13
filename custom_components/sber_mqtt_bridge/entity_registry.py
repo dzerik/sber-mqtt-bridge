@@ -275,14 +275,13 @@ class SberEntityLoader:
                         primary_id,
                     )
                     continue
-                if hasattr(primary_entity, "update_linked_data"):
-                    ha_state_dict = {
-                        "entity_id": linked_state.entity_id,
-                        "state": linked_state.state,
-                        "attributes": dict(linked_state.attributes),
-                    }
-                    primary_entity.update_linked_data(role, ha_state_dict)
-                    primary_entity.register_link(role, linked_id)
+                ha_state_dict = {
+                    "entity_id": linked_state.entity_id,
+                    "state": linked_state.state,
+                    "attributes": dict(linked_state.attributes),
+                }
+                primary_entity.update_linked_data(role, ha_state_dict)
+                primary_entity.register_link(role, linked_id)
             if valid_roles:
                 new_links[primary_id] = valid_roles
                 _LOGGER.info("Entity links for %s: %s", primary_id, valid_roles)

@@ -471,6 +471,23 @@ class BaseEntity(ABC):
             features.extend(f for f in self.extra_features if f not in existing)
         return features
 
+    def update_linked_data(self, role: str, ha_state: dict) -> None:  # noqa: B027 — intentional concrete no-op, not abstract
+        """Inject state from a linked companion HA entity (default: no-op).
+
+        Device classes that accept linked entities (e.g. a binary battery
+        sensor paired with a valve) override this to apply the foreign
+        state to their own fields.  The default implementation does
+        nothing, which is correct for classes that don't advertise
+        :attr:`LINKABLE_ROLES`.
+
+        Providing a universal default also eliminates ``hasattr`` checks
+        at every call site -- callers may invoke it unconditionally.
+
+        Args:
+            role: The link role (e.g. ``"battery"``, ``"humidity"``).
+            ha_state: HA state dict of the linked entity.
+        """
+
     def link_device(self, device_data: DeviceData) -> None:
         """Link this entity to a HA device registry entry.
 
