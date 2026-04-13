@@ -30,12 +30,12 @@ Choose the appropriate base class:
 
 - **On/off devices** (switch, valve, socket): inherit from `OnOffEntity`
   - Override `process_cmd` to map Sber commands to HA service calls
-  - `fill_by_ha_state`, `create_features_list`, `to_sber_current_state`, `process_state_change` are provided
+  - `fill_by_ha_state`, `_create_features_list`, `to_sber_current_state`, `process_state_change` are provided
 
 - **Read-only sensors** (temperature, humidity, motion, door, leak): inherit from `SimpleReadOnlySensor`
   - Set `_sber_value_key` and `_sber_value_type` class attributes
   - Implement `_get_sber_value()` and `fill_by_ha_state()`
-  - `create_features_list`, `to_sber_current_state`, `process_cmd`, `process_state_change` are provided
+  - `_create_features_list`, `to_sber_current_state`, `process_cmd`, `process_state_change` are provided
 
 - **Complex devices** (climate, light, curtain): inherit from `BaseEntity`
   - Implement all abstract methods: `to_sber_current_state`, `process_cmd`

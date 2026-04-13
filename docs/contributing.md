@@ -40,7 +40,7 @@ mypy custom_components/sber_mqtt_bridge/
 Наследуйтесь от `OnOffEntity`:
 
 - Переопределите `process_cmd` для маппинга команд Sber на вызовы HA-сервисов
-- Методы `fill_by_ha_state`, `create_features_list`, `to_sber_current_state`, `process_state_change` уже реализованы
+- Методы `fill_by_ha_state`, `_create_features_list`, `to_sber_current_state`, `process_state_change` уже реализованы
 
 ### Датчики только для чтения (temperature, humidity, motion, door, leak)
 
@@ -48,7 +48,7 @@ mypy custom_components/sber_mqtt_bridge/
 
 - Установите атрибуты класса `_sber_value_key` и `_sber_value_type`
 - Реализуйте `_get_sber_value()` и `fill_by_ha_state()`
-- Методы `create_features_list`, `to_sber_current_state`, `process_cmd`, `process_state_change` уже реализованы
+- Методы `_create_features_list`, `to_sber_current_state`, `process_cmd`, `process_state_change` уже реализованы
 
 ### Сложные устройства (climate, light, curtain)
 
