@@ -35,7 +35,7 @@ class TestIntercomCreate(unittest.TestCase):
     def test_features_list(self):
         entity = IntercomEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("online", features)
         self.assertIn("on_off", features)
         self.assertIn("incoming_call", features)

@@ -24,14 +24,14 @@ class TestSensorTempLinkedHumidity(unittest.TestCase):
     def test_no_linked_humidity_by_default(self):
         entity = SensorTempEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("humidity", features)
 
     def test_linked_humidity_adds_feature(self):
         entity = SensorTempEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
         entity.update_linked_data("humidity", {"state": "55", "attributes": {}})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("humidity", features)
         self.assertIn("temperature", features)
 
@@ -50,7 +50,7 @@ class TestSensorTempLinkedHumidity(unittest.TestCase):
         entity = SensorTempEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
         entity.update_linked_data("humidity", {"state": "unavailable", "attributes": {}})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("humidity", features)
 
 
@@ -61,7 +61,7 @@ class TestHumiditySensorLinkedTemperature(unittest.TestCase):
         entity = HumiditySensorEntity(HUMIDITY_DATA)
         entity.fill_by_ha_state({"state": "55", "attributes": {}})
         entity.update_linked_data("temperature", {"state": "22.5", "attributes": {}})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("temperature", features)
         self.assertIn("humidity", features)
 
@@ -81,10 +81,10 @@ class TestLinkedBattery(unittest.TestCase):
     def test_battery_adds_features(self):
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state({"state": "off", "attributes": {}})
-        self.assertNotIn("battery_percentage", entity.create_features_list())
+        self.assertNotIn("battery_percentage", entity.get_final_features_list())
 
         entity.update_linked_data("battery", {"state": "85", "attributes": {}})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("battery_percentage", features)
         self.assertIn("battery_low_power", features)
 
@@ -116,7 +116,7 @@ class TestLinkedSignalStrength(unittest.TestCase):
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state({"state": "off", "attributes": {}})
         entity.update_linked_data("signal_strength", {"state": "-45", "attributes": {}})
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("signal_strength", features)
 
     def test_signal_in_state(self):

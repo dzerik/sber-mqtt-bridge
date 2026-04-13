@@ -53,13 +53,13 @@ class MotionSensorEntity(SimpleReadOnlySensor):
         else:
             self._tamper = None
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list including tamper_alarm when available.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = super().create_features_list()
+        features = super()._create_features_list()
         if self._tamper is not None:
             features.append("tamper_alarm")
         return features

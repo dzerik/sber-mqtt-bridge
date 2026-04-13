@@ -219,7 +219,7 @@ class BaseEntity(ABC):
 
     Defines the interface that all device types must implement:
     - fill_by_ha_state: Parse HA state into internal representation
-    - create_features_list: Return Sber feature names
+    - _create_features_list: Return Sber feature names
     - to_sber_state: Build Sber device config JSON
     - to_sber_current_state: Build Sber current state JSON
     - process_cmd: Handle Sber commands, return HA service calls
@@ -404,10 +404,17 @@ class BaseEntity(ABC):
         entity_list = self.attributes.get("entity_id")
         return entity_list is not None and len(entity_list) > 0
 
-    def create_features_list(self) -> list[str]:
-        """Return list of Sber feature names supported by this entity.
+    def _create_features_list(self) -> list[str]:
+        """Return the raw feature list contributed by this class (subclass hook).
 
-        Base implementation returns ['online']. Child classes extend this.
+        Internal extension point — **subclasses override this** to add their
+        Sber features, typically returning ``[*super()._create_features_list(), ...]``.
+
+        External consumers must call :meth:`get_final_features_list` instead,
+        which applies user ``extra_features`` / ``removed_features`` overrides.
+
+        Base implementation returns ``["online"]`` (obligatory for every
+        Sber device per VR-010).
         """
         return ["online"]
 
@@ -444,7 +451,7 @@ class BaseEntity(ABC):
         Returns:
             Final list of Sber feature names.
         """
-        features = self.create_features_list()
+        features = self._create_features_list()
         if self.removed_features:
             features = [f for f in features if f not in self.removed_features]
         if self.extra_features:

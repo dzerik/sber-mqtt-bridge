@@ -278,7 +278,7 @@ class ClimateEntity(BaseEntity):
         self.current_state = ha_state.get("state", "off") != "off"
         self.hvac_mode = ha_state.get("state")
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list based on available climate capabilities.
 
         Dynamically includes fan, swing, HVAC mode, humidity, and night mode
@@ -287,7 +287,7 @@ class ClimateEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), "on_off", "temperature", "hvac_temp_set"]
+        features = [*super()._create_features_list(), "on_off", "temperature", "hvac_temp_set"]
         if self._supports_swing and self.swing_modes:
             features.append("hvac_air_flow_direction")
         if self._supports_fan and self.fan_modes:

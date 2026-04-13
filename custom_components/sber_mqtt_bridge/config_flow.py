@@ -727,7 +727,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             auto_cat = auto_entity.category if auto_entity else "unknown"
             features_str = ""
             if auto_entity is not None:
-                features = auto_entity.create_features_list()
+                features = auto_entity.get_final_features_list()
                 features_str = f" features: {', '.join(features)}"
 
             # Current override value

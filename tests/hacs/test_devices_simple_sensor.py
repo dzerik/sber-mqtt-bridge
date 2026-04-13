@@ -25,7 +25,7 @@ class TestSensorSensitiveMotion(unittest.TestCase):
         """sensitivity=high must add sensor_sensitive to features."""
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_motion_state(sensitivity="high"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("sensor_sensitive", features)
 
     def test_sensitivity_high_in_state(self):
@@ -68,7 +68,7 @@ class TestSensorSensitiveMotion(unittest.TestCase):
         """Without sensitivity attribute, sensor_sensitive must not be in features."""
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_motion_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("sensor_sensitive", features)
 
     def test_sensitivity_absent_not_in_state(self):
@@ -84,7 +84,7 @@ class TestSensorSensitiveMotion(unittest.TestCase):
         """Unrecognized sensitivity value must not produce sensor_sensitive."""
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_motion_state(sensitivity="ultra_high"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("sensor_sensitive", features)
 
     def test_sensitivity_case_insensitive(self):
@@ -104,7 +104,7 @@ class TestSensorSensitiveMotionSensitivity(unittest.TestCase):
         """motion_sensitivity attribute must also be recognized."""
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_motion_state(motion_sensitivity="high"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("sensor_sensitive", features)
         result = entity.to_sber_current_state()
         states = result["binary_sensor.motion"]["states"]
@@ -128,12 +128,12 @@ class TestSensorSensitiveTemp(unittest.TestCase):
         """SensorTempEntity with sensitivity must include sensor_sensitive."""
         entity = SensorTempEntity(TEMP_DATA)
         entity.fill_by_ha_state(_temp_state(sensitivity="auto"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("sensor_sensitive", features)
 
     def test_sensitivity_absent(self):
         """SensorTempEntity without sensitivity must not include sensor_sensitive."""
         entity = SensorTempEntity(TEMP_DATA)
         entity.fill_by_ha_state(_temp_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("sensor_sensitive", features)

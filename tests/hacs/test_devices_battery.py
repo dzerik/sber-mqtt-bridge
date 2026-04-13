@@ -24,13 +24,13 @@ class TestBatteryFeature(unittest.TestCase):
     def test_battery_from_battery_attr(self):
         entity = DoorSensorEntity(DOOR_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", battery=90))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("battery_percentage", features)
 
     def test_battery_from_battery_level_attr(self):
         entity = DoorSensorEntity(DOOR_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", battery_level=75))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("battery_percentage", features)
 
     def test_battery_in_sber_state(self):
@@ -45,7 +45,7 @@ class TestBatteryFeature(unittest.TestCase):
     def test_no_battery_no_feature(self):
         entity = DoorSensorEntity(DOOR_DATA)
         entity.fill_by_ha_state(_make_ha_state("off"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("battery_percentage", features)
 
     def test_no_battery_no_state(self):
@@ -59,7 +59,7 @@ class TestBatteryFeature(unittest.TestCase):
     def test_battery_invalid_value_ignored(self):
         entity = DoorSensorEntity(DOOR_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", battery="invalid"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("battery_percentage", features)
 
     def test_motion_sensor_battery(self):
@@ -70,7 +70,7 @@ class TestBatteryFeature(unittest.TestCase):
             "state": "off",
             "attributes": {"battery": 50},
         })
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("battery_percentage", features)
 
     def test_water_leak_sensor_battery(self):
@@ -81,5 +81,5 @@ class TestBatteryFeature(unittest.TestCase):
             "state": "off",
             "attributes": {"battery_level": 60},
         })
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("battery_percentage", features)

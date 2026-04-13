@@ -67,21 +67,21 @@ class TestWaterLeakTamperAlarm(unittest.TestCase):
         """Entity with tamper=True must include tamper_alarm in features."""
         entity = WaterLeakSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", tamper=True))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("tamper_alarm", features)
 
     def test_tamper_feature_present_when_false(self):
         """Entity with tamper=False must still include tamper_alarm in features."""
         entity = WaterLeakSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", tamper=False))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("tamper_alarm", features)
 
     def test_tamper_feature_absent_without_attribute(self):
         """Entity without tamper attribute must not include tamper_alarm."""
         entity = WaterLeakSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("tamper_alarm", features)
 
     def test_tamper_true_in_state(self):
@@ -119,21 +119,21 @@ class TestWaterLeakAlarmMute(unittest.TestCase):
         """Entity with alarm_mute=False must include alarm_mute in features."""
         entity = WaterLeakSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", alarm_mute=False))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("alarm_mute", features)
 
     def test_alarm_mute_feature_present_when_true(self):
         """Entity with alarm_mute=True must include alarm_mute in features."""
         entity = WaterLeakSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", alarm_mute=True))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("alarm_mute", features)
 
     def test_alarm_mute_feature_absent_without_attribute(self):
         """Entity without alarm_mute attribute must not include it."""
         entity = WaterLeakSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("alarm_mute", features)
 
     def test_alarm_mute_true_in_state(self):
@@ -171,7 +171,7 @@ class TestWaterLeakCombinedFeatures(unittest.TestCase):
         """Both tamper_alarm and alarm_mute must appear when both attributes exist."""
         entity = WaterLeakSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", tamper=True, alarm_mute=False))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("tamper_alarm", features)
         self.assertIn("alarm_mute", features)
 
@@ -193,7 +193,7 @@ class TestWaterLeakCombinedFeatures(unittest.TestCase):
         """Only tamper_alarm when only tamper attribute is present."""
         entity = WaterLeakSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", tamper=True))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("tamper_alarm", features)
         self.assertNotIn("alarm_mute", features)
 

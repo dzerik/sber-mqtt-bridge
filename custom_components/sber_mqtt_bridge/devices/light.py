@@ -145,7 +145,7 @@ class LightEntity(BaseEntity):
         else:
             self.current_sber_color_temp = None
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list based on available light capabilities.
 
         Dynamically includes color, brightness, and color temperature features
@@ -154,7 +154,7 @@ class LightEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), "on_off"]
+        features = [*super()._create_features_list(), "on_off"]
 
         if COLOR_MODES & set(self.supported_color_modes):
             features += ["light_colour", "light_mode", "light_brightness"]
@@ -200,7 +200,7 @@ class LightEntity(BaseEntity):
         Returns:
             Dependencies dict for Sber model descriptor.
         """
-        features = self.create_features_list()
+        features = self.get_final_features_list()
         if "light_colour" in features and "light_mode" in features:
             return {
                 "light_colour": {

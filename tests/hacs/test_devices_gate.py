@@ -115,7 +115,7 @@ class TestGateCreateFeaturesList(unittest.TestCase):
         """
         entity = GateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(state="open", current_position=50))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("online", features)
         self.assertIn("open_set", features)
         self.assertIn("open_state", features)
@@ -127,14 +127,14 @@ class TestGateCreateFeaturesList(unittest.TestCase):
         entity.fill_by_ha_state(_make_ha_state(
             state="open", current_position=50, signal_strength=-60,
         ))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("signal_strength", features)
 
     def test_no_signal_strength_without_rssi(self):
         """signal_strength feature must not appear without rssi data."""
         entity = GateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(state="open", current_position=50))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("signal_strength", features)
 
 

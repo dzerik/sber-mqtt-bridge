@@ -193,7 +193,7 @@ class CurtainEntity(BaseEntity):
             return []
         return [self._build_service_call("cover", service, self.entity_id)]
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list for curtain capabilities.
 
         Includes open_percentage, open_set, open_state, and optionally
@@ -203,7 +203,7 @@ class CurtainEntity(BaseEntity):
             List of Sber feature strings supported by this entity.
         """
         features = [
-            *super().create_features_list(),
+            *super()._create_features_list(),
             "open_percentage",
             "open_set",
             "open_state",

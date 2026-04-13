@@ -139,13 +139,13 @@ class TvEntity(BaseEntity):
         """TV source_list varies per device — model_id must be unique."""
         return bool(self._source_list)
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list for TV capabilities.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), "on_off", "volume_int", "volume", "mute"]
+        features = [*super()._create_features_list(), "on_off", "volume_int", "volume", "mute"]
         if self._source_list:
             features.append("source")
         features.extend(["channel", "channel_int", "direction", "custom_key", "number"])

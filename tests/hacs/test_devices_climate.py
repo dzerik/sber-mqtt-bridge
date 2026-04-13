@@ -109,7 +109,7 @@ class TestClimateCreateFeaturesList(unittest.TestCase):
     def test_all_modes_present(self):
         entity = ClimateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("on_off", features)
         self.assertIn("temperature", features)
         self.assertIn("hvac_temp_set", features)
@@ -121,19 +121,19 @@ class TestClimateCreateFeaturesList(unittest.TestCase):
     def test_no_fan_modes(self):
         entity = ClimateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(fan_modes=[]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("hvac_air_flow_power", features)
 
     def test_no_swing_modes(self):
         entity = ClimateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(swing_modes=[]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("hvac_air_flow_direction", features)
 
     def test_no_hvac_modes(self):
         entity = ClimateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(hvac_modes=[]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("hvac_work_mode", features)
 
 
@@ -343,7 +343,7 @@ class TestClimateChildLock(unittest.TestCase):
         ha = _make_ha_state()
         ha["attributes"]["child_lock"] = True
         entity.fill_by_ha_state(ha)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("child_lock", features)
 
     def test_child_lock_feature_present_when_false(self):
@@ -352,14 +352,14 @@ class TestClimateChildLock(unittest.TestCase):
         ha = _make_ha_state()
         ha["attributes"]["child_lock"] = False
         entity.fill_by_ha_state(ha)
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("child_lock", features)
 
     def test_child_lock_feature_absent(self):
         """Climate without child_lock attribute must not include it."""
         entity = ClimateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("child_lock", features)
 
     def test_child_lock_true_in_state(self):

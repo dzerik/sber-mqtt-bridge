@@ -53,14 +53,14 @@ class IntercomEntity(OnOffEntity):
         self._reject_call = bool(attrs.get("reject_call", False))
         self._unlock = bool(attrs.get("unlock", False))
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list for intercom capabilities.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
         return [
-            *super().create_features_list(),
+            *super()._create_features_list(),
             "incoming_call",
             "reject_call",
             "unlock",

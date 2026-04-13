@@ -146,7 +146,7 @@ class TestRelayCompliance:
         """Relay must expose online and on_off features."""
         entity = RelayEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "on_off" in features
 
@@ -154,7 +154,7 @@ class TestRelayCompliance:
         """Relay must expose power/voltage/current when HA provides them."""
         entity = RelayEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(power=150, voltage=220, current=1))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "power" in features
         assert "voltage" in features
         assert "current" in features
@@ -163,14 +163,14 @@ class TestRelayCompliance:
         """Relay must expose child_lock when HA provides it."""
         entity = RelayEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(child_lock=True))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "child_lock" in features
 
     def test_features_exclude_energy_when_not_available(self):
         """Relay must NOT expose power/voltage/current when HA has no attributes."""
         entity = RelayEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "power" not in features
         assert "voltage" not in features
         assert "current" not in features
@@ -300,7 +300,7 @@ class TestSocketCompliance:
         """Socket features must include online and on_off (same as relay)."""
         entity = SocketEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "on_off" in features
 
@@ -308,7 +308,7 @@ class TestSocketCompliance:
         """Socket must expose energy features when HA provides them."""
         entity = SocketEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(power=100, voltage=230, current=2))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "power" in features
         assert "voltage" in features
         assert "current" in features
@@ -366,7 +366,7 @@ class TestValveCompliance:
         """Valve must expose online, open_set, open_state features."""
         entity = ValveEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "open_set" in features
         assert "open_state" in features
@@ -375,14 +375,14 @@ class TestValveCompliance:
         """Valve must NOT expose on_off feature (uses open_set instead)."""
         entity = ValveEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "on_off" not in features
 
     def test_features_include_battery_when_available(self):
         """Valve must expose battery_percentage when HA provides battery attr."""
         entity = ValveEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(battery=85))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "battery_percentage" in features
         assert "battery_low_power" in features
 
@@ -390,7 +390,7 @@ class TestValveCompliance:
         """Valve must expose signal_strength when HA provides rssi attr."""
         entity = ValveEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(rssi=-60))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "signal_strength" in features
 
     def test_current_state_online_bool_present(self):
@@ -503,7 +503,7 @@ class TestVacuumCleanerCompliance:
         """Vacuum must expose vacuum_cleaner_command and vacuum_cleaner_status."""
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "vacuum_cleaner_command" in features
         assert "vacuum_cleaner_status" in features
@@ -512,28 +512,28 @@ class TestVacuumCleanerCompliance:
         """Vacuum must expose vacuum_cleaner_program when fan_speed_list is available."""
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(fan_speed_list=["low", "medium", "high"], fan_speed="low"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "vacuum_cleaner_program" in features
 
     def test_features_exclude_program_when_no_fan_speed(self):
         """Vacuum must NOT expose vacuum_cleaner_program when fan_speed_list is empty."""
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "vacuum_cleaner_program" not in features
 
     def test_features_include_cleaning_type_when_available(self):
         """Vacuum must expose vacuum_cleaner_cleaning_type when cleaning_type attr present."""
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(cleaning_type="dry"))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "vacuum_cleaner_cleaning_type" in features
 
     def test_features_include_battery_when_available(self):
         """Vacuum must expose battery_percentage when battery_level is available."""
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(battery_level=75))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "battery_percentage" in features
 
     def test_current_state_online_bool_present(self):
@@ -713,7 +713,7 @@ class TestKettleCompliance:
         """Kettle must expose all required Sber features."""
         entity = KettleEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         for feat in (
             "online",
             "on_off",
@@ -842,7 +842,7 @@ class TestIntercomCompliance:
         """Intercom must expose all required Sber features."""
         entity = IntercomEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         for feat in ("online", "on_off", "incoming_call", "reject_call", "unlock"):
             assert feat in features, f"Missing feature: {feat}"
 
@@ -933,7 +933,7 @@ class TestScenarioButtonCompliance:
         """ScenarioButton must expose online and button_event features."""
         entity = ScenarioButtonEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "button_event" in features
 
@@ -1036,7 +1036,7 @@ class TestHvacRadiatorCompliance:
                 hvac_modes=["off", "heat"],
             )
         )
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "hvac_air_flow_power" not in features
         assert "hvac_air_flow_direction" not in features
         assert "hvac_work_mode" not in features
@@ -1046,7 +1046,7 @@ class TestHvacRadiatorCompliance:
         """Radiator must include on_off, temperature, hvac_temp_set."""
         entity = HvacRadiatorEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "online" in features
         assert "on_off" in features
         assert "temperature" in features
@@ -1099,7 +1099,7 @@ class TestHvacHeaterCompliance:
                 hvac_modes=["off", "heat"],
             )
         )
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "hvac_air_flow_power" in features
         assert "hvac_thermostat_mode" in features
 
@@ -1112,7 +1112,7 @@ class TestHvacHeaterCompliance:
                 hvac_modes=["off", "heat"],
             )
         )
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "hvac_air_flow_direction" not in features
         assert "hvac_work_mode" not in features
 
@@ -1158,7 +1158,7 @@ class TestHvacBoilerCompliance:
         """Boiler must support hvac_thermostat_mode (NOT hvac_work_mode)."""
         entity = HvacBoilerEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(hvac_modes=["off", "heat"]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "hvac_thermostat_mode" in features
         assert "hvac_work_mode" not in features
 
@@ -1171,7 +1171,7 @@ class TestHvacBoilerCompliance:
                 swing_modes=["off", "vertical"],
             )
         )
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "hvac_air_flow_power" not in features
         assert "hvac_air_flow_direction" not in features
 
@@ -1217,7 +1217,7 @@ class TestHvacUnderfloorCompliance:
         """Underfloor must support hvac_thermostat_mode (NOT hvac_work_mode)."""
         entity = HvacUnderfloorEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(hvac_modes=["off", "heat"]))
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "hvac_thermostat_mode" in features
         assert "hvac_work_mode" not in features
 
@@ -1230,7 +1230,7 @@ class TestHvacUnderfloorCompliance:
                 swing_modes=["off", "vertical"],
             )
         )
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         assert "hvac_air_flow_power" not in features
         assert "hvac_air_flow_direction" not in features
 

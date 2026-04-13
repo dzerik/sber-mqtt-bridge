@@ -102,7 +102,7 @@ class ValveEntity(BaseEntity):
             with contextlib.suppress(TypeError, ValueError):
                 self._signal_strength_raw = int(float(state_val))
 
-    def create_features_list(self) -> list[str]:
+    def _create_features_list(self) -> list[str]:
         """Return Sber feature list with open_set, open_state, open_percentage and optional battery/signal.
 
         ``open_percentage`` is marked obligatory for ``valve`` by Sber docs
@@ -112,7 +112,7 @@ class ValveEntity(BaseEntity):
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super().create_features_list(), "open_set", "open_state", "open_percentage"]
+        features = [*super()._create_features_list(), "open_set", "open_state", "open_percentage"]
         if self._battery_level is not None or self._battery_low is not None:
             features.append("battery_percentage")
             features.append("battery_low_power")

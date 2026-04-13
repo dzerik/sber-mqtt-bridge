@@ -73,7 +73,7 @@ class TestCurtainCreateFeaturesList(unittest.TestCase):
     def test_features(self):
         entity = CurtainEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("open_percentage", features)
         self.assertIn("open_set", features)
         self.assertIn("open_state", features)
@@ -235,14 +235,14 @@ class TestCurtainLightTransmission(unittest.TestCase):
             "state": "open",
             "attributes": {"current_position": 50, "current_tilt_position": 80},
         })
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("light_transmission_percentage", features)
 
     def test_tilt_feature_absent(self):
         """Cover without tilt must not include light_transmission_percentage."""
         entity = CurtainEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("light_transmission_percentage", features)
 
     def test_tilt_value_in_state(self):
@@ -266,7 +266,7 @@ class TestCurtainLightTransmission(unittest.TestCase):
             "state": "open",
             "attributes": {"current_position": 50, "current_tilt_position": 0},
         })
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("light_transmission_percentage", features)
         result = entity.to_sber_current_state()
         states = result["cover.curtain"]["states"]
@@ -294,14 +294,14 @@ class TestCurtainOpenRate(unittest.TestCase):
             "state": "open",
             "attributes": {"current_position": 50, "speed": "low"},
         })
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("open_rate", features)
 
     def test_open_rate_feature_absent(self):
         """Cover without speed must not include open_rate."""
         entity = CurtainEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("open_rate", features)
 
     def test_open_rate_low_in_state(self):
@@ -351,7 +351,7 @@ class TestCurtainOpenRate(unittest.TestCase):
             "state": "open",
             "attributes": {"current_position": 50, "speed": "turbo"},
         })
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertNotIn("open_rate", features)
 
     def test_open_rate_motor_speed_alias(self):
@@ -362,7 +362,7 @@ class TestCurtainOpenRate(unittest.TestCase):
             "state": "open",
             "attributes": {"current_position": 50, "motor_speed": "high"},
         })
-        features = entity.create_features_list()
+        features = entity.get_final_features_list()
         self.assertIn("open_rate", features)
 
     def test_open_rate_not_in_state_when_absent(self):
