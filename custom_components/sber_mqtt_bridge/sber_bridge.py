@@ -222,17 +222,19 @@ class SberBridge:
             reconnect_max=self._reconnect_max,
         )
 
-        # Reconnect guard: reject Sber commands until Sber acknowledges
-        # our published states (via status_request or config_request).
-        from .reconnect_ack_guard import ReconnectAckGuard
+        # Ack audit owns the reconnect guard AND the silent-rejection
+        # scheduler in one place — see ``ack_audit.py`` for the rationale.
+        from .ack_audit import AckAudit
 
-        self._ack_guard = ReconnectAckGuard()
+        self._ack_audit = AckAudit(
+            hass,
+            grace_timeout=RECONNECT_GRACE_TIMEOUT,
+            audit_delay=self._ack_audit_delay,
+            on_audit=self._run_ack_audit,
+        )
 
         # Delayed confirm tasks per entity (dedup: cancel previous on new command)
         self._confirm_tasks: dict[str, asyncio.Task] = {}
-
-        # Ack audit: detect silently rejected entities after config publish
-        self._ack_audit_handle: asyncio.TimerHandle | None = None
 
         # Debounced redefinitions persistence (avoid reload mid-MQTT-loop)
         self._redef_dirty = False
@@ -263,7 +265,7 @@ class SberBridge:
             return "starting"
         if not self._connected:
             return "connecting"
-        if self._ack_guard.is_awaiting:
+        if self._ack_audit.is_awaiting:
             return "awaiting_ack"
         return "ready"
 
@@ -507,6 +509,9 @@ class SberBridge:
             unsub()
         self._unsub_lifecycle_listeners.clear()
 
+        # Cancel any pending ack-audit timer so it can't fire after shutdown
+        self._ack_audit.cancel()
+
         # Stop the MQTT service reconnect loop
         await self._mqtt_service.stop()
 
@@ -626,7 +631,7 @@ class SberBridge:
         await self._wait_for_ha_ready()
         await self._perform_initial_publish()
         await self._subscribe_down_topics(client)
-        self._setup_ack_guard()
+        self._ack_audit.activate_post_connect()
         _LOGGER.info(
             "Connected & published states → subscribed to commands (awaiting Sber ack, timeout %.0fs)",
             RECONNECT_GRACE_TIMEOUT,
@@ -684,32 +689,15 @@ class SberBridge:
         await client.subscribe(f"{self._down_topic}/#")
         await client.subscribe(SBER_GLOBAL_CONFIG_TOPIC)
 
-    def _setup_ack_guard(self) -> None:
-        """Activate the reconnect-ack guard with a fallback timeout.
-
-        Delegates to :class:`ReconnectAckGuard` which manages the flag,
-        deadline, and fallback timer.
-        """
-        self._ack_guard.activate(RECONNECT_GRACE_TIMEOUT, self._hass.loop)
-
-    def _schedule_ack_audit(self) -> None:
-        """Schedule an ack audit after config publish.
-
-        After ``_ack_audit_delay`` seconds, checks which entities remain
-        unacknowledged and creates HA repair issues for silent rejections.
-        Cancels any previous pending audit to avoid duplicate checks.
-        """
-        if self._ack_audit_handle is not None:
-            self._ack_audit_handle.cancel()
-        self._ack_audit_handle = self._hass.loop.call_later(self._ack_audit_delay, self._run_ack_audit)
-
     def _run_ack_audit(self) -> None:
-        """Execute the ack audit — detect silently rejected entities.
+        """Bridge-side audit callback invoked by :class:`AckAudit` on timer.
 
-        Creates HA repair issues for entities that Sber cloud accepted
-        in the config but never sent a ``status_request`` for.
+        Detects silently rejected entities (accepted in the config
+        handshake but never queried via ``status_request``) and
+        triggers HA repair issue creation.  Kept on the bridge because
+        it reads bridge state (``unacknowledged_entities``) and uses
+        ``check_and_create_issues`` which needs the full bridge context.
         """
-        self._ack_audit_handle = None
         unack = self.unacknowledged_entities
         if unack:
             _LOGGER.warning(
@@ -1004,7 +992,7 @@ class SberBridge:
 
         # Schedule ack audit — will create repair issues if entities
         # remain unacknowledged after the grace period.
-        self._schedule_ack_audit()
+        self._ack_audit.schedule_audit()
 
         # Log unacknowledged entities for debugging
         unack = self.unacknowledged_entities
