@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
+from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
 from custom_components.sber_mqtt_bridge.sber_entity_map import (
-    CATEGORY_CONSTRUCTORS,
     CATEGORY_DOMAIN_MAP,
     CATEGORY_GROUPS,
     CATEGORY_UI_META,
@@ -19,19 +19,23 @@ from custom_components.sber_mqtt_bridge.sber_entity_map import (
     categories_for_domain,
 )
 
+# Placeholder entity class used by tests that only exercise CategorySpec.matches()
+# — the ``cls`` field is required on the dataclass but irrelevant to match logic.
+_Stub = RelayEntity
+
 
 class TestCategorySpec:
     """Direct tests for CategorySpec.matches()."""
 
     def test_domain_only_match_accepts_any_device_class(self):
-        spec = CategorySpec(domains=("light",), device_classes=None)
+        spec = CategorySpec(cls=_Stub, domains=("light",), device_classes=None)
         assert spec.matches("light", None)
         assert spec.matches("light", "")
         assert spec.matches("light", "whatever")
         assert not spec.matches("switch", None)
 
     def test_device_class_restricted_match(self):
-        spec = CategorySpec(domains=("switch",), device_classes=("outlet",))
+        spec = CategorySpec(cls=_Stub, domains=("switch",), device_classes=("outlet",))
         assert spec.matches("switch", "outlet")
         assert not spec.matches("switch", "")
         assert not spec.matches("switch", None)
@@ -40,6 +44,7 @@ class TestCategorySpec:
 
     def test_fallback_when_no_device_class(self):
         spec = CategorySpec(
+            cls=_Stub,
             domains=("switch",),
             device_classes=("outlet",),
             fallback_when_no_device_class=True,
@@ -161,9 +166,20 @@ class TestRegistryConsistency:
     """Cross-check that registries stay in sync with each other."""
 
     def test_all_mapped_categories_are_constructible(self):
-        """Every category in CATEGORY_DOMAIN_MAP must have a constructor."""
-        missing = [cat for cat in CATEGORY_DOMAIN_MAP if cat not in CATEGORY_CONSTRUCTORS]
-        assert not missing, f"Categories without constructor: {missing}"
+        """Every category in CATEGORY_DOMAIN_MAP must carry a valid entity class.
+
+        The ``cls`` field is the constructor — if it's missing or isn't a
+        BaseEntity subclass, auto-detection or user-override will crash at
+        runtime when the wizard tries to build the entity.
+        """
+        from custom_components.sber_mqtt_bridge.devices.base_entity import BaseEntity
+
+        invalid = [
+            cat
+            for cat, spec in CATEGORY_DOMAIN_MAP.items()
+            if not (isinstance(spec.cls, type) and issubclass(spec.cls, BaseEntity))
+        ]
+        assert not invalid, f"Categories with invalid cls: {invalid}"
 
     def test_ui_meta_is_subset_of_domain_map(self):
         """Every CATEGORY_UI_META key must exist in CATEGORY_DOMAIN_MAP."""
