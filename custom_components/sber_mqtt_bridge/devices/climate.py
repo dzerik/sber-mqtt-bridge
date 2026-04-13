@@ -14,6 +14,7 @@ from .base_entity import (
     AttrSpec,
     BaseEntity,
     CommandResult,
+    _safe_clamped_int_parser,
     _safe_float_parser,
     _safe_int_parser,
 )
@@ -454,7 +455,7 @@ class ClimateEntity(BaseEntity):
         return [self._build_on_off_service_call(self.entity_id, "climate", on)]
 
     def _cmd_temp_set(self, value: dict) -> list[dict]:
-        temp = self._safe_float(value.get("integer_value"))
+        temp = _safe_float_parser(value.get("integer_value"))
         if temp is None:
             return []
         return [self._build_service_call("climate", "set_temperature", self.entity_id, {"temperature": temp})]
@@ -520,7 +521,7 @@ class ClimateEntity(BaseEntity):
         return [self._build_service_call("climate", "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode})]
 
     def _cmd_humidity_set(self, value: dict) -> list[dict]:
-        humidity = self._safe_clamped_int(value.get("integer_value"), 0, 100)
+        humidity = _safe_clamped_int_parser(value.get("integer_value"), 0, 100)
         if humidity is None:
             return []
         return [self._build_service_call("climate", "set_humidity", self.entity_id, {"humidity": humidity})]

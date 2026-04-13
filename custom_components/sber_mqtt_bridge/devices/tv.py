@@ -11,7 +11,7 @@ from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_bool_parser
+from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_bool_parser, _safe_int_parser
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -236,7 +236,7 @@ class TvEntity(BaseEntity):
         return [self._build_on_off_service_call(self.entity_id, _MP_DOMAIN, on)]
 
     def _cmd_volume_int(self, value: dict) -> list[dict]:
-        vol = self._safe_int(value.get("integer_value"))
+        vol = _safe_int_parser(value.get("integer_value"))
         if vol is None:
             return []
         return [
@@ -266,13 +266,13 @@ class TvEntity(BaseEntity):
         return [self._build_service_call(_MP_DOMAIN, "select_source", self.entity_id, {"source": source})]
 
     def _cmd_channel_int(self, value: dict) -> list[dict]:
-        ch = self._safe_int(value.get("integer_value"))
+        ch = _safe_int_parser(value.get("integer_value"))
         if ch is None:
             return []
         return [self._build_play_channel_call(ch)]
 
     def _cmd_number(self, value: dict) -> list[dict]:
-        digit = self._safe_int(value.get("integer_value"))
+        digit = _safe_int_parser(value.get("integer_value"))
         if digit is None:
             return []
         return [self._build_play_channel_call(digit)]

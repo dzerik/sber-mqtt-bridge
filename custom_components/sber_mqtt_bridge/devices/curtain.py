@@ -13,6 +13,7 @@ from .base_entity import (
     AttrSpec,
     BaseEntity,
     CommandResult,
+    _safe_clamped_int_parser,
     _safe_int_parser,
 )
 from .utils.signal import rssi_to_signal_strength
@@ -181,7 +182,7 @@ class CurtainEntity(BaseEntity):
         return results
 
     def _cmd_set_position(self, value: dict) -> list[dict]:
-        ha_position = self._safe_clamped_int(value.get("integer_value"), 0, 100)
+        ha_position = _safe_clamped_int_parser(value.get("integer_value"), 0, 100)
         if ha_position is None:
             return []
         return [self._build_service_call("cover", "set_cover_position", self.entity_id, {"position": ha_position})]

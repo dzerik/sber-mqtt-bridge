@@ -270,7 +270,7 @@ class HumidifierEntity(BaseEntity):
         return [self._build_on_off_service_call(self.entity_id, "humidifier", on)]
 
     def _cmd_humidity(self, value: dict) -> list[dict]:
-        humidity = self._safe_int(value.get("integer_value"))
+        humidity = _safe_int_parser(value.get("integer_value"))
         if humidity is None:
             return []
         return [self._build_service_call("humidifier", "set_humidity", self.entity_id, {"humidity": humidity})]

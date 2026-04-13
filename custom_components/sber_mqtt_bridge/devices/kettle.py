@@ -159,7 +159,7 @@ class KettleEntity(BaseEntity):
                 on = value.get("bool_value", False)
                 results.append(self._build_on_off_service_call(self.entity_id, domain, on))
             elif key == SberFeature.KITCHEN_WATER_TEMPERATURE_SET and vtype == SberValueType.INTEGER:
-                temp = self._safe_int(value.get("integer_value"))
+                temp = _safe_int_parser(value.get("integer_value"))
                 if temp is None:
                     continue
                 results.append(

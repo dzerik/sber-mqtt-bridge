@@ -110,6 +110,18 @@ def _safe_bool_parser(value: object) -> bool | None:
     return bool(value)
 
 
+def _safe_clamped_int_parser(value: object, low: int, high: int) -> int | None:
+    """Parse value as int and clamp into ``[low, high]`` inclusive.
+
+    Returns ``None`` when the value cannot be parsed.  Used by command
+    handlers that accept integer ranges (e.g. HSV brightness).
+    """
+    parsed = _safe_int_parser(value)
+    if parsed is None:
+        return None
+    return max(low, min(high, parsed))
+
+
 class DeviceData(TypedDict, total=False):
     """Typed device registry data linked to an entity.
 
@@ -699,57 +711,6 @@ class BaseEntity(ABC):
             True if the entity state indicates it is reachable.
         """
         return self._is_online
-
-    @staticmethod
-    def _safe_float(value: object) -> float | None:
-        """Safely convert a value to float.
-
-        Args:
-            value: Value to convert (can be str, int, float, or None).
-
-        Returns:
-            Float value, or None if conversion fails.
-        """
-        if value is None:
-            return None
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return None
-
-    @staticmethod
-    def _safe_int(value: object) -> int | None:
-        """Safely convert a value to int (via float to handle "22.5" strings).
-
-        Args:
-            value: Value to convert (can be str, int, float, or None).
-
-        Returns:
-            Integer value, or None if conversion fails.
-        """
-        if value is None:
-            return None
-        try:
-            return int(float(value))
-        except (TypeError, ValueError):
-            return None
-
-    @staticmethod
-    def _safe_clamped_int(value: object, low: int, high: int) -> int | None:
-        """Safely convert value to int and clamp into ``[low, high]``.
-
-        Args:
-            value: Value to convert.
-            low: Inclusive lower bound.
-            high: Inclusive upper bound.
-
-        Returns:
-            Clamped integer, or None if conversion fails.
-        """
-        parsed = BaseEntity._safe_int(value)
-        if parsed is None:
-            return None
-        return max(low, min(high, parsed))
 
     def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
         """Handle a state change event from Home Assistant.

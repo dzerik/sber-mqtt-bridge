@@ -309,7 +309,7 @@ class LightEntity(BaseEntity):
 
     def _cmd_brightness(self, value: dict) -> list[dict]:
         """Handle ``light_brightness``: set brightness via ``light.turn_on``."""
-        sber_br_value = self._safe_int(value.get("integer_value"))
+        sber_br_value = _safe_int_parser(value.get("integer_value"))
         if sber_br_value is None:
             return []
         ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
@@ -381,7 +381,7 @@ class LightEntity(BaseEntity):
 
     def _cmd_colour_temp(self, value: dict) -> list[dict]:
         """Handle ``light_colour_temp``: set colour temperature via turn_on."""
-        sber_color_temp = self._safe_int(value.get("integer_value"))
+        sber_color_temp = _safe_int_parser(value.get("integer_value"))
         if sber_color_temp is None:
             return []
         ha_mireds = self.color_temp_converter.sber_to_ha(sber_color_temp)
