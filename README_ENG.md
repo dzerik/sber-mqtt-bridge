@@ -8,13 +8,20 @@
 
 **[Документация на русском / Russian documentation](README.md)** | **[Documentation (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)**
 
-> [!CAUTION]
-> **🚧 PRE-ALPHA — Active Development!**
+> [!IMPORTANT]
+> **🧪 PUBLIC TESTING — Testers wanted!**
 >
-> This project is in **pre-alpha** stage. Correct operation and proper entity mapping
-> are **not guaranteed**. API, configuration, and behavior may change without notice.
-> Use at your own risk and please report any issues in
-> [Issues](https://github.com/dzerik/sber-mqtt-bridge/issues).
+> The project has entered **public testing**. Core functionality is stable, but the
+> diversity of real-world Home Assistant devices is enormous, and we need your help
+> to uncover edge cases and polish the mapping.
+>
+> **How to help:**
+> - Install the integration via HACS and connect your devices to Sber
+> - Share your experience in [Tester Feedback](https://github.com/dzerik/sber-mqtt-bridge/issues/new?template=tester_feedback.yml) —
+>   what works, what doesn't, which device models you tried
+> - Clear bugs go to [Bug Report](https://github.com/dzerik/sber-mqtt-bridge/issues/new?template=bug_report.yml)
+>
+> APIs and configuration may still change until the `2.0.0` release. Thanks to everyone testing!
 
 ---
 
@@ -173,6 +180,12 @@ For detailed instructions, see [Sber MQTT-to-Cloud documentation](https://develo
 ## Installation
 
 ### HACS (recommended)
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=dzerik&repository=sber-mqtt-bridge&category=integration)
+
+Click the button above — HACS opens on the repository page, just press **Download**.
+
+Or manually:
 
 1. Open **HACS** in Home Assistant
 2. Click the three dots menu > **Custom repositories**
