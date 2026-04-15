@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Новый issue template `tester_feedback.yml` — структурированная форма для
   отчётов участников публичного тестирования (HA domain, Sber category,
   модель устройства, что работает / что нет, логи).
+- Кнопка **«Open in HACS»** в README (обе локализации) — прямая установка
+  в Home Assistant через my.home-assistant.io.
 
 ## [1.30.0] - 2026-04-13
 

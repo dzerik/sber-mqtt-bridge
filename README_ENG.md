@@ -181,6 +181,12 @@ For detailed instructions, see [Sber MQTT-to-Cloud documentation](https://develo
 
 ### HACS (recommended)
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=dzerik&repository=sber-mqtt-bridge&category=integration)
+
+Click the button above — HACS opens on the repository page, just press **Download**.
+
+Or manually:
+
 1. Open **HACS** in Home Assistant
 2. Click the three dots menu > **Custom repositories**
 3. Add `https://github.com/dzerik/sber-mqtt-bridge` with category **Integration**

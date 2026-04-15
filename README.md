@@ -187,6 +187,12 @@ flowchart LR
 
 ### HACS (рекомендуется)
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=dzerik&repository=sber-mqtt-bridge&category=integration)
+
+Нажмите кнопку выше — HACS откроется на странице репозитория, останется только нажать **Download**.
+
+Или вручную:
+
 1. Откройте **HACS** в Home Assistant
 2. Нажмите меню (три точки) > **Пользовательские репозитории**
 3. Добавьте `https://github.com/dzerik/sber-mqtt-bridge` с категорией **Интеграция**
