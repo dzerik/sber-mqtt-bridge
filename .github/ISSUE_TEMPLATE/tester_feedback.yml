@@ -95,7 +95,7 @@ body:
     id: logs
     attributes:
       label: Релевантные логи
-      description: Логи HA с `logger: custom_components.sber_mqtt_bridge: debug` (если применимо)
+      description: "Логи HA с `logger: custom_components.sber_mqtt_bridge: debug` (если применимо)"
       render: shell
 
   - type: textarea
