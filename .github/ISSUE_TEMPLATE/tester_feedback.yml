@@ -1,0 +1,105 @@
+name: Tester Feedback (Public Testing)
+description: Отчёт участника публичного тестирования — что работает, что не работает
+title: "[Testing] "
+labels: ["tester-feedback", "public-testing"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо, что участвуете в **публичном тестировании** Sber MQTT Bridge!
+        Этот шаблон — для отчётов о реальном опыте использования: какие устройства вы пробовали,
+        что заработало, что нет. Для явных багов используйте [Bug Report](./bug_report.yml).
+
+  - type: input
+    id: integration-version
+    attributes:
+      label: Версия интеграции
+      description: Поле `version` из `manifest.json` или из HACS
+      placeholder: "1.30.1"
+    validations:
+      required: true
+
+  - type: input
+    id: ha-version
+    attributes:
+      label: Версия Home Assistant
+      placeholder: "2025.12.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ha-domain
+    attributes:
+      label: HA domain устройства
+      description: К какому домену HA относится тестируемое устройство
+      options:
+        - light
+        - switch
+        - cover
+        - climate
+        - fan
+        - sensor
+        - binary_sensor
+        - lock
+        - media_player
+        - vacuum
+        - valve
+        - humidifier
+        - water_heater
+        - script
+        - button
+        - input_boolean
+        - другое (указать ниже)
+    validations:
+      required: true
+
+  - type: input
+    id: sber-category
+    attributes:
+      label: Sber category
+      description: Какая категория Sber определилась (см. UI интеграции) — например `light`, `hvac_ac`, `sensor_temp`
+      placeholder: "light"
+
+  - type: input
+    id: device-model
+    attributes:
+      label: Модель / производитель устройства
+      description: Бренд, модель, через какую интеграцию HA подключено (Zigbee2MQTT, Z-Wave, ESPHome и т.п.)
+      placeholder: "Aqara T1, через Zigbee2MQTT"
+    validations:
+      required: true
+
+  - type: textarea
+    id: works
+    attributes:
+      label: Что работает корректно
+      description: Команды голосом, отображение состояний, linked entities и т.п.
+      placeholder: |
+        - Включение/выключение через Салют
+        - Отображение яркости в приложении
+    validations:
+      required: true
+
+  - type: textarea
+    id: broken
+    attributes:
+      label: Что не работает или работает неправильно
+      description: Несовпадение состояний, задержки, игнорирование команд, неверные иконки / комнаты и т.п.
+      placeholder: |
+        - Команда "Салют, установи температуру 22" не применяется
+        - Датчик влажности не появился в приложении
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Релевантные логи
+      description: Логи HA с `logger: custom_components.sber_mqtt_bridge: debug` (если применимо)
+      render: shell
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Дополнительный контекст
+      description: Скриншоты приложения Сбер, конфиг YAML-переопределений, предложения по улучшению

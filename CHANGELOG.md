@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.30.1] - 2026-04-15
+
+### Changed
+
+- Проект переведён в стадию **Public Testing** (из pre-alpha): обновлены
+  README.md и README_ENG.md с призывом к тестерам и ссылками на шаблоны issue.
+
+### Added
+
+- Новый issue template `tester_feedback.yml` — структурированная форма для
+  отчётов участников публичного тестирования (HA domain, Sber category,
+  модель устройства, что работает / что нет, логи).
+
 ## [1.30.0] - 2026-04-13
 
 ### Changed
