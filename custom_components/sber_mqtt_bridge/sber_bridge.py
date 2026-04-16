@@ -28,6 +28,7 @@ from .const import (
     CONF_ACK_AUDIT_DELAY,
     CONF_CONFIRM_DELAY,
     CONF_DEBOUNCE_DELAY,
+    CONF_HA_SERIAL_NUMBER,
     CONF_HUB_AUTO_PARENT,
     CONF_MAX_MQTT_PAYLOAD,
     CONF_MESSAGE_LOG_SIZE,
@@ -160,6 +161,8 @@ class SberBridge:
         self._root_topic = f"{SBER_TOPIC_PREFIX}/{self._login}"
         self._down_topic = f"{self._root_topic}/down"
 
+        self._ha_instance_id_prefix: str = ""
+        """Cached 8-char prefix of HA instance UUID; populated in ``async_start``."""
         self._entities: dict[str, BaseEntity] = {}
         self._enabled_entity_ids: list[str] = []
         self._redefinitions: dict[str, dict] = {}
@@ -305,6 +308,11 @@ class SberBridge:
         return self._stats.as_dict()
 
     @property
+    def ha_serial_prefix(self) -> str | None:
+        """Return active per-HA serial prefix, or ``None`` when feature is off."""
+        return self._ha_instance_id_prefix if self._ha_serial_enabled else None
+
+    @property
     def unacknowledged_entities(self) -> list[str]:
         """Return entity IDs that were published but not yet acknowledged by Sber."""
         return [eid for eid in self._enabled_entity_ids if eid not in self._stats.acknowledged_entities]
@@ -407,6 +415,9 @@ class SberBridge:
         self._message_log_size: int = int(options.get(CONF_MESSAGE_LOG_SIZE, SETTINGS_DEFAULTS[CONF_MESSAGE_LOG_SIZE]))
         self._confirm_delay: float = float(options.get(CONF_CONFIRM_DELAY, SETTINGS_DEFAULTS[CONF_CONFIRM_DELAY]))
         self._ack_audit_delay: float = float(options.get(CONF_ACK_AUDIT_DELAY, SETTINGS_DEFAULTS[CONF_ACK_AUDIT_DELAY]))
+        self._ha_serial_enabled: bool = bool(
+            options.get(CONF_HA_SERIAL_NUMBER, SETTINGS_DEFAULTS[CONF_HA_SERIAL_NUMBER])
+        )
         # verify_ssl has a special path: config_entry.data fallback for migrated entries
         self._verify_ssl: bool = bool(
             options.get(
@@ -483,6 +494,12 @@ class SberBridge:
         MQTT connection is established in a background task with exponential backoff.
         """
         self._running = True
+        # Cache the HA instance UUID prefix so the publish hot-path stays sync.
+        # Used for the per-HA ``ha_serial_number`` loop-detection marker.
+        from homeassistant.helpers import instance_id
+
+        full_uuid = await instance_id.async_get(self._hass)
+        self._ha_instance_id_prefix: str = full_uuid[:8]
         self._load_exposed_entities()
         self._subscribe_ha_events()
         self._connection_task = asyncio.create_task(self._mqtt_connection_loop())
@@ -958,6 +975,7 @@ class SberBridge:
         ha_location = self._hass.config.location_name
         location = ha_location if ha_location and ha_location != "Home Assistant" else "Мой дом"
         auto_parent = self._entry.options.get(CONF_HUB_AUTO_PARENT, False)
+        ha_serial_prefix = self._ha_instance_id_prefix if self._ha_serial_enabled else None
         payload, _config_valid, invalid_ids = build_devices_list_json(
             self._entities,
             ids_to_publish,
@@ -965,6 +983,7 @@ class SberBridge:
             default_home=location,
             default_room=location,
             auto_parent_id=auto_parent,
+            ha_serial_prefix=ha_serial_prefix,
         )
         if invalid_ids:
             self._stats.validation_failures = invalid_ids

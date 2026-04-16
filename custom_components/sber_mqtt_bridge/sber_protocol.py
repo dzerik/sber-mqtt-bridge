@@ -15,19 +15,29 @@ from .sber_models import validate_config_payload, validate_device, validate_stat
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.30.1"
+VERSION = "1.31.0"
 """Protocol version string included in the hub device descriptor."""
 
 
-def build_hub_device(version: str = VERSION, home: str = "", room: str = "") -> dict:
+def build_hub_device(
+    version: str = VERSION,
+    home: str = "",
+    room: str = "",
+    ha_serial_prefix: str | None = None,
+) -> dict:
     """Build the root hub device descriptor for Sber.
 
     Args:
         version: Protocol version string.
         home: Home name for the hub device.
         room: Room name for the hub device.
+        ha_serial_prefix: When set, the hub device gets a
+            ``partner_meta.ha_serial_number`` value of ``f"ha-{prefix}"``
+            (typically the first 8 chars of the HA instance UUID).  Used
+            by sister integrations that mirror Sber devices back into HA
+            to detect their own loop.  ``None`` disables the marker.
     """
-    return {
+    descriptor: dict = {
         "id": "root",
         "name": "Home Assistant Bridge",
         "default_name": "HA-SberBridge Hub",
@@ -44,6 +54,42 @@ def build_hub_device(version: str = VERSION, home: str = "", room: str = "") -> 
             "features": ["online"],
         },
     }
+    if ha_serial_prefix:
+        descriptor["partner_meta"] = {"ha_serial_number": f"ha-{ha_serial_prefix}"}
+    return descriptor
+
+
+def resolve_ha_serial_number(entity: BaseEntity, ha_serial_prefix: str) -> str:
+    """Resolve the ``ha_serial_number`` marker for one entity.
+
+    Priority:
+        1. Real ``DeviceEntry.serial_number`` if linked to a device.
+        2. Normalised MAC from ``DeviceEntry.connections``.
+        3. Fallback ``f"ha-{ha_serial_prefix}"`` (per-HA-instance marker).
+
+    Args:
+        entity: Entity whose ``linked_device`` may carry HA registry data.
+        ha_serial_prefix: First N chars of the HA instance UUID (used as
+            fallback when the device has no real serial / MAC).
+
+    Returns:
+        Non-empty string suitable for ``partner_meta.ha_serial_number``.
+    """
+    device = entity.linked_device or {}
+    real_serial = (device.get("serial_number") or "").strip()
+    if real_serial:
+        return real_serial
+    mac = (device.get("mac") or "").strip()
+    if mac:
+        return mac
+    return f"ha-{ha_serial_prefix}"
+
+
+def _inject_ha_serial(device_data: dict, serial: str) -> None:
+    """Merge ``ha_serial_number`` into the ``partner_meta`` of a device dict."""
+    meta = dict(device_data.get("partner_meta") or {})
+    meta["ha_serial_number"] = serial
+    device_data["partner_meta"] = meta
 
 
 def build_devices_list_json(
@@ -53,6 +99,7 @@ def build_devices_list_json(
     default_home: str = "",
     default_room: str = "",
     auto_parent_id: bool = True,
+    ha_serial_prefix: str | None = None,
 ) -> tuple[str, bool, list[str]]:
     """Build Sber device config JSON for MQTT publish.
 
@@ -71,13 +118,19 @@ def build_devices_list_json(
         auto_parent_id: When True, automatically set ``parent_id`` to the hub
             ID (``"root"``) for all child devices that don't have an explicit
             parent_id.  This creates a proper hierarchy in Sber cloud.
+        ha_serial_prefix: Per-HA-instance serial prefix.  When provided,
+            every device (including the hub) receives a
+            ``partner_meta.ha_serial_number`` marker; sister integrations
+            use it for loop-detection.  Pass ``None`` to omit markers.
 
     Returns:
         Tuple ``(json_string, validation_passed, invalid_entity_ids)``.
         ``invalid_entity_ids`` lists entities that failed per-device
         validation and were excluded from the payload.
     """
-    device_list: dict[str, Any] = {"devices": [build_hub_device(home=default_home, room=default_room)]}
+    device_list: dict[str, Any] = {
+        "devices": [build_hub_device(home=default_home, room=default_room, ha_serial_prefix=ha_serial_prefix)]
+    }
     invalid_ids: list[str] = []
 
     for entity_id in enabled_entity_ids:
@@ -112,6 +165,9 @@ def build_devices_list_json(
 
         if auto_parent_id and "parent_id" not in device_data:
             device_data["parent_id"] = "root"
+
+        if ha_serial_prefix:
+            _inject_ha_serial(device_data, resolve_ha_serial_number(entity, ha_serial_prefix))
 
         filtered = {k: v for k, v in device_data.items() if v is not None}
 

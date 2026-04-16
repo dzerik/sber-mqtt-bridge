@@ -56,6 +56,17 @@ CONF_CONFIRM_DELAY = "confirm_delay"
 CONF_ACK_AUDIT_DELAY = "ack_audit_delay"
 """Options key for delay (seconds) before auditing unacknowledged entities after config publish."""
 
+CONF_HA_SERIAL_NUMBER = "ha_serial_number_enabled"
+"""Options key for emitting per-HA serial markers in ``partner_meta.ha_serial_number``.
+
+When enabled, every device payload (including the root hub) carries a
+``ha_serial_number`` entry inside ``partner_meta``.  The value is either
+the real ``DeviceEntry.serial_number`` / MAC address from HA's device
+registry, or a fallback derived from this Home Assistant instance UUID
+(``ha-<8-char-prefix>``).  Sister projects that import these devices
+back into HA can use the marker to detect import loops.
+"""
+
 SETTINGS_DEFAULTS: dict[str, int | float | bool] = {
     CONF_RECONNECT_MIN: 5,
     CONF_RECONNECT_MAX: 300,
@@ -66,6 +77,7 @@ SETTINGS_DEFAULTS: dict[str, int | float | bool] = {
     CONF_HUB_AUTO_PARENT: False,
     CONF_CONFIRM_DELAY: 1.5,
     CONF_ACK_AUDIT_DELAY: 60,
+    CONF_HA_SERIAL_NUMBER: False,
 }
 """Default values for bridge operational settings."""
 

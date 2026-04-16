@@ -35,7 +35,10 @@ async def ws_raw_config(
     from ..sber_protocol import build_devices_list_json
 
     payload, _valid, _invalid = build_devices_list_json(
-        bridge.entities, bridge.enabled_entity_ids, bridge.redefinitions
+        bridge.entities,
+        bridge.enabled_entity_ids,
+        bridge.redefinitions,
+        ha_serial_prefix=bridge.ha_serial_prefix,
     )
     connection.send_result(msg["id"], {"payload": payload})
 
