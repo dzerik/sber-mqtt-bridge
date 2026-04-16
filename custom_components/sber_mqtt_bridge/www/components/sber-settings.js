@@ -37,6 +37,13 @@ const SETTING_DEFS = [
       { key: "message_log_size", label: "MQTT message log buffer", min: 10, max: 500, step: 10, type: "number" },
     ],
   },
+  {
+    group: "Loop detection",
+    note: "Adds a per-HA marker to partner_meta.ha_serial_number on every published device. Sister integrations that mirror Sber devices back into HA use it to detect import loops. Disabled by default.",
+    fields: [
+      { key: "ha_serial_number_enabled", label: "Emit ha_serial_number marker", type: "toggle" },
+    ],
+  },
 ];
 
 class SberSettings extends LitElement {

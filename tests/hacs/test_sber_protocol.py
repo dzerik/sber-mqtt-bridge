@@ -9,6 +9,7 @@ from custom_components.sber_mqtt_bridge.sber_protocol import (
     build_states_list_json,
     parse_sber_command,
     parse_sber_status_request,
+    resolve_ha_serial_number,
 )
 from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
 from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
@@ -178,6 +179,64 @@ class TestParseSberStatusRequest(unittest.TestCase):
         payload = json.dumps({"other": "data"})
         result = parse_sber_status_request(payload)
         self.assertEqual(result, [])
+
+
+class TestPerHaSerialNumber(unittest.TestCase):
+    """Per-HA ``ha_serial_number`` marker emitted in ``partner_meta``."""
+
+    HA_PREFIX_A = "8f2a1b3c"
+    HA_PREFIX_B = "deadbeef"
+
+    def setUp(self) -> None:
+        self.entities = {"switch.lamp": RelayEntity(RELAY_ENTITY_DATA)}
+        self.entities["switch.lamp"].fill_by_ha_state(HA_STATE_ON)
+
+    # ----- resolve_ha_serial_number -----
+
+    def test_real_serial_wins_over_fallback(self) -> None:
+        entity = RelayEntity({**RELAY_ENTITY_DATA, "device_id": "dev1"})
+        entity.link_device({"id": "dev1", "serial_number": "ABC-1234", "mac": "aa:bb:cc:dd:ee:ff"})
+        self.assertEqual(resolve_ha_serial_number(entity, self.HA_PREFIX_A), "ABC-1234")
+
+    def test_mac_used_when_no_serial(self) -> None:
+        entity = RelayEntity({**RELAY_ENTITY_DATA, "device_id": "dev1"})
+        entity.link_device({"id": "dev1", "mac": "aa:bb:cc:dd:ee:ff"})
+        self.assertEqual(resolve_ha_serial_number(entity, self.HA_PREFIX_A), "aa:bb:cc:dd:ee:ff")
+
+    def test_fallback_uses_ha_prefix(self) -> None:
+        entity = RelayEntity(RELAY_ENTITY_DATA)
+        # No linked_device at all → fallback path.
+        self.assertEqual(resolve_ha_serial_number(entity, self.HA_PREFIX_A), f"ha-{self.HA_PREFIX_A}")
+
+    def test_two_ha_instances_get_distinct_fallbacks(self) -> None:
+        entity = RelayEntity(RELAY_ENTITY_DATA)
+        a = resolve_ha_serial_number(entity, self.HA_PREFIX_A)
+        b = resolve_ha_serial_number(entity, self.HA_PREFIX_B)
+        self.assertNotEqual(a, b)
+        self.assertTrue(a.startswith("ha-"))
+        self.assertTrue(b.startswith("ha-"))
+
+    # ----- end-to-end through build_devices_list_json -----
+
+    def test_marker_absent_when_disabled(self) -> None:
+        result = json.loads(build_devices_list_json(self.entities, ["switch.lamp"])[0])
+        for device in result["devices"]:
+            self.assertNotIn("partner_meta", device, msg=f"unexpected partner_meta in {device['id']}")
+
+    def test_marker_added_to_hub_when_enabled(self) -> None:
+        result = json.loads(
+            build_devices_list_json(self.entities, ["switch.lamp"], ha_serial_prefix=self.HA_PREFIX_A)[0]
+        )
+        hub = result["devices"][0]
+        self.assertEqual(hub["id"], "root")
+        self.assertEqual(hub["partner_meta"]["ha_serial_number"], f"ha-{self.HA_PREFIX_A}")
+
+    def test_marker_added_to_entity_when_enabled(self) -> None:
+        result = json.loads(
+            build_devices_list_json(self.entities, ["switch.lamp"], ha_serial_prefix=self.HA_PREFIX_A)[0]
+        )
+        device = result["devices"][1]
+        self.assertEqual(device["partner_meta"]["ha_serial_number"], f"ha-{self.HA_PREFIX_A}")
 
 
 if __name__ == "__main__":

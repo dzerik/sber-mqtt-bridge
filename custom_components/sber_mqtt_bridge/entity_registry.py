@@ -38,6 +38,21 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
+
+def _extract_mac(connections: set[tuple[str, str]] | None) -> str:
+    """Pick a normalised MAC address from ``DeviceEntry.connections``.
+
+    Returns the first ``CONNECTION_NETWORK_MAC`` entry (already normalised
+    by HA) or empty string when none present.
+    """
+    if not connections:
+        return ""
+    for kind, value in connections:
+        if kind == dr.CONNECTION_NETWORK_MAC and value:
+            return value
+    return ""
+
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -233,6 +248,8 @@ class SberEntityLoader:
             "model_id": device.model_id or "",
             "hw_version": device.hw_version or "1",
             "sw_version": device.sw_version or "1",
+            "serial_number": device.serial_number or "",
+            "mac": _extract_mac(device.connections),
         }
         try:
             sber_entity.link_device(device_data)

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.31.0] - 2026-04-15
+
+### Added
+
+- **Per-HA `ha_serial_number` marker** для loop-detection. Когда новая
+  настройка `ha_serial_number_enabled` включена в панели (Settings →
+  Loop detection), каждое опубликованное устройство (включая root hub)
+  получает в `partner_meta.ha_serial_number` идентификатор:
+  - реальный `DeviceEntry.serial_number` из HA, либо
+  - нормализованный MAC из `DeviceEntry.connections`, либо
+  - fallback `ha-<8-char-prefix>` от UUID этого Home Assistant.
+
+  Поле кладётся в стандартное `partner_meta` (см. Sber spec
+  `data-structures.md` и VR-003), новых полей в Sber-payload не
+  добавляется. Совместимо с sister-проектом
+  [`dzerik/ha-sberhome`](https://github.com/dzerik/ha-sberhome) v2.9.0+
+  для определения import-loop'ов; более старые версии просто
+  игнорируют поле, обратная совместимость сохраняется.
+
+- Новая настройка `ha_serial_number_enabled` (default `False`) — toggle
+  в группе **Loop detection** на странице настроек панели.
+
 ## [1.30.1] - 2026-04-15
 
 ### Changed

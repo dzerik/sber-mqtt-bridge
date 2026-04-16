@@ -138,6 +138,10 @@ class DeviceData(TypedDict, total=False):
     model_id: str
     hw_version: str
     sw_version: str
+    serial_number: str
+    """Real device serial number from HA device registry (empty string if unknown)."""
+    mac: str
+    """Normalised MAC address pulled from ``DeviceEntry.connections`` (empty if unknown)."""
 
 
 # ---------------------------------------------------------------------------
