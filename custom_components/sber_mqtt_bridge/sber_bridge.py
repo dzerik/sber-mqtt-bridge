@@ -518,9 +518,7 @@ class SberBridge:
         except Exception:  # pragma: no cover — must never break the bridge
             _LOGGER.exception("Trace sweep failed")
 
-    def _trace_on_state_change(
-        self, context_id: str | None, entity_id: str, state: dict
-    ) -> None:
+    def _trace_on_state_change(self, context_id: str | None, entity_id: str, state: dict) -> None:
         """Forwarder hook → append ``ha_state_changed`` to the correlation trace.
 
         When ``context_id`` is already known (because a Sber command opened
