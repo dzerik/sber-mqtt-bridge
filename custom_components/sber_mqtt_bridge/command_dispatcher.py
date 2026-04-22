@@ -31,6 +31,7 @@ from .sber_protocol import parse_sber_command, parse_sber_status_request
 if TYPE_CHECKING:
     from .ack_audit import AckAudit
     from .devices.base_entity import BaseEntity
+    from .trace_collector import TraceCollector
 
 
 class _BridgeStats(Protocol):
@@ -59,12 +60,14 @@ class BridgeCommandContext(Protocol):
     _enabled_entity_ids: list[str]
     _redefinitions: dict[str, dict]
     _confirm_tasks: dict[str, asyncio.Task]
+    _trace_collector: TraceCollector
 
     async def _publish_states(self, ids: list[str] | None, *, force: bool = False) -> None: ...
     async def _publish_config(self, entity_ids: list[str] | None = None) -> None: ...
     def _persist_redefinitions(self) -> None: ...
     def _create_safe_task(self, coro: object, *, name: str | None = None) -> asyncio.Task: ...
     async def _delayed_confirm(self, entity_id: str) -> None: ...
+    def _sweep_traces(self) -> None: ...
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -119,6 +122,19 @@ class SberCommandDispatcher:
         update_state_ids: list[str] = []
         context = Context()
 
+        # DevTools correlation timeline: open a trace keyed by context.id so
+        # the subsequent HA service calls and state_changed events (which HA
+        # automatically tags with the same Context) land in the same trace.
+        known_ids = [eid for eid in devices if eid in bridge._entities]
+        bridge._trace_collector.begin(
+            trace_id=context.id,
+            trigger="sber_command",
+            entity_ids=known_ids,
+            topic="down/commands",
+            payload=devices,
+        )
+        bridge._sweep_traces()
+
         for entity_id, cmd_data in devices.items():
             bridge._stats.acknowledged_entities.add(entity_id)
             entity = bridge._entities.get(entity_id)
@@ -140,6 +156,16 @@ class SberCommandDispatcher:
                         update_state_ids.append(entity_id)
                     continue
                 await self._call_ha_service(entity_id, cmd, context)
+                bridge._trace_collector.record(
+                    context.id,
+                    type_="ha_service_call",
+                    entity_id=entity_id,
+                    payload={
+                        "domain": cmd.get("domain"),
+                        "service": cmd.get("service"),
+                        "service_data": cmd.get("service_data"),
+                    },
+                )
 
         commanded_ids = [eid for eid in devices if eid in bridge._entities]
 

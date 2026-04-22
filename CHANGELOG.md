@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.32.0] - 2026-04-22
+
+### Added
+
+- **DevTools: Correlation Timeline** — группировка MQTT + HA событий в
+  логические трассы по `HomeAssistant.Context.id` (встроенный в HA
+  correlation ID, который автоматически распространяется через
+  `service_call` → `state_changed`). Каждая трасса отображает полную
+  цепочку: `sber_command` → `ha_service_call` → `ha_state_changed` →
+  `publish_out` (и `silent_rejection` при молчаливом отказе Sber),
+  позволяя одним взглядом понять, где оборвалась цепочка. Новые
+  компоненты:
+  - `trace_collector.py` — in-memory ring-buffer активных и закрытых
+    трасс, с subscribe для live-потока и sweep по timeout.
+  - Интеграция в `SberCommandDispatcher.handle_command`,
+    `HaStateForwarder._handle_primary_state_change`,
+    `SberBridge._publish_states` и `AckAudit` (silent rejection → trace
+    failed).
+  - WebSocket API: `sber_mqtt_bridge/traces`, `.../trace`,
+    `.../clear_traces`, `.../subscribe_traces`.
+  - UI-компонент `sber-traces.js` во вкладке DevTools — expandable
+    timeline с цветной индикацией статуса (active / success / failed /
+    timeout).
+
 ## [1.31.0] - 2026-04-15
 
 ### Added
