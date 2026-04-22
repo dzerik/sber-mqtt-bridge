@@ -58,6 +58,7 @@ from .sber_protocol import (
     build_devices_list_json,
     build_states_list_json,
 )
+from .state_diff import DiffCollector
 from .trace_collector import TraceCollector
 
 _LOGGER = logging.getLogger(__name__)
@@ -256,6 +257,11 @@ class SberBridge:
             trace_timeout=10.0,
         )
 
+        # State-diff collector (DevTools) — records per-entity deltas
+        # for every outbound Sber state publish so the panel can show
+        # "what actually changed" instead of the full repetitive payload.
+        self._diff_collector = DiffCollector(maxlen=self._message_log_size)
+
     @property
     def is_connected(self) -> bool:
         """Return True if connected to Sber MQTT."""
@@ -452,6 +458,7 @@ class SberBridge:
         self._mqtt_service.update_verify_ssl(self._verify_ssl)
         self._msg_logger.resize(self._message_log_size)
         self._trace_collector.resize(self._message_log_size)
+        self._diff_collector.resize(self._message_log_size)
 
         _LOGGER.info(
             "Bridge settings applied (debounce=%.2fs, log=%d)",
@@ -505,6 +512,11 @@ class SberBridge:
     def trace_collector(self) -> TraceCollector:
         """Return the correlation-trace collector for WS API access."""
         return self._trace_collector
+
+    @property
+    def diff_collector(self) -> DiffCollector:
+        """Return the state-diff collector for WS API access."""
+        return self._diff_collector
 
     def _sweep_traces(self) -> None:
         """Close traces idle beyond the configured timeout.
@@ -1020,6 +1032,11 @@ class SberBridge:
         # DevTools correlation: attach this publish to each entity's active trace.
         for eid in entity_ids or self._enabled_entity_ids:
             self._trace_collector.record_publish(eid, topic, payload_str)
+        # DevTools state-diff: record per-entity deltas from the serialized payload.
+        try:
+            self._diff_collector.record_publish_payload(payload_str, topic=topic)
+        except Exception:  # pragma: no cover — must never break publish
+            _LOGGER.exception("DiffCollector.record_publish_payload failed")
 
     async def _publish_config(self, entity_ids: list[str] | None = None) -> None:
         """Publish device config to Sber MQTT."""

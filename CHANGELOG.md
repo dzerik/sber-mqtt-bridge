@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.33.0] - 2026-04-22
+
+### Added
+
+- **DevTools: State Diffs** — для каждой исходящей Sber-публикации
+  считается delta по каждому устройству относительно предыдущей
+  публикации и сохраняется только то, что реально изменилось
+  (`added` / `removed` / `changed` с `before` и `after`). Sber-пейлоады
+  повторяют всё состояние при каждой публикации — этот вид убирает
+  шум и показывает одной строкой: `brightness: 50 → 75`,
+  `color: — → [255, 0, 0]`, `on_off (removed)`. Пустые delta не
+  записываются. Новые компоненты:
+  - `state_diff.py` — `DiffCollector` с ring-buffer'ом, per-entity
+    baseline и subscribe для live-потока.
+  - Интеграция в `SberBridge._publish_states` через
+    `DiffCollector.record_publish_payload` (парсит уже сериализованный
+    JSON, ничего не ломая в publish-пути).
+  - WebSocket API: `sber_mqtt_bridge/state_diffs`,
+    `.../clear_state_diffs`, `.../subscribe_state_diffs`.
+  - UI-компонент `sber-state-diff.js` во вкладке DevTools — таблица
+    delta-строк с цветной подсветкой `+` / `−` / `~`.
+
 ## [1.32.0] - 2026-04-22
 
 ### Added
