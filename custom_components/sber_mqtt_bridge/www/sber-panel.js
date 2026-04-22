@@ -21,6 +21,7 @@ await Promise.all([
   import(`./components/sber-toast.js${_q}`),
   import(`./components/sber-devtools.js${_q}`),
   import(`./components/sber-traces.js${_q}`),
+  import(`./components/sber-state-diff.js${_q}`),
   import(`./components/sber-settings.js${_q}`),
   import(`./components/sber-link-dialog.js${_q}`),
 ]);
@@ -537,6 +538,7 @@ class SberMqttPanel extends LitElement {
         @devtools-toast=${(e) => this._showToast(e.detail.message, e.detail.type)}
       ></sber-devtools>
       <sber-traces .hass=${this.hass}></sber-traces>
+      <sber-state-diff .hass=${this.hass}></sber-state-diff>
     `;
   }
 

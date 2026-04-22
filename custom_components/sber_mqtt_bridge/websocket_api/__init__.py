@@ -16,6 +16,7 @@ modules to keep per-file size and concerns focused:
 - ``settings``        — get_settings / update_settings
 - ``log``             — message_log / clear_message_log / subscribe_messages
 - ``traces``          — correlation-timeline traces (DevTools #1)
+- ``diffs``           — state-payload diffs (DevTools #2)
 
 All public ``ws_*`` command functions are re-exported at package level
 for test introspection.
@@ -35,6 +36,7 @@ from .devices_grouped import (
     ws_list_devices_for_category,
     ws_suggest_links,
 )
+from .diffs import ws_clear_state_diffs, ws_list_state_diffs, ws_subscribe_state_diffs
 from .entities import (
     ws_add_entities,
     ws_clear_all,
@@ -66,6 +68,7 @@ __all__ = [
     "ws_auto_link_all",
     "ws_clear_all",
     "ws_clear_message_log",
+    "ws_clear_state_diffs",
     "ws_clear_traces",
     "ws_device_detail",
     "ws_export",
@@ -76,6 +79,7 @@ __all__ = [
     "ws_import",
     "ws_list_categories",
     "ws_list_devices_for_category",
+    "ws_list_state_diffs",
     "ws_list_traces",
     "ws_message_log",
     "ws_publish_one_status",
@@ -89,6 +93,7 @@ __all__ = [
     "ws_set_entity_links",
     "ws_set_type_override",
     "ws_subscribe_messages",
+    "ws_subscribe_state_diffs",
     "ws_subscribe_traces",
     "ws_suggest_links",
     "ws_update_redefinitions",
@@ -134,6 +139,10 @@ _COMMANDS = (
     ws_get_trace,
     ws_clear_traces,
     ws_subscribe_traces,
+    # DevTools state diffs (v1.33.0)
+    ws_list_state_diffs,
+    ws_clear_state_diffs,
+    ws_subscribe_state_diffs,
     # Settings
     ws_get_settings,
     ws_update_settings,
