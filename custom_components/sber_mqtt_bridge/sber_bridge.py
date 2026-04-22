@@ -485,6 +485,61 @@ class SberBridge:
         self._stats.messages_sent += 1
         self._log_message("out", topic, payload)
 
+    async def async_inject_sber_message(
+        self,
+        topic: str,
+        payload: str | bytes,
+        *,
+        mark_replay: bool = True,
+    ) -> dict[str, Any]:
+        """Feed a synthetic message into the dispatcher as if Sber sent it.
+
+        Used by DevTools Replay / Inject: takes a topic (full
+        ``sbdev/.../down/commands`` or a bare suffix like ``commands``)
+        and runs it through the normal inbound pipeline —
+        :class:`SberCommandDispatcher`, correlation trace, state diff,
+        ack audit — without going through the MQTT broker.  No network
+        round-trip means an injected command flows even when the bridge
+        is offline, which is exactly what users want when debugging.
+
+        Args:
+            topic: Either the full MQTT topic as it would arrive from
+                Sber cloud, or just the last segment (suffix) which is
+                automatically expanded to ``{root}/down/{suffix}``.
+            payload: Raw JSON body.  Bytes pass through as-is; strings
+                are UTF-8 encoded to match the real on-wire shape.
+            mark_replay: When True (default), the DevTools message log
+                records the direction as ``"replay"`` instead of
+                ``"in"`` so the UI can visually distinguish synthetic
+                traffic from real Sber commands.  Set False to make
+                the injection indistinguishable from real MQTT input
+                (e.g. reproducing a bug for screenshot).
+
+        Returns:
+            Dict with ``{"topic": str, "handled": bool, "suffix": str}``.
+            ``handled`` is False only when no dispatcher was registered
+            for the given suffix (unknown topic).
+        """
+        full_topic = topic if "/" in topic else f"{self._down_topic}/{topic}"
+        body = payload.encode("utf-8") if isinstance(payload, str) else payload
+
+        # Route through the dispatch table used by the real MQTT handler.
+        suffix = full_topic.rsplit("/", 1)[-1] if "/" in full_topic else full_topic
+        decoded = body.decode("utf-8", errors="replace")
+        self._log_message("replay" if mark_replay else "in", full_topic, decoded)
+
+        if full_topic == SBER_GLOBAL_CONFIG_TOPIC:
+            self._handle_global_config(body)
+            return {"topic": full_topic, "handled": True, "suffix": "(global_config)"}
+
+        handler = self._mqtt_dispatch.get(suffix)
+        if handler is None:
+            _LOGGER.warning("Inject: unhandled topic suffix %r", suffix)
+            return {"topic": full_topic, "handled": False, "suffix": suffix}
+
+        await handler(body)
+        return {"topic": full_topic, "handled": True, "suffix": suffix}
+
     # ---------------------------------------------------------------------------
     # Message log subscriber management (for real-time DevTools push)
     # ---------------------------------------------------------------------------

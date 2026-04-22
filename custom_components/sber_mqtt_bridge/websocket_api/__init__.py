@@ -17,6 +17,7 @@ modules to keep per-file size and concerns focused:
 - ``log``             — message_log / clear_message_log / subscribe_messages
 - ``traces``          — correlation-timeline traces (DevTools #1)
 - ``diffs``           — state-payload diffs (DevTools #2)
+- ``replay``          — replay / inject Sber messages (DevTools #3)
 
 All public ``ws_*`` command functions are re-exported at package level
 for test introspection.
@@ -47,6 +48,7 @@ from .io_export import ws_export, ws_import, ws_update_redefinitions
 from .links import ws_auto_link_all, ws_set_entity_links
 from .log import ws_clear_message_log, ws_message_log, ws_subscribe_messages
 from .raw import ws_raw_config, ws_raw_states, ws_send_raw_config, ws_send_raw_state
+from .replay import ws_inject_sber_message, ws_replay_message
 from .settings import ws_get_settings, ws_update_settings
 from .status import (
     ws_device_detail,
@@ -77,6 +79,7 @@ __all__ = [
     "ws_get_status",
     "ws_get_trace",
     "ws_import",
+    "ws_inject_sber_message",
     "ws_list_categories",
     "ws_list_devices_for_category",
     "ws_list_state_diffs",
@@ -87,6 +90,7 @@ __all__ = [
     "ws_raw_states",
     "ws_related_sensors",
     "ws_remove_entities",
+    "ws_replay_message",
     "ws_republish",
     "ws_send_raw_config",
     "ws_send_raw_state",
@@ -143,6 +147,9 @@ _COMMANDS = (
     ws_list_state_diffs,
     ws_clear_state_diffs,
     ws_subscribe_state_diffs,
+    # DevTools replay / inject (v1.34.0)
+    ws_inject_sber_message,
+    ws_replay_message,
     # Settings
     ws_get_settings,
     ws_update_settings,
