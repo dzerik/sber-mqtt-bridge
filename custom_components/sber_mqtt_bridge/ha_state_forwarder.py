@@ -64,6 +64,7 @@ class HaStateForwarder:
         on_publish_states: Callable[[list[str]], Awaitable[None]],
         on_republish_config: Callable[[], Awaitable[None]],
         create_safe_task: Callable[..., asyncio.Task],
+        on_trace_state_change: Callable[[str | None, str, dict], None] | None = None,
     ) -> None:
         """Initialize the forwarder.
 
@@ -76,6 +77,11 @@ class HaStateForwarder:
             on_republish_config: Async callback to force a config republish.
             create_safe_task: Bridge helper wrapping ``hass.async_create_task``
                 with error logging.
+            on_trace_state_change: Optional DevTools hook invoked on every
+                processed primary state change with ``(context_id, entity_id,
+                state_dict)`` so the correlation-trace collector can attach
+                the event. No-op when ``None`` — keeps tests free of
+                DevTools wiring.
         """
         self._hass = hass
         self._debounce_delay = debounce_delay
@@ -84,6 +90,7 @@ class HaStateForwarder:
         self._on_publish_states = on_publish_states
         self._on_republish_config = on_republish_config
         self._create_safe_task = create_safe_task
+        self._on_trace_state_change = on_trace_state_change
 
         self._unsub_listeners: list[Callable[[], None]] = []
         self._pending_publish_ids: set[str] = set()
@@ -194,6 +201,13 @@ class HaStateForwarder:
             self._create_safe_task(self._on_republish_config(), name="republish_config_new_entity")
 
         _LOGGER.debug("HA → Sber state: %s = %s", entity_id, ha_state_dict.get("state"))
+        if self._on_trace_state_change is not None:
+            try:
+                ctx = getattr(event, "context", None)
+                ctx_id = getattr(ctx, "id", None)
+                self._on_trace_state_change(ctx_id, entity_id, ha_state_dict)
+            except Exception:  # pragma: no cover — DevTools must never break forwarding
+                _LOGGER.exception("DevTools trace hook failed for %s", entity_id)
         self._schedule_debounced_publish(entity_id)
 
     @callback

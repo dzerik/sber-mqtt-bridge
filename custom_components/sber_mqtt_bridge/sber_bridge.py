@@ -58,6 +58,7 @@ from .sber_protocol import (
     build_devices_list_json,
     build_states_list_json,
 )
+from .trace_collector import TraceCollector
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -201,6 +202,7 @@ class SberBridge:
             on_publish_states=self._publish_states,
             on_republish_config=self._publish_config,
             create_safe_task=self._create_safe_task,
+            on_trace_state_change=self._trace_on_state_change,
         )
 
         # Sber protocol command dispatcher (commands, status/config request, etc.)
@@ -245,6 +247,14 @@ class SberBridge:
 
         # Ring buffer + subscribers for MQTT message log (DevTools)
         self._msg_logger = MessageLogger(maxlen=self._message_log_size)
+
+        # Correlation-timeline collector (DevTools) — groups Sber+HA events
+        # per HomeAssistant.Context.id into logical traces. Swept via
+        # :meth:`_sweep_traces` on the existing connection-loop tick.
+        self._trace_collector = TraceCollector(
+            maxlen=self._message_log_size,
+            trace_timeout=10.0,
+        )
 
     @property
     def is_connected(self) -> bool:
@@ -441,6 +451,7 @@ class SberBridge:
         self._mqtt_service.update_backoff_limits(self._reconnect_min, self._reconnect_max)
         self._mqtt_service.update_verify_ssl(self._verify_ssl)
         self._msg_logger.resize(self._message_log_size)
+        self._trace_collector.resize(self._message_log_size)
 
         _LOGGER.info(
             "Bridge settings applied (debounce=%.2fs, log=%d)",
@@ -485,6 +496,47 @@ class SberBridge:
     def _log_message(self, direction: str, topic: str, payload: str) -> None:
         """Append message to ring buffer and notify subscribers."""
         self._msg_logger.log(direction, topic, payload)
+
+    # ---------------------------------------------------------------------------
+    # Correlation-timeline traces (DevTools #1)
+    # ---------------------------------------------------------------------------
+
+    @property
+    def trace_collector(self) -> TraceCollector:
+        """Return the correlation-trace collector for WS API access."""
+        return self._trace_collector
+
+    def _sweep_traces(self) -> None:
+        """Close traces idle beyond the configured timeout.
+
+        Invoked opportunistically from the bridge housekeeping path; safe to
+        call from either the event loop or a sync callback since
+        :meth:`TraceCollector.sweep` is CPU-only.
+        """
+        try:
+            self._trace_collector.sweep()
+        except Exception:  # pragma: no cover — must never break the bridge
+            _LOGGER.exception("Trace sweep failed")
+
+    def _trace_on_state_change(
+        self, context_id: str | None, entity_id: str, state: dict
+    ) -> None:
+        """Forwarder hook → append ``ha_state_changed`` to the correlation trace.
+
+        When ``context_id`` is already known (because a Sber command opened
+        the trace moments ago), the event joins that trace. Otherwise a new
+        trace is opened with ``trigger="ha_state_change"`` so DevTools also
+        surfaces user-initiated changes in the HA UI.
+        """
+        if not context_id:
+            return
+        self._trace_collector.record(
+            context_id,
+            type_="ha_state_changed",
+            entity_id=entity_id,
+            payload={"state": state.get("state"), "attributes": state.get("attributes")},
+            trigger_if_new="ha_state_change",
+        )
 
     async def async_start(self) -> None:
         """Start the bridge: load entities, subscribe to HA events, connect MQTT.
@@ -723,6 +775,9 @@ class SberBridge:
                 int(self._ack_audit_delay),
                 ", ".join(unack),
             )
+            # Mark any active correlation traces for these entities as failed
+            # so DevTools surfaces "Sber never acknowledged" cleanly.
+            self._trace_collector.record_silent_rejection(unack)
         self._create_safe_task(
             check_and_create_issues(self._hass, self),
             name="ack_audit_issues",
@@ -962,7 +1017,11 @@ class SberBridge:
                 if entity is not None:
                     entity.mark_state_published()
         # DevTools: log outgoing message
-        self._log_message("out", topic, payload if isinstance(payload, str) else "")
+        payload_str = payload if isinstance(payload, str) else ""
+        self._log_message("out", topic, payload_str)
+        # DevTools correlation: attach this publish to each entity's active trace.
+        for eid in entity_ids or self._enabled_entity_ids:
+            self._trace_collector.record_publish(eid, topic, payload_str)
 
     async def _publish_config(self, entity_ids: list[str] | None = None) -> None:
         """Publish device config to Sber MQTT."""

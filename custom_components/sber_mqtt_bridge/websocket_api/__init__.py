@@ -15,6 +15,7 @@ modules to keep per-file size and concerns focused:
 - ``io_export``       — export / import / update_redefinitions
 - ``settings``        — get_settings / update_settings
 - ``log``             — message_log / clear_message_log / subscribe_messages
+- ``traces``          — correlation-timeline traces (DevTools #1)
 
 All public ``ws_*`` command functions are re-exported at package level
 for test introspection.
@@ -53,6 +54,7 @@ from .status import (
     ws_related_sensors,
     ws_republish,
 )
+from .traces import ws_clear_traces, ws_get_trace, ws_list_traces, ws_subscribe_traces
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,14 +66,17 @@ __all__ = [
     "ws_auto_link_all",
     "ws_clear_all",
     "ws_clear_message_log",
+    "ws_clear_traces",
     "ws_device_detail",
     "ws_export",
     "ws_get_devices",
     "ws_get_settings",
     "ws_get_status",
+    "ws_get_trace",
     "ws_import",
     "ws_list_categories",
     "ws_list_devices_for_category",
+    "ws_list_traces",
     "ws_message_log",
     "ws_publish_one_status",
     "ws_raw_config",
@@ -84,6 +89,7 @@ __all__ = [
     "ws_set_entity_links",
     "ws_set_type_override",
     "ws_subscribe_messages",
+    "ws_subscribe_traces",
     "ws_suggest_links",
     "ws_update_redefinitions",
     "ws_update_settings",
@@ -123,6 +129,11 @@ _COMMANDS = (
     ws_message_log,
     ws_clear_message_log,
     ws_subscribe_messages,
+    # DevTools correlation timeline (v1.32.0)
+    ws_list_traces,
+    ws_get_trace,
+    ws_clear_traces,
+    ws_subscribe_traces,
     # Settings
     ws_get_settings,
     ws_update_settings,
