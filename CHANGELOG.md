@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.35.0] - 2026-04-22
+
+### Added
+
+- **DevTools: Schema Validation** — каждый исходящий state-publish
+  проверяется против авто-генерированной Sber-спецификации
+  (`_generated/feature_types.py`,
+  `_generated/obligatory_features.py`,
+  `_generated/category_features.py`), найденные проблемы попадают в
+  панель как actionable issues с severity. Четыре класса проверок:
+  - `missing_obligatory` (error) — не хватает feature из
+    обязательного списка category → Sber молча дропает устройство.
+  - `type_mismatch` (error) — `value.type` не совпадает с
+    `FEATURE_TYPES[key]` (например, `STRING` вместо `ENUM`).
+  - `unknown_for_category` (warning) — feature не в reference set
+    category.
+  - `not_declared` (info) — feature в payload, но не в
+    `features`-списке устройства.
+
+  Новые компоненты:
+  - `schema_validator.py` — pure-Python `validate_publish(...)` +
+    `ValidationCollector` с ring-buffer'ом и per-entity
+    latest-snapshot (чтобы UI мог и хронологически, и «что сломано
+    прямо сейчас»).
+  - Интеграция в `SberBridge._publish_states` — читает
+    `entity.category` и `entity.get_final_features_list()` из уже
+    загруженных entity'ов, не меняет publish-код.
+  - WebSocket API: `sber_mqtt_bridge/validation_issues`,
+    `.../clear_validation_issues`, `.../subscribe_validation_issues`.
+  - UI-компонент `sber-validation.js` во вкладке DevTools — две
+    вкладки (By entity / Timeline), счётчики errors/warnings/info,
+    цветные severity-badges.
+
 ## [1.34.0] - 2026-04-22
 
 ### Added

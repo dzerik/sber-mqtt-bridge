@@ -18,6 +18,7 @@ modules to keep per-file size and concerns focused:
 - ``traces``          — correlation-timeline traces (DevTools #1)
 - ``diffs``           — state-payload diffs (DevTools #2)
 - ``replay``          — replay / inject Sber messages (DevTools #3)
+- ``validation``      — Sber schema validation issues (DevTools #4)
 
 All public ``ws_*`` command functions are re-exported at package level
 for test introspection.
@@ -59,6 +60,11 @@ from .status import (
     ws_republish,
 )
 from .traces import ws_clear_traces, ws_get_trace, ws_list_traces, ws_subscribe_traces
+from .validation import (
+    ws_clear_validation_issues,
+    ws_list_validation_issues,
+    ws_subscribe_validation_issues,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,6 +78,7 @@ __all__ = [
     "ws_clear_message_log",
     "ws_clear_state_diffs",
     "ws_clear_traces",
+    "ws_clear_validation_issues",
     "ws_device_detail",
     "ws_export",
     "ws_get_devices",
@@ -84,6 +91,7 @@ __all__ = [
     "ws_list_devices_for_category",
     "ws_list_state_diffs",
     "ws_list_traces",
+    "ws_list_validation_issues",
     "ws_message_log",
     "ws_publish_one_status",
     "ws_raw_config",
@@ -99,6 +107,7 @@ __all__ = [
     "ws_subscribe_messages",
     "ws_subscribe_state_diffs",
     "ws_subscribe_traces",
+    "ws_subscribe_validation_issues",
     "ws_suggest_links",
     "ws_update_redefinitions",
     "ws_update_settings",
@@ -150,6 +159,10 @@ _COMMANDS = (
     # DevTools replay / inject (v1.34.0)
     ws_inject_sber_message,
     ws_replay_message,
+    # DevTools schema validation (v1.35.0)
+    ws_list_validation_issues,
+    ws_clear_validation_issues,
+    ws_subscribe_validation_issues,
     # Settings
     ws_get_settings,
     ws_update_settings,

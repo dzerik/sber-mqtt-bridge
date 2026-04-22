@@ -58,6 +58,7 @@ from .sber_protocol import (
     build_devices_list_json,
     build_states_list_json,
 )
+from .schema_validator import ValidationCollector
 from .state_diff import DiffCollector
 from .trace_collector import TraceCollector
 
@@ -262,6 +263,11 @@ class SberBridge:
         # "what actually changed" instead of the full repetitive payload.
         self._diff_collector = DiffCollector(maxlen=self._message_log_size)
 
+        # Schema validator (DevTools) — checks every outbound publish
+        # against the auto-generated Sber spec so users see silent
+        # rejections turn into explicit actionable issues.
+        self._validation_collector = ValidationCollector(maxlen=self._message_log_size)
+
     @property
     def is_connected(self) -> bool:
         """Return True if connected to Sber MQTT."""
@@ -459,6 +465,7 @@ class SberBridge:
         self._msg_logger.resize(self._message_log_size)
         self._trace_collector.resize(self._message_log_size)
         self._diff_collector.resize(self._message_log_size)
+        self._validation_collector.resize(self._message_log_size)
 
         _LOGGER.info(
             "Bridge settings applied (debounce=%.2fs, log=%d)",
@@ -572,6 +579,11 @@ class SberBridge:
     def diff_collector(self) -> DiffCollector:
         """Return the state-diff collector for WS API access."""
         return self._diff_collector
+
+    @property
+    def validation_collector(self) -> ValidationCollector:
+        """Return the schema-validation collector for WS API access."""
+        return self._validation_collector
 
     def _sweep_traces(self) -> None:
         """Close traces idle beyond the configured timeout.
@@ -1092,6 +1104,19 @@ class SberBridge:
             self._diff_collector.record_publish_payload(payload_str, topic=topic)
         except Exception:  # pragma: no cover — must never break publish
             _LOGGER.exception("DiffCollector.record_publish_payload failed")
+        # DevTools schema validation: check the payload against the Sber spec
+        # (obligatory features / feature types / unknown keys) so silent
+        # rejections become explicit actionable issues.
+        try:
+            categories = {eid: ent.category for eid, ent in self._entities.items()}
+            declared = {eid: ent.get_final_features_list() for eid, ent in self._entities.items()}
+            self._validation_collector.record_publish_payload(
+                payload_str,
+                categories=categories,
+                declared_features=declared,
+            )
+        except Exception:  # pragma: no cover — must never break publish
+            _LOGGER.exception("ValidationCollector.record_publish_payload failed")
 
     async def _publish_config(self, entity_ids: list[str] | None = None) -> None:
         """Publish device config to Sber MQTT."""
