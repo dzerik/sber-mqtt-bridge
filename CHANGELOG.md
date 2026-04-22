@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.36.0] - 2026-04-22
+
+### Added
+
+- **DevTools: «Why isn't it working?» per-entity diagnose** —
+  один запрос собирает всю картину по конкретной entity из всех
+  уже подключённых источников (entity registry, ack-stats,
+  correlation trace, state diff, schema validation) и выдаёт
+  вердикт `ok` / `warning` / `broken` с конкретными findings и
+  actionable recommendations. Восемь правил:
+  - `not_known_to_bridge` (error) — entity не загружена.
+  - `not_enabled` (error) — загружена, но не включена.
+  - `linked_sensor` (info) — это linked sensor, диагностируй
+    primary.
+  - `not_filled_by_state` (warning) — HA ещё не прислал state.
+  - `never_acknowledged` (error) — Sber не подтвердил device
+    (silent rejection).
+  - `validation_errors` / `validation_warnings` (error/warning)
+    — найдены schema-validation issues.
+  - `recent_trace_failed` (error) — последняя trace ended as
+    failed.
+  - `recent_trace_timeout` (warning) — trace закрыт по timeout.
+
+  Verdict берёт худшую severity из findings. Новые компоненты:
+  - `diagnostics_advisor.py` — pure-функция
+    `diagnose_entity(bridge, entity_id) -> DiagnosticReport`;
+    каждое правило — независимая функция, легко добавлять новые.
+  - WebSocket API: `sber_mqtt_bridge/diagnose_entity`
+    (request/response, не subscribe).
+  - UI-компонент `sber-diagnose.js` во вкладке DevTools —
+    `entity_id` input + кнопка Diagnose, цветной verdict, список
+    findings с action-подсказкой, collapsible raw summary и
+    кнопка Copy report (для багрепортов).
+
 ## [1.35.0] - 2026-04-22
 
 ### Added
