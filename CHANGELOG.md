@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.34.0] - 2026-04-22
+
+### Added
+
+- **DevTools: Replay / Inject** — кнопка «Replay» на каждой входящей
+  записи MQTT-лога возвращает тот же payload обратно в диспетчер
+  моста так, будто Sber прислал его снова. Сетевой round-trip не
+  происходит, работает и в offline — тот же `SberCommandDispatcher`,
+  тот же correlation trace, тот же state diff, тот же ack audit.
+  Рядом — ручной JSON-editor с выбором topic suffix
+  (`commands` / `status_request` / `config_request` / `errors` /
+  `change_group` / `rename_device`) для инъекции произвольной
+  команды. Синтетический трафик помечается в логе
+  `direction="replay"`, чтобы UI не предлагал «реплеить реплей» и
+  не зацикливал пользователя. Новые компоненты:
+  - `SberBridge.async_inject_sber_message(topic, payload, *,
+    mark_replay=True)` — публичный entrypoint, роутит через
+    существующий `_mqtt_dispatch`.
+  - WebSocket API: `sber_mqtt_bridge/inject_sber_message`,
+    `.../replay_message`.
+  - UI-компонент `sber-replay.js` во вкладке DevTools — manual
+    inject form + список последних 15 incoming сообщений с кнопкой
+    Replay.
+
 ## [1.33.0] - 2026-04-22
 
 ### Added
