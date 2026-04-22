@@ -23,6 +23,7 @@ await Promise.all([
   import(`./components/sber-traces.js${_q}`),
   import(`./components/sber-state-diff.js${_q}`),
   import(`./components/sber-replay.js${_q}`),
+  import(`./components/sber-validation.js${_q}`),
   import(`./components/sber-settings.js${_q}`),
   import(`./components/sber-link-dialog.js${_q}`),
 ]);
@@ -541,6 +542,7 @@ class SberMqttPanel extends LitElement {
       <sber-traces .hass=${this.hass}></sber-traces>
       <sber-state-diff .hass=${this.hass}></sber-state-diff>
       <sber-replay .hass=${this.hass}></sber-replay>
+      <sber-validation .hass=${this.hass}></sber-validation>
     `;
   }
 
