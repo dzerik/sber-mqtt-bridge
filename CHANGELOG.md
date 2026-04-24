@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.36.2] - 2026-04-24
+
+### Added
+
+- **DEBUG-логирование MQTT-payload.** При
+  `custom_components.sber_mqtt_bridge: debug` в лог пишется полный JSON,
+  публикуемый в `up/config` и `up/status`.  Нужно для диагностики silent
+  rejection на стороне Sber cloud (issue #32): без payload невозможно
+  понять, какая именно часть схемы отклоняется.
+
+### Fixed
+
+- **`sber_protocol.VERSION`** отставал на релиз (`1.36.0` при manifest
+  `1.36.1`) — теперь синхронизирован с `manifest.json` и `pyproject.toml`.
+
 ## [1.36.1] - 2026-04-24
 
 ### Fixed

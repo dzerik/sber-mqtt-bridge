@@ -1078,6 +1078,12 @@ class SberBridge:
 
         payload, payload_valid = build_states_list_json(self._entities, entity_ids, self._enabled_entity_ids)
         topic = f"{self._root_topic}/up/status"
+        _LOGGER.debug(
+            "Publishing state to %s (%d bytes): %s",
+            topic,
+            len(payload) if isinstance(payload, str) else 0,
+            payload,
+        )
         try:
             await self._mqtt_service.publish(topic, payload)
         except (aiomqtt.MqttError, RuntimeError):
@@ -1147,6 +1153,12 @@ class SberBridge:
                 ", ".join(invalid_ids),
             )
         topic = f"{self._root_topic}/up/config"
+        _LOGGER.debug(
+            "Publishing config to %s (%d bytes): %s",
+            topic,
+            len(payload) if isinstance(payload, str) else 0,
+            payload,
+        )
         try:
             await self._mqtt_service.publish(topic, payload)
         except (aiomqtt.MqttError, RuntimeError):
