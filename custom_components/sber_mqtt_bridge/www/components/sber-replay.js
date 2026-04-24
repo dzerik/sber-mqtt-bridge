@@ -16,11 +16,7 @@
  * never feed themselves in a loop.
  */
 
-const LitElement = Object.getPrototypeOf(
-  customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
-);
-const html = LitElement?.prototype.html;
-const css = LitElement?.prototype.css;
+import { LitElement, html, css } from "../lit-base.js";
 
 const TOPIC_SUFFIXES = [
   "commands",

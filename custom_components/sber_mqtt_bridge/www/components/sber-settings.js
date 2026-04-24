@@ -5,11 +5,7 @@
  * Changes are saved to config_entry.options and applied to the running bridge.
  */
 
-const LitElement = Object.getPrototypeOf(
-  customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
-);
-const html = LitElement?.prototype.html;
-const css = LitElement?.prototype.css;
+import { LitElement, html, css } from "../lit-base.js";
 
 /** Setting definitions with metadata for rendering. */
 const SETTING_DEFS = [

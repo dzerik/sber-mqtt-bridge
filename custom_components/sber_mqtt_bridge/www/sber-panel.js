@@ -29,11 +29,7 @@ await Promise.all([
   import(`./components/sber-link-dialog.js${_q}`),
 ]);
 
-const LitElement = Object.getPrototypeOf(
-  customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
-);
-const html = LitElement?.prototype.html ?? (await import("https://unpkg.com/lit@3/index.js?module")).html;
-const css = LitElement?.prototype.css ?? (await import("https://unpkg.com/lit@3/index.js?module")).css;
+import { LitElement, html, css } from "./lit-base.js";
 
 /* ---------- main panel ---------- */
 

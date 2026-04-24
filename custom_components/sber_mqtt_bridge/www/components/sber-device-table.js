@@ -12,11 +12,7 @@ await Promise.all([
   import(`./sber-detail-dialog.js${_q}`),
 ]);
 
-const LitElement = Object.getPrototypeOf(
-  customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
-);
-const html = LitElement?.prototype.html;
-const css = LitElement?.prototype.css;
+import { LitElement, html, css } from "../lit-base.js";
 
 class SberDeviceTable extends LitElement {
   static get properties() {

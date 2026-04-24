@@ -51,3 +51,4 @@ docs/ARCHITECTURE_RESEARCH.md
 docs/audit/
 /build/
 /docs/mem.txt
+/.claude/

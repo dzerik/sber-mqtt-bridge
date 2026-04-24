@@ -4,11 +4,7 @@
  * Renders bridge statistics (uptime, messages, errors, etc.) in a responsive grid.
  */
 
-const LitElement = Object.getPrototypeOf(
-  customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
-);
-const html = LitElement?.prototype.html;
-const css = LitElement?.prototype.css;
+import { LitElement, html, css } from "../lit-base.js";
 
 function formatUptime(seconds) {
   if (seconds == null) return "\u2014";

@@ -9,11 +9,7 @@
  *   toast.show("Device added", "success");
  */
 
-const LitElement = Object.getPrototypeOf(
-  customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
-);
-const html = LitElement?.prototype.html;
-const css = LitElement?.prototype.css;
+import { LitElement, html, css } from "../lit-base.js";
 
 class SberToast extends LitElement {
   static get properties() {

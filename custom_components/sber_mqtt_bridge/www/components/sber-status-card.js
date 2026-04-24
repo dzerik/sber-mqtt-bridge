@@ -5,11 +5,7 @@
  * and descriptive text. Phases: starting, connecting, awaiting_ack, ready, disconnected.
  */
 
-const LitElement = Object.getPrototypeOf(
-  customElements.get("ha-panel-lovelace") ?? customElements.get("hui-view")
-);
-const html = LitElement?.prototype.html;
-const css = LitElement?.prototype.css;
+import { LitElement, html, css } from "../lit-base.js";
 
 /** Phase metadata: color class, label, description. */
 const PHASES = {
