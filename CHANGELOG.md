@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.36.3] - 2026-04-24
+
+### Added
+
+- **Advisory WARN-логирование для `device.name` / `device.id`** (модуль
+  `name_utils`).  Перед publish проверяется, что `id` содержит только
+  `[A-Za-z0-9_.-]`, а `name` — не пустой, не длиннее 63 символов.  При
+  нарушении печатается WARN с entity_id — удобно для диагностики silent
+  rejection (#32).  Валидация **advisory**: устройство всё равно
+  публикуется, потому что Sber C2C docs не формализуют эти ограничения.
+- **`slugify_sber_id(text)`** — Python-аналог `www/utils.js:slugify`.
+  Кириллица → латиница, всё не-`[a-z0-9]` → `_`.  Для будущих YAML/API
+  хелперов, которые строят `device.id` из человеческой строки.
+- **`is_salut_friendly_name` / `is_safe_sber_id`** — предикаты для той
+  же задачи, используются в pydantic/UI.
+
+### Fixed
+
+- Snapshot-тестов `test_protocol_snapshots.ambr` `hw_version`/`sw_version`
+  для root hub обновлены под новый `VERSION`.
+
 ## [1.36.2] - 2026-04-24
 
 ### Added

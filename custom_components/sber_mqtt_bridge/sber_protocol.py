@@ -11,11 +11,12 @@ import logging
 from typing import Any
 
 from .devices.base_entity import BaseEntity
+from .name_utils import warn_if_suspicious_id, warn_if_suspicious_name
 from .sber_models import validate_config_payload, validate_device, validate_status_payload
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.36.2"
+VERSION = "1.36.3"
 """Protocol version string included in the hub device descriptor."""
 
 
@@ -170,6 +171,12 @@ def build_devices_list_json(
             _inject_ha_serial(device_data, resolve_ha_serial_number(entity, ha_serial_prefix))
 
         filtered = {k: v for k, v in device_data.items() if v is not None}
+
+        # Advisory: surface names/ids that Sber is known to silently
+        # reject or that Salut voice will not recognise.  Non-fatal,
+        # we still publish — user sees a clear WARN in the log.
+        warn_if_suspicious_id(filtered.get("id", ""))
+        warn_if_suspicious_name(filtered.get("id", ""), filtered.get("name", ""))
 
         # Per-device strict pydantic validation — exclude invalid devices
         # instead of poisoning the entire config payload.
