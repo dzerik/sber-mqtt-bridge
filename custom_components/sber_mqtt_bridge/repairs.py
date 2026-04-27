@@ -19,7 +19,11 @@ from homeassistant.helpers.issue_registry import (
 if TYPE_CHECKING:
     from .sber_bridge import SberBridge
 
-from .const import DOMAIN
+from .const import (
+    CONF_SILENT_REJECTION_ALERTS,
+    DOMAIN,
+    SETTINGS_DEFAULTS,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -150,18 +154,25 @@ def _check_unacknowledged_entities(hass: HomeAssistant, bridge: SberBridge) -> N
     """Create/delete issue for entities silently rejected by Sber cloud.
 
     Sber cloud accepts the config payload without errors but may not send
-    ``status_request`` for certain devices — a silent rejection.  This check
-    creates a visible HA repair issue so the user doesn't have to discover
-    the problem manually in the panel.
+    ``status_request`` for certain devices — a silent rejection.  When the
+    user has opted into ``CONF_SILENT_REJECTION_ALERTS`` (off by default),
+    a visible HA repair issue surfaces the problem.
 
-    Only fires when the bridge is connected (otherwise unack is expected).
+    The default is off because the 60-second audit window does not match
+    real Sber cadence: cloud may accept a device, dispatch commands, yet
+    never trigger ``status_request`` until the user pulls to refresh the
+    Sber app.  In those cases the warning is a false positive.  The
+    underlying audit still runs (panel + WARN log) so the data is not
+    lost — only the repair-tile noise is.
 
     Args:
         hass: Home Assistant core instance.
         bridge: The active SberBridge instance.
     """
+    options = bridge.config_entry.options
+    enabled = bool(options.get(CONF_SILENT_REJECTION_ALERTS, SETTINGS_DEFAULTS[CONF_SILENT_REJECTION_ALERTS]))
     unack = bridge.unacknowledged_entities
-    if unack and bridge.is_connected:
+    if enabled and unack and bridge.is_connected:
         async_create_issue(
             hass,
             DOMAIN,

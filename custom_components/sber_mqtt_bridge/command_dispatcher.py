@@ -68,6 +68,7 @@ class BridgeCommandContext(Protocol):
     def _create_safe_task(self, coro: object, *, name: str | None = None) -> asyncio.Task: ...
     async def _delayed_confirm(self, entity_id: str) -> None: ...
     def _sweep_traces(self) -> None: ...
+    def refresh_repair_issues(self) -> None: ...
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -182,6 +183,22 @@ class SberCommandDispatcher:
                 bridge._delayed_confirm(eid), name=f"delayed_confirm_{eid}"
             )
 
+        # Receiving any command is positive evidence that Sber accepted at
+        # least one entity — re-evaluate the silent-rejection issue so a
+        # stale repair tile clears as soon as the user activates the device.
+        self._refresh_repair_issues()
+
+    def _refresh_repair_issues(self) -> None:
+        """Ask the bridge to recompute its HA repair-issue set.
+
+        Triggered after acknowledgments arrive from Sber so a stale
+        silent-rejection tile clears in real time instead of waiting for
+        the next entity reload or audit timer.  Bridge owns the actual
+        :func:`check_and_create_issues` call to keep the dispatcher free
+        of bridge-specific imports.
+        """
+        self._bridge.refresh_repair_issues()
+
     async def _call_ha_service(self, entity_id: str, cmd: dict, context: Context) -> None:
         """Invoke ``hass.services.async_call`` for a single Sber → HA call."""
         bridge = self._bridge
@@ -247,6 +264,12 @@ class SberCommandDispatcher:
             )
 
         await bridge._publish_states(requested_ids if requested_ids else None, force=True)
+
+        # status_request is the strongest single ack signal we get from
+        # Sber (it explicitly enumerates accepted entities or asks for
+        # the whole set).  Refresh the repair issues so the silent-
+        # rejection tile clears in real time, not only on next reload.
+        self._refresh_repair_issues()
 
     async def handle_config_request(self) -> None:
         """Handle config request from Sber cloud — send device list."""

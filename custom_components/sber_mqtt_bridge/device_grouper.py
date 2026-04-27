@@ -283,6 +283,12 @@ class HaDeviceGrouper:
 
         Returns ``None`` when no entity of this device matches the target
         category (device is irrelevant for this wizard step).
+
+        Multi-channel devices (power strips, multi-gang switches) are
+        handled by surfacing every still-unexposed matching entity as a
+        check-able primary in the wizard; already-exposed channels are
+        filtered out so each subsequent wizard pass shows what's left to
+        add and the card disables only when nothing remains.
         """
         spec = CATEGORY_DOMAIN_MAP[sber_category]
 
@@ -305,8 +311,14 @@ class HaDeviceGrouper:
         accepted_roles: tuple[LinkableRole, ...] = primary_class.LINKABLE_ROLES if primary_class is not None else ()
 
         # 4. Classify siblings (linked_native + unsupported)
+        # Alternative primaries are NOT siblings of the primary — they are
+        # peer Sber devices the user can multi-select.  Excluding them
+        # keeps multi-gang switches out of the "Not usable" section where
+        # they would otherwise leak as duplicates of the alternatives row.
+        alternative_ids = {entry.entity_id for entry in alternative_entries}
+        sibling_pool = [entry for entry in device_entries if entry.entity_id not in alternative_ids]
         linked_native, unsupported = self._classify_native_siblings(
-            device_entries=device_entries,
+            device_entries=sibling_pool,
             primary_entity_id=primary_entry.entity_id,
             device=device,
             accepted_roles=accepted_roles,
@@ -390,13 +402,21 @@ class HaDeviceGrouper:
     ) -> tuple[er.RegistryEntry | None, list[er.RegistryEntry]]:
         """Pick the primary entity for a device + category.
 
-        Returns ``(primary, alternatives)``.  Both are None / empty when
-        no entity of this device matches the target category.
+        Returns ``(primary, alternatives)``.  Already-exposed entries are
+        filtered out so the wizard surfaces only channels left to add —
+        critical for multi-gang devices (power strips, 4-channel relays)
+        where the user adds sockets in multiple passes.  When *all*
+        matching entries are already exposed, returns ``(matching[0], rest)``
+        unchanged so the caller can still flag the device as
+        ``already_exposed=True`` instead of dropping it from the list.
         """
         matching = [entry for entry in device_entries if spec.matches(entry.domain, entry.original_device_class or "")]
         if not matching:
             return None, []
-        # Stable order from the registry iteration; first wins, rest are alternatives.
+        unexposed = [entry for entry in matching if entry.entity_id not in self._exposed]
+        if unexposed:
+            return unexposed[0], unexposed[1:]
+        # Every channel already added — keep the device visible but flagged.
         return matching[0], matching[1:]
 
     def _classify_native_siblings(

@@ -274,6 +274,69 @@ class TestPrimaryAlternatives:
         assert group.primary.entity_id == "switch.gw_relay1"
         assert len(group.primary_alternatives) == 1
         assert group.primary_alternatives[0].entity_id == "switch.gw_relay2"
+        assert group.already_exposed is False
+
+    def test_alternatives_not_duplicated_in_unsupported(self, hass, mock_registries):
+        """Multi-channel switches must NOT also leak into the 'Not usable' bucket."""
+        entity_reg, device_reg, _ = mock_registries
+        _set_devices(device_reg, [_make_device("strip", name="PowerStrip")])
+        _set_entities(
+            entity_reg,
+            [
+                _make_entity("switch.strip_no1", device_id="strip"),
+                _make_entity("switch.strip_no2", device_id="strip"),
+                _make_entity("switch.strip_no3", device_id="strip"),
+            ],
+        )
+        grouper = HaDeviceGrouper(hass)
+        result = grouper.list_for_category("relay")
+        assert len(result) == 1
+        group = result[0]
+        unsupported_ids = {entity.entity_id for entity in group.unsupported}
+        alt_ids = {entity.entity_id for entity in group.primary_alternatives}
+        assert alt_ids == {"switch.strip_no2", "switch.strip_no3"}
+        assert unsupported_ids.isdisjoint(alt_ids)
+
+    def test_already_exposed_channels_filtered_from_primaries(self, hass, mock_registries):
+        """After adding socket #1, the wizard surfaces #2..#5 and stays selectable."""
+        entity_reg, device_reg, _ = mock_registries
+        _set_devices(device_reg, [_make_device("strip", name="PowerStrip")])
+        _set_entities(
+            entity_reg,
+            [
+                _make_entity(f"switch.strip_no{i}", device_id="strip")
+                for i in range(1, 6)
+            ],
+        )
+        exposed = {"switch.strip_no1"}
+        grouper = HaDeviceGrouper(hass, exposed_ids=exposed)
+        result = grouper.list_for_category("relay")
+        assert len(result) == 1
+        group = result[0]
+        assert group.primary.entity_id == "switch.strip_no2"
+        assert [a.entity_id for a in group.primary_alternatives] == [
+            "switch.strip_no3",
+            "switch.strip_no4",
+            "switch.strip_no5",
+        ]
+        assert group.already_exposed is False  # still has 4 channels left to add
+
+    def test_all_channels_exposed_marks_device_done(self, hass, mock_registries):
+        """When every channel is already added, the device card flags as exposed."""
+        entity_reg, device_reg, _ = mock_registries
+        _set_devices(device_reg, [_make_device("strip", name="PowerStrip")])
+        _set_entities(
+            entity_reg,
+            [
+                _make_entity("switch.strip_no1", device_id="strip"),
+                _make_entity("switch.strip_no2", device_id="strip"),
+            ],
+        )
+        exposed = {"switch.strip_no1", "switch.strip_no2"}
+        grouper = HaDeviceGrouper(hass, exposed_ids=exposed)
+        result = grouper.list_for_category("relay")
+        assert len(result) == 1
+        assert result[0].already_exposed is True
 
 
 class TestDisabledHiddenEntities:

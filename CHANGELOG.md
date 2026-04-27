@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.37.0] - 2026-04-27
+
+### Added
+
+- **Multi-channel devices в Add Device wizard.** Шаг 2 теперь рендерит
+  список primary entities как **чекбоксы** вместо radio-кнопок: для
+  устройства с несколькими switch/light на одном HA `device.id`
+  (Tuya power strip, sonoff 4ch, многоканальные выключатели) можно
+  одной wizard-сессией добавить все каналы.  Шаг 3 показывает
+  отдельную карточку «name + room» на каждый выбранный primary, и при
+  finish выполняется `add_ha_device` последовательно для каждого
+  канала.  Linked sensors прикрепляются только к первому primary,
+  чтобы Sber не отклонял дубли (issue #32).
+- **Backend: фильтрация уже добавленных каналов.**
+  `HaDeviceGrouper._select_primary` теперь возвращает первую *не
+  добавленную* matching entity как primary, а exposed-каналы
+  отбрасываются из alternatives.  Когда все каналы добавлены, карточка
+  устройства флагуется `already_exposed=True` (тесты:
+  `test_already_exposed_channels_filtered_from_primaries`,
+  `test_all_channels_exposed_marks_device_done`).
+- **Защита alternatives от попадания в Not usable.**
+  `_build_group` исключает `alternative_entries` из sibling pool до
+  classify, иначе `switch.relay2..N` дублировались в `unsupported`.
+- **Settings → Diagnostics → «Show silent-rejection repair tile».**
+  Новый toggle `silent_rejection_alerts` (default **off**).
+
+### Changed
+
+- **Silent-rejection issue по умолчанию выключен.** Audit
+  по-прежнему работает (WARN в лог + видно в панели), но HA «Repairs»
+  плитка `unacknowledged_entities` создаётся только при включённой
+  опции.  Sber cloud легитимно может не слать `status_request`
+  часами, поэтому 60-секундное окно даёт ложные срабатывания
+  (issue #32).
+- **Auto-clear silent-rejection issue по факту ack.** После каждого
+  Sber `command` или `status_request` диспетчер вызывает
+  `bridge.refresh_repair_issues()` → `check_and_create_issues`.
+  Если все entities стали acknowledged, плитка пропадает мгновенно,
+  без ожидания следующего перезагрузки entity-листа.
+
 ## [1.36.3] - 2026-04-24
 
 ### Added

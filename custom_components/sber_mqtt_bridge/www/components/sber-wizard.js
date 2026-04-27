@@ -29,11 +29,12 @@ class SberWizard extends LitElement {
       _devices: { type: Array },
       _deviceFilter: { type: String },
       _selectedDeviceId: { type: String },
-      _selectedPrimary: { type: String },
+      _selectedPrimaries: { type: Array },
       _enabledLinks: { type: Object },
-      _name: { type: String },
-      _slugId: { type: String },
-      _room: { type: String },
+      /* Per-primary Step 3 form values keyed by entity_id.
+       * Multi-select case (e.g. power strip with 5 sockets) keeps an
+       * independent {name, slug, room} for each selected primary. */
+      _perPrimary: { type: Object },
       _loading: { type: Boolean },
       _error: { type: String },
     };
@@ -53,11 +54,9 @@ class SberWizard extends LitElement {
     this._devices = [];
     this._deviceFilter = "";
     this._selectedDeviceId = "";
-    this._selectedPrimary = "";
+    this._selectedPrimaries = [];
     this._enabledLinks = new Set();
-    this._name = "";
-    this._slugId = "";
-    this._room = "";
+    this._perPrimary = {};
     this._loading = false;
     this._error = "";
   }
@@ -119,7 +118,7 @@ class SberWizard extends LitElement {
       await this._loadDevicesForCategory();
       return;
     }
-    if (this._step === 2 && this._selectedDeviceId) {
+    if (this._step === 2 && this._selectedDeviceId && this._selectedPrimaries.length > 0) {
       this._prefillStep3FromSelectedDevice();
       this._step = 3;
     }
@@ -132,8 +131,9 @@ class SberWizard extends LitElement {
     }
     if (this._step === 2) {
       this._selectedDeviceId = "";
-      this._selectedPrimary = "";
+      this._selectedPrimaries = [];
       this._enabledLinks = new Set();
+      this._perPrimary = {};
       this._step = 1;
     }
   }
@@ -141,43 +141,69 @@ class SberWizard extends LitElement {
   _prefillStep3FromSelectedDevice() {
     const device = this._devices.find((d) => d.device_id === this._selectedDeviceId);
     if (!device) return;
-    const primaryFn = device.primary?.friendly_name || device.name || "";
-    if (primaryFn && !this._name) {
-      this._name = primaryFn;
-      this._slugId = slugify(primaryFn);
+    const allPrimaries = [device.primary, ...(device.primary_alternatives || [])];
+    const next = { ...this._perPrimary };
+    for (const eid of this._selectedPrimaries) {
+      if (next[eid]) continue; /* preserve user edits on Back/Next */
+      const opt = allPrimaries.find((p) => p.entity_id === eid);
+      const friendly = opt?.friendly_name || eid;
+      const area = opt?.area || device.area || "";
+      next[eid] = {
+        name: friendly,
+        slug: slugify(friendly),
+        room: area,
+      };
     }
-    const area = device.primary?.area || device.area || "";
-    if (area && !this._room) {
-      this._room = area;
-    }
+    this._perPrimary = next;
   }
 
   async _finish() {
-    if (!isValidSalutName(this._name)) return;
     const device = this._devices.find((d) => d.device_id === this._selectedDeviceId);
     if (!device) return;
-    const primaryId = this._selectedPrimary || device.primary.entity_id;
+    /* Validate all per-primary names before sending anything. */
+    for (const eid of this._selectedPrimaries) {
+      const form = this._perPrimary[eid];
+      if (!form || !isValidSalutName(form.name)) {
+        this._error = `Invalid name for ${eid}`;
+        return;
+      }
+    }
 
+    /* Linked sensors only attach to the FIRST primary in the multi-add
+     * batch — they describe the parent device once, not N times.  The
+     * battery / signal sensor under a 5-socket strip is naturally one
+     * shared role and Sber rejects duplicate-linked entries anyway. */
     const linkedEntityIds = Array.from(this._enabledLinks);
+
     this._loading = true;
     this._error = "";
+    const results = [];
+    let linkedAttached = false;
     try {
-      const result = await this.hass.callWS({
-        type: "sber_mqtt_bridge/add_ha_device",
-        device_id: device.device_id,
-        primary_entity_id: primaryId,
-        category: this._selectedCategory,
-        linked_entity_ids: linkedEntityIds,
-        name: this._name,
-        room: this._room,
-      });
+      for (const primaryId of this._selectedPrimaries) {
+        const form = this._perPrimary[primaryId];
+        const linksForThis = linkedAttached ? [] : linkedEntityIds;
+        const res = await this.hass.callWS({
+          type: "sber_mqtt_bridge/add_ha_device",
+          device_id: device.device_id,
+          primary_entity_id: primaryId,
+          category: this._selectedCategory,
+          linked_entity_ids: linksForThis,
+          name: form.name,
+          room: form.room,
+        });
+        results.push(res);
+        linkedAttached = true;
+      }
       this.dispatchEvent(
         new CustomEvent("wizard-complete", {
           detail: {
             device_id: device.device_id,
-            primary_entity_id: primaryId,
+            primary_entity_ids: [...this._selectedPrimaries],
+            primary_entity_id: this._selectedPrimaries[0],
             category: this._selectedCategory,
-            linked_count: result?.linked_count ?? linkedEntityIds.length,
+            added_count: results.length,
+            linked_count: linkedEntityIds.length,
           },
           bubbles: true,
           composed: true,
@@ -196,7 +222,11 @@ class SberWizard extends LitElement {
   _selectDevice(device) {
     if (device.already_exposed) return;
     this._selectedDeviceId = device.device_id;
-    this._selectedPrimary = device.primary.entity_id;
+    /* Default selection: only the inherent primary checked.  Multi-channel
+     * devices (power strips, multi-gang switches) start with one socket
+     * pre-selected; the user opts the rest in via checkboxes. */
+    this._selectedPrimaries = [device.primary.entity_id];
+    this._perPrimary = {};
     /* Build initial enabled-links set from native preselected sensors */
     const enabled = new Set();
     for (const linked of device.linked_native || []) {
@@ -208,7 +238,19 @@ class SberWizard extends LitElement {
 
   _togglePrimaryAlternative(device, altEntityId) {
     if (device.device_id !== this._selectedDeviceId) return;
-    this._selectedPrimary = altEntityId;
+    const idx = this._selectedPrimaries.indexOf(altEntityId);
+    if (idx >= 0) {
+      /* At least one primary must remain selected. */
+      if (this._selectedPrimaries.length === 1) return;
+      const next = [...this._selectedPrimaries];
+      next.splice(idx, 1);
+      this._selectedPrimaries = next;
+      const cleaned = { ...this._perPrimary };
+      delete cleaned[altEntityId];
+      this._perPrimary = cleaned;
+    } else {
+      this._selectedPrimaries = [...this._selectedPrimaries, altEntityId];
+    }
     this.requestUpdate();
   }
 
@@ -237,9 +279,20 @@ class SberWizard extends LitElement {
     this.requestUpdate();
   }
 
-  _onNameInput(e) {
-    this._name = e.target.value;
-    this._slugId = slugify(this._name);
+  _onPrimaryNameInput(primaryId, value) {
+    const current = this._perPrimary[primaryId] || { name: "", slug: "", room: "" };
+    this._perPrimary = {
+      ...this._perPrimary,
+      [primaryId]: { ...current, name: value, slug: slugify(value) },
+    };
+  }
+
+  _onPrimaryRoomInput(primaryId, value) {
+    const current = this._perPrimary[primaryId] || { name: "", slug: "", room: "" };
+    this._perPrimary = {
+      ...this._perPrimary,
+      [primaryId]: { ...current, room: value },
+    };
   }
 
   /* ---------- render ---------- */
@@ -399,25 +452,31 @@ class SberWizard extends LitElement {
     const nativeLinks = device.linked_native || [];
     const compatibleLinks = device.linked_compatible || [];
     const unsupported = device.unsupported || [];
+    const allPrimaries = [device.primary, ...alternatives];
 
     return html`
       <div class="device-card-body">
         ${alternatives.length > 0 ? html`
           <div class="expanded-section">
-            <div class="expanded-title">Primary entity</div>
+            <div class="expanded-title">
+              Primary entities
+              <span class="multi-hint">— check every channel you want to expose</span>
+            </div>
             <div class="primary-options">
-              ${[device.primary, ...alternatives].map((opt) => html`
-                <label class="primary-option ${this._selectedPrimary === opt.entity_id ? "selected" : ""}">
-                  <input
-                    type="radio"
-                    name="primary-${device.device_id}"
-                    .checked=${this._selectedPrimary === opt.entity_id}
-                    @click=${(e) => { e.stopPropagation(); this._togglePrimaryAlternative(device, opt.entity_id); }}
-                  />
-                  <span>${opt.friendly_name || opt.entity_id}</span>
-                  <span class="entity-id">${opt.entity_id}</span>
-                </label>
-              `)}
+              ${allPrimaries.map((opt) => {
+                const checked = this._selectedPrimaries.includes(opt.entity_id);
+                return html`
+                  <label class="primary-option ${checked ? "selected" : ""}">
+                    <input
+                      type="checkbox"
+                      .checked=${checked}
+                      @click=${(e) => { e.stopPropagation(); this._togglePrimaryAlternative(device, opt.entity_id); }}
+                    />
+                    <span>${opt.friendly_name || opt.entity_id}</span>
+                    <span class="entity-id">${opt.entity_id}</span>
+                  </label>
+                `;
+              })}
             </div>
           </div>
         ` : ""}
@@ -470,51 +529,69 @@ class SberWizard extends LitElement {
     `;
   }
 
-  /* ---------- Step 3: name + room ---------- */
+  /* ---------- Step 3: name + room (single or multi-primary) ---------- */
   _renderStep3() {
-    const nameValid = this._name.length === 0 || isValidSalutName(this._name);
     const device = this._devices.find((d) => d.device_id === this._selectedDeviceId);
-    const primaryId = this._selectedPrimary || device?.primary?.entity_id || "";
     const linkedCount = this._enabledLinks.size;
+    const categoryLabel =
+      this._categories.find((c) => c.id === this._selectedCategory)?.label || this._selectedCategory;
+    const isMulti = this._selectedPrimaries.length > 1;
 
     return html`
       <div class="summary-block">
         <div class="summary-line"><b>HA device:</b> ${device?.name || ""}</div>
-        <div class="summary-line"><b>Primary entity:</b> <code>${primaryId}</code></div>
-        <div class="summary-line"><b>Sber category:</b> ${
-          this._categories.find((c) => c.id === this._selectedCategory)?.label || this._selectedCategory
+        <div class="summary-line"><b>Sber category:</b> ${categoryLabel}</div>
+        <div class="summary-line">
+          <b>Adding:</b> ${this._selectedPrimaries.length} ${this._selectedPrimaries.length === 1 ? "device" : "devices"}
+        </div>
+        <div class="summary-line"><b>Linked sensors:</b> ${linkedCount}${
+          isMulti && linkedCount > 0
+            ? html` <span class="hint-inline">(attached to first device only)</span>`
+            : ""
         }</div>
-        <div class="summary-line"><b>Linked sensors:</b> ${linkedCount}</div>
       </div>
 
-      <div class="field">
-        <label>Device name (for Salut voice)</label>
-        <input
-          type="text"
-          class="${!nameValid ? "invalid" : ""}"
-          placeholder="e.g. \u041B\u0430\u043C\u043F\u0430 \u043A\u0443\u0445\u043D\u044F"
-          .value=${this._name}
-          @input=${this._onNameInput}
-        />
-        ${!nameValid
-          ? html`<div class="error-hint">3-33 chars, Cyrillic + digits + spaces only</div>`
-          : html`<div class="hint">Will be spoken by Salut assistant</div>`}
-      </div>
+      ${this._selectedPrimaries.map((primaryId) => this._renderPrimaryForm(primaryId, isMulti))}
+    `;
+  }
 
-      <div class="field">
-        <label>Device ID (auto-generated)</label>
-        <input type="text" .value=${this._slugId} readonly />
-        <div class="hint">Transliterated slug for the Sber protocol</div>
-      </div>
+  _renderPrimaryForm(primaryId, isMulti) {
+    const form = this._perPrimary[primaryId] || { name: "", slug: "", room: "" };
+    const nameValid = form.name.length === 0 || isValidSalutName(form.name);
+    return html`
+      <div class="primary-form ${isMulti ? "compact" : ""}">
+        ${isMulti
+          ? html`<div class="primary-form-header"><code>${primaryId}</code></div>`
+          : ""}
+        <div class="field">
+          <label>${isMulti ? "Name" : "Device name (for Salut voice)"}</label>
+          <input
+            type="text"
+            class="${!nameValid ? "invalid" : ""}"
+            placeholder="e.g. Лампа кухня"
+            .value=${form.name}
+            @input=${(e) => this._onPrimaryNameInput(primaryId, e.target.value)}
+          />
+          ${!nameValid
+            ? html`<div class="error-hint">3-33 chars, Cyrillic + digits + spaces only</div>`
+            : isMulti ? "" : html`<div class="hint">Will be spoken by Salut assistant</div>`}
+        </div>
 
-      <div class="field">
-        <label>Room (optional)</label>
-        <input
-          type="text"
-          placeholder="e.g. \u041A\u0443\u0445\u043D\u044F"
-          .value=${this._room}
-          @input=${(e) => { this._room = e.target.value; }}
-        />
+        <div class="field">
+          <label>Device ID</label>
+          <input type="text" .value=${form.slug} readonly />
+          ${isMulti ? "" : html`<div class="hint">Transliterated slug for the Sber protocol</div>`}
+        </div>
+
+        <div class="field">
+          <label>Room (optional)</label>
+          <input
+            type="text"
+            placeholder="e.g. Кухня"
+            .value=${form.room}
+            @input=${(e) => this._onPrimaryRoomInput(primaryId, e.target.value)}
+          />
+        </div>
       </div>
     `;
   }
@@ -522,8 +599,14 @@ class SberWizard extends LitElement {
   _renderFooter() {
     const canNext =
       (this._step === 1 && this._selectedCategory) ||
-      (this._step === 2 && this._selectedDeviceId);
-    const canFinish = this._step === 3 && isValidSalutName(this._name) && !this._loading;
+      (this._step === 2 && this._selectedDeviceId && this._selectedPrimaries.length > 0);
+    const allNamesValid =
+      this._selectedPrimaries.length > 0 &&
+      this._selectedPrimaries.every((eid) => isValidSalutName(this._perPrimary[eid]?.name || ""));
+    const canFinish = this._step === 3 && allNamesValid && !this._loading;
+    const finishLabel = this._selectedPrimaries.length > 1
+      ? `Add ${this._selectedPrimaries.length} devices`
+      : "Add device";
 
     return html`
       <div class="dialog-footer">
@@ -538,7 +621,7 @@ class SberWizard extends LitElement {
                 Next
               </button>`
             : html`<button class="btn btn-success" ?disabled=${!canFinish} @click=${this._finish}>
-                ${this._loading ? "Adding..." : "Add device"}
+                ${this._loading ? "Adding..." : finishLabel}
               </button>`}
         </div>
       </div>
@@ -765,6 +848,31 @@ class SberWizard extends LitElement {
         font-family: monospace; font-size: 12px;
         background: var(--card-background-color, #fff);
         padding: 1px 4px; border-radius: 3px;
+      }
+
+      .multi-hint {
+        font-weight: 400; text-transform: none; letter-spacing: 0;
+        color: var(--secondary-text-color); margin-left: 6px;
+      }
+      .hint-inline {
+        font-size: 11px; color: var(--secondary-text-color); margin-left: 4px;
+      }
+
+      .primary-form {
+        background: var(--secondary-background-color, #f5f5f5);
+        padding: 12px 14px; border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .primary-form.compact .field { margin-bottom: 8px; }
+      .primary-form.compact .field:last-child { margin-bottom: 0; }
+      .primary-form-header {
+        margin: 0 0 8px 0;
+        font-size: 11px; color: var(--secondary-text-color);
+        font-family: monospace;
+      }
+      .primary-form-header code {
+        background: var(--card-background-color, #fff);
+        padding: 2px 6px; border-radius: 4px;
       }
 
       .field { margin-bottom: 16px; }

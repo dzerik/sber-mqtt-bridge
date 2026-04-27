@@ -274,6 +274,11 @@ class SberBridge:
         return self._connected
 
     @property
+    def config_entry(self) -> ConfigEntry:
+        """Return the bridge's owning HA config entry (read-only access)."""
+        return self._entry
+
+    @property
     def connection_phase(self) -> str:
         """Return the current connection lifecycle phase.
 
@@ -834,6 +839,22 @@ class SberBridge:
         """Subscribe to Sber ``down/#`` and the global config topic."""
         await client.subscribe(f"{self._down_topic}/#")
         await client.subscribe(SBER_GLOBAL_CONFIG_TOPIC)
+
+    @callback
+    def refresh_repair_issues(self) -> None:
+        """Recompute HA repair issues without awaiting.
+
+        Wraps :func:`check_and_create_issues` in a safe background task so
+        callers (notably the command dispatcher) can fire-and-forget after
+        an ack arrives.  No-op when HA is not yet running so we don't fight
+        the early-startup grace window in :meth:`_load_exposed_entities`.
+        """
+        if not self._hass.is_running:
+            return
+        self._create_safe_task(
+            check_and_create_issues(self._hass, self),
+            name="refresh_repair_issues",
+        )
 
     def _run_ack_audit(self) -> None:
         """Bridge-side audit callback invoked by :class:`AckAudit` on timer.

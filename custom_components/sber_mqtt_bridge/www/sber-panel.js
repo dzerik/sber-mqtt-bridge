@@ -290,16 +290,19 @@ class SberMqttPanel extends LitElement {
   }
 
   async _onWizardComplete(e) {
-    /* Wizard itself has already called ``ws_add_ha_device`` atomically.
-     * We only refresh the device table and show a success toast. */
+    /* Wizard itself has already called ``ws_add_ha_device`` atomically
+     * (once per selected primary entity).  We only refresh the device
+     * table and show a success toast that reflects single vs. batch add. */
     const d = e.detail || {};
     this._loading = true;
     try {
       await new Promise((r) => setTimeout(r, 1500));
       await this._fetchAll();
-      const msg = d.linked_count > 0
-        ? `Device added with ${d.linked_count} linked sensor(s)`
-        : "Device added via wizard";
+      const addedCount = d.added_count || 1;
+      const linkedSuffix = d.linked_count > 0 ? ` with ${d.linked_count} linked sensor(s)` : "";
+      const msg = addedCount > 1
+        ? `Added ${addedCount} devices${linkedSuffix}`
+        : `Device added${linkedSuffix}`;
       this._showToast(msg, "success");
     } catch (err) {
       this._showToast("Refresh after add failed: " + (err.message || err), "error");

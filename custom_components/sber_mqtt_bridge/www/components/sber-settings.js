@@ -40,6 +40,13 @@ const SETTING_DEFS = [
       { key: "ha_serial_number_enabled", label: "Emit ha_serial_number marker", type: "toggle" },
     ],
   },
+  {
+    group: "Diagnostics",
+    note: "Surfaces post-publish silent-rejection audits as HA repair tiles. Off by default — Sber may legitimately not call status_request for hours after accepting a device, producing false positives. Audit data stays visible in the panel and WARN log either way.",
+    fields: [
+      { key: "silent_rejection_alerts", label: "Show silent-rejection repair tile", type: "toggle" },
+    ],
+  },
 ];
 
 class SberSettings extends LitElement {

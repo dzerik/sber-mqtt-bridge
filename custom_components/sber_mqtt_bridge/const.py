@@ -67,6 +67,21 @@ registry, or a fallback derived from this Home Assistant instance UUID
 back into HA can use the marker to detect import loops.
 """
 
+CONF_SILENT_REJECTION_ALERTS = "silent_rejection_alerts"
+"""Options key for surfacing silent-rejection audits as HA repair issues.
+
+When ``False`` (default) the bridge keeps running the silent-rejection
+audit and logs ``WARN`` for unacknowledged entities, but does not raise
+an HA repair issue.  Empirically the 60-second post-publish window is
+not always enough — Sber cloud can accept a device, dispatch commands
+for it, and never send ``status_request`` until the user pulls to
+refresh the Sber app.  Surfacing every such case as a repair was noisy
+and false-positive-prone.
+
+Power users can flip this to ``True`` from the panel **Settings** tab
+to keep the historical loud behaviour.
+"""
+
 SETTINGS_DEFAULTS: dict[str, int | float | bool] = {
     CONF_RECONNECT_MIN: 5,
     CONF_RECONNECT_MAX: 300,
@@ -78,6 +93,7 @@ SETTINGS_DEFAULTS: dict[str, int | float | bool] = {
     CONF_CONFIRM_DELAY: 1.5,
     CONF_ACK_AUDIT_DELAY: 60,
     CONF_HA_SERIAL_NUMBER: False,
+    CONF_SILENT_REJECTION_ALERTS: False,
 }
 """Default values for bridge operational settings."""
 
