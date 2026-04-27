@@ -1,0 +1,3100 @@
+
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Home Assistant integration for Sber Smart Home via MQTT. Control HA devices through Sber voice assistants and the Sber Smart Home app.">
+      
+      
+      
+        <link rel="canonical" href="https://dzerik.github.io/sber-mqtt-bridge/api/entity-map/">
+      
+      
+        <link rel="prev" href="../models/">
+      
+      
+        <link rel="next" href="../devices/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Entity Map - Sber Smart Home MQTT Bridge</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#entity-map" class="md-skip">
+          Перейти к содержанию
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Верхний колонтитул">
+    <a href="../.." title="Sber Smart Home MQTT Bridge" class="md-header__button md-logo" aria-label="Sber Smart Home MQTT Bridge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Sber Smart Home MQTT Bridge
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Entity Map
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Поиск" placeholder="Поиск" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Поиск">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистить" aria-label="Очистить" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dzerik/sber-mqtt-bridge" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dzerik/sber-mqtt-bridge
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Вкладки" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../sber-setup/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Sber Studio Setup
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../configuration/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Configuration
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../devices/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Supported Devices
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../troubleshooting/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../sber-c2c-spec/" class="md-tabs__link">
+          
+  
+  
+  Sber C2C Spec
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Навигация" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Sber Smart Home MQTT Bridge" class="md-nav__button md-logo" aria-label="Sber Smart Home MQTT Bridge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Sber Smart Home MQTT Bridge
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dzerik/sber-mqtt-bridge" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dzerik/sber-mqtt-bridge
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sber Studio Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Devices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sber C2C Spec
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Sber C2C Spec
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/data-structures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/mqtt-topics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT Topics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/device-categories/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Categories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/mqtt-vs-rest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT vs REST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/validation-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberBridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mqtt-client-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MqttClientService
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../command-dispatcher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberCommandDispatcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ha-state-forwarder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HaStateForwarder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../entity-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberEntityLoader
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../message-logger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MessageLogger
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Протокол
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Модели
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity Map
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;sber_entity_map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.OVERRIDABLE_CATEGORIES" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;OVERRIDABLE_CATEGORIES
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_DOMAIN_MAP" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;CATEGORY_DOMAIN_MAP
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_UI_META" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;CATEGORY_UI_META
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_GROUPS" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;CATEGORY_GROUPS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;CategorySpec
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" CategorySpec">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec.matches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;matches
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;CategoryUiMeta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.categories_for_domain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;categories_for_domain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.create_sber_entity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;create_sber_entity
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_12" id="__nav_7_12_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Устройства
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Устройства
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Базовые классы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/light/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Освещение
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/climate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Климат
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/covers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Шторы и ворота
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/switches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Реле и розетки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/sensors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Сенсоры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Медиа
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/appliances/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Бытовая техника
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Утилиты
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;sber_entity_map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.OVERRIDABLE_CATEGORIES" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;OVERRIDABLE_CATEGORIES
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_DOMAIN_MAP" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;CATEGORY_DOMAIN_MAP
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_UI_META" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;CATEGORY_UI_META
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_GROUPS" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;CATEGORY_GROUPS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;CategorySpec
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" CategorySpec">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec.matches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;matches
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;CategoryUiMeta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.categories_for_domain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;categories_for_domain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.sber_entity_map.create_sber_entity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;create_sber_entity
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="entity-map">Entity Map<a class="headerlink" href="#entity-map" title="Permanent link">&para;</a></h1>
+<p>Фабрики маппинга: связь HA domain и entity_id с соответствующими классами устройств Sber.</p>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="custom_components.sber_mqtt_bridge.sber_entity_map"></a>
+    <div class="doc doc-contents first">
+
+        <p>Mapping from HA entity domains to Sber device entity classes.</p>
+<p>Provides factory functions that create the appropriate Sber entity
+subclass based on the HA entity domain and device class.
+Supports user-defined overrides via <code>sber_category</code> parameter.</p>
+<p>Also hosts the <strong>single source of truth</strong> for Sber category → HA domain
+promotion: :data:<code>CATEGORY_DOMAIN_MAP</code> + :func:<code>categories_for_domain</code> +
+:data:<code>CATEGORY_UI_META</code> drive the device-centric wizard introduced in
+v1.26.0.  See <code>docs/DEVICE_WIZARD_PLAN.md</code> for the full design.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h2 id="custom_components.sber_mqtt_bridge.sber_entity_map.OVERRIDABLE_CATEGORIES" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">OVERRIDABLE_CATEGORIES</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#custom_components.sber_mqtt_bridge.sber_entity_map.OVERRIDABLE_CATEGORIES" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">OVERRIDABLE_CATEGORIES</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;light&#39;</span><span class="p">,</span> <span class="s1">&#39;led_strip&#39;</span><span class="p">,</span> <span class="s1">&#39;relay&#39;</span><span class="p">,</span> <span class="s1">&#39;socket&#39;</span><span class="p">,</span> <span class="s1">&#39;curtain&#39;</span><span class="p">,</span> <span class="s1">&#39;window_blind&#39;</span><span class="p">,</span> <span class="s1">&#39;gate&#39;</span><span class="p">,</span> <span class="s1">&#39;hvac_ac&#39;</span><span class="p">,</span> <span class="s1">&#39;hvac_radiator&#39;</span><span class="p">,</span> <span class="s1">&#39;hvac_heater&#39;</span><span class="p">,</span> <span class="s1">&#39;hvac_boiler&#39;</span><span class="p">,</span> <span class="s1">&#39;hvac_underfloor_heating&#39;</span><span class="p">,</span> <span class="s1">&#39;hvac_fan&#39;</span><span class="p">,</span> <span class="s1">&#39;valve&#39;</span><span class="p">,</span> <span class="s1">&#39;hvac_humidifier&#39;</span><span class="p">,</span> <span class="s1">&#39;scenario_button&#39;</span><span class="p">,</span> <span class="s1">&#39;hvac_air_purifier&#39;</span><span class="p">,</span> <span class="s1">&#39;kettle&#39;</span><span class="p">,</span> <span class="s1">&#39;tv&#39;</span><span class="p">,</span> <span class="s1">&#39;vacuum_cleaner&#39;</span><span class="p">,</span> <span class="s1">&#39;intercom&#39;</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Sber categories that users can select as type overrides.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h2 id="custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_DOMAIN_MAP" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">CATEGORY_DOMAIN_MAP</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_DOMAIN_MAP" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">CATEGORY_DOMAIN_MAP</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;light&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            LightEntity (custom_components.sber_mqtt_bridge.devices.light.LightEntity)" href="../devices/light/#custom_components.sber_mqtt_bridge.devices.light.LightEntity">LightEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;light&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;led_strip&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            LedStripEntity (custom_components.sber_mqtt_bridge.devices.led_strip.LedStripEntity)" href="../devices/light/#custom_components.sber_mqtt_bridge.devices.led_strip.LedStripEntity">LedStripEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;light&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">5</span><span class="p">),</span> <span class="s1">&#39;socket&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            SocketEntity (custom_components.sber_mqtt_bridge.devices.socket_entity.SocketEntity)" href="../devices/switches/#custom_components.sber_mqtt_bridge.devices.socket_entity.SocketEntity">SocketEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;switch&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;outlet&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">8</span><span class="p">),</span> <span class="s1">&#39;relay&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            RelayEntity (custom_components.sber_mqtt_bridge.devices.relay.RelayEntity)" href="../devices/switches/#custom_components.sber_mqtt_bridge.devices.relay.RelayEntity">RelayEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;switch&#39;</span><span class="p">,</span> <span class="s1">&#39;script&#39;</span><span class="p">,</span> <span class="s1">&#39;button&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(fallback_when_no_device_class)">fallback_when_no_device_class</span></span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="s1">&#39;scenario_button&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            ScenarioButtonEntity (custom_components.sber_mqtt_bridge.devices.scenario_button.ScenarioButtonEntity)" href="../devices/switches/#custom_components.sber_mqtt_bridge.devices.scenario_button.ScenarioButtonEntity">ScenarioButtonEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;input_boolean&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">12</span><span class="p">),</span> <span class="s1">&#39;gate&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            GateEntity (custom_components.sber_mqtt_bridge.devices.gate.GateEntity)" href="../devices/covers/#custom_components.sber_mqtt_bridge.devices.gate.GateEntity">GateEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;cover&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;gate&#39;</span><span class="p">,</span> <span class="s1">&#39;garage_door&#39;</span><span class="p">,</span> <span class="s1">&#39;garage&#39;</span><span class="p">,</span> <span class="s1">&#39;door&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">3</span><span class="p">),</span> <span class="s1">&#39;window_blind&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            WindowBlindEntity (custom_components.sber_mqtt_bridge.devices.window_blind.WindowBlindEntity)" href="../devices/covers/#custom_components.sber_mqtt_bridge.devices.window_blind.WindowBlindEntity">WindowBlindEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;cover&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;blind&#39;</span><span class="p">,</span> <span class="s1">&#39;shade&#39;</span><span class="p">,</span> <span class="s1">&#39;shutter&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">4</span><span class="p">),</span> <span class="s1">&#39;curtain&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            CurtainEntity (custom_components.sber_mqtt_bridge.devices.curtain.CurtainEntity)" href="../devices/covers/#custom_components.sber_mqtt_bridge.devices.curtain.CurtainEntity">CurtainEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;cover&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;curtain&#39;</span><span class="p">,</span> <span class="s1">&#39;awning&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(fallback_when_no_device_class)">fallback_when_no_device_class</span></span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="s1">&#39;hvac_radiator&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            HvacRadiatorEntity (custom_components.sber_mqtt_bridge.devices.hvac_radiator.HvacRadiatorEntity)" href="../devices/climate/#custom_components.sber_mqtt_bridge.devices.hvac_radiator.HvacRadiatorEntity">HvacRadiatorEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;climate&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;radiator&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">3</span><span class="p">),</span> <span class="s1">&#39;hvac_heater&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            HvacHeaterEntity (custom_components.sber_mqtt_bridge.devices.hvac_heater.HvacHeaterEntity)" href="../devices/climate/#custom_components.sber_mqtt_bridge.devices.hvac_heater.HvacHeaterEntity">HvacHeaterEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;climate&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;heater&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">4</span><span class="p">),</span> <span class="s1">&#39;hvac_underfloor_heating&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            HvacUnderfloorEntity (custom_components.sber_mqtt_bridge.devices.hvac_underfloor_heating.HvacUnderfloorEntity)" href="../devices/climate/#custom_components.sber_mqtt_bridge.devices.hvac_underfloor_heating.HvacUnderfloorEntity">HvacUnderfloorEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;climate&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;underfloor&#39;</span><span class="p">,</span> <span class="s1">&#39;underfloor_heating&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">5</span><span class="p">),</span> <span class="s1">&#39;hvac_ac&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            ClimateEntity (custom_components.sber_mqtt_bridge.devices.climate.ClimateEntity)" href="../devices/climate/#custom_components.sber_mqtt_bridge.devices.climate.ClimateEntity">ClimateEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;climate&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(fallback_when_no_device_class)">fallback_when_no_device_class</span></span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="s1">&#39;hvac_boiler&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            HvacBoilerEntity (custom_components.sber_mqtt_bridge.devices.hvac_boiler.HvacBoilerEntity)" href="../devices/climate/#custom_components.sber_mqtt_bridge.devices.hvac_boiler.HvacBoilerEntity">HvacBoilerEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;water_heater&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">5</span><span class="p">),</span> <span class="s1">&#39;hvac_air_purifier&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            HvacAirPurifierEntity (custom_components.sber_mqtt_bridge.devices.hvac_air_purifier.HvacAirPurifierEntity)" href="../devices/climate/#custom_components.sber_mqtt_bridge.devices.hvac_air_purifier.HvacAirPurifierEntity">HvacAirPurifierEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;fan&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;purifier&#39;</span><span class="p">,</span> <span class="s1">&#39;air_purifier&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">4</span><span class="p">),</span> <span class="s1">&#39;hvac_fan&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            HvacFanEntity (custom_components.sber_mqtt_bridge.devices.hvac_fan.HvacFanEntity)" href="../devices/climate/#custom_components.sber_mqtt_bridge.devices.hvac_fan.HvacFanEntity">HvacFanEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;fan&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(fallback_when_no_device_class)">fallback_when_no_device_class</span></span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="s1">&#39;hvac_humidifier&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            HumidifierEntity (custom_components.sber_mqtt_bridge.devices.humidifier.HumidifierEntity)" href="../devices/appliances/#custom_components.sber_mqtt_bridge.devices.humidifier.HumidifierEntity">HumidifierEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;humidifier&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">5</span><span class="p">),</span> <span class="s1">&#39;valve&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            ValveEntity (custom_components.sber_mqtt_bridge.devices.valve.ValveEntity)" href="../devices/switches/#custom_components.sber_mqtt_bridge.devices.valve.ValveEntity">ValveEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;valve&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">5</span><span class="p">),</span> <span class="s1">&#39;kettle&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            KettleEntity (custom_components.sber_mqtt_bridge.devices.kettle.KettleEntity)" href="../devices/appliances/#custom_components.sber_mqtt_bridge.devices.kettle.KettleEntity">KettleEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;water_heater&#39;</span><span class="p">,</span> <span class="s1">&#39;switch&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(fallback_when_no_device_class)">fallback_when_no_device_class</span></span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="s1">&#39;tv&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            TvEntity (custom_components.sber_mqtt_bridge.devices.tv.TvEntity)" href="../devices/media/#custom_components.sber_mqtt_bridge.devices.tv.TvEntity">TvEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;media_player&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(fallback_when_no_device_class)">fallback_when_no_device_class</span></span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="s1">&#39;vacuum_cleaner&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            VacuumCleanerEntity (custom_components.sber_mqtt_bridge.devices.vacuum_cleaner.VacuumCleanerEntity)" href="../devices/appliances/#custom_components.sber_mqtt_bridge.devices.vacuum_cleaner.VacuumCleanerEntity">VacuumCleanerEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;vacuum&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">5</span><span class="p">),</span> <span class="s1">&#39;intercom&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            IntercomEntity (custom_components.sber_mqtt_bridge.devices.intercom.IntercomEntity)" href="../devices/media/#custom_components.sber_mqtt_bridge.devices.intercom.IntercomEntity">IntercomEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;lock&#39;</span><span class="p">,</span> <span class="s1">&#39;switch&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">30</span><span class="p">),</span> <span class="s1">&#39;sensor_temp&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            SensorTempEntity (custom_components.sber_mqtt_bridge.devices.sensor_temp.SensorTempEntity)" href="../devices/sensors/#custom_components.sber_mqtt_bridge.devices.sensor_temp.SensorTempEntity">SensorTempEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;sensor&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;temperature&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">30</span><span class="p">),</span> <span class="s1">&#39;sensor_humidity&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            HumiditySensorEntity (custom_components.sber_mqtt_bridge.devices.humidity_sensor.HumiditySensorEntity)" href="../devices/sensors/#custom_components.sber_mqtt_bridge.devices.humidity_sensor.HumiditySensorEntity">HumiditySensorEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;sensor&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;humidity&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">30</span><span class="p">),</span> <span class="s1">&#39;sensor_pir&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            MotionSensorEntity (custom_components.sber_mqtt_bridge.devices.motion_sensor.MotionSensorEntity)" href="../devices/sensors/#custom_components.sber_mqtt_bridge.devices.motion_sensor.MotionSensorEntity">MotionSensorEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;binary_sensor&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;motion&#39;</span><span class="p">,</span> <span class="s1">&#39;occupancy&#39;</span><span class="p">,</span> <span class="s1">&#39;presence&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">20</span><span class="p">),</span> <span class="s1">&#39;sensor_door&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            DoorSensorEntity (custom_components.sber_mqtt_bridge.devices.door_sensor.DoorSensorEntity)" href="../devices/sensors/#custom_components.sber_mqtt_bridge.devices.door_sensor.DoorSensorEntity">DoorSensorEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;binary_sensor&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;door&#39;</span><span class="p">,</span> <span class="s1">&#39;window&#39;</span><span class="p">,</span> <span class="s1">&#39;garage_door&#39;</span><span class="p">,</span> <span class="s1">&#39;opening&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">20</span><span class="p">),</span> <span class="s1">&#39;sensor_water_leak&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            WaterLeakSensorEntity (custom_components.sber_mqtt_bridge.devices.water_leak_sensor.WaterLeakSensorEntity)" href="../devices/sensors/#custom_components.sber_mqtt_bridge.devices.water_leak_sensor.WaterLeakSensorEntity">WaterLeakSensorEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;binary_sensor&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;moisture&#39;</span><span class="p">,</span> <span class="s1">&#39;water&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">20</span><span class="p">),</span> <span class="s1">&#39;sensor_smoke&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            SmokeSensorEntity (custom_components.sber_mqtt_bridge.devices.smoke_sensor.SmokeSensorEntity)" href="../devices/sensors/#custom_components.sber_mqtt_bridge.devices.smoke_sensor.SmokeSensorEntity">SmokeSensorEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;binary_sensor&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;smoke&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">20</span><span class="p">),</span> <span class="s1">&#39;sensor_gas&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategorySpec
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec">CategorySpec</a></span><span class="p">(</span><span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(cls)">cls</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            GasSensorEntity (custom_components.sber_mqtt_bridge.devices.gas_sensor.GasSensorEntity)" href="../devices/sensors/#custom_components.sber_mqtt_bridge.devices.gas_sensor.GasSensorEntity">GasSensorEntity</a></span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(domains)">domains</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;binary_sensor&#39;</span><span class="p">,),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(device_classes)">device_classes</span></span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;gas&#39;</span><span class="p">,</span> <span class="s1">&#39;carbon_monoxide&#39;</span><span class="p">),</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec(preferred_rank)">preferred_rank</span></span><span class="o">=</span><span class="mi">20</span><span class="p">)}</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Authoritative Sber-category → HA-entity-class promotion table.</p>
+<p>Every entry carries its own entity constructor via :attr:<code>CategorySpec.cls</code>,
+so this single dict drives both auto-detection (by HA domain/device_class)
+and user overrides (by explicit category id).</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h2 id="custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_UI_META" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">CATEGORY_UI_META</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_UI_META" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">CATEGORY_UI_META</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;light&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;💡&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Light&#39;</span><span class="p">),</span> <span class="s1">&#39;led_strip&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🎚️&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;LED strip&#39;</span><span class="p">),</span> <span class="s1">&#39;relay&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🔌&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Relay&#39;</span><span class="p">),</span> <span class="s1">&#39;socket&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🔋&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Socket&#39;</span><span class="p">),</span> <span class="s1">&#39;hvac_ac&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;❄️&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Air conditioner&#39;</span><span class="p">),</span> <span class="s1">&#39;hvac_radiator&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🔥&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Radiator&#39;</span><span class="p">),</span> <span class="s1">&#39;hvac_heater&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;♨️&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Heater&#39;</span><span class="p">),</span> <span class="s1">&#39;hvac_underfloor_heating&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🧱&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Underfloor heating&#39;</span><span class="p">),</span> <span class="s1">&#39;hvac_boiler&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🫖&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Boiler&#39;</span><span class="p">),</span> <span class="s1">&#39;hvac_humidifier&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;💧&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Humidifier&#39;</span><span class="p">),</span> <span class="s1">&#39;hvac_air_purifier&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🌬️&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Air purifier&#39;</span><span class="p">),</span> <span class="s1">&#39;hvac_fan&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🌀&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Fan&#39;</span><span class="p">),</span> <span class="s1">&#39;kettle&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;☕&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Kettle&#39;</span><span class="p">),</span> <span class="s1">&#39;vacuum_cleaner&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🤖&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Vacuum&#39;</span><span class="p">),</span> <span class="s1">&#39;valve&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🚰&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Valve&#39;</span><span class="p">),</span> <span class="s1">&#39;curtain&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🟨&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Curtain&#39;</span><span class="p">),</span> <span class="s1">&#39;window_blind&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🪟&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Window blind&#39;</span><span class="p">),</span> <span class="s1">&#39;gate&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🚪&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Gate / Garage&#39;</span><span class="p">),</span> <span class="s1">&#39;tv&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;📺&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;TV / Media player&#39;</span><span class="p">),</span> <span class="s1">&#39;intercom&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🔔&#39;</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Intercom&#39;</span><span class="p">),</span> <span class="s1">&#39;sensor_temp&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🌡️&#39;</span><span class="p">,</span> <span class="s1">&#39;sensors&#39;</span><span class="p">,</span> <span class="s1">&#39;Temperature&#39;</span><span class="p">),</span> <span class="s1">&#39;sensor_humidity&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;💦&#39;</span><span class="p">,</span> <span class="s1">&#39;sensors&#39;</span><span class="p">,</span> <span class="s1">&#39;Humidity&#39;</span><span class="p">,</span> <span class="n"><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta(user_selectable)">user_selectable</span></span><span class="o">=</span><span class="kc">False</span><span class="p">),</span> <span class="s1">&#39;sensor_pir&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🚶&#39;</span><span class="p">,</span> <span class="s1">&#39;sensors&#39;</span><span class="p">,</span> <span class="s1">&#39;Motion&#39;</span><span class="p">),</span> <span class="s1">&#39;sensor_door&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🚪&#39;</span><span class="p">,</span> <span class="s1">&#39;sensors&#39;</span><span class="p">,</span> <span class="s1">&#39;Door / Window&#39;</span><span class="p">),</span> <span class="s1">&#39;sensor_water_leak&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🌊&#39;</span><span class="p">,</span> <span class="s1">&#39;sensors&#39;</span><span class="p">,</span> <span class="s1">&#39;Water leak&#39;</span><span class="p">),</span> <span class="s1">&#39;sensor_smoke&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;💨&#39;</span><span class="p">,</span> <span class="s1">&#39;sensors&#39;</span><span class="p">,</span> <span class="s1">&#39;Smoke&#39;</span><span class="p">),</span> <span class="s1">&#39;sensor_gas&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;⚠️&#39;</span><span class="p">,</span> <span class="s1">&#39;sensors&#39;</span><span class="p">,</span> <span class="s1">&#39;Gas&#39;</span><span class="p">),</span> <span class="s1">&#39;scenario_button&#39;</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CategoryUiMeta
+
+
+  
+      dataclass
+   (custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta)" href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta">CategoryUiMeta</a></span><span class="p">(</span><span class="s1">&#39;🔔&#39;</span><span class="p">,</span> <span class="s1">&#39;automations&#39;</span><span class="p">,</span> <span class="s1">&#39;Scenario button&#39;</span><span class="p">)}</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Presentation data for each Sber category in the wizard UI.</p>
+<p>Keys must be a subset of :data:<code>CATEGORY_DOMAIN_MAP</code>.  See the consistency
+test <code>test_category_domain_map.py::test_ui_meta_is_subset_of_domain_map</code>.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h2 id="custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_GROUPS" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">CATEGORY_GROUPS</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CATEGORY_GROUPS" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">CATEGORY_GROUPS</span> <span class="o">=</span> <span class="p">((</span><span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;Control&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;sensors&#39;</span><span class="p">,</span> <span class="s1">&#39;Sensors&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;automations&#39;</span><span class="p">,</span> <span class="s1">&#39;Automations&#39;</span><span class="p">))</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Ordered list of <code>(group_id, label)</code> for Step 1 grid grouping.</p>
+
+    </div>
+
+</div>
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">CategorySpec</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">CategorySpec</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">domains</span><span class="p">,</span> <span class="n">device_classes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">preferred_rank</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">fallback_when_no_device_class</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Rules for promoting an HA entity to a specific Sber category.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec.cls">cls</span></code></td>
+            <td>
+                  <code><span title="type">type</span>[<a class="autorefs autorefs-internal" title="            BaseEntity (custom_components.sber_mqtt_bridge.devices.base_entity.BaseEntity)" href="../devices/base/#custom_components.sber_mqtt_bridge.devices.base_entity.BaseEntity">BaseEntity</a>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Entity class to instantiate for this category.  Serves as the
+single source of truth for both auto-detection (pick by domain)
+and user overrides (pick by explicit category name).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec.domains">domains</span></code></td>
+            <td>
+                  <code><span title="tuple">tuple</span>[<span title="str">str</span>, ...]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>HA domains that can match this category.  Order matters for
+presentation but not correctness — any listed domain is accepted.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec.device_classes">device_classes</span></code></td>
+            <td>
+                  <code><span title="tuple">tuple</span>[<span title="str">str</span>, ...] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>None</code> — the category matches any device_class
+inside the allowed domains (domain-only match).  If a tuple — the
+entity must have one of these <code>original_device_class</code> values.
+Use an empty string <code>""</code> in the tuple to also accept entities
+without a declared device_class.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec.preferred_rank">preferred_rank</span></code></td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Tie-breaking priority when the same <code>(domain,
+device_class)</code> pair matches several categories.  Lower wins.
+Mirrors the domain rank used for primary-entity selection.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec.fallback_when_no_device_class">fallback_when_no_device_class</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>When <code>True</code> and the entity has no
+declared <code>device_class</code> at all, this category accepts it as a
+fallback.  Used by <code>relay</code> so that a plain <code>switch</code> without
+device_class becomes a relay rather than silently unmatched.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec.matches" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">matches</span>
+
+
+<a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategorySpec.matches" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">matches</span><span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="n">device_class</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return True if an HA entity of <code>(domain, device_class)</code> promotes here.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>custom_components/sber_mqtt_bridge/sber_entity_map.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-122">122</a></span>
+<span class="normal"><a href="#__codelineno-0-123">123</a></span>
+<span class="normal"><a href="#__codelineno-0-124">124</a></span>
+<span class="normal"><a href="#__codelineno-0-125">125</a></span>
+<span class="normal"><a href="#__codelineno-0-126">126</a></span>
+<span class="normal"><a href="#__codelineno-0-127">127</a></span>
+<span class="normal"><a href="#__codelineno-0-128">128</a></span>
+<span class="normal"><a href="#__codelineno-0-129">129</a></span>
+<span class="normal"><a href="#__codelineno-0-130">130</a></span>
+<span class="normal"><a href="#__codelineno-0-131">131</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-122" name="__codelineno-0-122"></a><span class="k">def</span><span class="w"> </span><span class="nf">matches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">device_class</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-0-123" name="__codelineno-0-123"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return True if an HA entity of ``(domain, device_class)`` promotes here.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-124" name="__codelineno-0-124"></a>    <span class="k">if</span> <span class="n">domain</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">:</span>
+<a id="__codelineno-0-125" name="__codelineno-0-125"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-0-126" name="__codelineno-0-126"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_classes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-127" name="__codelineno-0-127"></a>        <span class="k">return</span> <span class="kc">True</span>
+<a id="__codelineno-0-128" name="__codelineno-0-128"></a>    <span class="n">dc</span> <span class="o">=</span> <span class="n">device_class</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
+<a id="__codelineno-0-129" name="__codelineno-0-129"></a>    <span class="k">if</span> <span class="n">dc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_classes</span><span class="p">:</span>
+<a id="__codelineno-0-130" name="__codelineno-0-130"></a>        <span class="k">return</span> <span class="kc">True</span>
+<a id="__codelineno-0-131" name="__codelineno-0-131"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fallback_when_no_device_class</span> <span class="ow">and</span> <span class="n">dc</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">CategoryUiMeta</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">CategoryUiMeta</span><span class="p">(</span><span class="n">icon</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">label_key</span><span class="p">,</span> <span class="n">user_selectable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Presentation metadata for a Sber category in the wizard UI.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta.icon">icon</span></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Unicode emoji shown in the Step 1 grid tile.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta.group">group</span></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>UI group identifier (<code>"control"</code> / <code>"sensors"</code> /
+<code>"automations"</code>) for collapsed grouping.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta.label_key">label_key</span></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Translation key suffix; frontend resolves it against
+its i18n table.  For the panel which currently uses hard-coded
+strings, this is also used as a short English fallback label.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="custom_components.sber_mqtt_bridge.sber_entity_map.CategoryUiMeta.user_selectable">user_selectable</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>When <code>False</code>, the category is excluded from the
+Step 1 grid — it still participates in grouping classification
+(<code>sensor_humidity</code> is a concrete subcategory of the user-
+visible <code>sensor_temp</code>, etc.) but the user doesn't pick it
+explicitly.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="custom_components.sber_mqtt_bridge.sber_entity_map.categories_for_domain" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">categories_for_domain</span>
+
+
+<a href="#custom_components.sber_mqtt_bridge.sber_entity_map.categories_for_domain" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">categories_for_domain</span><span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="n">device_class</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return all Sber categories matching the given HA <code>(domain, device_class)</code>.</p>
+<p>Result is sorted by :attr:<code>CategorySpec.preferred_rank</code> ascending — so
+the first item is the auto-detected category, subsequent items are
+alternatives the user could pick.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>domain</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>HA entity domain (e.g. <code>"light"</code>, <code>"sensor"</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>device_class</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional <code>original_device_class</code> value.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>List of Sber category IDs.  Empty when no category matches.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>custom_components/sber_mqtt_bridge/sber_entity_map.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-386">386</a></span>
+<span class="normal"><a href="#__codelineno-0-387">387</a></span>
+<span class="normal"><a href="#__codelineno-0-388">388</a></span>
+<span class="normal"><a href="#__codelineno-0-389">389</a></span>
+<span class="normal"><a href="#__codelineno-0-390">390</a></span>
+<span class="normal"><a href="#__codelineno-0-391">391</a></span>
+<span class="normal"><a href="#__codelineno-0-392">392</a></span>
+<span class="normal"><a href="#__codelineno-0-393">393</a></span>
+<span class="normal"><a href="#__codelineno-0-394">394</a></span>
+<span class="normal"><a href="#__codelineno-0-395">395</a></span>
+<span class="normal"><a href="#__codelineno-0-396">396</a></span>
+<span class="normal"><a href="#__codelineno-0-397">397</a></span>
+<span class="normal"><a href="#__codelineno-0-398">398</a></span>
+<span class="normal"><a href="#__codelineno-0-399">399</a></span>
+<span class="normal"><a href="#__codelineno-0-400">400</a></span>
+<span class="normal"><a href="#__codelineno-0-401">401</a></span>
+<span class="normal"><a href="#__codelineno-0-402">402</a></span>
+<span class="normal"><a href="#__codelineno-0-403">403</a></span>
+<span class="normal"><a href="#__codelineno-0-404">404</a></span>
+<span class="normal"><a href="#__codelineno-0-405">405</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-386" name="__codelineno-0-386"></a><span class="k">def</span><span class="w"> </span><span class="nf">categories_for_domain</span><span class="p">(</span>
+<a id="__codelineno-0-387" name="__codelineno-0-387"></a>    <span class="n">domain</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-388" name="__codelineno-0-388"></a>    <span class="n">device_class</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-389" name="__codelineno-0-389"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<a id="__codelineno-0-390" name="__codelineno-0-390"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return all Sber categories matching the given HA ``(domain, device_class)``.</span>
+<a id="__codelineno-0-391" name="__codelineno-0-391"></a>
+<a id="__codelineno-0-392" name="__codelineno-0-392"></a><span class="sd">    Result is sorted by :attr:`CategorySpec.preferred_rank` ascending — so</span>
+<a id="__codelineno-0-393" name="__codelineno-0-393"></a><span class="sd">    the first item is the auto-detected category, subsequent items are</span>
+<a id="__codelineno-0-394" name="__codelineno-0-394"></a><span class="sd">    alternatives the user could pick.</span>
+<a id="__codelineno-0-395" name="__codelineno-0-395"></a>
+<a id="__codelineno-0-396" name="__codelineno-0-396"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-397" name="__codelineno-0-397"></a><span class="sd">        domain: HA entity domain (e.g. ``&quot;light&quot;``, ``&quot;sensor&quot;``).</span>
+<a id="__codelineno-0-398" name="__codelineno-0-398"></a><span class="sd">        device_class: Optional ``original_device_class`` value.</span>
+<a id="__codelineno-0-399" name="__codelineno-0-399"></a>
+<a id="__codelineno-0-400" name="__codelineno-0-400"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-401" name="__codelineno-0-401"></a><span class="sd">        List of Sber category IDs.  Empty when no category matches.</span>
+<a id="__codelineno-0-402" name="__codelineno-0-402"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-403" name="__codelineno-0-403"></a>    <span class="n">matches</span> <span class="o">=</span> <span class="p">[(</span><span class="n">category</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span> <span class="k">for</span> <span class="n">category</span><span class="p">,</span> <span class="n">spec</span> <span class="ow">in</span> <span class="n">CATEGORY_DOMAIN_MAP</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="n">device_class</span><span class="p">)]</span>
+<a id="__codelineno-0-404" name="__codelineno-0-404"></a>    <span class="n">matches</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pair</span><span class="p">:</span> <span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">preferred_rank</span><span class="p">)</span>
+<a id="__codelineno-0-405" name="__codelineno-0-405"></a>    <span class="k">return</span> <span class="p">[</span><span class="n">category</span> <span class="k">for</span> <span class="n">category</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">]</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="custom_components.sber_mqtt_bridge.sber_entity_map.create_sber_entity" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">create_sber_entity</span>
+
+
+<a href="#custom_components.sber_mqtt_bridge.sber_entity_map.create_sber_entity" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">create_sber_entity</span><span class="p">(</span><span class="n">entity_id</span><span class="p">,</span> <span class="n">entity_data</span><span class="p">,</span> <span class="n">sber_category</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Create a Sber device entity from HA entity data.</p>
+<p>Uses :data:<code>CATEGORY_DOMAIN_MAP</code> as the single source of truth.  When
+<code>sber_category</code> is provided, it resolves directly against the map;
+otherwise :func:<code>categories_for_domain</code> picks the best-ranked match
+for the entity's <code>(domain, device_class)</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>entity_id</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>HA entity ID (e.g., <code>"light.living_room"</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>entity_data</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dict with entity registry data (entity_id, device_id,
+area_id, original_device_class, etc.).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>sber_category</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional Sber category override (e.g. <code>"light"</code>,
+<code>"relay"</code>).  Takes precedence over the domain-based pick.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="            BaseEntity (custom_components.sber_mqtt_bridge.devices.base_entity.BaseEntity)" href="../devices/base/#custom_components.sber_mqtt_bridge.devices.base_entity.BaseEntity">BaseEntity</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>BaseEntity subclass instance, or <code>None</code> if no category matches.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>custom_components/sber_mqtt_bridge/sber_entity_map.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-408">408</a></span>
+<span class="normal"><a href="#__codelineno-0-409">409</a></span>
+<span class="normal"><a href="#__codelineno-0-410">410</a></span>
+<span class="normal"><a href="#__codelineno-0-411">411</a></span>
+<span class="normal"><a href="#__codelineno-0-412">412</a></span>
+<span class="normal"><a href="#__codelineno-0-413">413</a></span>
+<span class="normal"><a href="#__codelineno-0-414">414</a></span>
+<span class="normal"><a href="#__codelineno-0-415">415</a></span>
+<span class="normal"><a href="#__codelineno-0-416">416</a></span>
+<span class="normal"><a href="#__codelineno-0-417">417</a></span>
+<span class="normal"><a href="#__codelineno-0-418">418</a></span>
+<span class="normal"><a href="#__codelineno-0-419">419</a></span>
+<span class="normal"><a href="#__codelineno-0-420">420</a></span>
+<span class="normal"><a href="#__codelineno-0-421">421</a></span>
+<span class="normal"><a href="#__codelineno-0-422">422</a></span>
+<span class="normal"><a href="#__codelineno-0-423">423</a></span>
+<span class="normal"><a href="#__codelineno-0-424">424</a></span>
+<span class="normal"><a href="#__codelineno-0-425">425</a></span>
+<span class="normal"><a href="#__codelineno-0-426">426</a></span>
+<span class="normal"><a href="#__codelineno-0-427">427</a></span>
+<span class="normal"><a href="#__codelineno-0-428">428</a></span>
+<span class="normal"><a href="#__codelineno-0-429">429</a></span>
+<span class="normal"><a href="#__codelineno-0-430">430</a></span>
+<span class="normal"><a href="#__codelineno-0-431">431</a></span>
+<span class="normal"><a href="#__codelineno-0-432">432</a></span>
+<span class="normal"><a href="#__codelineno-0-433">433</a></span>
+<span class="normal"><a href="#__codelineno-0-434">434</a></span>
+<span class="normal"><a href="#__codelineno-0-435">435</a></span>
+<span class="normal"><a href="#__codelineno-0-436">436</a></span>
+<span class="normal"><a href="#__codelineno-0-437">437</a></span>
+<span class="normal"><a href="#__codelineno-0-438">438</a></span>
+<span class="normal"><a href="#__codelineno-0-439">439</a></span>
+<span class="normal"><a href="#__codelineno-0-440">440</a></span>
+<span class="normal"><a href="#__codelineno-0-441">441</a></span>
+<span class="normal"><a href="#__codelineno-0-442">442</a></span>
+<span class="normal"><a href="#__codelineno-0-443">443</a></span>
+<span class="normal"><a href="#__codelineno-0-444">444</a></span>
+<span class="normal"><a href="#__codelineno-0-445">445</a></span>
+<span class="normal"><a href="#__codelineno-0-446">446</a></span>
+<span class="normal"><a href="#__codelineno-0-447">447</a></span>
+<span class="normal"><a href="#__codelineno-0-448">448</a></span>
+<span class="normal"><a href="#__codelineno-0-449">449</a></span>
+<span class="normal"><a href="#__codelineno-0-450">450</a></span>
+<span class="normal"><a href="#__codelineno-0-451">451</a></span>
+<span class="normal"><a href="#__codelineno-0-452">452</a></span>
+<span class="normal"><a href="#__codelineno-0-453">453</a></span>
+<span class="normal"><a href="#__codelineno-0-454">454</a></span>
+<span class="normal"><a href="#__codelineno-0-455">455</a></span>
+<span class="normal"><a href="#__codelineno-0-456">456</a></span>
+<span class="normal"><a href="#__codelineno-0-457">457</a></span>
+<span class="normal"><a href="#__codelineno-0-458">458</a></span>
+<span class="normal"><a href="#__codelineno-0-459">459</a></span>
+<span class="normal"><a href="#__codelineno-0-460">460</a></span>
+<span class="normal"><a href="#__codelineno-0-461">461</a></span>
+<span class="normal"><a href="#__codelineno-0-462">462</a></span>
+<span class="normal"><a href="#__codelineno-0-463">463</a></span>
+<span class="normal"><a href="#__codelineno-0-464">464</a></span>
+<span class="normal"><a href="#__codelineno-0-465">465</a></span>
+<span class="normal"><a href="#__codelineno-0-466">466</a></span>
+<span class="normal"><a href="#__codelineno-0-467">467</a></span>
+<span class="normal"><a href="#__codelineno-0-468">468</a></span>
+<span class="normal"><a href="#__codelineno-0-469">469</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-408" name="__codelineno-0-408"></a><span class="k">def</span><span class="w"> </span><span class="nf">create_sber_entity</span><span class="p">(</span>
+<a id="__codelineno-0-409" name="__codelineno-0-409"></a>    <span class="n">entity_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-410" name="__codelineno-0-410"></a>    <span class="n">entity_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+<a id="__codelineno-0-411" name="__codelineno-0-411"></a>    <span class="n">sber_category</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-412" name="__codelineno-0-412"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseEntity</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-413" name="__codelineno-0-413"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a Sber device entity from HA entity data.</span>
+<a id="__codelineno-0-414" name="__codelineno-0-414"></a>
+<a id="__codelineno-0-415" name="__codelineno-0-415"></a><span class="sd">    Uses :data:`CATEGORY_DOMAIN_MAP` as the single source of truth.  When</span>
+<a id="__codelineno-0-416" name="__codelineno-0-416"></a><span class="sd">    ``sber_category`` is provided, it resolves directly against the map;</span>
+<a id="__codelineno-0-417" name="__codelineno-0-417"></a><span class="sd">    otherwise :func:`categories_for_domain` picks the best-ranked match</span>
+<a id="__codelineno-0-418" name="__codelineno-0-418"></a><span class="sd">    for the entity&#39;s ``(domain, device_class)``.</span>
+<a id="__codelineno-0-419" name="__codelineno-0-419"></a>
+<a id="__codelineno-0-420" name="__codelineno-0-420"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-421" name="__codelineno-0-421"></a><span class="sd">        entity_id: HA entity ID (e.g., ``&quot;light.living_room&quot;``).</span>
+<a id="__codelineno-0-422" name="__codelineno-0-422"></a><span class="sd">        entity_data: Dict with entity registry data (entity_id, device_id,</span>
+<a id="__codelineno-0-423" name="__codelineno-0-423"></a><span class="sd">            area_id, original_device_class, etc.).</span>
+<a id="__codelineno-0-424" name="__codelineno-0-424"></a><span class="sd">        sber_category: Optional Sber category override (e.g. ``&quot;light&quot;``,</span>
+<a id="__codelineno-0-425" name="__codelineno-0-425"></a><span class="sd">            ``&quot;relay&quot;``).  Takes precedence over the domain-based pick.</span>
+<a id="__codelineno-0-426" name="__codelineno-0-426"></a>
+<a id="__codelineno-0-427" name="__codelineno-0-427"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-428" name="__codelineno-0-428"></a><span class="sd">        BaseEntity subclass instance, or ``None`` if no category matches.</span>
+<a id="__codelineno-0-429" name="__codelineno-0-429"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-430" name="__codelineno-0-430"></a>    <span class="n">dc</span> <span class="o">=</span> <span class="n">entity_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;original_device_class&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-431" name="__codelineno-0-431"></a>
+<a id="__codelineno-0-432" name="__codelineno-0-432"></a>    <span class="k">if</span> <span class="n">sber_category</span><span class="p">:</span>
+<a id="__codelineno-0-433" name="__codelineno-0-433"></a>        <span class="c1"># UX convenience: when a user picks &quot;sensor_temp&quot; but the HA entity</span>
+<a id="__codelineno-0-434" name="__codelineno-0-434"></a>        <span class="c1"># is actually a humidity sensor, silently route to sensor_humidity</span>
+<a id="__codelineno-0-435" name="__codelineno-0-435"></a>        <span class="c1"># so the resulting device emits the right Sber key.  Both categories</span>
+<a id="__codelineno-0-436" name="__codelineno-0-436"></a>        <span class="c1"># live in CATEGORY_DOMAIN_MAP so this is just a category rewrite.</span>
+<a id="__codelineno-0-437" name="__codelineno-0-437"></a>        <span class="k">if</span> <span class="n">sber_category</span> <span class="o">==</span> <span class="s2">&quot;sensor_temp&quot;</span> <span class="ow">and</span> <span class="n">dc</span> <span class="o">==</span> <span class="s2">&quot;humidity&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-438" name="__codelineno-0-438"></a>            <span class="n">sber_category</span> <span class="o">=</span> <span class="s2">&quot;sensor_humidity&quot;</span>
+<a id="__codelineno-0-439" name="__codelineno-0-439"></a>        <span class="n">spec</span> <span class="o">=</span> <span class="n">CATEGORY_DOMAIN_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sber_category</span><span class="p">)</span>
+<a id="__codelineno-0-440" name="__codelineno-0-440"></a>        <span class="k">if</span> <span class="n">spec</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-441" name="__codelineno-0-441"></a>            <span class="n">entity</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">cls</span><span class="p">(</span><span class="n">entity_data</span><span class="p">)</span>
+<a id="__codelineno-0-442" name="__codelineno-0-442"></a>            <span class="n">_LOGGER</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Entity </span><span class="si">%s</span><span class="s2"> → Sber </span><span class="si">%s</span><span class="s2"> (override)&quot;</span><span class="p">,</span> <span class="n">entity_id</span><span class="p">,</span> <span class="n">entity</span><span class="o">.</span><span class="n">category</span><span class="p">)</span>
+<a id="__codelineno-0-443" name="__codelineno-0-443"></a>            <span class="k">return</span> <span class="n">entity</span>
+<a id="__codelineno-0-444" name="__codelineno-0-444"></a>        <span class="n">_LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-445" name="__codelineno-0-445"></a>            <span class="s2">&quot;Unknown Sber category override &#39;</span><span class="si">%s</span><span class="s2">&#39; for </span><span class="si">%s</span><span class="s2">, falling back to domain mapping&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-446" name="__codelineno-0-446"></a>            <span class="n">sber_category</span><span class="p">,</span>
+<a id="__codelineno-0-447" name="__codelineno-0-447"></a>            <span class="n">entity_id</span><span class="p">,</span>
+<a id="__codelineno-0-448" name="__codelineno-0-448"></a>        <span class="p">)</span>
+<a id="__codelineno-0-449" name="__codelineno-0-449"></a>
+<a id="__codelineno-0-450" name="__codelineno-0-450"></a>    <span class="n">domain</span> <span class="o">=</span> <span class="n">entity_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-0-451" name="__codelineno-0-451"></a>    <span class="n">matches</span> <span class="o">=</span> <span class="n">categories_for_domain</span><span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="n">dc</span><span class="p">)</span>
+<a id="__codelineno-0-452" name="__codelineno-0-452"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
+<a id="__codelineno-0-453" name="__codelineno-0-453"></a>        <span class="n">_LOGGER</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+<a id="__codelineno-0-454" name="__codelineno-0-454"></a>            <span class="s2">&quot;No Sber category for entity </span><span class="si">%s</span><span class="s2"> (domain=</span><span class="si">%s</span><span class="s2">, device_class=</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-455" name="__codelineno-0-455"></a>            <span class="n">entity_id</span><span class="p">,</span>
+<a id="__codelineno-0-456" name="__codelineno-0-456"></a>            <span class="n">domain</span><span class="p">,</span>
+<a id="__codelineno-0-457" name="__codelineno-0-457"></a>            <span class="n">dc</span><span class="p">,</span>
+<a id="__codelineno-0-458" name="__codelineno-0-458"></a>        <span class="p">)</span>
+<a id="__codelineno-0-459" name="__codelineno-0-459"></a>        <span class="k">return</span> <span class="kc">None</span>
+<a id="__codelineno-0-460" name="__codelineno-0-460"></a>    <span class="n">spec</span> <span class="o">=</span> <span class="n">CATEGORY_DOMAIN_MAP</span><span class="p">[</span><span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+<a id="__codelineno-0-461" name="__codelineno-0-461"></a>    <span class="n">entity</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">cls</span><span class="p">(</span><span class="n">entity_data</span><span class="p">)</span>
+<a id="__codelineno-0-462" name="__codelineno-0-462"></a>    <span class="n">_LOGGER</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+<a id="__codelineno-0-463" name="__codelineno-0-463"></a>        <span class="s2">&quot;Entity </span><span class="si">%s</span><span class="s2"> → Sber </span><span class="si">%s</span><span class="s2"> (domain=</span><span class="si">%s</span><span class="s2">, device_class=</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-464" name="__codelineno-0-464"></a>        <span class="n">entity_id</span><span class="p">,</span>
+<a id="__codelineno-0-465" name="__codelineno-0-465"></a>        <span class="n">entity</span><span class="o">.</span><span class="n">category</span><span class="p">,</span>
+<a id="__codelineno-0-466" name="__codelineno-0-466"></a>        <span class="n">domain</span><span class="p">,</span>
+<a id="__codelineno-0-467" name="__codelineno-0-467"></a>        <span class="n">dc</span><span class="p">,</span>
+<a id="__codelineno-0-468" name="__codelineno-0-468"></a>    <span class="p">)</span>
+<a id="__codelineno-0-469" name="__codelineno-0-469"></a>    <span class="k">return</span> <span class="n">entity</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  К началу
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/dzerik/sber-mqtt-bridge" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

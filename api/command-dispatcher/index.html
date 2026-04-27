@@ -1,0 +1,2823 @@
+
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Home Assistant integration for Sber Smart Home via MQTT. Control HA devices through Sber voice assistants and the Sber Smart Home app.">
+      
+      
+      
+        <link rel="canonical" href="https://dzerik.github.io/sber-mqtt-bridge/api/command-dispatcher/">
+      
+      
+        <link rel="prev" href="../mqtt-client-service/">
+      
+      
+        <link rel="next" href="../ha-state-forwarder/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>SberCommandDispatcher - Sber Smart Home MQTT Bridge</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sbercommanddispatcher" class="md-skip">
+          Перейти к содержанию
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Верхний колонтитул">
+    <a href="../.." title="Sber Smart Home MQTT Bridge" class="md-header__button md-logo" aria-label="Sber Smart Home MQTT Bridge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Sber Smart Home MQTT Bridge
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              SberCommandDispatcher
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Поиск" placeholder="Поиск" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Поиск">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистить" aria-label="Очистить" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dzerik/sber-mqtt-bridge" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dzerik/sber-mqtt-bridge
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Вкладки" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../sber-setup/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Sber Studio Setup
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../configuration/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Configuration
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../devices/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Supported Devices
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../troubleshooting/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../sber-c2c-spec/" class="md-tabs__link">
+          
+  
+  
+  Sber C2C Spec
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Навигация" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Sber Smart Home MQTT Bridge" class="md-nav__button md-logo" aria-label="Sber Smart Home MQTT Bridge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Sber Smart Home MQTT Bridge
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dzerik/sber-mqtt-bridge" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dzerik/sber-mqtt-bridge
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sber Studio Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Devices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sber C2C Spec
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Sber C2C Spec
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/data-structures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/mqtt-topics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT Topics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/device-categories/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Categories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/mqtt-vs-rest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT vs REST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-c2c-spec/validation-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberBridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mqtt-client-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MqttClientService
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberCommandDispatcher
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberCommandDispatcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;command_dispatcher
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.BridgeCommandContext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;BridgeCommandContext
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;SberCommandDispatcher
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" SberCommandDispatcher">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_command
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_status_request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_status_request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_config_request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_config_request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_change_group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_change_group
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_rename_device" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_rename_device
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_global_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_global_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ha-state-forwarder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HaStateForwarder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../entity-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberEntityLoader
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../message-logger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MessageLogger
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Протокол
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Модели
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../entity-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_12" id="__nav_7_12_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Устройства
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Устройства
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Базовые классы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/light/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Освещение
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/climate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Климат
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/covers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Шторы и ворота
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/switches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Реле и розетки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/sensors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Сенсоры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Медиа
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/appliances/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Бытовая техника
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Утилиты
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;command_dispatcher
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.BridgeCommandContext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;BridgeCommandContext
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;SberCommandDispatcher
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" SberCommandDispatcher">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_command
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_status_request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_status_request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_config_request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_config_request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_change_group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_change_group
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_rename_device" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_rename_device
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_global_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;handle_global_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="sbercommanddispatcher">SberCommandDispatcher<a class="headerlink" href="#sbercommanddispatcher" title="Permanent link">&para;</a></h1>
+<p>Интерпретация входящих Sber MQTT-сообщений и диспатч side-эффектов.
+Владеет обработчиками <code>handle_command</code>, <code>handle_status_request</code>,
+<code>handle_config_request</code>, <code>handle_error</code>, <code>handle_change_group</code>,
+<code>handle_rename_device</code>, <code>handle_global_config</code>.</p>
+<p>Извлечён из <code>SberBridge</code> в v1.25.1 для изоляции Sber-протокольной
+логики от транспорта и HA state forwarding (SRP). Держит ссылку на
+родительский <code>SberBridge</code>, так как ряд handler'ов мутирует состояние
+моста (entities, redefinitions, acknowledgements) и инициирует publish.</p>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="custom_components.sber_mqtt_bridge.command_dispatcher"></a>
+    <div class="doc doc-contents first">
+
+        <p>Sber MQTT command dispatcher.</p>
+<p>Handles commands, status/config requests, errors, change_group and
+rename_device messages from the Sber cloud.  Extracted from
+:class:<code>SberBridge</code> to isolate Sber-protocol command interpretation
+from transport and HA state forwarding (SRP).</p>
+<p>The dispatcher holds a reference to its parent :class:<code>SberBridge</code>
+because several command handlers need to mutate bridge state
+(entities, redefinitions, acknowledgements) and invoke publish
+operations.  The coupling is explicit and one-way.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="custom_components.sber_mqtt_bridge.command_dispatcher.BridgeCommandContext" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">BridgeCommandContext</span>
+
+
+<a href="#custom_components.sber_mqtt_bridge.command_dispatcher.BridgeCommandContext" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Narrow interface for SberCommandDispatcher's bridge dependency.</p>
+<p>Replaces the full <code>SberBridge</code> reference to make the coupling
+explicit and testable.  Every field/method the dispatcher touches
+is declared here.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">SberCommandDispatcher</span>
+
+
+<a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SberCommandDispatcher</span><span class="p">(</span><span class="n">bridge</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Interprets incoming Sber MQTT payloads and dispatches side effects.</p>
+<p>Each <code>handle_*</code> method corresponds to one topic suffix in the Sber
+down/* namespace.  The bridge's <code>_mqtt_dispatch</code> table routes
+incoming messages to the matching handler.</p>
+
+        <p>Initialize the dispatcher bound to a bridge context.</p>
+
+
+
+
+
+
+
+
+                  <details class="mkdocstrings-source">
+                    <summary>Source code in <code>custom_components/sber_mqtt_bridge/command_dispatcher.py</code></summary>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-85">85</a></span>
+<span class="normal"><a href="#__codelineno-0-86">86</a></span>
+<span class="normal"><a href="#__codelineno-0-87">87</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-85" name="__codelineno-0-85"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bridge</span><span class="p">:</span> <span class="n">BridgeCommandContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Initialize the dispatcher bound to a bridge context.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_bridge</span> <span class="o">=</span> <span class="n">bridge</span>
+</code></pre></div></td></tr></table></div>
+                  </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_command" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">handle_command</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_command" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">handle_command</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Handle a command from Sber cloud → execute HA service.</p>
+<p>During the reconnect grace period, commands are rejected and
+current HA states are re-published so that Sber cloud accepts
+HA as the authoritative source of truth.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>custom_components/sber_mqtt_bridge/command_dispatcher.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-89"> 89</a></span>
+<span class="normal"><a href="#__codelineno-0-90"> 90</a></span>
+<span class="normal"><a href="#__codelineno-0-91"> 91</a></span>
+<span class="normal"><a href="#__codelineno-0-92"> 92</a></span>
+<span class="normal"><a href="#__codelineno-0-93"> 93</a></span>
+<span class="normal"><a href="#__codelineno-0-94"> 94</a></span>
+<span class="normal"><a href="#__codelineno-0-95"> 95</a></span>
+<span class="normal"><a href="#__codelineno-0-96"> 96</a></span>
+<span class="normal"><a href="#__codelineno-0-97"> 97</a></span>
+<span class="normal"><a href="#__codelineno-0-98"> 98</a></span>
+<span class="normal"><a href="#__codelineno-0-99"> 99</a></span>
+<span class="normal"><a href="#__codelineno-0-100">100</a></span>
+<span class="normal"><a href="#__codelineno-0-101">101</a></span>
+<span class="normal"><a href="#__codelineno-0-102">102</a></span>
+<span class="normal"><a href="#__codelineno-0-103">103</a></span>
+<span class="normal"><a href="#__codelineno-0-104">104</a></span>
+<span class="normal"><a href="#__codelineno-0-105">105</a></span>
+<span class="normal"><a href="#__codelineno-0-106">106</a></span>
+<span class="normal"><a href="#__codelineno-0-107">107</a></span>
+<span class="normal"><a href="#__codelineno-0-108">108</a></span>
+<span class="normal"><a href="#__codelineno-0-109">109</a></span>
+<span class="normal"><a href="#__codelineno-0-110">110</a></span>
+<span class="normal"><a href="#__codelineno-0-111">111</a></span>
+<span class="normal"><a href="#__codelineno-0-112">112</a></span>
+<span class="normal"><a href="#__codelineno-0-113">113</a></span>
+<span class="normal"><a href="#__codelineno-0-114">114</a></span>
+<span class="normal"><a href="#__codelineno-0-115">115</a></span>
+<span class="normal"><a href="#__codelineno-0-116">116</a></span>
+<span class="normal"><a href="#__codelineno-0-117">117</a></span>
+<span class="normal"><a href="#__codelineno-0-118">118</a></span>
+<span class="normal"><a href="#__codelineno-0-119">119</a></span>
+<span class="normal"><a href="#__codelineno-0-120">120</a></span>
+<span class="normal"><a href="#__codelineno-0-121">121</a></span>
+<span class="normal"><a href="#__codelineno-0-122">122</a></span>
+<span class="normal"><a href="#__codelineno-0-123">123</a></span>
+<span class="normal"><a href="#__codelineno-0-124">124</a></span>
+<span class="normal"><a href="#__codelineno-0-125">125</a></span>
+<span class="normal"><a href="#__codelineno-0-126">126</a></span>
+<span class="normal"><a href="#__codelineno-0-127">127</a></span>
+<span class="normal"><a href="#__codelineno-0-128">128</a></span>
+<span class="normal"><a href="#__codelineno-0-129">129</a></span>
+<span class="normal"><a href="#__codelineno-0-130">130</a></span>
+<span class="normal"><a href="#__codelineno-0-131">131</a></span>
+<span class="normal"><a href="#__codelineno-0-132">132</a></span>
+<span class="normal"><a href="#__codelineno-0-133">133</a></span>
+<span class="normal"><a href="#__codelineno-0-134">134</a></span>
+<span class="normal"><a href="#__codelineno-0-135">135</a></span>
+<span class="normal"><a href="#__codelineno-0-136">136</a></span>
+<span class="normal"><a href="#__codelineno-0-137">137</a></span>
+<span class="normal"><a href="#__codelineno-0-138">138</a></span>
+<span class="normal"><a href="#__codelineno-0-139">139</a></span>
+<span class="normal"><a href="#__codelineno-0-140">140</a></span>
+<span class="normal"><a href="#__codelineno-0-141">141</a></span>
+<span class="normal"><a href="#__codelineno-0-142">142</a></span>
+<span class="normal"><a href="#__codelineno-0-143">143</a></span>
+<span class="normal"><a href="#__codelineno-0-144">144</a></span>
+<span class="normal"><a href="#__codelineno-0-145">145</a></span>
+<span class="normal"><a href="#__codelineno-0-146">146</a></span>
+<span class="normal"><a href="#__codelineno-0-147">147</a></span>
+<span class="normal"><a href="#__codelineno-0-148">148</a></span>
+<span class="normal"><a href="#__codelineno-0-149">149</a></span>
+<span class="normal"><a href="#__codelineno-0-150">150</a></span>
+<span class="normal"><a href="#__codelineno-0-151">151</a></span>
+<span class="normal"><a href="#__codelineno-0-152">152</a></span>
+<span class="normal"><a href="#__codelineno-0-153">153</a></span>
+<span class="normal"><a href="#__codelineno-0-154">154</a></span>
+<span class="normal"><a href="#__codelineno-0-155">155</a></span>
+<span class="normal"><a href="#__codelineno-0-156">156</a></span>
+<span class="normal"><a href="#__codelineno-0-157">157</a></span>
+<span class="normal"><a href="#__codelineno-0-158">158</a></span>
+<span class="normal"><a href="#__codelineno-0-159">159</a></span>
+<span class="normal"><a href="#__codelineno-0-160">160</a></span>
+<span class="normal"><a href="#__codelineno-0-161">161</a></span>
+<span class="normal"><a href="#__codelineno-0-162">162</a></span>
+<span class="normal"><a href="#__codelineno-0-163">163</a></span>
+<span class="normal"><a href="#__codelineno-0-164">164</a></span>
+<span class="normal"><a href="#__codelineno-0-165">165</a></span>
+<span class="normal"><a href="#__codelineno-0-166">166</a></span>
+<span class="normal"><a href="#__codelineno-0-167">167</a></span>
+<span class="normal"><a href="#__codelineno-0-168">168</a></span>
+<span class="normal"><a href="#__codelineno-0-169">169</a></span>
+<span class="normal"><a href="#__codelineno-0-170">170</a></span>
+<span class="normal"><a href="#__codelineno-0-171">171</a></span>
+<span class="normal"><a href="#__codelineno-0-172">172</a></span>
+<span class="normal"><a href="#__codelineno-0-173">173</a></span>
+<span class="normal"><a href="#__codelineno-0-174">174</a></span>
+<span class="normal"><a href="#__codelineno-0-175">175</a></span>
+<span class="normal"><a href="#__codelineno-0-176">176</a></span>
+<span class="normal"><a href="#__codelineno-0-177">177</a></span>
+<span class="normal"><a href="#__codelineno-0-178">178</a></span>
+<span class="normal"><a href="#__codelineno-0-179">179</a></span>
+<span class="normal"><a href="#__codelineno-0-180">180</a></span>
+<span class="normal"><a href="#__codelineno-0-181">181</a></span>
+<span class="normal"><a href="#__codelineno-0-182">182</a></span>
+<span class="normal"><a href="#__codelineno-0-183">183</a></span>
+<span class="normal"><a href="#__codelineno-0-184">184</a></span>
+<span class="normal"><a href="#__codelineno-0-185">185</a></span>
+<span class="normal"><a href="#__codelineno-0-186">186</a></span>
+<span class="normal"><a href="#__codelineno-0-187">187</a></span>
+<span class="normal"><a href="#__codelineno-0-188">188</a></span>
+<span class="normal"><a href="#__codelineno-0-189">189</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-89" name="__codelineno-0-89"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">handle_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Handle a command from Sber cloud → execute HA service.</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a>
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a><span class="sd">    During the reconnect grace period, commands are rejected and</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="sd">    current HA states are re-published so that Sber cloud accepts</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a><span class="sd">    HA as the authoritative source of truth.</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a>    <span class="n">bridge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bridge</span>
+<a id="__codelineno-0-97" name="__codelineno-0-97"></a>    <span class="n">data</span> <span class="o">=</span> <span class="n">parse_sber_command</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+<a id="__codelineno-0-98" name="__codelineno-0-98"></a>    <span class="n">bridge</span><span class="o">.</span><span class="n">_stats</span><span class="o">.</span><span class="n">commands_received</span> <span class="o">+=</span> <span class="mi">1</span>
+<a id="__codelineno-0-99" name="__codelineno-0-99"></a>
+<a id="__codelineno-0-100" name="__codelineno-0-100"></a>    <span class="n">devices</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;devices&quot;</span><span class="p">,</span> <span class="p">{})</span>
+<a id="__codelineno-0-101" name="__codelineno-0-101"></a>
+<a id="__codelineno-0-102" name="__codelineno-0-102"></a>    <span class="k">if</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_ack_audit</span><span class="o">.</span><span class="n">is_awaiting</span><span class="p">:</span>
+<a id="__codelineno-0-103" name="__codelineno-0-103"></a>        <span class="k">if</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_ack_audit</span><span class="o">.</span><span class="n">timeout_check</span><span class="p">():</span>
+<a id="__codelineno-0-104" name="__codelineno-0-104"></a>            <span class="k">pass</span>  <span class="c1"># Guard cleared by timeout — fall through to process</span>
+<a id="__codelineno-0-105" name="__codelineno-0-105"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-106" name="__codelineno-0-106"></a>            <span class="n">entity_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">eid</span> <span class="k">for</span> <span class="n">eid</span> <span class="ow">in</span> <span class="n">devices</span> <span class="k">if</span> <span class="n">eid</span> <span class="ow">in</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_entities</span><span class="p">]</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a>            <span class="n">_LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-108" name="__codelineno-0-108"></a>                <span class="s2">&quot;Ignoring Sber command (awaiting Sber ack after reconnect, &quot;</span>
+<a id="__codelineno-0-109" name="__codelineno-0-109"></a>                <span class="s2">&quot;HA state is authoritative): </span><span class="si">%s</span><span class="s2"> [</span><span class="si">%s</span><span class="s2">] — re-publishing states&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-110" name="__codelineno-0-110"></a>                <span class="n">entity_ids</span><span class="p">,</span>
+<a id="__codelineno-0-111" name="__codelineno-0-111"></a>                <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;key&quot;</span><span class="p">,</span> <span class="s2">&quot;?&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">devices</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">cmd</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;states&quot;</span><span class="p">,</span> <span class="p">[])),</span>
+<a id="__codelineno-0-112" name="__codelineno-0-112"></a>            <span class="p">)</span>
+<a id="__codelineno-0-113" name="__codelineno-0-113"></a>            <span class="k">if</span> <span class="n">entity_ids</span><span class="p">:</span>
+<a id="__codelineno-0-114" name="__codelineno-0-114"></a>                <span class="k">await</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_publish_states</span><span class="p">(</span><span class="n">entity_ids</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-115" name="__codelineno-0-115"></a>            <span class="k">return</span>
+<a id="__codelineno-0-116" name="__codelineno-0-116"></a>
+<a id="__codelineno-0-117" name="__codelineno-0-117"></a>    <span class="n">_LOGGER</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+<a id="__codelineno-0-118" name="__codelineno-0-118"></a>        <span class="s2">&quot;Sber command for </span><span class="si">%d</span><span class="s2"> device(s): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-119" name="__codelineno-0-119"></a>        <span class="nb">len</span><span class="p">(</span><span class="n">devices</span><span class="p">),</span>
+<a id="__codelineno-0-120" name="__codelineno-0-120"></a>        <span class="nb">list</span><span class="p">(</span><span class="n">devices</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
+<a id="__codelineno-0-121" name="__codelineno-0-121"></a>    <span class="p">)</span>
+<a id="__codelineno-0-122" name="__codelineno-0-122"></a>
+<a id="__codelineno-0-123" name="__codelineno-0-123"></a>    <span class="n">update_state_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-124" name="__codelineno-0-124"></a>    <span class="n">context</span> <span class="o">=</span> <span class="n">Context</span><span class="p">()</span>
+<a id="__codelineno-0-125" name="__codelineno-0-125"></a>
+<a id="__codelineno-0-126" name="__codelineno-0-126"></a>    <span class="c1"># DevTools correlation timeline: open a trace keyed by context.id so</span>
+<a id="__codelineno-0-127" name="__codelineno-0-127"></a>    <span class="c1"># the subsequent HA service calls and state_changed events (which HA</span>
+<a id="__codelineno-0-128" name="__codelineno-0-128"></a>    <span class="c1"># automatically tags with the same Context) land in the same trace.</span>
+<a id="__codelineno-0-129" name="__codelineno-0-129"></a>    <span class="n">known_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">eid</span> <span class="k">for</span> <span class="n">eid</span> <span class="ow">in</span> <span class="n">devices</span> <span class="k">if</span> <span class="n">eid</span> <span class="ow">in</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_entities</span><span class="p">]</span>
+<a id="__codelineno-0-130" name="__codelineno-0-130"></a>    <span class="n">bridge</span><span class="o">.</span><span class="n">_trace_collector</span><span class="o">.</span><span class="n">begin</span><span class="p">(</span>
+<a id="__codelineno-0-131" name="__codelineno-0-131"></a>        <span class="n">trace_id</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<a id="__codelineno-0-132" name="__codelineno-0-132"></a>        <span class="n">trigger</span><span class="o">=</span><span class="s2">&quot;sber_command&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-133" name="__codelineno-0-133"></a>        <span class="n">entity_ids</span><span class="o">=</span><span class="n">known_ids</span><span class="p">,</span>
+<a id="__codelineno-0-134" name="__codelineno-0-134"></a>        <span class="n">topic</span><span class="o">=</span><span class="s2">&quot;down/commands&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-135" name="__codelineno-0-135"></a>        <span class="n">payload</span><span class="o">=</span><span class="n">devices</span><span class="p">,</span>
+<a id="__codelineno-0-136" name="__codelineno-0-136"></a>    <span class="p">)</span>
+<a id="__codelineno-0-137" name="__codelineno-0-137"></a>    <span class="n">bridge</span><span class="o">.</span><span class="n">_sweep_traces</span><span class="p">()</span>
+<a id="__codelineno-0-138" name="__codelineno-0-138"></a>
+<a id="__codelineno-0-139" name="__codelineno-0-139"></a>    <span class="k">for</span> <span class="n">entity_id</span><span class="p">,</span> <span class="n">cmd_data</span> <span class="ow">in</span> <span class="n">devices</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-0-140" name="__codelineno-0-140"></a>        <span class="n">bridge</span><span class="o">.</span><span class="n">_stats</span><span class="o">.</span><span class="n">acknowledged_entities</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">entity_id</span><span class="p">)</span>
+<a id="__codelineno-0-141" name="__codelineno-0-141"></a>        <span class="n">entity</span> <span class="o">=</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_entities</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">entity_id</span><span class="p">)</span>
+<a id="__codelineno-0-142" name="__codelineno-0-142"></a>        <span class="k">if</span> <span class="n">entity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-143" name="__codelineno-0-143"></a>            <span class="n">_LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Sber command for unknown entity: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">entity_id</span><span class="p">)</span>
+<a id="__codelineno-0-144" name="__codelineno-0-144"></a>            <span class="k">continue</span>
+<a id="__codelineno-0-145" name="__codelineno-0-145"></a>
+<a id="__codelineno-0-146" name="__codelineno-0-146"></a>        <span class="n">_LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-147" name="__codelineno-0-147"></a>            <span class="s2">&quot;Sber → HA command: </span><span class="si">%s</span><span class="s2"> [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-148" name="__codelineno-0-148"></a>            <span class="n">entity_id</span><span class="p">,</span>
+<a id="__codelineno-0-149" name="__codelineno-0-149"></a>            <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;key&quot;</span><span class="p">,</span> <span class="s2">&quot;?&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">cmd_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;states&quot;</span><span class="p">,</span> <span class="p">[])),</span>
+<a id="__codelineno-0-150" name="__codelineno-0-150"></a>        <span class="p">)</span>
+<a id="__codelineno-0-151" name="__codelineno-0-151"></a>
+<a id="__codelineno-0-152" name="__codelineno-0-152"></a>        <span class="n">results</span> <span class="o">=</span> <span class="n">entity</span><span class="o">.</span><span class="n">process_cmd</span><span class="p">(</span><span class="n">cmd_data</span><span class="p">)</span>
+<a id="__codelineno-0-153" name="__codelineno-0-153"></a>        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+<a id="__codelineno-0-154" name="__codelineno-0-154"></a>            <span class="n">cmd</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;url&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-155" name="__codelineno-0-155"></a>            <span class="k">if</span> <span class="n">cmd</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-156" name="__codelineno-0-156"></a>                <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;update_state&quot;</span><span class="p">):</span>
+<a id="__codelineno-0-157" name="__codelineno-0-157"></a>                    <span class="n">update_state_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entity_id</span><span class="p">)</span>
+<a id="__codelineno-0-158" name="__codelineno-0-158"></a>                <span class="k">continue</span>
+<a id="__codelineno-0-159" name="__codelineno-0-159"></a>            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_call_ha_service</span><span class="p">(</span><span class="n">entity_id</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
+<a id="__codelineno-0-160" name="__codelineno-0-160"></a>            <span class="n">bridge</span><span class="o">.</span><span class="n">_trace_collector</span><span class="o">.</span><span class="n">record</span><span class="p">(</span>
+<a id="__codelineno-0-161" name="__codelineno-0-161"></a>                <span class="n">context</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<a id="__codelineno-0-162" name="__codelineno-0-162"></a>                <span class="n">type_</span><span class="o">=</span><span class="s2">&quot;ha_service_call&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-163" name="__codelineno-0-163"></a>                <span class="n">entity_id</span><span class="o">=</span><span class="n">entity_id</span><span class="p">,</span>
+<a id="__codelineno-0-164" name="__codelineno-0-164"></a>                <span class="n">payload</span><span class="o">=</span><span class="p">{</span>
+<a id="__codelineno-0-165" name="__codelineno-0-165"></a>                    <span class="s2">&quot;domain&quot;</span><span class="p">:</span> <span class="n">cmd</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;domain&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-166" name="__codelineno-0-166"></a>                    <span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">cmd</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-167" name="__codelineno-0-167"></a>                    <span class="s2">&quot;service_data&quot;</span><span class="p">:</span> <span class="n">cmd</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;service_data&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-168" name="__codelineno-0-168"></a>                <span class="p">},</span>
+<a id="__codelineno-0-169" name="__codelineno-0-169"></a>            <span class="p">)</span>
+<a id="__codelineno-0-170" name="__codelineno-0-170"></a>
+<a id="__codelineno-0-171" name="__codelineno-0-171"></a>    <span class="n">commanded_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">eid</span> <span class="k">for</span> <span class="n">eid</span> <span class="ow">in</span> <span class="n">devices</span> <span class="k">if</span> <span class="n">eid</span> <span class="ow">in</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_entities</span><span class="p">]</span>
+<a id="__codelineno-0-172" name="__codelineno-0-172"></a>
+<a id="__codelineno-0-173" name="__codelineno-0-173"></a>    <span class="k">if</span> <span class="n">update_state_ids</span><span class="p">:</span>
+<a id="__codelineno-0-174" name="__codelineno-0-174"></a>        <span class="k">await</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_publish_states</span><span class="p">(</span><span class="n">update_state_ids</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-175" name="__codelineno-0-175"></a>
+<a id="__codelineno-0-176" name="__codelineno-0-176"></a>    <span class="c1"># Schedule a delayed force-publish for all commanded entities.</span>
+<a id="__codelineno-0-177" name="__codelineno-0-177"></a>    <span class="c1"># Sber expects state confirmation after every command.</span>
+<a id="__codelineno-0-178" name="__codelineno-0-178"></a>    <span class="k">for</span> <span class="n">eid</span> <span class="ow">in</span> <span class="n">commanded_ids</span><span class="p">:</span>
+<a id="__codelineno-0-179" name="__codelineno-0-179"></a>        <span class="n">old_task</span> <span class="o">=</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_confirm_tasks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+<a id="__codelineno-0-180" name="__codelineno-0-180"></a>        <span class="k">if</span> <span class="n">old_task</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">old_task</span><span class="o">.</span><span class="n">done</span><span class="p">():</span>
+<a id="__codelineno-0-181" name="__codelineno-0-181"></a>            <span class="n">old_task</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+<a id="__codelineno-0-182" name="__codelineno-0-182"></a>        <span class="n">bridge</span><span class="o">.</span><span class="n">_confirm_tasks</span><span class="p">[</span><span class="n">eid</span><span class="p">]</span> <span class="o">=</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_create_safe_task</span><span class="p">(</span>
+<a id="__codelineno-0-183" name="__codelineno-0-183"></a>            <span class="n">bridge</span><span class="o">.</span><span class="n">_delayed_confirm</span><span class="p">(</span><span class="n">eid</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;delayed_confirm_</span><span class="si">{</span><span class="n">eid</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-184" name="__codelineno-0-184"></a>        <span class="p">)</span>
+<a id="__codelineno-0-185" name="__codelineno-0-185"></a>
+<a id="__codelineno-0-186" name="__codelineno-0-186"></a>    <span class="c1"># Receiving any command is positive evidence that Sber accepted at</span>
+<a id="__codelineno-0-187" name="__codelineno-0-187"></a>    <span class="c1"># least one entity — re-evaluate the silent-rejection issue so a</span>
+<a id="__codelineno-0-188" name="__codelineno-0-188"></a>    <span class="c1"># stale repair tile clears as soon as the user activates the device.</span>
+<a id="__codelineno-0-189" name="__codelineno-0-189"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_repair_issues</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_status_request" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">handle_status_request</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_status_request" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">handle_status_request</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Handle a status request from Sber cloud.</p>
+<p>If Sber asks about entities not in our current set, automatically
+re-publishes the device config so Sber is aware of the correct list.
+A status_request also counts as Sber acknowledgment.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>custom_components/sber_mqtt_bridge/command_dispatcher.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-229">229</a></span>
+<span class="normal"><a href="#__codelineno-0-230">230</a></span>
+<span class="normal"><a href="#__codelineno-0-231">231</a></span>
+<span class="normal"><a href="#__codelineno-0-232">232</a></span>
+<span class="normal"><a href="#__codelineno-0-233">233</a></span>
+<span class="normal"><a href="#__codelineno-0-234">234</a></span>
+<span class="normal"><a href="#__codelineno-0-235">235</a></span>
+<span class="normal"><a href="#__codelineno-0-236">236</a></span>
+<span class="normal"><a href="#__codelineno-0-237">237</a></span>
+<span class="normal"><a href="#__codelineno-0-238">238</a></span>
+<span class="normal"><a href="#__codelineno-0-239">239</a></span>
+<span class="normal"><a href="#__codelineno-0-240">240</a></span>
+<span class="normal"><a href="#__codelineno-0-241">241</a></span>
+<span class="normal"><a href="#__codelineno-0-242">242</a></span>
+<span class="normal"><a href="#__codelineno-0-243">243</a></span>
+<span class="normal"><a href="#__codelineno-0-244">244</a></span>
+<span class="normal"><a href="#__codelineno-0-245">245</a></span>
+<span class="normal"><a href="#__codelineno-0-246">246</a></span>
+<span class="normal"><a href="#__codelineno-0-247">247</a></span>
+<span class="normal"><a href="#__codelineno-0-248">248</a></span>
+<span class="normal"><a href="#__codelineno-0-249">249</a></span>
+<span class="normal"><a href="#__codelineno-0-250">250</a></span>
+<span class="normal"><a href="#__codelineno-0-251">251</a></span>
+<span class="normal"><a href="#__codelineno-0-252">252</a></span>
+<span class="normal"><a href="#__codelineno-0-253">253</a></span>
+<span class="normal"><a href="#__codelineno-0-254">254</a></span>
+<span class="normal"><a href="#__codelineno-0-255">255</a></span>
+<span class="normal"><a href="#__codelineno-0-256">256</a></span>
+<span class="normal"><a href="#__codelineno-0-257">257</a></span>
+<span class="normal"><a href="#__codelineno-0-258">258</a></span>
+<span class="normal"><a href="#__codelineno-0-259">259</a></span>
+<span class="normal"><a href="#__codelineno-0-260">260</a></span>
+<span class="normal"><a href="#__codelineno-0-261">261</a></span>
+<span class="normal"><a href="#__codelineno-0-262">262</a></span>
+<span class="normal"><a href="#__codelineno-0-263">263</a></span>
+<span class="normal"><a href="#__codelineno-0-264">264</a></span>
+<span class="normal"><a href="#__codelineno-0-265">265</a></span>
+<span class="normal"><a href="#__codelineno-0-266">266</a></span>
+<span class="normal"><a href="#__codelineno-0-267">267</a></span>
+<span class="normal"><a href="#__codelineno-0-268">268</a></span>
+<span class="normal"><a href="#__codelineno-0-269">269</a></span>
+<span class="normal"><a href="#__codelineno-0-270">270</a></span>
+<span class="normal"><a href="#__codelineno-0-271">271</a></span>
+<span class="normal"><a href="#__codelineno-0-272">272</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-229" name="__codelineno-0-229"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">handle_status_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-230" name="__codelineno-0-230"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Handle a status request from Sber cloud.</span>
+<a id="__codelineno-0-231" name="__codelineno-0-231"></a>
+<a id="__codelineno-0-232" name="__codelineno-0-232"></a><span class="sd">    If Sber asks about entities not in our current set, automatically</span>
+<a id="__codelineno-0-233" name="__codelineno-0-233"></a><span class="sd">    re-publishes the device config so Sber is aware of the correct list.</span>
+<a id="__codelineno-0-234" name="__codelineno-0-234"></a><span class="sd">    A status_request also counts as Sber acknowledgment.</span>
+<a id="__codelineno-0-235" name="__codelineno-0-235"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-236" name="__codelineno-0-236"></a>    <span class="n">bridge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bridge</span>
+<a id="__codelineno-0-237" name="__codelineno-0-237"></a>    <span class="n">requested_ids</span> <span class="o">=</span> <span class="n">parse_sber_status_request</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+<a id="__codelineno-0-238" name="__codelineno-0-238"></a>    <span class="n">bridge</span><span class="o">.</span><span class="n">_stats</span><span class="o">.</span><span class="n">status_requests</span> <span class="o">+=</span> <span class="mi">1</span>
+<a id="__codelineno-0-239" name="__codelineno-0-239"></a>
+<a id="__codelineno-0-240" name="__codelineno-0-240"></a>    <span class="n">bridge</span><span class="o">.</span><span class="n">_ack_audit</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">()</span>
+<a id="__codelineno-0-241" name="__codelineno-0-241"></a>
+<a id="__codelineno-0-242" name="__codelineno-0-242"></a>    <span class="k">if</span> <span class="n">requested_ids</span><span class="p">:</span>
+<a id="__codelineno-0-243" name="__codelineno-0-243"></a>        <span class="n">unknown</span> <span class="o">=</span> <span class="p">[</span><span class="n">eid</span> <span class="k">for</span> <span class="n">eid</span> <span class="ow">in</span> <span class="n">requested_ids</span> <span class="k">if</span> <span class="n">eid</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_entities</span> <span class="ow">and</span> <span class="n">eid</span> <span class="o">!=</span> <span class="s2">&quot;root&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-244" name="__codelineno-0-244"></a>        <span class="k">if</span> <span class="n">unknown</span><span class="p">:</span>
+<a id="__codelineno-0-245" name="__codelineno-0-245"></a>            <span class="n">_LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-246" name="__codelineno-0-246"></a>                <span class="s2">&quot;Sber asked about unknown entities, re-publishing config: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-247" name="__codelineno-0-247"></a>                <span class="n">unknown</span><span class="p">,</span>
+<a id="__codelineno-0-248" name="__codelineno-0-248"></a>            <span class="p">)</span>
+<a id="__codelineno-0-249" name="__codelineno-0-249"></a>            <span class="k">await</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_publish_config</span><span class="p">()</span>
+<a id="__codelineno-0-250" name="__codelineno-0-250"></a>
+<a id="__codelineno-0-251" name="__codelineno-0-251"></a>    <span class="k">if</span> <span class="n">requested_ids</span><span class="p">:</span>
+<a id="__codelineno-0-252" name="__codelineno-0-252"></a>        <span class="k">for</span> <span class="n">eid</span> <span class="ow">in</span> <span class="n">requested_ids</span><span class="p">:</span>
+<a id="__codelineno-0-253" name="__codelineno-0-253"></a>            <span class="n">bridge</span><span class="o">.</span><span class="n">_stats</span><span class="o">.</span><span class="n">acknowledged_entities</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span>
+<a id="__codelineno-0-254" name="__codelineno-0-254"></a>        <span class="n">_LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-255" name="__codelineno-0-255"></a>            <span class="s2">&quot;Sber status request for </span><span class="si">%d</span><span class="s2"> specific entities: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-256" name="__codelineno-0-256"></a>            <span class="nb">len</span><span class="p">(</span><span class="n">requested_ids</span><span class="p">),</span>
+<a id="__codelineno-0-257" name="__codelineno-0-257"></a>            <span class="n">requested_ids</span><span class="p">,</span>
+<a id="__codelineno-0-258" name="__codelineno-0-258"></a>        <span class="p">)</span>
+<a id="__codelineno-0-259" name="__codelineno-0-259"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-260" name="__codelineno-0-260"></a>        <span class="n">bridge</span><span class="o">.</span><span class="n">_stats</span><span class="o">.</span><span class="n">acknowledged_entities</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">bridge</span><span class="o">.</span><span class="n">_enabled_entity_ids</span><span class="p">)</span>
+<a id="__codelineno-0-261" name="__codelineno-0-261"></a>        <span class="n">_LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-262" name="__codelineno-0-262"></a>            <span class="s2">&quot;Sber status request for ALL entities (</span><span class="si">%d</span><span class="s2">)&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-263" name="__codelineno-0-263"></a>            <span class="nb">len</span><span class="p">(</span><span class="n">bridge</span><span class="o">.</span><span class="n">_enabled_entity_ids</span><span class="p">),</span>
+<a id="__codelineno-0-264" name="__codelineno-0-264"></a>        <span class="p">)</span>
+<a id="__codelineno-0-265" name="__codelineno-0-265"></a>
+<a id="__codelineno-0-266" name="__codelineno-0-266"></a>    <span class="k">await</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_publish_states</span><span class="p">(</span><span class="n">requested_ids</span> <span class="k">if</span> <span class="n">requested_ids</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-267" name="__codelineno-0-267"></a>
+<a id="__codelineno-0-268" name="__codelineno-0-268"></a>    <span class="c1"># status_request is the strongest single ack signal we get from</span>
+<a id="__codelineno-0-269" name="__codelineno-0-269"></a>    <span class="c1"># Sber (it explicitly enumerates accepted entities or asks for</span>
+<a id="__codelineno-0-270" name="__codelineno-0-270"></a>    <span class="c1"># the whole set).  Refresh the repair issues so the silent-</span>
+<a id="__codelineno-0-271" name="__codelineno-0-271"></a>    <span class="c1"># rejection tile clears in real time, not only on next reload.</span>
+<a id="__codelineno-0-272" name="__codelineno-0-272"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_repair_issues</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_config_request" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">handle_config_request</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_config_request" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">handle_config_request</span><span class="p">()</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Handle config request from Sber cloud — send device list.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>custom_components/sber_mqtt_bridge/command_dispatcher.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-274">274</a></span>
+<span class="normal"><a href="#__codelineno-0-275">275</a></span>
+<span class="normal"><a href="#__codelineno-0-276">276</a></span>
+<span class="normal"><a href="#__codelineno-0-277">277</a></span>
+<span class="normal"><a href="#__codelineno-0-278">278</a></span>
+<span class="normal"><a href="#__codelineno-0-279">279</a></span>
+<span class="normal"><a href="#__codelineno-0-280">280</a></span>
+<span class="normal"><a href="#__codelineno-0-281">281</a></span>
+<span class="normal"><a href="#__codelineno-0-282">282</a></span>
+<span class="normal"><a href="#__codelineno-0-283">283</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-274" name="__codelineno-0-274"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">handle_config_request</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-275" name="__codelineno-0-275"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Handle config request from Sber cloud — send device list.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-276" name="__codelineno-0-276"></a>    <span class="n">bridge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bridge</span>
+<a id="__codelineno-0-277" name="__codelineno-0-277"></a>    <span class="n">bridge</span><span class="o">.</span><span class="n">_stats</span><span class="o">.</span><span class="n">config_requests</span> <span class="o">+=</span> <span class="mi">1</span>
+<a id="__codelineno-0-278" name="__codelineno-0-278"></a>    <span class="n">bridge</span><span class="o">.</span><span class="n">_ack_audit</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">()</span>
+<a id="__codelineno-0-279" name="__codelineno-0-279"></a>    <span class="n">_LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-280" name="__codelineno-0-280"></a>        <span class="s2">&quot;Sber config request received (will publish </span><span class="si">%d</span><span class="s2"> entities)&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-281" name="__codelineno-0-281"></a>        <span class="nb">len</span><span class="p">(</span><span class="n">bridge</span><span class="o">.</span><span class="n">_enabled_entity_ids</span><span class="p">),</span>
+<a id="__codelineno-0-282" name="__codelineno-0-282"></a>    <span class="p">)</span>
+<a id="__codelineno-0-283" name="__codelineno-0-283"></a>    <span class="k">await</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_publish_config</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_error" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">handle_error</span>
+
+
+<a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_error" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">handle_error</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Handle error message from Sber cloud.</p>
+<p>Parses the error payload, stores the detail in stats for repair
+issue creation, and logs the error.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>custom_components/sber_mqtt_bridge/command_dispatcher.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-285">285</a></span>
+<span class="normal"><a href="#__codelineno-0-286">286</a></span>
+<span class="normal"><a href="#__codelineno-0-287">287</a></span>
+<span class="normal"><a href="#__codelineno-0-288">288</a></span>
+<span class="normal"><a href="#__codelineno-0-289">289</a></span>
+<span class="normal"><a href="#__codelineno-0-290">290</a></span>
+<span class="normal"><a href="#__codelineno-0-291">291</a></span>
+<span class="normal"><a href="#__codelineno-0-292">292</a></span>
+<span class="normal"><a href="#__codelineno-0-293">293</a></span>
+<span class="normal"><a href="#__codelineno-0-294">294</a></span>
+<span class="normal"><a href="#__codelineno-0-295">295</a></span>
+<span class="normal"><a href="#__codelineno-0-296">296</a></span>
+<span class="normal"><a href="#__codelineno-0-297">297</a></span>
+<span class="normal"><a href="#__codelineno-0-298">298</a></span>
+<span class="normal"><a href="#__codelineno-0-299">299</a></span>
+<span class="normal"><a href="#__codelineno-0-300">300</a></span>
+<span class="normal"><a href="#__codelineno-0-301">301</a></span>
+<span class="normal"><a href="#__codelineno-0-302">302</a></span>
+<span class="normal"><a href="#__codelineno-0-303">303</a></span>
+<span class="normal"><a href="#__codelineno-0-304">304</a></span>
+<span class="normal"><a href="#__codelineno-0-305">305</a></span>
+<span class="normal"><a href="#__codelineno-0-306">306</a></span>
+<span class="normal"><a href="#__codelineno-0-307">307</a></span>
+<span class="normal"><a href="#__codelineno-0-308">308</a></span>
+<span class="normal"><a href="#__codelineno-0-309">309</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-285" name="__codelineno-0-285"></a><span class="k">def</span><span class="w"> </span><span class="nf">handle_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-286" name="__codelineno-0-286"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Handle error message from Sber cloud.</span>
+<a id="__codelineno-0-287" name="__codelineno-0-287"></a>
+<a id="__codelineno-0-288" name="__codelineno-0-288"></a><span class="sd">    Parses the error payload, stores the detail in stats for repair</span>
+<a id="__codelineno-0-289" name="__codelineno-0-289"></a><span class="sd">    issue creation, and logs the error.</span>
+<a id="__codelineno-0-290" name="__codelineno-0-290"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-291" name="__codelineno-0-291"></a>    <span class="n">bridge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bridge</span>
+<a id="__codelineno-0-292" name="__codelineno-0-292"></a>    <span class="n">bridge</span><span class="o">.</span><span class="n">_stats</span><span class="o">.</span><span class="n">errors_from_sber</span> <span class="o">+=</span> <span class="mi">1</span>
+<a id="__codelineno-0-293" name="__codelineno-0-293"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-294" name="__codelineno-0-294"></a>        <span class="n">error_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+<a id="__codelineno-0-295" name="__codelineno-0-295"></a>        <span class="n">detail</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">error_data</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-0-296" name="__codelineno-0-296"></a>        <span class="n">bridge</span><span class="o">.</span><span class="n">_stats</span><span class="o">.</span><span class="n">last_error_detail</span> <span class="o">=</span> <span class="n">detail</span><span class="p">[:</span><span class="mi">500</span><span class="p">]</span>
+<a id="__codelineno-0-297" name="__codelineno-0-297"></a>        <span class="n">_LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-298" name="__codelineno-0-298"></a>            <span class="s2">&quot;Sber error (#</span><span class="si">%d</span><span class="s2">): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-299" name="__codelineno-0-299"></a>            <span class="n">bridge</span><span class="o">.</span><span class="n">_stats</span><span class="o">.</span><span class="n">errors_from_sber</span><span class="p">,</span>
+<a id="__codelineno-0-300" name="__codelineno-0-300"></a>            <span class="n">detail</span><span class="p">,</span>
+<a id="__codelineno-0-301" name="__codelineno-0-301"></a>        <span class="p">)</span>
+<a id="__codelineno-0-302" name="__codelineno-0-302"></a>    <span class="k">except</span> <span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+<a id="__codelineno-0-303" name="__codelineno-0-303"></a>        <span class="n">raw</span> <span class="o">=</span> <span class="n">payload</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">errors</span><span class="o">=</span><span class="s2">&quot;replace&quot;</span><span class="p">)[:</span><span class="mi">500</span><span class="p">]</span>
+<a id="__codelineno-0-304" name="__codelineno-0-304"></a>        <span class="n">bridge</span><span class="o">.</span><span class="n">_stats</span><span class="o">.</span><span class="n">last_error_detail</span> <span class="o">=</span> <span class="n">raw</span>
+<a id="__codelineno-0-305" name="__codelineno-0-305"></a>        <span class="n">_LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-306" name="__codelineno-0-306"></a>            <span class="s2">&quot;Sber error (#</span><span class="si">%d</span><span class="s2">, raw): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-307" name="__codelineno-0-307"></a>            <span class="n">bridge</span><span class="o">.</span><span class="n">_stats</span><span class="o">.</span><span class="n">errors_from_sber</span><span class="p">,</span>
+<a id="__codelineno-0-308" name="__codelineno-0-308"></a>            <span class="n">raw</span><span class="p">,</span>
+<a id="__codelineno-0-309" name="__codelineno-0-309"></a>        <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_change_group" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">handle_change_group</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_change_group" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">handle_change_group</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Handle device group/room change from Sber.</p>
+<p>Only stores the redefinition locally. Does NOT re-publish config
+to avoid an infinite loop: Sber sends change_group → we publish
+config → Sber sends change_group again → loop forever.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>custom_components/sber_mqtt_bridge/command_dispatcher.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-311">311</a></span>
+<span class="normal"><a href="#__codelineno-0-312">312</a></span>
+<span class="normal"><a href="#__codelineno-0-313">313</a></span>
+<span class="normal"><a href="#__codelineno-0-314">314</a></span>
+<span class="normal"><a href="#__codelineno-0-315">315</a></span>
+<span class="normal"><a href="#__codelineno-0-316">316</a></span>
+<span class="normal"><a href="#__codelineno-0-317">317</a></span>
+<span class="normal"><a href="#__codelineno-0-318">318</a></span>
+<span class="normal"><a href="#__codelineno-0-319">319</a></span>
+<span class="normal"><a href="#__codelineno-0-320">320</a></span>
+<span class="normal"><a href="#__codelineno-0-321">321</a></span>
+<span class="normal"><a href="#__codelineno-0-322">322</a></span>
+<span class="normal"><a href="#__codelineno-0-323">323</a></span>
+<span class="normal"><a href="#__codelineno-0-324">324</a></span>
+<span class="normal"><a href="#__codelineno-0-325">325</a></span>
+<span class="normal"><a href="#__codelineno-0-326">326</a></span>
+<span class="normal"><a href="#__codelineno-0-327">327</a></span>
+<span class="normal"><a href="#__codelineno-0-328">328</a></span>
+<span class="normal"><a href="#__codelineno-0-329">329</a></span>
+<span class="normal"><a href="#__codelineno-0-330">330</a></span>
+<span class="normal"><a href="#__codelineno-0-331">331</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-311" name="__codelineno-0-311"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">handle_change_group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-312" name="__codelineno-0-312"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Handle device group/room change from Sber.</span>
+<a id="__codelineno-0-313" name="__codelineno-0-313"></a>
+<a id="__codelineno-0-314" name="__codelineno-0-314"></a><span class="sd">    Only stores the redefinition locally. Does NOT re-publish config</span>
+<a id="__codelineno-0-315" name="__codelineno-0-315"></a><span class="sd">    to avoid an infinite loop: Sber sends change_group → we publish</span>
+<a id="__codelineno-0-316" name="__codelineno-0-316"></a><span class="sd">    config → Sber sends change_group again → loop forever.</span>
+<a id="__codelineno-0-317" name="__codelineno-0-317"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-318" name="__codelineno-0-318"></a>    <span class="n">bridge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bridge</span>
+<a id="__codelineno-0-319" name="__codelineno-0-319"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-320" name="__codelineno-0-320"></a>        <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+<a id="__codelineno-0-321" name="__codelineno-0-321"></a>    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+<a id="__codelineno-0-322" name="__codelineno-0-322"></a>        <span class="k">return</span>
+<a id="__codelineno-0-323" name="__codelineno-0-323"></a>    <span class="n">entity_id</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;device_id&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-324" name="__codelineno-0-324"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">entity_id</span><span class="p">:</span>
+<a id="__codelineno-0-325" name="__codelineno-0-325"></a>        <span class="k">return</span>
+<a id="__codelineno-0-326" name="__codelineno-0-326"></a>    <span class="n">existing</span> <span class="o">=</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_redefinitions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">entity_id</span><span class="p">,</span> <span class="p">{})</span>
+<a id="__codelineno-0-327" name="__codelineno-0-327"></a>    <span class="n">existing</span><span class="p">[</span><span class="s2">&quot;home&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;home&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-328" name="__codelineno-0-328"></a>    <span class="n">existing</span><span class="p">[</span><span class="s2">&quot;room&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;room&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-329" name="__codelineno-0-329"></a>    <span class="n">bridge</span><span class="o">.</span><span class="n">_redefinitions</span><span class="p">[</span><span class="n">entity_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">existing</span>
+<a id="__codelineno-0-330" name="__codelineno-0-330"></a>    <span class="n">bridge</span><span class="o">.</span><span class="n">_persist_redefinitions</span><span class="p">()</span>
+<a id="__codelineno-0-331" name="__codelineno-0-331"></a>    <span class="n">_LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Sber group change stored: </span><span class="si">%s</span><span class="s2"> → room=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">entity_id</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;room&quot;</span><span class="p">))</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_rename_device" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">handle_rename_device</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_rename_device" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">handle_rename_device</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Handle device rename from Sber.</p>
+<p>Only stores the redefinition locally. Does NOT re-publish config
+to avoid potential loops.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>custom_components/sber_mqtt_bridge/command_dispatcher.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-333">333</a></span>
+<span class="normal"><a href="#__codelineno-0-334">334</a></span>
+<span class="normal"><a href="#__codelineno-0-335">335</a></span>
+<span class="normal"><a href="#__codelineno-0-336">336</a></span>
+<span class="normal"><a href="#__codelineno-0-337">337</a></span>
+<span class="normal"><a href="#__codelineno-0-338">338</a></span>
+<span class="normal"><a href="#__codelineno-0-339">339</a></span>
+<span class="normal"><a href="#__codelineno-0-340">340</a></span>
+<span class="normal"><a href="#__codelineno-0-341">341</a></span>
+<span class="normal"><a href="#__codelineno-0-342">342</a></span>
+<span class="normal"><a href="#__codelineno-0-343">343</a></span>
+<span class="normal"><a href="#__codelineno-0-344">344</a></span>
+<span class="normal"><a href="#__codelineno-0-345">345</a></span>
+<span class="normal"><a href="#__codelineno-0-346">346</a></span>
+<span class="normal"><a href="#__codelineno-0-347">347</a></span>
+<span class="normal"><a href="#__codelineno-0-348">348</a></span>
+<span class="normal"><a href="#__codelineno-0-349">349</a></span>
+<span class="normal"><a href="#__codelineno-0-350">350</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-333" name="__codelineno-0-333"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">handle_rename_device</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-334" name="__codelineno-0-334"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Handle device rename from Sber.</span>
+<a id="__codelineno-0-335" name="__codelineno-0-335"></a>
+<a id="__codelineno-0-336" name="__codelineno-0-336"></a><span class="sd">    Only stores the redefinition locally. Does NOT re-publish config</span>
+<a id="__codelineno-0-337" name="__codelineno-0-337"></a><span class="sd">    to avoid potential loops.</span>
+<a id="__codelineno-0-338" name="__codelineno-0-338"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-339" name="__codelineno-0-339"></a>    <span class="n">bridge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bridge</span>
+<a id="__codelineno-0-340" name="__codelineno-0-340"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-341" name="__codelineno-0-341"></a>        <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+<a id="__codelineno-0-342" name="__codelineno-0-342"></a>    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+<a id="__codelineno-0-343" name="__codelineno-0-343"></a>        <span class="k">return</span>
+<a id="__codelineno-0-344" name="__codelineno-0-344"></a>    <span class="n">entity_id</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;device_id&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-345" name="__codelineno-0-345"></a>    <span class="n">new_name</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;new_name&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-346" name="__codelineno-0-346"></a>    <span class="k">if</span> <span class="n">entity_id</span> <span class="ow">and</span> <span class="n">new_name</span><span class="p">:</span>
+<a id="__codelineno-0-347" name="__codelineno-0-347"></a>        <span class="n">redef</span> <span class="o">=</span> <span class="n">bridge</span><span class="o">.</span><span class="n">_redefinitions</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">entity_id</span><span class="p">,</span> <span class="p">{})</span>
+<a id="__codelineno-0-348" name="__codelineno-0-348"></a>        <span class="n">redef</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_name</span>
+<a id="__codelineno-0-349" name="__codelineno-0-349"></a>        <span class="n">bridge</span><span class="o">.</span><span class="n">_persist_redefinitions</span><span class="p">()</span>
+<a id="__codelineno-0-350" name="__codelineno-0-350"></a>        <span class="n">_LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Sber rename stored: </span><span class="si">%s</span><span class="s2"> → </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">entity_id</span><span class="p">,</span> <span class="n">new_name</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_global_config" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">handle_global_config</span>
+
+
+<a href="#custom_components.sber_mqtt_bridge.command_dispatcher.SberCommandDispatcher.handle_global_config" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">handle_global_config</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Handle global config from Sber (http_api_endpoint).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>custom_components/sber_mqtt_bridge/command_dispatcher.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-352">352</a></span>
+<span class="normal"><a href="#__codelineno-0-353">353</a></span>
+<span class="normal"><a href="#__codelineno-0-354">354</a></span>
+<span class="normal"><a href="#__codelineno-0-355">355</a></span>
+<span class="normal"><a href="#__codelineno-0-356">356</a></span>
+<span class="normal"><a href="#__codelineno-0-357">357</a></span>
+<span class="normal"><a href="#__codelineno-0-358">358</a></span>
+<span class="normal"><a href="#__codelineno-0-359">359</a></span>
+<span class="normal"><a href="#__codelineno-0-360">360</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-352" name="__codelineno-0-352"></a><span class="k">def</span><span class="w"> </span><span class="nf">handle_global_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-353" name="__codelineno-0-353"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Handle global config from Sber (http_api_endpoint).&quot;&quot;&quot;</span>
+<a id="__codelineno-0-354" name="__codelineno-0-354"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-355" name="__codelineno-0-355"></a>        <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+<a id="__codelineno-0-356" name="__codelineno-0-356"></a>        <span class="n">endpoint</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;http_api_endpoint&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-357" name="__codelineno-0-357"></a>        <span class="k">if</span> <span class="n">endpoint</span><span class="p">:</span>
+<a id="__codelineno-0-358" name="__codelineno-0-358"></a>            <span class="n">_LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Sber HTTP API endpoint: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">)</span>
+<a id="__codelineno-0-359" name="__codelineno-0-359"></a>    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+<a id="__codelineno-0-360" name="__codelineno-0-360"></a>        <span class="k">pass</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  К началу
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/dzerik/sber-mqtt-bridge" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

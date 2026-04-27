@@ -1,0 +1,4845 @@
+
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Home Assistant integration for Sber Smart Home via MQTT. Control HA devices through Sber voice assistants and the Sber Smart Home app.">
+      
+      
+      
+        <link rel="canonical" href="https://dzerik.github.io/sber-mqtt-bridge/sber-c2c-spec/features/">
+      
+      
+        <link rel="prev" href="../device-categories/">
+      
+      
+        <link rel="next" href="../mqtt-vs-rest/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Features - Sber Smart Home MQTT Bridge</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#features" class="md-skip">
+          Перейти к содержанию
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Верхний колонтитул">
+    <a href="../.." title="Sber Smart Home MQTT Bridge" class="md-header__button md-logo" aria-label="Sber Smart Home MQTT Bridge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Sber Smart Home MQTT Bridge
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Features
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Поиск" placeholder="Поиск" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Поиск">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистить" aria-label="Очистить" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dzerik/sber-mqtt-bridge" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dzerik/sber-mqtt-bridge
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Вкладки" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../sber-setup/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Sber Studio Setup
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../configuration/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Configuration
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../devices/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Supported Devices
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../troubleshooting/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  Sber C2C Spec
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Навигация" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Sber Smart Home MQTT Bridge" class="md-nav__button md-logo" aria-label="Sber Smart Home MQTT Bridge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Sber Smart Home MQTT Bridge
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dzerik/sber-mqtt-bridge" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dzerik/sber-mqtt-bridge
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sber-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sber Studio Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Devices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sber C2C Spec
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Sber C2C Spec
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-structures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mqtt-topics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT Topics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device-categories/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Categories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Алфавитный указатель
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Детальное описание по группам
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Детальное описание по группам">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common (общие)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common (общие)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#online" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        online
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#on_off" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        on_off
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#battery_low_power" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        battery_low_power
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#battery_percentage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        battery_percentage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signal_strength" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        signal_strength
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#child_lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        child_lock
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensor_sensitive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensor_sensitive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tamper_alarm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tamper_alarm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alarm_mute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        alarm_mute
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lighting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lighting (освещение)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lighting (освещение)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#light_brightness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        light_brightness
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#light_colour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        light_colour
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#light_colour_temp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        light_colour_temp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#light_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        light_mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#light_transmission_percentage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        light_transmission_percentage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#climate-hvac" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Climate / HVAC
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Climate / HVAC">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        temperature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_temp_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_temp_set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#humidity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        humidity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_humidity_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_humidity_set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_work_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_work_mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_thermostat_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_thermostat_mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_air_flow_power" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_air_flow_power
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_air_flow_direction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_air_flow_direction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_night_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_night_mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_ionization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_ionization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_aromatization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_aromatization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_decontaminate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_decontaminate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_replace_filter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_replace_filter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_replace_ionizator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_replace_ionizator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_heating_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_heating_rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_water_level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_water_level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_water_low_level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_water_low_level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_water_percentage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_water_percentage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_direction_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_direction_set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#air_pressure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        air_pressure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temp_unit_view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        temp_unit_view
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#covers-openings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Covers / Openings (шторы, ворота, жалюзи)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Covers / Openings (шторы, ворота, жалюзи)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#open_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open_percentage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_percentage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open_left_percentage-open_left_set-open_left_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_left_percentage / open_left_set / open_left_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open_right_percentage-open_right_set-open_right_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_right_percentage / open_right_set / open_right_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensors (датчики)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sensors (датчики)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pir" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pir
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#doorcontact_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doorcontact_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#water_leak_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        water_leak_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smoke_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        smoke_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gas_leak_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gas_leak_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#buttons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Buttons (кнопки)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Buttons (кнопки)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#button_event-button_n_event-button__event" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        button_event / button_N_event / button_*_event
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-tv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Media / TV
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Media / TV">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#volume" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        volume
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#volume_int" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        volume_int
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mute
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#channel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        channel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#channel_int" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        channel_int
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#direction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        direction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#number" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        number
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        custom_key
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kitchen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kitchen (кухня)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Kitchen (кухня)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kitchen_water_temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kitchen_water_temperature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kitchen_water_temperature_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kitchen_water_temperature_set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kitchen_water_level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kitchen_water_level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kitchen_water_low_level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kitchen_water_low_level
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#energy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Energy (энергия)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Energy (энергия)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        current
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#power" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        power
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        voltage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vacuum" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vacuum (пылесос)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vacuum (пылесос)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vacuum_cleaner_command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vacuum_cleaner_command
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vacuum_cleaner_status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vacuum_cleaner_status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vacuum_cleaner_program" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vacuum_cleaner_program
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vacuum_cleaner_cleaning_type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vacuum_cleaner_cleaning_type
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#intercom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intercom (домофон)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Intercom (домофон)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#incoming_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        incoming_call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reject_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reject_call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        unlock
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mqtt-vs-rest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT vs REST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../validation-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/bridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberBridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/mqtt-client-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MqttClientService
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/command-dispatcher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberCommandDispatcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/ha-state-forwarder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HaStateForwarder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/entity-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SberEntityLoader
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/message-logger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MessageLogger
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/websocket-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Протокол
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Модели
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/entity-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_12" id="__nav_7_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Устройства
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Устройства
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/devices/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Базовые классы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/devices/light/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Освещение
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/devices/climate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Климат
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/devices/covers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Шторы и ворота
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/devices/switches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Реле и розетки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/devices/sensors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Сенсоры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/devices/media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Медиа
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/devices/appliances/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Бытовая техника
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Утилиты
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Алфавитный указатель
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Детальное описание по группам
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Детальное описание по группам">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common (общие)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common (общие)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#online" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        online
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#on_off" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        on_off
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#battery_low_power" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        battery_low_power
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#battery_percentage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        battery_percentage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signal_strength" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        signal_strength
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#child_lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        child_lock
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensor_sensitive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensor_sensitive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tamper_alarm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tamper_alarm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alarm_mute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        alarm_mute
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lighting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lighting (освещение)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lighting (освещение)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#light_brightness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        light_brightness
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#light_colour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        light_colour
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#light_colour_temp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        light_colour_temp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#light_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        light_mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#light_transmission_percentage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        light_transmission_percentage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#climate-hvac" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Climate / HVAC
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Climate / HVAC">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        temperature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_temp_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_temp_set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#humidity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        humidity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_humidity_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_humidity_set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_work_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_work_mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_thermostat_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_thermostat_mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_air_flow_power" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_air_flow_power
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_air_flow_direction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_air_flow_direction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_night_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_night_mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_ionization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_ionization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_aromatization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_aromatization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_decontaminate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_decontaminate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_replace_filter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_replace_filter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_replace_ionizator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_replace_ionizator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_heating_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_heating_rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_water_level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_water_level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_water_low_level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_water_low_level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_water_percentage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_water_percentage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hvac_direction_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hvac_direction_set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#air_pressure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        air_pressure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temp_unit_view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        temp_unit_view
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#covers-openings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Covers / Openings (шторы, ворота, жалюзи)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Covers / Openings (шторы, ворота, жалюзи)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#open_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open_percentage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_percentage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open_left_percentage-open_left_set-open_left_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_left_percentage / open_left_set / open_left_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open_right_percentage-open_right_set-open_right_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_right_percentage / open_right_set / open_right_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensors (датчики)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sensors (датчики)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pir" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pir
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#doorcontact_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doorcontact_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#water_leak_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        water_leak_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smoke_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        smoke_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gas_leak_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gas_leak_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#buttons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Buttons (кнопки)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Buttons (кнопки)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#button_event-button_n_event-button__event" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        button_event / button_N_event / button_*_event
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-tv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Media / TV
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Media / TV">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#volume" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        volume
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#volume_int" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        volume_int
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mute
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#channel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        channel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#channel_int" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        channel_int
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#direction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        direction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#number" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        number
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        custom_key
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kitchen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kitchen (кухня)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Kitchen (кухня)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kitchen_water_temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kitchen_water_temperature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kitchen_water_temperature_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kitchen_water_temperature_set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kitchen_water_level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kitchen_water_level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kitchen_water_low_level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kitchen_water_low_level
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#energy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Energy (энергия)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Energy (энергия)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        current
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#power" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        power
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        voltage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vacuum" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vacuum (пылесос)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vacuum (пылесос)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vacuum_cleaner_command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vacuum_cleaner_command
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vacuum_cleaner_status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vacuum_cleaner_status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vacuum_cleaner_program" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vacuum_cleaner_program
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vacuum_cleaner_cleaning_type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vacuum_cleaner_cleaning_type
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#intercom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intercom (домофон)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Intercom (домофон)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#incoming_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        incoming_call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reject_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reject_call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        unlock
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="features">Features (функции устройств)<a class="headerlink" href="#features" title="Permanent link">&para;</a></h1>
+<p>Полный справочник функций Sber Smart Home C2C протокола.</p>
+<h2 id="_1">Алфавитный указатель<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Type</th>
+<th style="text-align: center;">R/W</th>
+<th>Описание</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>air_pressure</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">R</td>
+<td>Атмосферное давление (мм рт.ст.)</td>
+</tr>
+<tr>
+<td><code>alarm_mute</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">W</td>
+<td>Отключение сигнала тревоги</td>
+</tr>
+<tr>
+<td><code>battery_low_power</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Батарея разряжена</td>
+</tr>
+<tr>
+<td><code>battery_percentage</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">R</td>
+<td>Заряд батареи (0–100%)</td>
+</tr>
+<tr>
+<td><code>button_event</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Событие нажатия кнопки</td>
+</tr>
+<tr>
+<td><code>button_1_event</code>..<code>button_10_event</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Событие кнопки N</td>
+</tr>
+<tr>
+<td><code>button_left_event</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Событие левой кнопки</td>
+</tr>
+<tr>
+<td><code>button_right_event</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Событие правой кнопки</td>
+</tr>
+<tr>
+<td><code>button_top_left_event</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Событие верхней левой кнопки</td>
+</tr>
+<tr>
+<td><code>button_top_right_event</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Событие верхней правой кнопки</td>
+</tr>
+<tr>
+<td><code>button_bottom_left_event</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Событие нижней левой кнопки</td>
+</tr>
+<tr>
+<td><code>button_bottom_right_event</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Событие нижней правой кнопки</td>
+</tr>
+<tr>
+<td><code>channel</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">W</td>
+<td>Переключение канала (next/prev)</td>
+</tr>
+<tr>
+<td><code>channel_int</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">W</td>
+<td>Прямой номер канала</td>
+</tr>
+<tr>
+<td><code>child_lock</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">RW</td>
+<td>Блокировка от детей</td>
+</tr>
+<tr>
+<td><code>current</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">R</td>
+<td>Сила тока (мА)</td>
+</tr>
+<tr>
+<td><code>custom_key</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">W</td>
+<td>Произвольная кнопка пульта</td>
+</tr>
+<tr>
+<td><code>direction</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">W</td>
+<td>Направление (навигация)</td>
+</tr>
+<tr>
+<td><code>doorcontact_state</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Состояние контакта двери/окна</td>
+</tr>
+<tr>
+<td><code>gas_leak_state</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Утечка газа</td>
+</tr>
+<tr>
+<td><code>humidity</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">R</td>
+<td>Текущая влажность (0–100%)</td>
+</tr>
+<tr>
+<td><code>hvac_air_flow_direction</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Направление воздушного потока</td>
+</tr>
+<tr>
+<td><code>hvac_air_flow_power</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Скорость вентилятора</td>
+</tr>
+<tr>
+<td><code>hvac_aromatization</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">RW</td>
+<td>Ароматизация вкл/выкл</td>
+</tr>
+<tr>
+<td><code>hvac_decontaminate</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">RW</td>
+<td>Обеззараживание вкл/выкл</td>
+</tr>
+<tr>
+<td><code>hvac_direction_set</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">W</td>
+<td>Установка направления потока</td>
+</tr>
+<tr>
+<td><code>hvac_heating_rate</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Мощность нагрева</td>
+</tr>
+<tr>
+<td><code>hvac_humidity_set</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">RW</td>
+<td>Целевая влажность (0–100%)</td>
+</tr>
+<tr>
+<td><code>hvac_ionization</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">RW</td>
+<td>Ионизация вкл/выкл</td>
+</tr>
+<tr>
+<td><code>hvac_night_mode</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">RW</td>
+<td>Ночной режим</td>
+</tr>
+<tr>
+<td><code>hvac_replace_filter</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Требуется замена фильтра</td>
+</tr>
+<tr>
+<td><code>hvac_replace_ionizator</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Требуется замена ионизатора</td>
+</tr>
+<tr>
+<td><code>hvac_temp_set</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">RW</td>
+<td>Целевая температура (°C, <strong>без x10</strong>)</td>
+</tr>
+<tr>
+<td><code>hvac_thermostat_mode</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Режим термостата</td>
+</tr>
+<tr>
+<td><code>hvac_water_level</code></td>
+<td>FLOAT</td>
+<td style="text-align: center;">R</td>
+<td>Уровень воды (литры)</td>
+</tr>
+<tr>
+<td><code>hvac_water_low_level</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Мало воды</td>
+</tr>
+<tr>
+<td><code>hvac_water_percentage</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">R</td>
+<td>Уровень воды (0–100%)</td>
+</tr>
+<tr>
+<td><code>hvac_work_mode</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Режим работы HVAC</td>
+</tr>
+<tr>
+<td><code>incoming_call</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Входящий вызов (домофон)</td>
+</tr>
+<tr>
+<td><code>kitchen_water_level</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Наличие воды в чайнике</td>
+</tr>
+<tr>
+<td><code>kitchen_water_low_level</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Мало воды в чайнике</td>
+</tr>
+<tr>
+<td><code>kitchen_water_temperature</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">R</td>
+<td>Текущая температура воды (°C)</td>
+</tr>
+<tr>
+<td><code>kitchen_water_temperature_set</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">RW</td>
+<td>Целевая температура воды (°C)</td>
+</tr>
+<tr>
+<td><code>light_brightness</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">RW</td>
+<td>Яркость (50–1000, промилле)</td>
+</tr>
+<tr>
+<td><code>light_colour</code></td>
+<td>COLOUR</td>
+<td style="text-align: center;">RW</td>
+<td>Цвет (HSV)</td>
+</tr>
+<tr>
+<td><code>light_colour_temp</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">RW</td>
+<td>Цветовая температура (0–1000)</td>
+</tr>
+<tr>
+<td><code>light_mode</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Режим освещения</td>
+</tr>
+<tr>
+<td><code>light_transmission_percentage</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">R</td>
+<td>Пропускание света (0–100%)</td>
+</tr>
+<tr>
+<td><code>mute</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">RW</td>
+<td>Беззвучный режим</td>
+</tr>
+<tr>
+<td><code>number</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">W</td>
+<td>Набор цифры на пульте</td>
+</tr>
+<tr>
+<td><code>on_off</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">RW</td>
+<td>Включение/выключение</td>
+</tr>
+<tr>
+<td><code>online</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Доступность устройства</td>
+</tr>
+<tr>
+<td><code>open_left_percentage</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">RW</td>
+<td>Позиция левой створки (0–100%)</td>
+</tr>
+<tr>
+<td><code>open_left_set</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">W</td>
+<td>Управление левой створкой</td>
+</tr>
+<tr>
+<td><code>open_left_state</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Состояние левой створки</td>
+</tr>
+<tr>
+<td><code>open_percentage</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">RW</td>
+<td>Позиция открытия (0–100%)</td>
+</tr>
+<tr>
+<td><code>open_rate</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Скорость открытия/закрытия</td>
+</tr>
+<tr>
+<td><code>open_right_percentage</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">RW</td>
+<td>Позиция правой створки (0–100%)</td>
+</tr>
+<tr>
+<td><code>open_right_set</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">W</td>
+<td>Управление правой створкой</td>
+</tr>
+<tr>
+<td><code>open_right_state</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Состояние правой створки</td>
+</tr>
+<tr>
+<td><code>open_set</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">W</td>
+<td>Управление открытием</td>
+</tr>
+<tr>
+<td><code>open_state</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Текущее состояние</td>
+</tr>
+<tr>
+<td><code>pir</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Обнаружение движения</td>
+</tr>
+<tr>
+<td><code>power</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">R</td>
+<td>Мощность (Вт)</td>
+</tr>
+<tr>
+<td><code>reject_call</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">W</td>
+<td>Отклонение вызова (домофон)</td>
+</tr>
+<tr>
+<td><code>sensor_sensitive</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Чувствительность датчика</td>
+</tr>
+<tr>
+<td><code>signal_strength</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Сила сигнала</td>
+</tr>
+<tr>
+<td><code>smoke_state</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Обнаружение дыма</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Источник сигнала (ТВ)</td>
+</tr>
+<tr>
+<td><code>tamper_alarm</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Тревога вскрытия</td>
+</tr>
+<tr>
+<td><code>temp_unit_view</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Единица измерения температуры</td>
+</tr>
+<tr>
+<td><code>temperature</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">R</td>
+<td>Текущая температура (<strong>x10</strong>, 220 = 22.0°C)</td>
+</tr>
+<tr>
+<td><code>unlock</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">W</td>
+<td>Открытие замка (домофон)</td>
+</tr>
+<tr>
+<td><code>vacuum_cleaner_cleaning_type</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Тип уборки</td>
+</tr>
+<tr>
+<td><code>vacuum_cleaner_command</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">W</td>
+<td>Команда пылесосу</td>
+</tr>
+<tr>
+<td><code>vacuum_cleaner_program</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">RW</td>
+<td>Программа уборки</td>
+</tr>
+<tr>
+<td><code>vacuum_cleaner_status</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">R</td>
+<td>Статус пылесоса</td>
+</tr>
+<tr>
+<td><code>voltage</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">R</td>
+<td>Напряжение (В)</td>
+</tr>
+<tr>
+<td><code>volume</code></td>
+<td>ENUM</td>
+<td style="text-align: center;">W</td>
+<td>Громкость (next/prev)</td>
+</tr>
+<tr>
+<td><code>volume_int</code></td>
+<td>INTEGER</td>
+<td style="text-align: center;">RW</td>
+<td>Громкость (абсолютное значение)</td>
+</tr>
+<tr>
+<td><code>water_leak_state</code></td>
+<td>BOOL</td>
+<td style="text-align: center;">R</td>
+<td>Обнаружение протечки</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_2">Детальное описание по группам<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h3 id="common">Common (общие)<a class="headerlink" href="#common" title="Permanent link">&para;</a></h3>
+<h4 id="online">online<a class="headerlink" href="#online" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> все (обязательная для всех)</li>
+<li><strong>Описание:</strong> Доступность устройства. <code>true</code> — устройство на связи, <code>false</code> — оффлайн.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;online&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BOOL&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;bool_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="on_off">on_off<a class="headerlink" href="#on_off" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Категории:</strong> light, led_strip, relay, socket, hvac_ac, hvac_radiator, hvac_heater, hvac_boiler, hvac_underfloor_heating, hvac_fan, hvac_air_purifier, hvac_humidifier, kettle, tv</li>
+<li><strong>Описание:</strong> Включение/выключение устройства.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;on_off&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BOOL&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;bool_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="battery_low_power">battery_low_power<a class="headerlink" href="#battery_low_power" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> curtain, window_blind, sensor_temp, sensor_pir, sensor_door, sensor_water_leak, sensor_smoke, sensor_gas, valve</li>
+<li><strong>Описание:</strong> <code>true</code> — батарея разряжена.</li>
+</ul>
+<h4 id="battery_percentage">battery_percentage<a class="headerlink" href="#battery_percentage" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Диапазон:</strong> 0–100</li>
+<li><strong>Категории:</strong> те же, что battery_low_power, + vacuum_cleaner</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;battery_percentage&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;85&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="signal_strength">signal_strength<a class="headerlink" href="#signal_strength" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Значения:</strong> <code>high</code>, <code>medium</code>, <code>low</code></li>
+<li><strong>Категории:</strong> curtain, window_blind, gate, sensor_temp, sensor_pir, sensor_door, sensor_water_leak, sensor_smoke, sensor_gas, valve</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;signal_strength&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;high&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="child_lock">child_lock<a class="headerlink" href="#child_lock" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Категории:</strong> socket, kettle, vacuum_cleaner</li>
+<li><strong>Описание:</strong> Блокировка от детей.</li>
+</ul>
+<h4 id="sensor_sensitive">sensor_sensitive<a class="headerlink" href="#sensor_sensitive" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> <code>auto</code>, <code>high</code>, <code>medium</code>, <code>low</code></li>
+<li><strong>Категории:</strong> sensor_temp, sensor_pir, sensor_door</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sensor_sensitive&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;medium&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="tamper_alarm">tamper_alarm<a class="headerlink" href="#tamper_alarm" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> sensor_pir, sensor_door</li>
+<li><strong>Описание:</strong> Срабатывание тревоги вскрытия корпуса.</li>
+</ul>
+<h4 id="alarm_mute">alarm_mute<a class="headerlink" href="#alarm_mute" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Write</li>
+<li><strong>Категории:</strong> sensor_smoke, sensor_gas, sensor_water_leak</li>
+<li><strong>Описание:</strong> Отключение звукового сигнала тревоги.</li>
+</ul>
+<hr />
+<h3 id="lighting">Lighting (освещение)<a class="headerlink" href="#lighting" title="Permanent link">&para;</a></h3>
+<h4 id="light_brightness">light_brightness<a class="headerlink" href="#light_brightness" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Диапазон:</strong> 50–1000 (промилле; типичный allowed_values: min=100, max=900)</li>
+<li><strong>Категории:</strong> light, led_strip</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;light_brightness&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;500&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="light_colour">light_colour<a class="headerlink" href="#light_colour" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> COLOUR</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Диапазон:</strong> h: 0–360, s: 0–1000, v: 100–1000</li>
+<li><strong>Категории:</strong> light, led_strip</li>
+<li><strong>Зависимость:</strong> доступна только при <code>light_mode</code> = <code>colour</code></li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;light_colour&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;COLOUR&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;colour_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;h&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">360</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;s&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;v&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">}}}</span>
+</code></pre></div>
+<h4 id="light_colour_temp">light_colour_temp<a class="headerlink" href="#light_colour_temp" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Диапазон:</strong> 0–1000 (0% = тёплый, 100% = холодный)</li>
+<li><strong>Категории:</strong> light, led_strip</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;light_colour_temp&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;350&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="light_mode">light_mode<a class="headerlink" href="#light_mode" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> <code>white</code>, <code>colour</code></li>
+<li><strong>Категории:</strong> light, led_strip</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;light_mode&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;colour&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="light_transmission_percentage">light_transmission_percentage<a class="headerlink" href="#light_transmission_percentage" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Диапазон:</strong> 0–100</li>
+<li><strong>Категории:</strong> window_blind</li>
+<li><strong>Описание:</strong> Процент пропускания света.</li>
+</ul>
+<hr />
+<h3 id="climate-hvac">Climate / HVAC<a class="headerlink" href="#climate-hvac" title="Permanent link">&para;</a></h3>
+<h4 id="temperature">temperature<a class="headerlink" href="#temperature" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Диапазон:</strong> -400..2000</li>
+</ul>
+<div class="admonition danger">
+<p class="admonition-title">temperature — значение x10</p>
+<p><code>"integer_value": "220"</code> = <strong>22.0°C</strong></p>
+<p>Это <strong>отличается</strong> от <code>hvac_temp_set</code>, который передаётся <strong>без x10</strong>.</p>
+</div>
+<ul>
+<li><strong>Категории:</strong> hvac_ac, hvac_radiator, hvac_heater, hvac_boiler, hvac_underfloor_heating, sensor_temp</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;temperature&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;220&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="hvac_temp_set">hvac_temp_set<a class="headerlink" href="#hvac_temp_set" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Диапазон:</strong> зависит от категории (5–50 для hvac_ac, 25–80 для hvac_boiler)</li>
+</ul>
+<div class="admonition danger">
+<p class="admonition-title">hvac_temp_set — НЕ x10</p>
+<p><code>"integer_value": "25"</code> = <strong>25°C</strong> (целые градусы)</p>
+</div>
+<ul>
+<li><strong>Категории:</strong> hvac_ac, hvac_radiator, hvac_heater, hvac_boiler, hvac_underfloor_heating</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hvac_temp_set&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;25&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="humidity">humidity<a class="headerlink" href="#humidity" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Диапазон:</strong> 0–100 (%)</li>
+<li><strong>Категории:</strong> sensor_temp, hvac_humidifier</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;humidity&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;60&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="hvac_humidity_set">hvac_humidity_set<a class="headerlink" href="#hvac_humidity_set" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Диапазон:</strong> зависит от устройства (типичный: 35–85%, step 5)</li>
+<li><strong>Категории:</strong> hvac_ac, hvac_humidifier</li>
+</ul>
+<h4 id="hvac_work_mode">hvac_work_mode<a class="headerlink" href="#hvac_work_mode" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> зависят от категории (типичные: <code>cooling</code>, <code>heating</code>, <code>ventilation</code>, <code>dehumidification</code>, <code>auto</code>, <code>eco</code>)</li>
+<li><strong>Категории:</strong> hvac_ac</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hvac_work_mode&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;eco&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="hvac_thermostat_mode">hvac_thermostat_mode<a class="headerlink" href="#hvac_thermostat_mode" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> <code>cooling</code>, <code>drying</code>, <code>heating</code>, <code>ventilation</code></li>
+<li><strong>Категории:</strong> hvac_boiler, hvac_underfloor_heating</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hvac_thermostat_mode&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cooling&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="hvac_air_flow_power">hvac_air_flow_power<a class="headerlink" href="#hvac_air_flow_power" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> <code>auto</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>turbo</code>, <code>quiet</code></li>
+<li><strong>Категории:</strong> hvac_ac, hvac_fan, hvac_air_purifier, hvac_humidifier</li>
+<li><strong>Типичный allowed_values:</strong> <code>["auto", "high", "low", "medium", "turbo"]</code></li>
+</ul>
+<h4 id="hvac_air_flow_direction">hvac_air_flow_direction<a class="headerlink" href="#hvac_air_flow_direction" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> <code>auto</code>, <code>horizontal</code>, <code>no</code>, <code>rotation</code>, <code>swing</code>, <code>vertical</code></li>
+<li><strong>Категории:</strong> hvac_ac</li>
+</ul>
+<h4 id="hvac_night_mode">hvac_night_mode<a class="headerlink" href="#hvac_night_mode" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Категории:</strong> hvac_ac, hvac_humidifier, hvac_air_purifier</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hvac_night_mode&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BOOL&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;bool_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="hvac_ionization">hvac_ionization<a class="headerlink" href="#hvac_ionization" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Категории:</strong> hvac_humidifier, hvac_air_purifier</li>
+</ul>
+<h4 id="hvac_aromatization">hvac_aromatization<a class="headerlink" href="#hvac_aromatization" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Категории:</strong> hvac_air_purifier</li>
+</ul>
+<h4 id="hvac_decontaminate">hvac_decontaminate<a class="headerlink" href="#hvac_decontaminate" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Категории:</strong> hvac_air_purifier</li>
+</ul>
+<h4 id="hvac_replace_filter">hvac_replace_filter<a class="headerlink" href="#hvac_replace_filter" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> hvac_humidifier, hvac_air_purifier</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hvac_replace_filter&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BOOL&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;bool_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="hvac_replace_ionizator">hvac_replace_ionizator<a class="headerlink" href="#hvac_replace_ionizator" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> hvac_humidifier, hvac_air_purifier</li>
+</ul>
+<h4 id="hvac_heating_rate">hvac_heating_rate<a class="headerlink" href="#hvac_heating_rate" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> <code>low</code>, <code>medium</code>, <code>high</code></li>
+<li><strong>Категории:</strong> hvac_heater</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hvac_heating_rate&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;low&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="hvac_water_level">hvac_water_level<a class="headerlink" href="#hvac_water_level" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> FLOAT</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> hvac_humidifier</li>
+<li><strong>Описание:</strong> Уровень воды в литрах.</li>
+</ul>
+<h4 id="hvac_water_low_level">hvac_water_low_level<a class="headerlink" href="#hvac_water_low_level" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> hvac_humidifier</li>
+</ul>
+<h4 id="hvac_water_percentage">hvac_water_percentage<a class="headerlink" href="#hvac_water_percentage" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Диапазон:</strong> 0–100</li>
+<li><strong>Категории:</strong> hvac_humidifier</li>
+</ul>
+<h4 id="hvac_direction_set">hvac_direction_set<a class="headerlink" href="#hvac_direction_set" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Write</li>
+<li><strong>Категории:</strong> hvac_ac</li>
+</ul>
+<h4 id="air_pressure">air_pressure<a class="headerlink" href="#air_pressure" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> sensor_temp</li>
+<li><strong>Описание:</strong> Атмосферное давление в мм рт.ст.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;air_pressure&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;720&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="temp_unit_view">temp_unit_view<a class="headerlink" href="#temp_unit_view" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> <code>c</code> (Цельсий), <code>f</code> (Фаренгейт)</li>
+<li><strong>Категории:</strong> sensor_temp</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;temp_unit_view&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;c&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<hr />
+<h3 id="covers-openings">Covers / Openings (шторы, ворота, жалюзи)<a class="headerlink" href="#covers-openings" title="Permanent link">&para;</a></h3>
+<h4 id="open_set">open_set<a class="headerlink" href="#open_set" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Write</li>
+<li><strong>Значения:</strong> <code>open</code>, <code>close</code>, <code>stop</code></li>
+<li><strong>Категории:</strong> curtain, window_blind, gate, valve</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;open_set&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;open&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="open_state">open_state<a class="headerlink" href="#open_state" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Значения:</strong> <code>open</code>, <code>close</code></li>
+<li><strong>Категории:</strong> curtain, window_blind, gate, valve</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;open_state&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;open&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="open_percentage">open_percentage<a class="headerlink" href="#open_percentage" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Диапазон:</strong> 0–100</li>
+<li><strong>Категории:</strong> curtain, window_blind</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;open_percentage&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;30&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="open_rate">open_rate<a class="headerlink" href="#open_rate" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> <code>auto</code>, <code>low</code>, <code>high</code></li>
+<li><strong>Категории:</strong> curtain, window_blind, gate</li>
+</ul>
+<h4 id="open_left_percentage-open_left_set-open_left_state">open_left_percentage / open_left_set / open_left_state<a class="headerlink" href="#open_left_percentage-open_left_set-open_left_state" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Аналогичны <code>open_percentage</code>/<code>open_set</code>/<code>open_state</code> для левой створки</li>
+<li><strong>Категории:</strong> curtain, gate</li>
+</ul>
+<h4 id="open_right_percentage-open_right_set-open_right_state">open_right_percentage / open_right_set / open_right_state<a class="headerlink" href="#open_right_percentage-open_right_set-open_right_state" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Аналогичны для правой створки</li>
+<li><strong>Категории:</strong> curtain, gate</li>
+</ul>
+<hr />
+<h3 id="sensors">Sensors (датчики)<a class="headerlink" href="#sensors" title="Permanent link">&para;</a></h3>
+<h4 id="pir">pir<a class="headerlink" href="#pir" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Значения:</strong> <code>pir</code> (движение обнаружено)</li>
+<li><strong>Категории:</strong> sensor_pir</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">pir — это ENUM, не BOOL</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pir&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pir&quot;</span><span class="p">}}</span>
+</code></pre></div>
+</div>
+<h4 id="doorcontact_state">doorcontact_state<a class="headerlink" href="#doorcontact_state" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Значения:</strong> <code>true</code> = контакты разомкнуты (открыто), <code>false</code> = сомкнуты (закрыто)</li>
+<li><strong>Категории:</strong> sensor_door</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">doorcontact_state — это BOOL, не ENUM</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;doorcontact_state&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BOOL&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;bool_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">}}</span>
+</code></pre></div>
+</div>
+<h4 id="water_leak_state">water_leak_state<a class="headerlink" href="#water_leak_state" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> sensor_water_leak</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Имя: water_leak_state, не water_leak</p>
+<p>Правильное имя функции — <code>water_leak_state</code>.</p>
+</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;water_leak_state&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BOOL&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;bool_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="smoke_state">smoke_state<a class="headerlink" href="#smoke_state" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> sensor_smoke</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;smoke_state&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BOOL&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;bool_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="gas_leak_state">gas_leak_state<a class="headerlink" href="#gas_leak_state" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> sensor_gas</li>
+</ul>
+<hr />
+<h3 id="buttons">Buttons (кнопки)<a class="headerlink" href="#buttons" title="Permanent link">&para;</a></h3>
+<h4 id="button_event-button_n_event-button__event">button_event / button_N_event / button_*_event<a class="headerlink" href="#button_event-button_n_event-button__event" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Значения:</strong> <code>click</code>, <code>double_click</code>, <code>long_press</code></li>
+<li><strong>Категории:</strong> scenario_button</li>
+</ul>
+<p>Варианты именования:</p>
+<ul>
+<li><code>button_event</code> — одна кнопка</li>
+<li><code>button_1_event</code>..<code>button_10_event</code> — нумерованные кнопки</li>
+<li><code>button_left_event</code>, <code>button_right_event</code> — боковые</li>
+<li><code>button_top_left_event</code>, <code>button_top_right_event</code> — верхние</li>
+<li><code>button_bottom_left_event</code>, <code>button_bottom_right_event</code> — нижние</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;button_1_event&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;click&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<hr />
+<h3 id="media-tv">Media / TV<a class="headerlink" href="#media-tv" title="Permanent link">&para;</a></h3>
+<h4 id="volume">volume<a class="headerlink" href="#volume" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Write</li>
+<li><strong>Значения:</strong> <code>+</code> (громче), <code>-</code> (тише)</li>
+<li><strong>Категории:</strong> tv</li>
+</ul>
+<h4 id="volume_int">volume_int<a class="headerlink" href="#volume_int" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Категории:</strong> tv</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;volume_int&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;30&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="mute">mute<a class="headerlink" href="#mute" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Категории:</strong> tv</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;mute&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BOOL&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;bool_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="channel">channel<a class="headerlink" href="#channel" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Write</li>
+<li><strong>Значения:</strong> <code>+</code> (следующий), <code>-</code> (предыдущий)</li>
+<li><strong>Категории:</strong> tv</li>
+</ul>
+<h4 id="channel_int">channel_int<a class="headerlink" href="#channel_int" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Категории:</strong> tv</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;channel_int&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;11&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="source">source<a class="headerlink" href="#source" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> зависят от устройства (типичные: <code>hdmi1</code>, <code>hdmi2</code>, <code>hdmi3</code>, <code>tv</code>, <code>av</code>, <code>content</code>, <code>+</code>, <code>-</code>)</li>
+<li><strong>Категории:</strong> tv</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;source&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HDMI1&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="direction">direction<a class="headerlink" href="#direction" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Write</li>
+<li><strong>Значения:</strong> <code>up</code>, <code>down</code>, <code>left</code>, <code>right</code>, <code>ok</code></li>
+<li><strong>Категории:</strong> tv</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;direction&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;up&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="number">number<a class="headerlink" href="#number" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Write</li>
+<li><strong>Значения:</strong> 0–9 (цифра на пульте)</li>
+<li><strong>Категории:</strong> tv</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;number&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="custom_key">custom_key<a class="headerlink" href="#custom_key" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Write</li>
+<li><strong>Категории:</strong> tv</li>
+<li><strong>Описание:</strong> Произвольная кнопка пульта, значения зависят от устройства.</li>
+</ul>
+<hr />
+<h3 id="kitchen">Kitchen (кухня)<a class="headerlink" href="#kitchen" title="Permanent link">&para;</a></h3>
+<h4 id="kitchen_water_temperature">kitchen_water_temperature<a class="headerlink" href="#kitchen_water_temperature" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Описание:</strong> Текущая температура воды (°C).</li>
+<li><strong>Категории:</strong> kettle</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;kitchen_water_temperature&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;60&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="kitchen_water_temperature_set">kitchen_water_temperature_set<a class="headerlink" href="#kitchen_water_temperature_set" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Диапазон:</strong> типичный 60–100, step 10</li>
+<li><strong>Категории:</strong> kettle</li>
+</ul>
+<h4 id="kitchen_water_level">kitchen_water_level<a class="headerlink" href="#kitchen_water_level" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> kettle</li>
+<li><strong>Описание:</strong> Наличие воды.</li>
+</ul>
+<h4 id="kitchen_water_low_level">kitchen_water_low_level<a class="headerlink" href="#kitchen_water_low_level" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> kettle</li>
+<li><strong>Описание:</strong> <code>true</code> = воды мало/нет.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;kitchen_water_low_level&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BOOL&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;bool_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">}}</span>
+</code></pre></div>
+<hr />
+<h3 id="energy">Energy (энергия)<a class="headerlink" href="#energy" title="Permanent link">&para;</a></h3>
+<h4 id="current">current<a class="headerlink" href="#current" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Описание:</strong> Сила тока (мА).</li>
+<li><strong>Категории:</strong> relay, socket</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;current&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INTEGER&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;integer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;9000&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<h4 id="power">power<a class="headerlink" href="#power" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Описание:</strong> Мощность (Вт).</li>
+<li><strong>Категории:</strong> relay, socket</li>
+</ul>
+<h4 id="voltage">voltage<a class="headerlink" href="#voltage" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> INTEGER</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Описание:</strong> Напряжение (В).</li>
+<li><strong>Категории:</strong> relay, socket</li>
+</ul>
+<hr />
+<h3 id="vacuum">Vacuum (пылесос)<a class="headerlink" href="#vacuum" title="Permanent link">&para;</a></h3>
+<h4 id="vacuum_cleaner_command">vacuum_cleaner_command<a class="headerlink" href="#vacuum_cleaner_command" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Write</li>
+<li><strong>Значения:</strong> <code>start</code>, <code>stop</code>, <code>pause</code>, <code>home</code>, <code>find</code></li>
+<li><strong>Категории:</strong> vacuum_cleaner</li>
+</ul>
+<h4 id="vacuum_cleaner_status">vacuum_cleaner_status<a class="headerlink" href="#vacuum_cleaner_status" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Значения:</strong> <code>cleaning</code>, <code>charging</code>, <code>paused</code>, <code>standby</code>, <code>error</code>, <code>docked</code></li>
+<li><strong>Категории:</strong> vacuum_cleaner</li>
+</ul>
+<h4 id="vacuum_cleaner_program">vacuum_cleaner_program<a class="headerlink" href="#vacuum_cleaner_program" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> типичные: <code>perimeter</code>, <code>spot</code>, <code>smart</code></li>
+<li><strong>Категории:</strong> vacuum_cleaner</li>
+</ul>
+<h4 id="vacuum_cleaner_cleaning_type">vacuum_cleaner_cleaning_type<a class="headerlink" href="#vacuum_cleaner_cleaning_type" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> ENUM</li>
+<li><strong>R/W:</strong> Read/Write</li>
+<li><strong>Значения:</strong> <code>dry</code>, <code>wet</code>, <code>dry_and_wet</code></li>
+<li><strong>Категории:</strong> vacuum_cleaner</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;vacuum_cleaner_cleaning_type&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ENUM&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;enum_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;wet&quot;</span><span class="p">}}</span>
+</code></pre></div>
+<hr />
+<h3 id="intercom">Intercom (домофон)<a class="headerlink" href="#intercom" title="Permanent link">&para;</a></h3>
+<h4 id="incoming_call">incoming_call<a class="headerlink" href="#incoming_call" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Read-only</li>
+<li><strong>Категории:</strong> intercom</li>
+<li><strong>Описание:</strong> <code>true</code> = входящий вызов.</li>
+</ul>
+<h4 id="reject_call">reject_call<a class="headerlink" href="#reject_call" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Write</li>
+<li><strong>Категории:</strong> intercom</li>
+<li><strong>Описание:</strong> Отклонение вызова.</li>
+</ul>
+<h4 id="unlock">unlock<a class="headerlink" href="#unlock" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Тип:</strong> BOOL</li>
+<li><strong>R/W:</strong> Write</li>
+<li><strong>Категории:</strong> intercom</li>
+<li><strong>Описание:</strong> Открытие замка.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  К началу
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/dzerik/sber-mqtt-bridge" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
