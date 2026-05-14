@@ -702,11 +702,12 @@ class BaseEntity(ABC):
         """Process a command from Sber cloud.
 
         Args:
-            cmd_data: Command payload with 'states' list, or None.
+            cmd_data: Command payload with 'states' list. Always a dict —
+                the dispatcher rejects ``None`` before reaching here.
 
         Returns:
             List of :class:`ServiceCallResult` or :class:`UpdateStateResult`
-            items, or empty list if no action needed or cmd_data is None.
+            items, or empty list if no action needed.
         """
         return []
 

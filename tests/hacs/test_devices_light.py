@@ -378,10 +378,10 @@ class TestLightProcessCmd(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service"], "turn_on")
 
-    def test_cmd_none_data(self):
-        """None cmd_data returns empty list."""
+    def test_cmd_empty_dict(self):
+        """Empty dict (no 'states' key) returns empty list."""
         entity = self._make_entity()
-        result = entity.process_cmd(None)
+        result = entity.process_cmd({})
         self.assertEqual(result, [])
 
     def test_cmd_empty_states(self):

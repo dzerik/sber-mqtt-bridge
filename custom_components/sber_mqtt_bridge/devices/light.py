@@ -275,9 +275,6 @@ class LightEntity(BaseEntity):
         Returns:
             List of HA service call dicts to execute.
         """
-        if cmd_data is None:
-            return []
-
         handlers = self._cmd_handlers
         results: list[dict] = []
         for item in cmd_data.get("states", []):

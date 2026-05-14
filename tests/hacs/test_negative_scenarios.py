@@ -865,11 +865,11 @@ class TestCommandWithMissingFields:
         result = entity.process_cmd({"other": "data"})
         assert result == []
 
-    def test_cmd_none_payload(self):
-        """process_cmd(None) must not crash for entities that support it."""
+    def test_cmd_empty_dict_payload(self):
+        """process_cmd({}) must return empty list — dispatcher always passes a dict."""
         entity = LightEntity(_entity_data("light.test"))
         entity.fill_by_ha_state(_ha_state("light.test", "on", brightness=128))
-        result = entity.process_cmd(None)
+        result = entity.process_cmd({})
         assert result == []
 
     def test_cmd_states_is_empty_list(self):

@@ -583,10 +583,10 @@ class TestLightProcessCmd:
         result = entity.process_cmd(_sber_cmd([_enum_cmd("unknown_feature", "value")]))
         assert isinstance(result, list)
 
-    def test_none_cmd_data_returns_empty(self):
-        """process_cmd(None) must return empty list, not crash."""
+    def test_empty_dict_cmd_data_returns_empty(self):
+        """process_cmd({}) must return empty list — dispatcher always passes a dict."""
         entity = self._make_light()
-        result = entity.process_cmd(None)
+        result = entity.process_cmd({})
         assert result == []
 
     def test_empty_states_returns_empty(self):
