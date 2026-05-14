@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.38.4] - 2026-05-14
+
+### Changed
+
+- **Internal refactor — `RedefinitionsStore` extraction.** The in-memory
+  redefinitions dict, the dirty flag, the debounce timer, and the three
+  related coroutines (`async_update_redefinition`,
+  `_persist_redefinitions`, `_flush_redefinitions`) moved out of
+  `SberBridge` into the new `RedefinitionsStore` class
+  (`custom_components/sber_mqtt_bridge/redefinitions_store.py`). The
+  bridge retains thin delegators so the WS API, command dispatcher,
+  and existing tests see no API change. Round 3a of the
+  post-2026-05-14-audit refactor. No user-visible behaviour change.
+
 ## [1.38.3] - 2026-05-14
 
 ### Changed

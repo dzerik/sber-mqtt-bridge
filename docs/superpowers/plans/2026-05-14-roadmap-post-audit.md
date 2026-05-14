@@ -8,8 +8,9 @@ Master TOC for all refactoring rounds derived from the 2026-05-14 architecture a
 |---|---|---|---|---|
 | 1 | P0 hardening (security + LSP + race + DevTools follow-up) | v1.38.2 | `2026-05-14-v1.38.2-p0-hardening.md` | ✅ shipped |
 | 2 | `SberPublisher` extraction (publish_*/devtools collectors → new module) | v1.38.3 | `2026-05-14-v1.38.3-publisher-extraction.md` | ✅ shipped |
-| 3 | `RedefinitionsStore` + `DevToolsHub` extractions (debounced persist + collector aggregate) | v1.38.4 | TBD | TODO |
-| 4 | `BridgeCommandContext` Protocol split into 3 narrow Protocols | v1.38.5 | TBD | TODO |
+| 3a | `RedefinitionsStore` extraction (debounced persist) | v1.38.4 | `2026-05-14-v1.38.4-redefinitions-store.md` | ✅ shipped |
+| 3b | `DevToolsHub` extraction (collector aggregate) | v1.38.5 | TBD | TODO |
+| 4 | `BridgeCommandContext` Protocol split into 3 narrow Protocols | v1.38.6 | TBD | TODO |
 | 5 | CC reduction: `handle_command`, `ws_add_ha_device`, `ws_device_detail`, `climate.to_sber_current_state`, `tv.process_cmd` | v1.39.0 | TBD | TODO |
 | 6 | `devices/` mixins: `TamperAlarmMuteMixin`, `BatteryAndSignalLinkMixin`, `FanSpeedMixin` + `process_cmd` dispatch-table unification | v1.39.1 | TBD | TODO |
 | 7 | Minor leftovers (vulture findings, `vol.Invalid` in catch tuple, silent `json.JSONDecodeError` swallows, `@requires_bridge` decorator) | v1.39.2 | TBD | TODO |
