@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.3] - 2026-05-14
+
+### Changed
+
+- **Internal refactor — `process_cmd` dispatch lifted to `BaseEntity`.**
+  Round 8 (final post-2026-05-14-audit unification): the dispatch-loop
+  that was duplicated across `LightEntity`, `ClimateEntity`, and
+  `TvEntity` now lives in `BaseEntity.process_cmd`. Subclasses only
+  declare `_cmd_handlers` (a dict mapping Sber feature key to handler
+  method). The base default is an empty dict, so read-only sensors
+  return `[]` automatically.
+
+  Converted 7 classes from inline `if/elif` chains to dispatch tables:
+  `RelayEntity`, `HumidifierEntity`, `HvacFanEntity`,
+  `HvacAirPurifierEntity`, `KettleEntity`, `VacuumCleanerEntity`,
+  `ValveEntity`. New device classes can now skip `process_cmd`
+  entirely — only `_cmd_handlers` + per-feature `_cmd_*` helpers
+  are required.
+
 ## [1.39.2] - 2026-05-14
 
 ### Fixed
