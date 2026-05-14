@@ -206,3 +206,72 @@ class SberPublisher:
             )
         except Exception:  # pragma: no cover — must never break publish
             _LOGGER.exception("ValidationCollector.record_publish_payload failed")
+
+    async def publish_config(self, entity_ids: list[str] | None = None) -> None:
+        """Publish device descriptor on ``up/config``.
+
+        Args:
+            entity_ids: Specific entity IDs to publish, or ``None`` for all
+                enabled entities.
+
+        Stores ``_last_config_publish_time`` on success, refreshes the
+        ack-audit schedule, and emits the DevTools log entry. Behaviour
+        mirrors the original ``SberBridge._publish_config`` exactly.
+        """
+        bridge = self._bridge
+        if not bridge._connected or bridge._mqtt_service is None:
+            return
+
+        ids_to_publish = entity_ids or bridge._enabled_entity_ids
+        ha_location = bridge._hass.config.location_name
+        location = ha_location if ha_location and ha_location != "Home Assistant" else "Мой дом"
+        auto_parent = bridge._entry.options.get(CONF_HUB_AUTO_PARENT, False)
+        ha_serial_prefix = bridge._ha_instance_id_prefix if bridge._ha_serial_enabled else None
+        payload, _config_valid, invalid_ids = build_devices_list_json(
+            bridge._entities,
+            ids_to_publish,
+            bridge._redefinitions,
+            default_home=location,
+            default_room=location,
+            auto_parent_id=auto_parent,
+            ha_serial_prefix=ha_serial_prefix,
+        )
+        if invalid_ids:
+            bridge._stats.validation_failures = invalid_ids
+            _LOGGER.warning(
+                "%d devices excluded from config (validation failed): %s",
+                len(invalid_ids),
+                ", ".join(invalid_ids),
+            )
+        topic = f"{bridge._root_topic}/up/config"
+        _LOGGER.debug(
+            "Publishing config to %s (%d bytes): %s",
+            topic,
+            len(payload) if isinstance(payload, str) else 0,
+            payload,
+        )
+        try:
+            await bridge._mqtt_service.publish(topic, payload)
+        except (aiomqtt.MqttError, RuntimeError):
+            bridge._stats.publish_errors += 1
+            _LOGGER.exception("Error publishing config to Sber")
+            return
+        bridge._stats.messages_sent += 1
+        self._last_config_publish_time = time.monotonic()
+        _LOGGER.info(
+            "Published device config to Sber (%d entities): %s",
+            len(ids_to_publish),
+            ", ".join(ids_to_publish),
+        )
+        bridge._log_message("out", topic, payload if isinstance(payload, str) else "")
+
+        bridge._ack_audit.schedule_audit()
+
+        unack = bridge.unacknowledged_entities
+        if unack:
+            _LOGGER.info(
+                "Waiting for Sber ack on %d entities (audit in %ds): %s",
+                len(unack),
+                int(bridge._ack_audit_delay),
+                ", ".join(unack),
+            )
