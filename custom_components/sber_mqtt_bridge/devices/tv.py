@@ -7,9 +7,10 @@ navigation direction, and custom key commands.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import ClassVar
 
-from ..sber_constants import SberFeature, SberValueType
+from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_bool_parser, _safe_int_parser
 
@@ -186,17 +187,27 @@ class TvEntity(BaseEntity):
             states.append(make_state(SberFeature.SOURCE, make_enum_value(self._source)))
         return {self.entity_id: {"states": states}}
 
+    @property
+    def _cmd_handlers(self) -> dict[str, Callable[[dict], list[dict]]]:
+        """Return dispatch map from Sber feature key to handler method."""
+        return {
+            SberFeature.ON_OFF: self._cmd_on_off,
+            SberFeature.VOLUME_INT: self._cmd_volume_int,
+            SberFeature.MUTE: self._cmd_mute,
+            SberFeature.SOURCE: self._cmd_source,
+            SberFeature.CHANNEL_INT: self._cmd_channel_int,
+            SberFeature.CHANNEL: lambda v: self._cmd_simple_enum(v, _CHANNEL_ENUM_SERVICE),
+            SberFeature.DIRECTION: lambda v: self._cmd_simple_enum(v, _DIRECTION_SERVICE),
+            SberFeature.VOLUME: lambda v: self._cmd_simple_enum(v, _VOLUME_ENUM_SERVICE),
+            SberFeature.NUMBER: self._cmd_number,
+            SberFeature.CUSTOM_KEY: self._cmd_custom_key,
+        }
+
     def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber TV commands and produce HA service calls.
 
-        Handles the following Sber keys:
-        - ``on_off``: media_player.turn_on / media_player.turn_off
-        - ``volume_int``: media_player.volume_set (Sber 0-100 → HA 0.0-1.0)
-        - ``volume``: media_player.volume_up / media_player.volume_down
-        - ``mute``: media_player.volume_mute
-        - ``source``: media_player.select_source
-        - ``custom_key``: media_player.media_play / pause / stop / etc.
-        - ``number``: media_player.play_media (channel digit)
+        Uses a command handler dispatch table (``_cmd_handlers``) to route
+        each Sber state key to its handler.
 
         Args:
             cmd_data: Sber command dict with 'states' list.
@@ -204,31 +215,15 @@ class TvEntity(BaseEntity):
         Returns:
             List of HA service call dicts to execute.
         """
+        handlers = self._cmd_handlers
         results: list[dict] = []
         for item in cmd_data.get("states", []):
             key = item.get("key", "")
             value = item.get("value", {})
-            vtype = value.get("type", "")
-            if key == SberFeature.ON_OFF and vtype == SberValueType.BOOL:
-                results.extend(self._cmd_on_off(value))
-            elif key == SberFeature.VOLUME_INT and vtype == SberValueType.INTEGER:
-                results.extend(self._cmd_volume_int(value))
-            elif key == SberFeature.MUTE and vtype == SberValueType.BOOL:
-                results.extend(self._cmd_mute(value))
-            elif key == SberFeature.SOURCE and vtype == SberValueType.ENUM:
-                results.extend(self._cmd_source(value))
-            elif key == SberFeature.CHANNEL_INT and vtype == SberValueType.INTEGER:
-                results.extend(self._cmd_channel_int(value))
-            elif key == SberFeature.CHANNEL and vtype == SberValueType.ENUM:
-                results.extend(self._cmd_simple_enum(value, _CHANNEL_ENUM_SERVICE))
-            elif key == SberFeature.DIRECTION and vtype == SberValueType.ENUM:
-                results.extend(self._cmd_simple_enum(value, _DIRECTION_SERVICE))
-            elif key == SberFeature.VOLUME and vtype == SberValueType.ENUM:
-                results.extend(self._cmd_simple_enum(value, _VOLUME_ENUM_SERVICE))
-            elif key == SberFeature.NUMBER and vtype == SberValueType.INTEGER:
-                results.extend(self._cmd_number(value))
-            elif key == SberFeature.CUSTOM_KEY and vtype == SberValueType.ENUM:
-                results.extend(self._cmd_custom_key(value))
+            handler = handlers.get(key)
+            if handler is None:
+                continue
+            results.extend(handler(value))
         return results
 
     def _cmd_on_off(self, value: dict) -> list[dict]:
