@@ -18,4 +18,4 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') }}
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') || contains(github.ref_name, 'b1') || contains(github.ref_name, 'b2') || contains(github.ref_name, 'b3') || contains(github.ref_name, 'a1') || contains(github.ref_name, 'a2') || contains(github.ref_name, 'rc') }}
