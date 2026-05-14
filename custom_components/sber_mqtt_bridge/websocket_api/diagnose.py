@@ -18,7 +18,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
 from ..diagnostics_advisor import diagnose_entity
-from ._common import WS_ENTITY_ID, get_bridge
+from ._common import WS_ENTITY_ID, get_bridge, requires_bridge  # noqa: F401 — get_bridge re-exported for test patching
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,15 +30,13 @@ _LOGGER = logging.getLogger(__name__)
     }
 )
 @callback
+@requires_bridge
 def ws_diagnose_entity(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Return a full diagnostic report for ``entity_id``."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
     report = diagnose_entity(bridge, msg["entity_id"])
     connection.send_result(msg["id"], {"report": report.as_dict()})

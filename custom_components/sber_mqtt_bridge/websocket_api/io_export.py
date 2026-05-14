@@ -15,7 +15,13 @@ from ..const import (
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
 )
-from ._common import WS_ENTITY_ID, get_bridge, get_config_entry
+from ._common import (  # noqa: F401 — get_bridge/get_config_entry re-exported for test patching
+    WS_ENTITY_ID,
+    get_bridge,
+    get_config_entry,
+    requires_bridge,
+    requires_entry,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,17 +32,14 @@ _LOGGER = logging.getLogger(__name__)
     }
 )
 @websocket_api.async_response
+@requires_entry
 async def ws_export(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    entry: Any,
 ) -> None:
     """Export the full device configuration as JSON."""
-    entry = get_config_entry(hass)
-    if entry is None:
-        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
-        return
-
     connection.send_result(
         msg["id"],
         {
@@ -56,17 +59,14 @@ async def ws_export(
     }
 )
 @websocket_api.async_response
+@requires_entry
 async def ws_import(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    entry: Any,
 ) -> None:
     """Import a device configuration from a JSON payload."""
-    entry = get_config_entry(hass)
-    if entry is None:
-        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
-        return
-
     config: dict[str, Any] = msg["config"]
     new_options = dict(entry.options)
 
@@ -95,21 +95,18 @@ async def ws_import(
     }
 )
 @websocket_api.async_response
+@requires_bridge
 async def ws_update_redefinitions(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Update Sber redefinitions (name/room/home) for a single device.
 
     Delegates to :meth:`SberBridge.async_update_redefinition` — all
     private-state mutations live in the bridge, not here (encapsulation).
     """
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
-
     entity_id: str = msg["entity_id"]
     fields = {k: msg[k] for k in ("name", "room", "home") if k in msg}
     try:

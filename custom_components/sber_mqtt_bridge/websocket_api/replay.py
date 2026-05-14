@@ -25,7 +25,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
 
-from ._common import WS_PAYLOAD, get_bridge
+from ._common import WS_PAYLOAD, get_bridge, requires_bridge  # noqa: F401 — get_bridge re-exported for test patching
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,16 +39,14 @@ _LOGGER = logging.getLogger(__name__)
     }
 )
 @websocket_api.async_response
+@requires_bridge
 async def ws_inject_sber_message(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Inject a synthetic Sber message into the bridge dispatch table."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
     try:
         result = await bridge.async_inject_sber_message(msg["topic"], msg["payload"], mark_replay=msg["mark_replay"])
     except (
@@ -71,16 +69,14 @@ async def ws_inject_sber_message(
     }
 )
 @websocket_api.async_response
+@requires_bridge
 async def ws_replay_message(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Re-send a previously-captured Sber message (marked as replay)."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
     try:
         result = await bridge.async_inject_sber_message(msg["topic"], msg["payload"], mark_replay=True)
     except (ValueError, RuntimeError, TypeError) as e:

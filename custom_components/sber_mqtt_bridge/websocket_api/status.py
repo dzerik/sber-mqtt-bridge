@@ -12,7 +12,12 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
-from ._common import WS_ENTITY_ID, get_bridge, get_config_entry
+from ._common import (  # noqa: F401 — get_bridge re-exported for test patching
+    WS_ENTITY_ID,
+    get_bridge,
+    get_config_entry,
+    requires_bridge,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,17 +28,14 @@ _LOGGER = logging.getLogger(__name__)
     }
 )
 @websocket_api.async_response
+@requires_bridge
 async def ws_get_devices(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Get all exposed Sber devices with their states."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Sber bridge not available")
-        return
-
     devices: list[dict[str, Any]] = []
     links = bridge.entity_links
     for eid, entity in bridge.entities.items():
@@ -74,17 +76,14 @@ async def ws_get_devices(
     }
 )
 @websocket_api.async_response
+@requires_bridge
 async def ws_get_status(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Get bridge connection status and statistics."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Sber bridge not available")
-        return
-
     from ..sber_protocol import VERSION
 
     location = hass.config.location_name or "Мой дом"
@@ -144,16 +143,14 @@ async def ws_get_status(
     }
 )
 @websocket_api.async_response
+@requires_bridge
 async def ws_republish(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Force republish device config to Sber cloud."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Sber bridge not available")
-        return
     await bridge.async_republish_config()
     connection.send_result(msg["id"], {"success": True})
 
@@ -200,16 +197,14 @@ async def ws_related_sensors(
     }
 )
 @websocket_api.async_response
+@requires_bridge
 async def ws_publish_one_status(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Publish the current state of a single entity to Sber cloud."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Sber bridge not available")
-        return
     await bridge.async_publish_entity_status(msg["entity_id"])
     connection.send_result(msg["id"], {"success": True})
 
@@ -318,17 +313,14 @@ def _section_linked_entities(
     }
 )
 @websocket_api.async_response
+@requires_bridge
 async def ws_device_detail(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Get full detail for a single Sber device."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
-
     entity_id: str = msg["entity_id"]
     entity = bridge.entities.get(entity_id)
     if entity is None:

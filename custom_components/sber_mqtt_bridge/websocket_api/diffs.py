@@ -16,7 +16,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
-from ._common import get_bridge
+from ._common import get_bridge, requires_bridge  # noqa: F401 — get_bridge re-exported for test patching
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,16 +27,14 @@ _LOGGER = logging.getLogger(__name__)
     }
 )
 @callback
+@requires_bridge
 def ws_list_state_diffs(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Return a snapshot of recorded state diffs, oldest first."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
     connection.send_result(msg["id"], {"diffs": bridge.diff_collector.snapshot()})
 
 
@@ -46,16 +44,14 @@ def ws_list_state_diffs(
     }
 )
 @callback
+@requires_bridge
 def ws_clear_state_diffs(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Drop all recorded diffs and the per-entity baseline."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
     bridge.diff_collector.clear()
     connection.send_result(msg["id"], {"success": True})
 
@@ -66,21 +62,18 @@ def ws_clear_state_diffs(
     }
 )
 @callback
+@requires_bridge
 def ws_subscribe_state_diffs(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Stream state diffs to the subscriber.
 
     Sends an initial ``{"snapshot": [...]}`` event, then ``{"diff": {...}}``
     for each subsequent non-empty diff.
     """
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
-
     connection.send_result(msg["id"])
     connection.send_message(websocket_api.event_message(msg["id"], {"snapshot": bridge.diff_collector.snapshot()}))
 

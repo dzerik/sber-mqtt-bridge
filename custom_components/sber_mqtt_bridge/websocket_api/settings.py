@@ -10,7 +10,11 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
 from ..const import CONF_SBER_VERIFY_SSL, SETTINGS_DEFAULTS
-from ._common import get_bridge, get_config_entry
+from ._common import (  # noqa: F401 — get_config_entry re-exported for test patching
+    get_bridge,
+    get_config_entry,
+    requires_entry,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,17 +25,14 @@ _LOGGER = logging.getLogger(__name__)
     }
 )
 @callback
+@requires_entry
 def ws_get_settings(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    entry: Any,
 ) -> None:
     """Return current bridge operational settings with their defaults."""
-    entry = get_config_entry(hass)
-    if entry is None:
-        connection.send_error(msg["id"], "not_found", "Config entry not found")
-        return
-
     settings: dict[str, Any] = {}
     for key, default in SETTINGS_DEFAULTS.items():
         if key == CONF_SBER_VERIFY_SSL:
@@ -49,17 +50,14 @@ def ws_get_settings(
     }
 )
 @websocket_api.async_response
+@requires_entry
 async def ws_update_settings(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    entry: Any,
 ) -> None:
     """Save bridge operational settings to config entry options."""
-    entry = get_config_entry(hass)
-    if entry is None:
-        connection.send_error(msg["id"], "not_found", "Config entry not found")
-        return
-
     new_options = dict(entry.options)
     valid_keys = set(SETTINGS_DEFAULTS.keys())
     new_options.update({k: v for k, v in msg["settings"].items() if k in valid_keys})

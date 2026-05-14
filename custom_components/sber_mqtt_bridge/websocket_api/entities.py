@@ -19,7 +19,13 @@ from ..const import (
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
 )
-from ._common import OVERRIDABLE_CATEGORIES, WS_ENTITY_ID, WS_ENTITY_IDS, get_config_entry
+from ._common import (  # noqa: F401 — get_config_entry re-exported for test patching
+    OVERRIDABLE_CATEGORIES,
+    WS_ENTITY_ID,
+    WS_ENTITY_IDS,
+    get_config_entry,
+    requires_entry,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,17 +37,14 @@ _LOGGER = logging.getLogger(__name__)
     }
 )
 @websocket_api.async_response
+@requires_entry
 async def ws_add_entities(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    entry: Any,
 ) -> None:
     """Add entities to the exposed list and reload the integration."""
-    entry = get_config_entry(hass)
-    if entry is None:
-        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
-        return
-
     current: list[str] = list(entry.options.get(CONF_EXPOSED_ENTITIES, []))
     current_set = set(current)
     added: list[str] = []
@@ -68,17 +71,14 @@ async def ws_add_entities(
     }
 )
 @websocket_api.async_response
+@requires_entry
 async def ws_remove_entities(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    entry: Any,
 ) -> None:
     """Remove entities from the exposed list and reload the integration."""
-    entry = get_config_entry(hass)
-    if entry is None:
-        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
-        return
-
     to_remove = set(msg["entity_ids"])
     current: list[str] = list(entry.options.get(CONF_EXPOSED_ENTITIES, []))
     new_list = [eid for eid in current if eid not in to_remove]
@@ -109,21 +109,18 @@ async def ws_remove_entities(
     }
 )
 @websocket_api.async_response
+@requires_entry
 async def ws_set_type_override(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    entry: Any,
 ) -> None:
     """Set or clear the Sber category override for an entity.
 
     Pass ``category`` as ``"auto"`` to remove the override and use
     automatic detection.
     """
-    entry = get_config_entry(hass)
-    if entry is None:
-        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
-        return
-
     entity_id: str = msg["entity_id"]
     category: str = msg["category"]
 
@@ -147,17 +144,14 @@ async def ws_set_type_override(
     }
 )
 @websocket_api.async_response
+@requires_entry
 async def ws_clear_all(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    entry: Any,
 ) -> None:
     """Remove all entities from the exposed list and clear overrides."""
-    entry = get_config_entry(hass)
-    if entry is None:
-        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
-        return
-
     new_options = dict(entry.options)
     previous_count = len(new_options.get(CONF_EXPOSED_ENTITIES, []))
     new_options[CONF_EXPOSED_ENTITIES] = []

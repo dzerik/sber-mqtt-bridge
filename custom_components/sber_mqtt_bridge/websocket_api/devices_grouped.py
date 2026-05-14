@@ -33,7 +33,14 @@ from ..sber_entity_map import (
     CATEGORY_UI_META,
     create_sber_entity,
 )
-from ._common import OVERRIDABLE_CATEGORIES, WS_ENTITY_ID, WS_ENTITY_IDS, get_bridge, get_config_entry
+from ._common import (
+    OVERRIDABLE_CATEGORIES,
+    WS_ENTITY_ID,
+    WS_ENTITY_IDS,
+    get_bridge,
+    get_config_entry,
+    requires_entry,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -305,10 +312,12 @@ def _hot_reload(hass: HomeAssistant) -> None:
     }
 )
 @websocket_api.async_response
+@requires_entry
 async def ws_add_ha_device(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    entry: Any,
 ) -> None:
     """Atomically add a HA device to the Sber exposed set.
 
@@ -317,11 +326,6 @@ async def ws_add_ha_device(
     and triggers one entry reload.  Replaces the legacy
     ``ws_add_device_wizard`` endpoint.
     """
-    entry = get_config_entry(hass)
-    if entry is None:
-        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
-        return
-
     from homeassistant.helpers import entity_registry as er
 
     entity_reg = er.async_get(hass)

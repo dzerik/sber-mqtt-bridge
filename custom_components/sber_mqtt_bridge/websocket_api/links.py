@@ -17,7 +17,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from ..const import CONF_ENTITY_LINKS, CONF_EXPOSED_ENTITIES
-from ._common import WS_ENTITY_ID, get_bridge, get_config_entry
+from ._common import (  # noqa: F401 — get_config_entry re-exported for test patching
+    WS_ENTITY_ID,
+    get_bridge,
+    get_config_entry,
+    requires_entry,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,17 +35,14 @@ _LOGGER = logging.getLogger(__name__)
     }
 )
 @websocket_api.async_response
+@requires_entry
 async def ws_set_entity_links(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    entry: Any,
 ) -> None:
     """Set linked entities for a primary entity."""
-    entry = get_config_entry(hass)
-    if entry is None:
-        connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
-        return
-
     entity_id: str = msg["entity_id"]
     new_links: dict[str, str] = msg["links"]
 
@@ -82,15 +84,16 @@ async def ws_set_entity_links(
     }
 )
 @websocket_api.async_response
+@requires_entry
 async def ws_auto_link_all(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    entry: Any,
 ) -> None:
     """Auto-link all exposed entities by shared device_id."""
-    entry = get_config_entry(hass)
     bridge = get_bridge(hass)
-    if entry is None or bridge is None:
+    if bridge is None:
         connection.send_error(msg["id"], "not_found", "Bridge or config entry not found")
         return
 

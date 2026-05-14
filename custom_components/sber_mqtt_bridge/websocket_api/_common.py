@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import inspect
+import sys
+from collections.abc import Callable
+from functools import wraps
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol  # type: ignore[import-untyped]
+from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 
@@ -73,3 +78,131 @@ def get_bridge(hass: HomeAssistant) -> SberBridge | None:
     if entry is None or not hasattr(entry, "runtime_data") or entry.runtime_data is None:
         return None
     return entry.runtime_data.bridge
+
+
+def requires_bridge(
+    handler: Callable[..., Any],
+) -> Callable[[HomeAssistant, websocket_api.ActiveConnection, dict[str, Any]], Any]:
+    """Decorate a WS handler that needs the active :class:`SberBridge`.
+
+    Replaces the ``bridge = get_bridge(hass); if bridge is None: send_error``
+    boilerplate.  The decorated function gains a 4th positional argument
+    ``bridge`` and only runs when the bridge is available.
+
+    Works for both ``@callback`` (sync) and ``@websocket_api.async_response``
+    (async) handlers — the wrapper preserves the calling convention.
+
+    The lookup is performed at call time through the handler's module
+    namespace so that test-level patches on ``module.get_bridge`` are
+    respected (late binding, not closure over the import at decoration
+    time).
+
+    Usage::
+
+        @websocket_api.websocket_command({...})
+        @websocket_api.async_response
+        @requires_bridge
+        async def ws_foo(hass, connection, msg, bridge):
+            ...
+    """
+    # Capture a reference to the handler's module for late-binding lookup.
+    _module_name = handler.__module__
+
+    if inspect.iscoroutinefunction(handler):
+
+        @wraps(handler)
+        async def async_wrapped(
+            hass: HomeAssistant,
+            connection: websocket_api.ActiveConnection,
+            msg: dict[str, Any],
+        ) -> None:
+            _mod = sys.modules.get(_module_name)
+            _lookup = getattr(_mod, "get_bridge", None) if _mod is not None else None
+            _bridge_fn = _lookup if _lookup is not None else get_bridge
+            bridge = _bridge_fn(hass)
+            if bridge is None:
+                connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
+                return
+            await handler(hass, connection, msg, bridge)
+
+        return async_wrapped  # type: ignore[return-value]
+
+    @wraps(handler)
+    def sync_wrapped(
+        hass: HomeAssistant,
+        connection: websocket_api.ActiveConnection,
+        msg: dict[str, Any],
+    ) -> None:
+        _mod = sys.modules.get(_module_name)
+        _lookup = getattr(_mod, "get_bridge", None) if _mod is not None else None
+        _bridge_fn = _lookup if _lookup is not None else get_bridge
+        bridge = _bridge_fn(hass)
+        if bridge is None:
+            connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
+            return
+        handler(hass, connection, msg, bridge)
+
+    return sync_wrapped  # type: ignore[return-value]
+
+
+def requires_entry(
+    handler: Callable[..., Any],
+) -> Callable[[HomeAssistant, websocket_api.ActiveConnection, dict[str, Any]], Any]:
+    """Decorate a WS handler that needs the active integration :class:`ConfigEntry`.
+
+    Replaces the ``entry = get_config_entry(hass); if entry is None: send_error``
+    boilerplate.  The decorated function gains a 4th positional argument
+    ``entry`` and only runs when the config entry is loaded.
+
+    Works for both ``@callback`` (sync) and ``@websocket_api.async_response``
+    (async) handlers.
+
+    The lookup is performed at call time through the handler's module
+    namespace so that test-level patches on ``module.get_config_entry`` are
+    respected (late binding, not closure over the import at decoration time).
+
+    Usage::
+
+        @websocket_api.websocket_command({...})
+        @websocket_api.async_response
+        @requires_entry
+        async def ws_foo(hass, connection, msg, entry):
+            ...
+    """
+    _module_name = handler.__module__
+
+    if inspect.iscoroutinefunction(handler):
+
+        @wraps(handler)
+        async def async_wrapped(
+            hass: HomeAssistant,
+            connection: websocket_api.ActiveConnection,
+            msg: dict[str, Any],
+        ) -> None:
+            _mod = sys.modules.get(_module_name)
+            _lookup = getattr(_mod, "get_config_entry", None) if _mod is not None else None
+            _entry_fn = _lookup if _lookup is not None else get_config_entry
+            entry = _entry_fn(hass)
+            if entry is None:
+                connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
+                return
+            await handler(hass, connection, msg, entry)
+
+        return async_wrapped  # type: ignore[return-value]
+
+    @wraps(handler)
+    def sync_wrapped(
+        hass: HomeAssistant,
+        connection: websocket_api.ActiveConnection,
+        msg: dict[str, Any],
+    ) -> None:
+        _mod = sys.modules.get(_module_name)
+        _lookup = getattr(_mod, "get_config_entry", None) if _mod is not None else None
+        _entry_fn = _lookup if _lookup is not None else get_config_entry
+        entry = _entry_fn(hass)
+        if entry is None:
+            connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
+            return
+        handler(hass, connection, msg, entry)
+
+    return sync_wrapped  # type: ignore[return-value]

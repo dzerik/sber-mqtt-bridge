@@ -15,7 +15,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
-from ._common import get_bridge
+from ._common import get_bridge, requires_bridge  # noqa: F401 — get_bridge re-exported for test patching
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,16 +27,14 @@ _LOGGER = logging.getLogger(__name__)
     }
 )
 @callback
+@requires_bridge
 def ws_list_traces(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Return a snapshot of recent correlation traces (closed + active)."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
     snapshot = bridge.trace_collector.snapshot(include_active=msg["include_active"])
     connection.send_result(msg["id"], {"traces": snapshot})
 
@@ -48,16 +46,14 @@ def ws_list_traces(
     }
 )
 @callback
+@requires_bridge
 def ws_get_trace(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Return a single trace by id, or an error if unknown."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
     trace = bridge.trace_collector.get(msg["trace_id"])
     if trace is None:
         connection.send_error(msg["id"], "trace_not_found", f"Trace {msg['trace_id']} not found")
@@ -71,16 +67,14 @@ def ws_get_trace(
     }
 )
 @callback
+@requires_bridge
 def ws_clear_traces(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Drop all active and closed traces."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
     bridge.trace_collector.clear()
     connection.send_result(msg["id"], {"success": True})
 
@@ -91,10 +85,12 @@ def ws_clear_traces(
     }
 )
 @callback
+@requires_bridge
 def ws_subscribe_traces(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
+    bridge: Any,
 ) -> None:
     """Stream correlation-trace lifecycle events to the subscriber.
 
@@ -102,11 +98,6 @@ def ws_subscribe_traces(
     current state, then emit ``{"kind": ..., "trace": ...}`` for every
     ``trace_started`` / ``trace_updated`` / ``trace_closed`` event.
     """
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "bridge_not_found", "Bridge not available")
-        return
-
     connection.send_result(msg["id"])
     connection.send_message(
         websocket_api.event_message(
