@@ -60,6 +60,7 @@ from .sber_protocol import (
     build_states_list_json,
 )
 from .schema_validator import ValidationCollector
+from .sber_publisher import SberPublisher
 from .state_diff import DiffCollector
 from .trace_collector import TraceCollector
 
@@ -190,7 +191,10 @@ class SberBridge:
         self._unsub_lifecycle_listeners: list[Callable] = []
 
         self._stats = BridgeStats()
-        self._last_config_publish_time: float | None = None
+
+        # Publish coordinator owns the three Sber publish flows and the
+        # last-config timestamp; bridge keeps thin delegators below.
+        self._publisher = SberPublisher(self)
 
         # Gate: delay initial MQTT publish until HA is fully started so that
         # entity states (and therefore Sber features) are fully populated.
@@ -268,6 +272,15 @@ class SberBridge:
         # against the auto-generated Sber spec so users see silent
         # rejections turn into explicit actionable issues.
         self._validation_collector = ValidationCollector(maxlen=self._message_log_size)
+
+    @property
+    def _last_config_publish_time(self) -> float | None:
+        """Backward-compat proxy — actual state lives on the publisher."""
+        return self._publisher.last_config_publish_time
+
+    @_last_config_publish_time.setter
+    def _last_config_publish_time(self, value: float | None) -> None:
+        self._publisher._last_config_publish_time = value
 
     @property
     def is_connected(self) -> bool:
