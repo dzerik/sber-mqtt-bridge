@@ -18,6 +18,7 @@ import json
 import logging
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+import voluptuous as vol
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import (
     HomeAssistantError,
@@ -255,6 +256,7 @@ class SberCommandDispatcher:
                 cmd.get("target", {}).get("entity_id", "?"),
             )
         except (
+            vol.Invalid,
             ServiceNotFound,
             ServiceValidationError,
             Unauthorized,
@@ -355,7 +357,12 @@ class SberCommandDispatcher:
         bridge = self._bridge
         try:
             data = json.loads(payload)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as exc:
+            _LOGGER.debug(
+                "Malformed change_group_device_request payload (json): %r — %s",
+                payload[:200] if isinstance(payload, (bytes, str)) else payload,
+                exc,
+            )
             return
         entity_id = data.get("device_id")
         if not entity_id:
@@ -376,7 +383,12 @@ class SberCommandDispatcher:
         bridge = self._bridge
         try:
             data = json.loads(payload)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as exc:
+            _LOGGER.debug(
+                "Malformed rename_device_request payload (json): %r — %s",
+                payload[:200] if isinstance(payload, (bytes, str)) else payload,
+                exc,
+            )
             return
         entity_id = data.get("device_id")
         new_name = data.get("new_name")
@@ -393,5 +405,9 @@ class SberCommandDispatcher:
             endpoint = data.get("http_api_endpoint", "")
             if endpoint:
                 _LOGGER.info("Sber HTTP API endpoint: %s", endpoint)
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as exc:
+            _LOGGER.debug(
+                "Malformed global_config payload (json): %r — %s",
+                payload[:200] if isinstance(payload, (bytes, str)) else payload,
+                exc,
+            )

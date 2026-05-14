@@ -734,14 +734,15 @@ class BaseEntity(ABC):
         """
         return self._is_online
 
-    def process_state_change(self, old_state: dict | None, new_state: dict) -> None:
+    def process_state_change(self, _old_state: dict | None, new_state: dict) -> None:
         """Handle a state change event from Home Assistant.
 
         Default implementation refreshes internal state via fill_by_ha_state.
         Override in subclasses if additional processing is needed.
 
         Args:
-            old_state: Previous HA state dict (may be None).
+            _old_state: Previous HA state dict (may be None). Reserved for
+                subclass overrides that need to compare old and new state.
             new_state: New HA state dict.
         """
         self.fill_by_ha_state(new_state)
