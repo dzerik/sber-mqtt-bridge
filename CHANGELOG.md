@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.5] - 2026-05-14
+
+### Changed
+
+- **Internal refactor — `@requires_bridge` / `@requires_entry`
+  decorators in `websocket_api/_common.py`.** All WS handlers that
+  need the active `SberBridge` or `ConfigEntry` now declare it via a
+  decorator that handles the lookup + error return automatically
+  (~80 lines of boilerplate removed across 14 files).
+
+  The decorator preserves the same error codes (`bridge_not_found`,
+  `entry_not_found`) and detail strings, so the panel UI sees no
+  behaviour change. Both sync (`@callback`) and async
+  (`@websocket_api.async_response`) handler styles are supported.
+
+  Uses late-binding module-namespace lookup so test-level patches
+  on `module.get_bridge` / `module.get_config_entry` continue to
+  work without any test changes.
+
 ## [1.39.4] - 2026-05-14
 
 ### Changed
