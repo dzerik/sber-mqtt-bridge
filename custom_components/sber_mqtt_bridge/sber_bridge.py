@@ -428,12 +428,12 @@ class SberBridge:
 
     @property
     def message_log(self) -> list[dict[str, Any]]:
-        """Return a snapshot of the MQTT message log ring buffer."""
-        return self._msg_logger.entries
+        """Return the DevTools outbound-message ring buffer (delegates to hub)."""
+        return self._devtools.message_log
 
     def clear_message_log(self) -> None:
-        """Clear the MQTT message log."""
-        self._msg_logger.clear()
+        """Clear the DevTools message log (delegates to hub)."""
+        self._devtools.clear_message_log()
 
     def _load_settings_from_options(self, options: dict) -> None:
         """Load operational settings from ``config_entry.options`` dict.
@@ -478,10 +478,7 @@ class SberBridge:
         self._state_forwarder.set_debounce_delay(self._debounce_delay)
         self._mqtt_service.update_backoff_limits(self._reconnect_min, self._reconnect_max)
         self._mqtt_service.update_verify_ssl(self._verify_ssl)
-        self._msg_logger.resize(self._message_log_size)
-        self._trace_collector.resize(self._message_log_size)
-        self._diff_collector.resize(self._message_log_size)
-        self._validation_collector.resize(self._message_log_size)
+        self._devtools.resize(self._message_log_size)
 
         _LOGGER.info(
             "Bridge settings applied (debounce=%.2fs, log=%d)",
@@ -568,7 +565,7 @@ class SberBridge:
     # ---------------------------------------------------------------------------
 
     def subscribe_messages(self, callback_fn: Callable[[dict], None]) -> Callable[[], None]:
-        """Subscribe to new MQTT messages in real time.
+        """Subscribe to new MQTT messages in real time (delegates to hub).
 
         Args:
             callback_fn: Called with each new message dict.
@@ -576,11 +573,11 @@ class SberBridge:
         Returns:
             Unsubscribe callable.
         """
-        return self._msg_logger.subscribe(callback_fn)
+        return self._devtools.subscribe_messages(callback_fn)
 
     def _log_message(self, direction: str, topic: str, payload: str) -> None:
-        """Append message to ring buffer and notify subscribers."""
-        self._msg_logger.log(direction, topic, payload)
+        """Log an outbound message (delegates to hub)."""
+        self._devtools.log_message(direction, topic, payload)
 
     # ---------------------------------------------------------------------------
     # Correlation-timeline traces (DevTools #1)
@@ -588,30 +585,22 @@ class SberBridge:
 
     @property
     def trace_collector(self) -> TraceCollector:
-        """Return the correlation-trace collector for WS API access."""
-        return self._trace_collector
+        """Return the correlation-trace collector (delegates to hub)."""
+        return self._devtools.trace_collector
 
     @property
     def diff_collector(self) -> DiffCollector:
-        """Return the state-diff collector for WS API access."""
-        return self._diff_collector
+        """Return the state-diff collector (delegates to hub)."""
+        return self._devtools.diff_collector
 
     @property
     def validation_collector(self) -> ValidationCollector:
-        """Return the schema-validation collector for WS API access."""
-        return self._validation_collector
+        """Return the schema-validation collector (delegates to hub)."""
+        return self._devtools.validation_collector
 
     def _sweep_traces(self) -> None:
-        """Close traces idle beyond the configured timeout.
-
-        Invoked opportunistically from the bridge housekeeping path; safe to
-        call from either the event loop or a sync callback since
-        :meth:`TraceCollector.sweep` is CPU-only.
-        """
-        try:
-            self._trace_collector.sweep()
-        except Exception:  # pragma: no cover — must never break the bridge
-            _LOGGER.exception("Trace sweep failed")
+        """Close idle traces (delegates to hub)."""
+        self._devtools.sweep_traces()
 
     def _trace_on_state_change(self, context_id: str | None, entity_id: str, state: dict) -> None:
         """Forwarder hook → append ``ha_state_changed`` to the correlation trace.
