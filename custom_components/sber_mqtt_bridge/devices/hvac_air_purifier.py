@@ -12,7 +12,7 @@ from typing import ClassVar
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_state
 from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_bool_parser
-from .hvac_fan import _SBER_SPEED_TO_PERCENTAGE, SBER_SPEED_VALUES, _percentage_to_sber_speed
+from .fan_speed_mixin import SBER_SPEED_VALUES, FanSpeedMixin
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ HVAC_AIR_PURIFIER_CATEGORY = "hvac_air_purifier"
 """Sber device category for air purifier entities."""
 
 
-class HvacAirPurifierEntity(BaseEntity):
+class HvacAirPurifierEntity(FanSpeedMixin, BaseEntity):
     """Sber air purifier entity for purifier fan devices.
 
     Maps HA fan entities (with device_class purifier/air_purifier) to the
@@ -112,21 +112,6 @@ class HvacAirPurifierEntity(BaseEntity):
         self._apply_attr_specs(attrs)
         self.current_state = ha_state.get("state") != "off"
 
-    def _get_sber_speed(self) -> str | None:
-        """Get current fan speed as Sber ENUM value.
-
-        Uses preset_mode if it matches Sber values, otherwise converts
-        percentage to a speed ENUM.
-
-        Returns:
-            Sber speed string or None if not determinable.
-        """
-        if self.preset_mode and self.preset_mode in SBER_SPEED_VALUES:
-            return self.preset_mode
-        if self.percentage is not None:
-            return _percentage_to_sber_speed(self.percentage)
-        return None
-
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list for air purifier capabilities.
 
@@ -213,16 +198,3 @@ class HvacAirPurifierEntity(BaseEntity):
             elif key == SberFeature.HVAC_AIR_FLOW_POWER and vtype == SberValueType.ENUM:
                 results.extend(self._cmd_fan_speed(value.get("enum_value")))
         return results
-
-    def _cmd_fan_speed(self, speed: str | None) -> list[dict]:
-        """Handle Sber air flow power ENUM → HA preset_mode or percentage."""
-        if not speed:
-            return []
-        if speed in self.preset_modes:
-            return [self._build_service_call("fan", "set_preset_mode", self.entity_id, {"preset_mode": speed})]
-        pct = _SBER_SPEED_TO_PERCENTAGE.get(speed)
-        if pct is None:
-            return []
-        if pct == 0:
-            return [self._build_service_call("fan", "turn_on", self.entity_id)]
-        return [self._build_service_call("fan", "set_percentage", self.entity_id, {"percentage": pct})]

@@ -11,51 +11,28 @@ from typing import ClassVar
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_state
 from .base_entity import AttrSpec, BaseEntity, CommandResult
+from .fan_speed_mixin import (
+    _SBER_SPEED_TO_PERCENTAGE,
+    SBER_SPEED_VALUES,
+    FanSpeedMixin,
+    _percentage_to_sber_speed,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 HVAC_FAN_CATEGORY = "hvac_fan"
 """Sber device category for fan entities."""
 
-SBER_SPEED_VALUES = ["auto", "high", "low", "medium", "quiet", "turbo"]
-"""Allowed Sber ENUM values for hvac_air_flow_power (per Sber C2C spec)."""
-
-_SBER_SPEED_TO_PERCENTAGE: dict[str, int] = {
-    "quiet": 10,
-    "low": 25,
-    "medium": 50,
-    "high": 75,
-    "turbo": 100,
-    "auto": 0,
-}
-"""Reverse mapping: Sber speed ENUM to HA percentage. 'auto' maps to 0 (turn_on)."""
-
-_PERCENTAGE_TO_SPEED = [
-    (0, "quiet"),
-    (20, "low"),
-    (40, "medium"),
-    (67, "high"),
-    (90, "turbo"),
+__all__ = [
+    "HVAC_FAN_CATEGORY",
+    "SBER_SPEED_VALUES",
+    "_SBER_SPEED_TO_PERCENTAGE",
+    "HvacFanEntity",
+    "_percentage_to_sber_speed",
 ]
-"""Mapping thresholds from HA percentage to Sber speed ENUM."""
 
 
-def _percentage_to_sber_speed(percentage: int) -> str:
-    """Convert HA fan percentage (0-100) to Sber speed ENUM.
-
-    Args:
-        percentage: Fan speed percentage (0-100).
-
-    Returns:
-        Sber speed ENUM string.
-    """
-    for threshold, speed in reversed(_PERCENTAGE_TO_SPEED):
-        if percentage >= threshold:
-            return speed
-    return "low"
-
-
-class HvacFanEntity(BaseEntity):
+class HvacFanEntity(FanSpeedMixin, BaseEntity):
     """Sber fan entity for ventilator control.
 
     Maps HA fan entities to the Sber 'hvac_fan' category with support for:
@@ -101,21 +78,6 @@ class HvacFanEntity(BaseEntity):
         attrs = ha_state.get("attributes", {})
         self._apply_attr_specs(attrs)
         self.current_state = ha_state.get("state") != "off"
-
-    def _get_sber_speed(self) -> str | None:
-        """Get current fan speed as Sber ENUM value.
-
-        Uses preset_mode if it matches Sber values, otherwise converts
-        percentage to a speed ENUM.
-
-        Returns:
-            Sber speed string or None if not determinable.
-        """
-        if self.preset_mode and self.preset_mode in SBER_SPEED_VALUES:
-            return self.preset_mode
-        if self.percentage is not None:
-            return _percentage_to_sber_speed(self.percentage)
-        return None
 
     @property
     def _supports_speed(self) -> bool:
@@ -194,17 +156,3 @@ class HvacFanEntity(BaseEntity):
             elif key == SberFeature.HVAC_AIR_FLOW_POWER and vtype == SberValueType.ENUM:
                 results.extend(self._cmd_fan_speed(value.get("enum_value")))
         return results
-
-    def _cmd_fan_speed(self, speed: str | None) -> list[dict]:
-        """Handle Sber fan speed ENUM → HA preset_mode or percentage."""
-        if not speed:
-            return []
-        if speed in self.preset_modes:
-            return [self._build_service_call("fan", "set_preset_mode", self.entity_id, {"preset_mode": speed})]
-        pct = _SBER_SPEED_TO_PERCENTAGE.get(speed)
-        if pct is None:
-            return []
-        if pct == 0:
-            # 'auto' mode -- turn on without specific speed
-            return [self._build_service_call("fan", "turn_on", self.entity_id)]
-        return [self._build_service_call("fan", "set_percentage", self.entity_id, {"percentage": pct})]
