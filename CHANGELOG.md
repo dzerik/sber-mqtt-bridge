@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.0] - 2026-05-14
+
+### Changed
+
+- **Internal refactor — cyclomatic-complexity reduction in 5 hot-path
+  functions.** Round 5 of the post-2026-05-14-audit refactor. No
+  user-visible behaviour change — pure decomposition into smaller
+  helpers, all existing tests still pass.
+
+  | Function | File | CC before | CC after |
+  |---|---|---|---|
+  | `TvEntity.process_cmd` | `devices/tv.py` | 22 (D) | 3 (A) |
+  | `SberCommandDispatcher.handle_command` | `command_dispatcher.py` | 23 (D) | 8 (B) |
+  | `ws_device_detail` | `websocket_api/status.py` | 24 (D) | 8 (B) |
+  | `ClimateEntity.to_sber_current_state` | `devices/climate.py` | 25 (D) | 1 (A) |
+  | `ws_add_ha_device` | `websocket_api/devices_grouped.py` | 30 (D) | 5 (A) |
+
+  Decomposition strategies: dispatch tables (`tv.py`), single-purpose
+  extracted helpers (`handle_command`, `to_sber_current_state`),
+  builder pattern with section helpers (`ws_device_detail`),
+  validator-extraction with a private `_AddDeviceError` exception
+  channel (`ws_add_ha_device`).
+
 ## [1.38.6] - 2026-05-14
 
 ### Changed
