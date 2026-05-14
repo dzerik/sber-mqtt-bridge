@@ -51,6 +51,7 @@ from .mqtt_client_service import (
     MqttServiceHooks,
     SberMqttCredentials,
 )
+from .devtools_hub import DevToolsHub
 from .redefinitions_store import RedefinitionsStore
 from .repairs import check_and_create_issues
 from .sber_constants import MqttTopicSuffix
@@ -244,26 +245,8 @@ class SberBridge:
         # Delayed confirm tasks per entity (dedup: cancel previous on new command)
         self._confirm_tasks: dict[str, asyncio.Task] = {}
 
-        # Ring buffer + subscribers for MQTT message log (DevTools)
-        self._msg_logger = MessageLogger(maxlen=self._message_log_size)
-
-        # Correlation-timeline collector (DevTools) — groups Sber+HA events
-        # per HomeAssistant.Context.id into logical traces. Swept via
-        # :meth:`_sweep_traces` on the existing connection-loop tick.
-        self._trace_collector = TraceCollector(
-            maxlen=self._message_log_size,
-            trace_timeout=10.0,
-        )
-
-        # State-diff collector (DevTools) — records per-entity deltas
-        # for every outbound Sber state publish so the panel can show
-        # "what actually changed" instead of the full repetitive payload.
-        self._diff_collector = DiffCollector(maxlen=self._message_log_size)
-
-        # Schema validator (DevTools) — checks every outbound publish
-        # against the auto-generated Sber spec so users see silent
-        # rejections turn into explicit actionable issues.
-        self._validation_collector = ValidationCollector(maxlen=self._message_log_size)
+        # DevTools collector aggregate (message log, traces, diff, validation).
+        self._devtools = DevToolsHub(message_log_size=self._message_log_size)
 
     @property
     def _last_config_publish_time(self) -> float | None:
@@ -282,6 +265,28 @@ class SberBridge:
     @_redefinitions.setter
     def _redefinitions(self, value: dict[str, dict]) -> None:
         self._redef_store.raw = value
+
+    # --- DevTools collector proxies (real owners live on self._devtools) ---
+
+    @property
+    def _msg_logger(self) -> MessageLogger:
+        """Backward-compat proxy — MessageLogger lives on DevToolsHub."""
+        return self._devtools.message_logger
+
+    @property
+    def _trace_collector(self) -> TraceCollector:
+        """Backward-compat proxy — TraceCollector lives on DevToolsHub."""
+        return self._devtools.trace_collector
+
+    @property
+    def _diff_collector(self) -> DiffCollector:
+        """Backward-compat proxy — DiffCollector lives on DevToolsHub."""
+        return self._devtools.diff_collector
+
+    @property
+    def _validation_collector(self) -> ValidationCollector:
+        """Backward-compat proxy — ValidationCollector lives on DevToolsHub."""
+        return self._devtools.validation_collector
 
     @property
     def is_connected(self) -> bool:
