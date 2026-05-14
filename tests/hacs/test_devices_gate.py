@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.gate import GateEntity
 
-
 ENTITY_DATA = {"entity_id": "cover.gate", "name": "Garage Gate"}
 
 
@@ -124,9 +123,13 @@ class TestGateCreateFeaturesList(unittest.TestCase):
     def test_signal_strength_feature_when_rssi_present(self):
         """signal_strength feature appears when rssi attribute is set."""
         entity = GateEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(
-            state="open", current_position=50, signal_strength=-60,
-        ))
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="open",
+                current_position=50,
+                signal_strength=-60,
+            )
+        )
         features = entity.get_final_features_list()
         self.assertIn("signal_strength", features)
 
@@ -235,9 +238,7 @@ class TestGateProcessCmd(unittest.TestCase):
     def test_cmd_open(self):
         """open_set=open must produce cover.open_cover."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "open"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "open"}}]})
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["domain"], "cover")
@@ -247,27 +248,23 @@ class TestGateProcessCmd(unittest.TestCase):
     def test_cmd_close(self):
         """open_set=close must produce cover.close_cover."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "close"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "close"}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "close_cover")
 
     def test_cmd_stop(self):
         """open_set=stop must produce cover.stop_cover."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "stop"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "stop"}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "stop_cover")
 
     def test_cmd_open_percentage(self):
         """open_percentage INTEGER must produce cover.set_cover_position."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": 75}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": 75}}]}
+        )
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_cover_position")
@@ -276,17 +273,13 @@ class TestGateProcessCmd(unittest.TestCase):
     def test_cmd_open_percentage_clamped_high(self):
         """Position > 100 must be clamped to 100."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_percentage", "value": {"integer_value": 200}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_percentage", "value": {"integer_value": 200}}]})
         self.assertEqual(result[0]["url"]["service_data"]["position"], 100)
 
     def test_cmd_open_percentage_clamped_low(self):
         """Position < 0 must be clamped to 0."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_percentage", "value": {"integer_value": -5}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_percentage", "value": {"integer_value": -5}}]})
         self.assertEqual(result[0]["url"]["service_data"]["position"], 0)
 
 
@@ -301,9 +294,9 @@ class TestGateNegative(unittest.TestCase):
     def test_unknown_enum_value_ignored(self):
         """Unknown open_set enum value must produce no service calls."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "unknown"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "unknown"}}]}
+        )
         self.assertEqual(len(result), 0)
 
     def test_empty_states_list(self):
@@ -315,17 +308,13 @@ class TestGateNegative(unittest.TestCase):
     def test_missing_key_in_state_item(self):
         """State item without 'key' must be skipped."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"value": {"integer_value": 50}}]
-        })
+        result = entity.process_cmd({"states": [{"value": {"integer_value": 50}}]})
         self.assertEqual(len(result), 0)
 
     def test_open_set_with_no_enum_value(self):
         """open_set with empty value dict must be skipped."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {}}]})
         self.assertEqual(len(result), 0)
 
     def test_fill_with_invalid_position_string(self):
@@ -340,11 +329,13 @@ class TestGateNegative(unittest.TestCase):
     def test_fill_empty_attributes(self):
         """Empty attributes dict must not raise errors."""
         entity = GateEntity(ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": "cover.gate",
-            "state": "closed",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "cover.gate",
+                "state": "closed",
+                "attributes": {},
+            }
+        )
         self.assertEqual(entity.current_position, 0)
         self.assertEqual(entity.state, "closed")
 

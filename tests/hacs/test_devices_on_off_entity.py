@@ -5,7 +5,6 @@ import unittest
 from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
 from custom_components.sber_mqtt_bridge.devices.socket_entity import SocketEntity
 
-
 RELAY_DATA = {"entity_id": "switch.relay1", "name": "Relay 1"}
 SOCKET_DATA = {"entity_id": "switch.socket1", "name": "Socket 1"}
 
@@ -64,11 +63,13 @@ class TestOnOffEntityEnergyFeatures(unittest.TestCase):
 
     def test_socket_also_supports_energy(self):
         entity = SocketEntity(SOCKET_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": "switch.socket1",
-            "state": "on",
-            "attributes": {"power": 100},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "switch.socket1",
+                "state": "on",
+                "attributes": {"power": 100},
+            }
+        )
         features = entity.get_final_features_list()
         self.assertIn("power", features)
 

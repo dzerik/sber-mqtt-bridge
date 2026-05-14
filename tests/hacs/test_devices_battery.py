@@ -6,7 +6,6 @@ from custom_components.sber_mqtt_bridge.devices.door_sensor import DoorSensorEnt
 from custom_components.sber_mqtt_bridge.devices.motion_sensor import MotionSensorEntity
 from custom_components.sber_mqtt_bridge.devices.water_leak_sensor import WaterLeakSensorEntity
 
-
 DOOR_DATA = {"entity_id": "binary_sensor.door", "name": "Door"}
 
 
@@ -65,21 +64,25 @@ class TestBatteryFeature(unittest.TestCase):
     def test_motion_sensor_battery(self):
         data = {"entity_id": "binary_sensor.motion", "name": "Motion"}
         entity = MotionSensorEntity(data)
-        entity.fill_by_ha_state({
-            "entity_id": "binary_sensor.motion",
-            "state": "off",
-            "attributes": {"battery": 50},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "binary_sensor.motion",
+                "state": "off",
+                "attributes": {"battery": 50},
+            }
+        )
         features = entity.get_final_features_list()
         self.assertIn("battery_percentage", features)
 
     def test_water_leak_sensor_battery(self):
         data = {"entity_id": "binary_sensor.leak", "name": "Leak"}
         entity = WaterLeakSensorEntity(data)
-        entity.fill_by_ha_state({
-            "entity_id": "binary_sensor.leak",
-            "state": "off",
-            "attributes": {"battery_level": 60},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "binary_sensor.leak",
+                "state": "off",
+                "attributes": {"battery_level": 60},
+            }
+        )
         features = entity.get_final_features_list()
         self.assertIn("battery_percentage", features)

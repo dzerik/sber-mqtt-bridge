@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.valve import ValveEntity
 
-
 ENTITY_DATA = {"entity_id": "valve.main", "name": "Main Valve"}
 
 
@@ -123,9 +122,7 @@ class TestValveProcessCmd(unittest.TestCase):
 
     def test_cmd_open(self):
         entity = self._make_entity("closed")
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "open"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "open"}}]})
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["domain"], "valve")
@@ -133,26 +130,20 @@ class TestValveProcessCmd(unittest.TestCase):
 
     def test_cmd_close(self):
         entity = self._make_entity("open")
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "close"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "close"}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "close_valve")
 
     def test_cmd_stop(self):
         entity = self._make_entity("open")
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "stop"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "stop"}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "stop_valve")
 
     def test_cmd_wrong_type_ignored(self):
         """Non-ENUM type for open_set is ignored."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "BOOL", "bool_value": True}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {"type": "BOOL", "bool_value": True}}]})
         self.assertEqual(len(result), 0)
 
     def test_cmd_empty_states(self):
@@ -162,16 +153,14 @@ class TestValveProcessCmd(unittest.TestCase):
 
     def test_cmd_unknown_key_ignored(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]})
         self.assertEqual(len(result), 0)
 
     def test_cmd_unknown_enum_value_ignored(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "unknown"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "unknown"}}]}
+        )
         self.assertEqual(len(result), 0)
 
 

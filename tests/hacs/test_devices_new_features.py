@@ -8,7 +8,6 @@ from custom_components.sber_mqtt_bridge.devices.climate import ClimateEntity
 from custom_components.sber_mqtt_bridge.devices.curtain import CurtainEntity
 from custom_components.sber_mqtt_bridge.devices.door_sensor import DoorSensorEntity
 from custom_components.sber_mqtt_bridge.devices.humidifier import HumidifierEntity
-from custom_components.sber_mqtt_bridge.devices.humidity_sensor import HumiditySensorEntity
 from custom_components.sber_mqtt_bridge.devices.motion_sensor import MotionSensorEntity
 from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
 from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity

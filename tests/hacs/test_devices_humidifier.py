@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.humidifier import HumidifierEntity
 
-
 ENTITY_DATA = {"entity_id": "humidifier.room", "name": "Humidifier"}
 
 
@@ -153,11 +152,13 @@ class TestHumidifierToSberCurrentState(unittest.TestCase):
 
     def test_unavailable_offline(self):
         entity = HumidifierEntity(ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": "humidifier.room",
-            "state": "unavailable",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "humidifier.room",
+                "state": "unavailable",
+                "attributes": {},
+            }
+        )
         result = entity.to_sber_current_state()
         states = result["humidifier.room"]["states"]
         online = next(s for s in states if s["key"] == "online")
@@ -165,11 +166,13 @@ class TestHumidifierToSberCurrentState(unittest.TestCase):
 
     def test_no_humidity(self):
         entity = HumidifierEntity(ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": "humidifier.room",
-            "state": "on",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "humidifier.room",
+                "state": "on",
+                "attributes": {},
+            }
+        )
         result = entity.to_sber_current_state()
         states = result["humidifier.room"]["states"]
         keys = [s["key"] for s in states]
@@ -194,35 +197,27 @@ class TestHumidifierProcessCmd(unittest.TestCase):
 
     def test_cmd_on_off_turn_on(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "on_off", "value": {"bool_value": True}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"bool_value": True}}]})
         url = result[0]["url"]
         self.assertEqual(url["domain"], "humidifier")
         self.assertEqual(url["service"], "turn_on")
 
     def test_cmd_on_off_turn_off(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "on_off", "value": {"bool_value": False}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"bool_value": False}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_off")
 
     def test_cmd_humidity(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "humidity", "value": {"integer_value": 60}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "humidity", "value": {"integer_value": 60}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_humidity")
         self.assertEqual(url["service_data"]["humidity"], 60)  # plain percentage
 
     def test_cmd_mode(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_air_flow_power", "value": {"enum_value": "eco"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "hvac_air_flow_power", "value": {"enum_value": "eco"}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_mode")
         self.assertEqual(url["service_data"]["mode"], "eco")
@@ -234,13 +229,15 @@ class TestHumidifierProcessCmd(unittest.TestCase):
 
     def test_cmd_multiple(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [
-                {"key": "on_off", "value": {"bool_value": True}},
-                {"key": "humidity", "value": {"integer_value": 700}},
-                {"key": "hvac_air_flow_power", "value": {"enum_value": "boost"}},
-            ]
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {"key": "on_off", "value": {"bool_value": True}},
+                    {"key": "humidity", "value": {"integer_value": 700}},
+                    {"key": "hvac_air_flow_power", "value": {"enum_value": "boost"}},
+                ]
+            }
+        )
         self.assertEqual(len(result), 3)
 
 

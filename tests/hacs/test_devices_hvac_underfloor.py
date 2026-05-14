@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.hvac_underfloor_heating import HvacUnderfloorEntity
 
-
 ENTITY_DATA = {"entity_id": "climate.floor", "name": "Underfloor Heating"}
 
 
@@ -63,8 +62,8 @@ class TestHvacUnderfloorProcessCmd(unittest.TestCase):
     def test_set_temperature(self):
         entity = HvacUnderfloorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("heat"))
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": "35"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_temp_set", "value": {"type": "INTEGER", "integer_value": "35"}}]}
+        )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service_data"]["temperature"], 35.0)

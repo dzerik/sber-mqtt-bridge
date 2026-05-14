@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.hvac_air_purifier import HvacAirPurifierEntity
 
-
 ENTITY_DATA = {"entity_id": "fan.air_purifier", "name": "Air Purifier"}
 
 

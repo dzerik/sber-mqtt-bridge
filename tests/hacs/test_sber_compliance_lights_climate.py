@@ -9,10 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-from custom_components.sber_mqtt_bridge.devices.light import LightEntity
 from custom_components.sber_mqtt_bridge.devices.climate import ClimateEntity
 from custom_components.sber_mqtt_bridge.devices.humidifier import HumidifierEntity
-
+from custom_components.sber_mqtt_bridge.devices.light import LightEntity
 
 # ---------------------------------------------------------------------------
 # Helpers: entity data dicts
@@ -793,12 +792,15 @@ class TestClimateStateJson:
         wm = _find_state_by_key(states, "hvac_work_mode")
         assert wm is None, "hvac_work_mode must not be emitted when off"
 
-    @pytest.mark.parametrize("ha_fan,expected_sber", [
-        ("auto", "auto"),
-        ("low", "low"),
-        ("medium", "medium"),
-        ("high", "high"),
-    ])
+    @pytest.mark.parametrize(
+        "ha_fan,expected_sber",
+        [
+            ("auto", "auto"),
+            ("low", "low"),
+            ("medium", "medium"),
+            ("high", "high"),
+        ],
+    )
     def test_fan_mode_enum_values(self, ha_fan: str, expected_sber: str):
         """Fan mode ENUM must use Sber naming convention."""
         entity = self._make_climate(
@@ -985,7 +987,8 @@ class TestHumidifierConfigJson:
     def test_allowed_values_humidity_set_integer_strings(self):
         """hvac_humidity_set must have min/max/step as strings."""
         config = self._make_humidifier(
-            min_humidity=30, max_humidity=80,
+            min_humidity=30,
+            max_humidity=80,
         ).to_sber_state()
         av = config["model"]["allowed_values"]["hvac_humidity_set"]
         assert av["type"] == "INTEGER"
@@ -1009,15 +1012,18 @@ class TestHumidifierConfigJson:
         assert "low" in values
         assert "high" in values
 
-    @pytest.mark.parametrize("ha_mode,expected_sber", [
-        ("auto", "auto"),
-        ("low", "low"),
-        ("high", "high"),
-        ("silent", "quiet"),
-        ("sleep", "quiet"),
-        ("strong", "turbo"),
-        ("boost", "turbo"),
-    ])
+    @pytest.mark.parametrize(
+        "ha_mode,expected_sber",
+        [
+            ("auto", "auto"),
+            ("low", "low"),
+            ("high", "high"),
+            ("silent", "quiet"),
+            ("sleep", "quiet"),
+            ("strong", "turbo"),
+            ("boost", "turbo"),
+        ],
+    )
     def test_humidifier_mode_mapping(self, ha_mode: str, expected_sber: str):
         """HA humidifier modes must map to Sber enum values correctly."""
         config = self._make_humidifier(
@@ -1262,41 +1268,46 @@ class TestIntegerValueAlwaysString:
             if v.get("type") == "INTEGER":
                 iv = v.get("integer_value")
                 assert isinstance(iv, str), (
-                    f"State '{s.get('key')}': integer_value must be str, "
-                    f"got {type(iv).__name__}: {iv!r}"
+                    f"State '{s.get('key')}': integer_value must be str, got {type(iv).__name__}: {iv!r}"
                 )
 
     def test_light_all_integers_are_strings(self):
         """All integer_values in light state must be strings."""
         entity = LightEntity(LIGHT_ENTITY_DATA)
-        entity.fill_by_ha_state(_light_ha_state(
-            brightness=200,
-            color_temp=300,
-            color_mode="color_temp",
-            supported_color_modes=["color_temp", "hs"],
-        ))
+        entity.fill_by_ha_state(
+            _light_ha_state(
+                brightness=200,
+                color_temp=300,
+                color_mode="color_temp",
+                supported_color_modes=["color_temp", "hs"],
+            )
+        )
         states = _get_states_list(entity)
         self._check_all_integer_values_are_strings(states)
 
     def test_climate_all_integers_are_strings(self):
         """All integer_values in climate state must be strings."""
         entity = ClimateEntity(CLIMATE_ENTITY_DATA)
-        entity.fill_by_ha_state(_climate_ha_state(
-            current_temperature=24.5,
-            temperature=22.0,
-            target_humidity=50,
-        ))
+        entity.fill_by_ha_state(
+            _climate_ha_state(
+                current_temperature=24.5,
+                temperature=22.0,
+                target_humidity=50,
+            )
+        )
         states = _get_states_list(entity)
         self._check_all_integer_values_are_strings(states)
 
     def test_humidifier_all_integers_are_strings(self):
         """All integer_values in humidifier state must be strings."""
         entity = HumidifierEntity(HUMIDIFIER_ENTITY_DATA)
-        entity.fill_by_ha_state(_humidifier_ha_state(
-            humidity=50,
-            current_humidity=45.0,
-            water_level=70,
-        ))
+        entity.fill_by_ha_state(
+            _humidifier_ha_state(
+                humidity=50,
+                current_humidity=45.0,
+                water_level=70,
+            )
+        )
         states = _get_states_list(entity)
         self._check_all_integer_values_are_strings(states)
 
@@ -1325,9 +1336,11 @@ class TestAllowedValuesIntegerFieldsAreStrings:
     def test_light_allowed_values(self):
         """Light allowed_values INTEGER fields must be strings."""
         entity = LightEntity(LIGHT_ENTITY_DATA)
-        entity.fill_by_ha_state(_light_ha_state(
-            supported_color_modes=["hs", "color_temp"],
-        ))
+        entity.fill_by_ha_state(
+            _light_ha_state(
+                supported_color_modes=["hs", "color_temp"],
+            )
+        )
         self._check_allowed_values(entity.to_sber_state())
 
     def test_climate_allowed_values(self):
@@ -1357,12 +1370,8 @@ class TestEnumAllowedValuesUseValuesKey:
         for key, val in av.items():
             if val.get("type") == "ENUM":
                 ev = val.get("enum_values", {})
-                assert "values" in ev, (
-                    f"allowed_values[{key}].enum_values must have 'values' key"
-                )
-                assert "value" not in ev, (
-                    f"allowed_values[{key}].enum_values must NOT have 'value' key"
-                )
+                assert "values" in ev, f"allowed_values[{key}].enum_values must have 'values' key"
+                assert "value" not in ev, f"allowed_values[{key}].enum_values must NOT have 'value' key"
 
     def test_light_enum_values_key(self):
         """Light ENUM allowed_values use 'values' key."""
@@ -1373,10 +1382,12 @@ class TestEnumAllowedValuesUseValuesKey:
     def test_climate_enum_values_key(self):
         """Climate ENUM allowed_values use 'values' key."""
         entity = ClimateEntity(CLIMATE_ENTITY_DATA)
-        entity.fill_by_ha_state(_climate_ha_state(
-            fan_modes=["auto", "low"],
-            hvac_modes=["off", "cool", "heat"],
-        ))
+        entity.fill_by_ha_state(
+            _climate_ha_state(
+                fan_modes=["auto", "low"],
+                hvac_modes=["off", "cool", "heat"],
+            )
+        )
         self._check_enum_keys(entity.to_sber_state())
 
     def test_humidifier_enum_values_key(self):

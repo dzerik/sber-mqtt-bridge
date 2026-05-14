@@ -28,18 +28,17 @@ from __future__ import annotations
 
 import pytest
 
-from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
-from custom_components.sber_mqtt_bridge.devices.socket_entity import SocketEntity
-from custom_components.sber_mqtt_bridge.devices.valve import ValveEntity
-from custom_components.sber_mqtt_bridge.devices.vacuum_cleaner import VacuumCleanerEntity
-from custom_components.sber_mqtt_bridge.devices.kettle import KettleEntity
-from custom_components.sber_mqtt_bridge.devices.intercom import IntercomEntity
-from custom_components.sber_mqtt_bridge.devices.scenario_button import ScenarioButtonEntity
-from custom_components.sber_mqtt_bridge.devices.hvac_radiator import HvacRadiatorEntity
-from custom_components.sber_mqtt_bridge.devices.hvac_heater import HvacHeaterEntity
 from custom_components.sber_mqtt_bridge.devices.hvac_boiler import HvacBoilerEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_heater import HvacHeaterEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_radiator import HvacRadiatorEntity
 from custom_components.sber_mqtt_bridge.devices.hvac_underfloor_heating import HvacUnderfloorEntity
-
+from custom_components.sber_mqtt_bridge.devices.intercom import IntercomEntity
+from custom_components.sber_mqtt_bridge.devices.kettle import KettleEntity
+from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
+from custom_components.sber_mqtt_bridge.devices.scenario_button import ScenarioButtonEntity
+from custom_components.sber_mqtt_bridge.devices.socket_entity import SocketEntity
+from custom_components.sber_mqtt_bridge.devices.vacuum_cleaner import VacuumCleanerEntity
+from custom_components.sber_mqtt_bridge.devices.valve import ValveEntity
 
 # ---------------------------------------------------------------------------
 #  Helpers

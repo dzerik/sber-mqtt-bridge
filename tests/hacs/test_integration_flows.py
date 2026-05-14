@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -32,7 +31,6 @@ from custom_components.sber_mqtt_bridge.devices.tv import TvEntity
 from custom_components.sber_mqtt_bridge.devices.vacuum_cleaner import VacuumCleanerEntity
 from custom_components.sber_mqtt_bridge.devices.valve import ValveEntity
 from custom_components.sber_mqtt_bridge.sber_bridge import SberBridge
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -150,7 +148,7 @@ async def _drain_tasks(hass):
         if not task.done():
             try:
                 await asyncio.wait_for(task, timeout=5)
-            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
+            except (TimeoutError, asyncio.CancelledError, Exception):
                 pass
 
 

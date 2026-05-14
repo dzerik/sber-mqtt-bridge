@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.smoke_sensor import SmokeSensorEntity
 
-
 ENTITY_DATA = {"entity_id": "binary_sensor.smoke", "name": "Smoke Detector"}
 
 

@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.water_leak_sensor import WaterLeakSensorEntity
 
-
 ENTITY_DATA = {"entity_id": "binary_sensor.leak", "name": "Water Leak"}
 
 

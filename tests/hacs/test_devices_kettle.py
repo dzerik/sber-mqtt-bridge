@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.kettle import KettleEntity
 
-
 ENTITY_DATA = {"entity_id": "water_heater.kettle", "name": "Kitchen Kettle"}
 
 

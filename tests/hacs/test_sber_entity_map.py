@@ -2,32 +2,32 @@
 
 import unittest
 
+from custom_components.sber_mqtt_bridge.devices.climate import ClimateEntity
+from custom_components.sber_mqtt_bridge.devices.curtain import CurtainEntity
+from custom_components.sber_mqtt_bridge.devices.door_sensor import DoorSensorEntity
+from custom_components.sber_mqtt_bridge.devices.gas_sensor import GasSensorEntity
+from custom_components.sber_mqtt_bridge.devices.humidifier import HumidifierEntity
+from custom_components.sber_mqtt_bridge.devices.humidity_sensor import HumiditySensorEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_boiler import HvacBoilerEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_fan import HvacFanEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_heater import HvacHeaterEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_radiator import HvacRadiatorEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_underfloor_heating import HvacUnderfloorEntity
+from custom_components.sber_mqtt_bridge.devices.led_strip import LedStripEntity
+from custom_components.sber_mqtt_bridge.devices.light import LightEntity
+from custom_components.sber_mqtt_bridge.devices.motion_sensor import MotionSensorEntity
+from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
+from custom_components.sber_mqtt_bridge.devices.scenario_button import ScenarioButtonEntity
+from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
+from custom_components.sber_mqtt_bridge.devices.smoke_sensor import SmokeSensorEntity
+from custom_components.sber_mqtt_bridge.devices.socket_entity import SocketEntity
+from custom_components.sber_mqtt_bridge.devices.valve import ValveEntity
+from custom_components.sber_mqtt_bridge.devices.water_leak_sensor import WaterLeakSensorEntity
+from custom_components.sber_mqtt_bridge.devices.window_blind import WindowBlindEntity
 from custom_components.sber_mqtt_bridge.sber_entity_map import (
     CATEGORY_DOMAIN_MAP,
     create_sber_entity,
 )
-from custom_components.sber_mqtt_bridge.devices.light import LightEntity
-from custom_components.sber_mqtt_bridge.devices.led_strip import LedStripEntity
-from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
-from custom_components.sber_mqtt_bridge.devices.socket_entity import SocketEntity
-from custom_components.sber_mqtt_bridge.devices.climate import ClimateEntity
-from custom_components.sber_mqtt_bridge.devices.curtain import CurtainEntity
-from custom_components.sber_mqtt_bridge.devices.window_blind import WindowBlindEntity
-from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
-from custom_components.sber_mqtt_bridge.devices.humidity_sensor import HumiditySensorEntity
-from custom_components.sber_mqtt_bridge.devices.motion_sensor import MotionSensorEntity
-from custom_components.sber_mqtt_bridge.devices.door_sensor import DoorSensorEntity
-from custom_components.sber_mqtt_bridge.devices.water_leak_sensor import WaterLeakSensorEntity
-from custom_components.sber_mqtt_bridge.devices.smoke_sensor import SmokeSensorEntity
-from custom_components.sber_mqtt_bridge.devices.gas_sensor import GasSensorEntity
-from custom_components.sber_mqtt_bridge.devices.scenario_button import ScenarioButtonEntity
-from custom_components.sber_mqtt_bridge.devices.valve import ValveEntity
-from custom_components.sber_mqtt_bridge.devices.humidifier import HumidifierEntity
-from custom_components.sber_mqtt_bridge.devices.hvac_radiator import HvacRadiatorEntity
-from custom_components.sber_mqtt_bridge.devices.hvac_heater import HvacHeaterEntity
-from custom_components.sber_mqtt_bridge.devices.hvac_boiler import HvacBoilerEntity
-from custom_components.sber_mqtt_bridge.devices.hvac_underfloor_heating import HvacUnderfloorEntity
-from custom_components.sber_mqtt_bridge.devices.hvac_fan import HvacFanEntity
 
 
 def _data(entity_id, **kwargs):
@@ -43,16 +43,29 @@ class TestEntityConstructorsMap(unittest.TestCase):
     """
 
     def test_all_supported_domains(self):
-        expected = {"light", "cover", "sensor", "binary_sensor", "switch",
-                    "script", "button", "input_boolean", "climate", "valve",
-                    "humidifier", "fan", "water_heater", "media_player", "vacuum",
-                    "lock"}
+        expected = {
+            "light",
+            "cover",
+            "sensor",
+            "binary_sensor",
+            "switch",
+            "script",
+            "button",
+            "input_boolean",
+            "climate",
+            "valve",
+            "humidifier",
+            "fan",
+            "water_heater",
+            "media_player",
+            "vacuum",
+            "lock",
+        }
         supported = {d for spec in CATEGORY_DOMAIN_MAP.values() for d in spec.domains}
         self.assertEqual(supported, expected)
 
 
 class TestCreateSberEntity(unittest.TestCase):
-
     def test_light(self):
         e = create_sber_entity("light.room", _data("light.room"))
         self.assertIsInstance(e, LightEntity)

@@ -2,13 +2,11 @@
 
 import unittest
 
-import pytest
-
 from custom_components.sber_mqtt_bridge.devices.utils.color_converter import ColorConverter
 from custom_components.sber_mqtt_bridge.devices.utils.linear_converter import LinearConverter
 
-
 # ---- ColorConverter Tests ----
+
 
 class TestColorConverterHaToSber(unittest.TestCase):
     """Test ColorConverter.ha_to_sber_hsv."""
@@ -100,6 +98,7 @@ class TestColorConverterSberToHa(unittest.TestCase):
 
 
 # ---- LinearConverter Tests ----
+
 
 class TestLinearConverterCreate(unittest.TestCase):
     """Test LinearConverter constructor and defaults."""

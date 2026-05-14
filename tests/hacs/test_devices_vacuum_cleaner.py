@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.vacuum_cleaner import VacuumCleanerEntity
 
-
 ENTITY_DATA = {"entity_id": "vacuum.roborock", "name": "Roborock S7"}
 
 

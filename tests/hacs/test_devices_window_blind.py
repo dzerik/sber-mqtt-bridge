@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.window_blind import WindowBlindEntity
 
-
 ENTITY_DATA = {"entity_id": "cover.blind", "name": "Living Room Blind"}
 
 
@@ -65,9 +64,13 @@ class TestWindowBlindFillByHaState(unittest.TestCase):
     def test_fill_position_and_tilt(self):
         """Both position and tilt must be stored."""
         entity = WindowBlindEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(
-            state="open", current_position=60, current_tilt_position=80,
-        ))
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="open",
+                current_position=60,
+                current_tilt_position=80,
+            )
+        )
         self.assertEqual(entity.current_position, 60)
         self.assertEqual(entity.state, "open")
 
@@ -92,9 +95,13 @@ class TestWindowBlindFillByHaState(unittest.TestCase):
     def test_fill_tilt_zero(self):
         """Tilt=0 must be stored (not treated as falsy)."""
         entity = WindowBlindEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(
-            state="open", current_position=50, current_tilt_position=0,
-        ))
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="open",
+                current_position=50,
+                current_tilt_position=0,
+            )
+        )
         # Verify tilt is stored by checking features list
         features = entity.get_final_features_list()
         self.assertIn("light_transmission_percentage", features)
@@ -129,18 +136,26 @@ class TestWindowBlindCreateFeaturesList(unittest.TestCase):
     def test_features_with_tilt(self):
         """Blind with tilt must include light_transmission_percentage."""
         entity = WindowBlindEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(
-            state="open", current_position=50, current_tilt_position=45,
-        ))
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="open",
+                current_position=50,
+                current_tilt_position=45,
+            )
+        )
         features = entity.get_final_features_list()
         self.assertIn("light_transmission_percentage", features)
 
     def test_signal_strength_feature_when_rssi_present(self):
         """signal_strength feature appears when rssi attribute is set."""
         entity = WindowBlindEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(
-            state="open", current_position=50, signal_strength=-55,
-        ))
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="open",
+                current_position=50,
+                signal_strength=-55,
+            )
+        )
         features = entity.get_final_features_list()
         self.assertIn("signal_strength", features)
 
@@ -167,9 +182,13 @@ class TestWindowBlindToSberState(unittest.TestCase):
     def test_config_features_include_tilt_when_present(self):
         """Features in config must include light_transmission_percentage if tilt is set."""
         entity = WindowBlindEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(
-            state="open", current_position=50, current_tilt_position=60,
-        ))
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="open",
+                current_position=50,
+                current_tilt_position=60,
+            )
+        )
         result = entity.to_sber_state()
         features = result["model"]["features"]
         self.assertIn("light_transmission_percentage", features)
@@ -207,9 +226,13 @@ class TestWindowBlindToSberCurrentState(unittest.TestCase):
     def test_tilt_value_in_state(self):
         """Tilt=80 must produce light_transmission_percentage=80 as string."""
         entity = WindowBlindEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(
-            state="open", current_position=50, current_tilt_position=80,
-        ))
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="open",
+                current_position=50,
+                current_tilt_position=80,
+            )
+        )
         result = entity.to_sber_current_state()
         states = result["cover.blind"]["states"]
         ltp = next(s for s in states if s["key"] == "light_transmission_percentage")
@@ -218,9 +241,13 @@ class TestWindowBlindToSberCurrentState(unittest.TestCase):
     def test_tilt_zero_in_state(self):
         """Tilt=0 must still be reported (not treated as falsy)."""
         entity = WindowBlindEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(
-            state="open", current_position=50, current_tilt_position=0,
-        ))
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="open",
+                current_position=50,
+                current_tilt_position=0,
+            )
+        )
         result = entity.to_sber_current_state()
         states = result["cover.blind"]["states"]
         ltp = next(s for s in states if s["key"] == "light_transmission_percentage")
@@ -259,17 +286,19 @@ class TestWindowBlindProcessCmd(unittest.TestCase):
 
     def _make_entity(self, state="open", position=50, tilt=None):
         entity = WindowBlindEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(
-            state=state, current_position=position, current_tilt_position=tilt,
-        ))
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state=state,
+                current_position=position,
+                current_tilt_position=tilt,
+            )
+        )
         return entity
 
     def test_cmd_open(self):
         """open_set=open must produce cover.open_cover."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "open"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "open"}}]})
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["domain"], "cover")
@@ -279,27 +308,23 @@ class TestWindowBlindProcessCmd(unittest.TestCase):
     def test_cmd_close(self):
         """open_set=close must produce cover.close_cover."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "close"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "close"}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "close_cover")
 
     def test_cmd_stop(self):
         """open_set=stop must produce cover.stop_cover."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "stop"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "stop"}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "stop_cover")
 
     def test_cmd_open_percentage(self):
         """open_percentage INTEGER must produce cover.set_cover_position."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": 65}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "open_percentage", "value": {"type": "INTEGER", "integer_value": 65}}]}
+        )
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_cover_position")
@@ -308,17 +333,13 @@ class TestWindowBlindProcessCmd(unittest.TestCase):
     def test_cmd_open_percentage_clamped_high(self):
         """Position > 100 must be clamped to 100."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_percentage", "value": {"integer_value": 150}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_percentage", "value": {"integer_value": 150}}]})
         self.assertEqual(result[0]["url"]["service_data"]["position"], 100)
 
     def test_cmd_open_percentage_clamped_low(self):
         """Position < 0 must be clamped to 0."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_percentage", "value": {"integer_value": -10}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_percentage", "value": {"integer_value": -10}}]})
         self.assertEqual(result[0]["url"]["service_data"]["position"], 0)
 
 
@@ -333,9 +354,9 @@ class TestWindowBlindNegative(unittest.TestCase):
     def test_unknown_enum_value_ignored(self):
         """Unknown open_set enum value must produce no service calls."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "tilt_up"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "open_set", "value": {"type": "ENUM", "enum_value": "tilt_up"}}]}
+        )
         self.assertEqual(len(result), 0)
 
     def test_empty_states_list(self):
@@ -347,17 +368,13 @@ class TestWindowBlindNegative(unittest.TestCase):
     def test_missing_key_in_state_item(self):
         """State item without 'key' must be skipped."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"value": {"integer_value": 50}}]
-        })
+        result = entity.process_cmd({"states": [{"value": {"integer_value": 50}}]})
         self.assertEqual(len(result), 0)
 
     def test_open_set_with_no_enum_value(self):
         """open_set with empty value dict must be skipped."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "open_set", "value": {}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "open_set", "value": {}}]})
         self.assertEqual(len(result), 0)
 
     def test_fill_position_none_defaults_by_state(self):
@@ -369,11 +386,13 @@ class TestWindowBlindNegative(unittest.TestCase):
     def test_fill_empty_attributes(self):
         """Empty attributes dict must not raise errors."""
         entity = WindowBlindEntity(ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": "cover.blind",
-            "state": "open",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "cover.blind",
+                "state": "open",
+                "attributes": {},
+            }
+        )
         # No position attr + HA state 'open' → defaults to 100 (fully open)
         self.assertEqual(entity.current_position, 100)
 

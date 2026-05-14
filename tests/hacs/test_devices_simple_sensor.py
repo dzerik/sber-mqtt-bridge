@@ -5,7 +5,6 @@ import unittest
 from custom_components.sber_mqtt_bridge.devices.motion_sensor import MotionSensorEntity
 from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
 
-
 TEMP_DATA = {"entity_id": "sensor.temp", "name": "Temperature"}
 MOTION_DATA = {"entity_id": "binary_sensor.motion", "name": "Motion"}
 

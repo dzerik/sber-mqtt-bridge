@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.climate import ClimateEntity
 
-
 ENTITY_DATA = {"entity_id": "climate.ac", "name": "AC"}
 
 
@@ -92,11 +91,13 @@ class TestClimateFillByHaState(unittest.TestCase):
     def test_fill_no_optional_attributes(self):
         """Missing attributes use defaults."""
         entity = ClimateEntity(ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": "climate.ac",
-            "state": "off",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "climate.ac",
+                "state": "off",
+                "attributes": {},
+            }
+        )
         self.assertFalse(entity.current_state)
         self.assertIsNone(entity.temperature)
         self.assertIsNone(entity.target_temperature)
@@ -155,9 +156,7 @@ class TestClimateCreateAllowedValues(unittest.TestCase):
 
     def test_empty_modes(self):
         entity = ClimateEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(
-            _make_ha_state(fan_modes=[], swing_modes=[], hvac_modes=[])
-        )
+        entity.fill_by_ha_state(_make_ha_state(fan_modes=[], swing_modes=[], hvac_modes=[]))
         av = entity.create_allowed_values_list()
         # Only hvac_temp_set remains when no enum modes
         self.assertNotIn("hvac_air_flow_power", av)
@@ -204,11 +203,13 @@ class TestClimateToSberCurrentState(unittest.TestCase):
 
     def test_no_temperature(self):
         entity = ClimateEntity(ENTITY_DATA)
-        entity.fill_by_ha_state({
-            "entity_id": "climate.ac",
-            "state": "cool",
-            "attributes": {"fan_mode": "auto"},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "climate.ac",
+                "state": "cool",
+                "attributes": {"fan_mode": "auto"},
+            }
+        )
         result = entity.to_sber_current_state()
         states = result["climate.ac"]["states"]
         keys = [s["key"] for s in states]
@@ -234,9 +235,7 @@ class TestClimateProcessCmd(unittest.TestCase):
 
     def test_cmd_on_off_turn_on(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "on_off", "value": {"bool_value": True}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"bool_value": True}}]})
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["domain"], "climate")
@@ -244,26 +243,20 @@ class TestClimateProcessCmd(unittest.TestCase):
 
     def test_cmd_on_off_turn_off(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "on_off", "value": {"bool_value": False}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"bool_value": False}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_off")
 
     def test_cmd_hvac_temp_set(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_temp_set", "value": {"integer_value": 25}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "hvac_temp_set", "value": {"integer_value": 25}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_temperature")
         self.assertEqual(url["service_data"]["temperature"], 25.0)
 
     def test_cmd_fan_mode_valid(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_air_flow_power", "value": {"enum_value": "low"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "hvac_air_flow_power", "value": {"enum_value": "low"}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_fan_mode")
         self.assertEqual(url["service_data"]["fan_mode"], "low")
@@ -271,41 +264,33 @@ class TestClimateProcessCmd(unittest.TestCase):
     def test_cmd_fan_mode_invalid_rejected(self):
         """Invalid fan mode not in allowed list is rejected."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_air_flow_power", "value": {"enum_value": "turbo"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "hvac_air_flow_power", "value": {"enum_value": "turbo"}}]})
         self.assertEqual(len(result), 0)
 
     def test_cmd_swing_mode_valid(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_air_flow_direction", "value": {"enum_value": "vertical"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_air_flow_direction", "value": {"enum_value": "vertical"}}]}
+        )
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_swing_mode")
         self.assertEqual(url["service_data"]["swing_mode"], "vertical")
 
     def test_cmd_swing_mode_invalid_rejected(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_air_flow_direction", "value": {"enum_value": "3d"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "hvac_air_flow_direction", "value": {"enum_value": "3d"}}]})
         self.assertEqual(len(result), 0)
 
     def test_cmd_hvac_mode_valid(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_work_mode", "value": {"enum_value": "heating"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "hvac_work_mode", "value": {"enum_value": "heating"}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "set_hvac_mode")
         self.assertEqual(url["service_data"]["hvac_mode"], "heat")
 
     def test_cmd_hvac_mode_invalid_rejected(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_work_mode", "value": {"enum_value": "turbo_cool"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "hvac_work_mode", "value": {"enum_value": "turbo_cool"}}]})
         self.assertEqual(len(result), 0)
 
     def test_cmd_empty_states(self):
@@ -315,22 +300,22 @@ class TestClimateProcessCmd(unittest.TestCase):
 
     def test_cmd_multiple(self):
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [
-                {"key": "on_off", "value": {"bool_value": True}},
-                {"key": "hvac_temp_set", "value": {"integer_value": 20}},
-                {"key": "hvac_air_flow_power", "value": {"enum_value": "high"}},
-            ]
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {"key": "on_off", "value": {"bool_value": True}},
+                    {"key": "hvac_temp_set", "value": {"integer_value": 20}},
+                    {"key": "hvac_air_flow_power", "value": {"enum_value": "high"}},
+                ]
+            }
+        )
         self.assertEqual(len(result), 3)
 
     def test_cmd_fan_mode_empty_list_accepts_any(self):
         """When fan_modes is empty, any mode is accepted."""
         entity = ClimateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(fan_modes=[]))
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_air_flow_power", "value": {"enum_value": "turbo"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "hvac_air_flow_power", "value": {"enum_value": "turbo"}}]})
         self.assertEqual(len(result), 1)
 
 

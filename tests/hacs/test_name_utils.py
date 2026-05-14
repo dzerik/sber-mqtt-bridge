@@ -51,7 +51,7 @@ class TestIsSafeSberId:
     @pytest.mark.parametrize(
         "value",
         [
-            "switch.udlinitel_kukhnia_rozetka_no1",   # HA entity_id
+            "switch.udlinitel_kukhnia_rozetka_no1",  # HA entity_id
             "device-456",
             "ABCD_004",
             "root",
@@ -63,11 +63,11 @@ class TestIsSafeSberId:
     @pytest.mark.parametrize(
         "value",
         [
-            "",                         # empty
-            "устройство_1",             # cyrillic
-            "device with spaces",       # space
-            "device#1",                 # hash
-            "a/b",                      # slash
+            "",  # empty
+            "устройство_1",  # cyrillic
+            "device with spaces",  # space
+            "device#1",  # hash
+            "a/b",  # slash
         ],
     )
     def test_unsafe_ids(self, value):
@@ -95,12 +95,12 @@ class TestIsSalutFriendlyName:
     @pytest.mark.parametrize(
         "value",
         [
-            "",                         # empty
-            "ab",                       # too short
-            "a" * 34,                   # too long
-            "Living Room",              # latin
-            "Кухня №1",                 # "№" not allowed
-            "Кухня!",                   # punctuation
+            "",  # empty
+            "ab",  # too short
+            "a" * 34,  # too long
+            "Living Room",  # latin
+            "Кухня №1",  # "№" not allowed
+            "Кухня!",  # punctuation
         ],
     )
     def test_salut_fail(self, value):

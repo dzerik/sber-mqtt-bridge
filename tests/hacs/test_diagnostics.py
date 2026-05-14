@@ -1,9 +1,8 @@
 """Tests for Sber MQTT Bridge diagnostics."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-
 from homeassistant.core import HomeAssistant
 
 from custom_components.sber_mqtt_bridge.const import (
@@ -11,7 +10,6 @@ from custom_components.sber_mqtt_bridge.const import (
     CONF_SBER_LOGIN,
     CONF_SBER_PASSWORD,
     CONF_SBER_PORT,
-    DOMAIN,
 )
 from custom_components.sber_mqtt_bridge.diagnostics import (
     async_get_config_entry_diagnostics,
@@ -21,7 +19,7 @@ from custom_components.sber_mqtt_bridge.diagnostics import (
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Enable custom integrations in all tests."""
-    yield
+    return
 
 
 @pytest.mark.asyncio(loop_scope="function")

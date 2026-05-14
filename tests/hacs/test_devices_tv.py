@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.tv import TvEntity
 
-
 ENTITY_DATA = {"entity_id": "media_player.tv", "name": "Living Room TV"}
 
 

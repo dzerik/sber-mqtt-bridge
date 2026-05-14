@@ -13,7 +13,6 @@ from custom_components.sber_mqtt_bridge.const import (
     CONF_SBER_LOGIN,
     CONF_SBER_PASSWORD,
     CONF_SBER_PORT,
-    DOMAIN,
 )
 from custom_components.sber_mqtt_bridge.custom_capabilities import (
     EntityCustomConfig,
@@ -24,7 +23,6 @@ from custom_components.sber_mqtt_bridge.repairs import (
     check_and_create_issues,
 )
 from custom_components.sber_mqtt_bridge.sber_bridge import SberBridge
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -80,8 +78,10 @@ class TestRepairsEntityNotFound:
         bridge.is_connected = True
         bridge.stats = {"reconnect_count": 0}
 
-        with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create, \
-             patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue") as mock_delete:
+        with (
+            patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create,
+            patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue") as mock_delete,
+        ):
             await check_and_create_issues(hass, bridge)
 
         # Should create issue for light.missing
@@ -102,8 +102,10 @@ class TestRepairsEntityNotFound:
         bridge.is_connected = True
         bridge.stats = {"reconnect_count": 0}
 
-        with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create, \
-             patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue"):
+        with (
+            patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create,
+            patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue"),
+        ):
             await check_and_create_issues(hass, bridge)
 
         # No entity_not_found creation calls
@@ -125,8 +127,10 @@ class TestRepairsEntitiesWithoutState:
         bridge.is_connected = True
         bridge.stats = {"reconnect_count": 0}
 
-        with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create, \
-             patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue"):
+        with (
+            patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create,
+            patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue"),
+        ):
             await check_and_create_issues(hass, bridge)
 
         state_creates = [c for c in mock_create.call_args_list if "entities_without_state" in str(c)]
@@ -142,8 +146,10 @@ class TestRepairsEntitiesWithoutState:
         bridge.is_connected = True
         bridge.stats = {"reconnect_count": 0}
 
-        with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue"), \
-             patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue") as mock_delete:
+        with (
+            patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue"),
+            patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue") as mock_delete,
+        ):
             await check_and_create_issues(hass, bridge)
 
         state_deletes = [c for c in mock_delete.call_args_list if "entities_without_state" in str(c)]
@@ -163,8 +169,10 @@ class TestRepairsConnectionIssues:
         bridge.is_connected = False
         bridge.stats = {"reconnect_count": 10}
 
-        with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create, \
-             patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue"):
+        with (
+            patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue") as mock_create,
+            patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue"),
+        ):
             await check_and_create_issues(hass, bridge)
 
         conn_creates = [c for c in mock_create.call_args_list if "connection_issues" in str(c)]
@@ -180,8 +188,10 @@ class TestRepairsConnectionIssues:
         bridge.is_connected = True
         bridge.stats = {"reconnect_count": 10}
 
-        with patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue"), \
-             patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue") as mock_delete:
+        with (
+            patch("custom_components.sber_mqtt_bridge.repairs.async_create_issue"),
+            patch("custom_components.sber_mqtt_bridge.repairs.async_delete_issue") as mock_delete,
+        ):
             await check_and_create_issues(hass, bridge)
 
         conn_deletes = [c for c in mock_delete.call_args_list if "connection_issues" in str(c)]
@@ -269,11 +279,7 @@ class TestYamlFeaturesConfig:
 
     def test_parse_yaml_config_without_features(self):
         """parse_yaml_config works without features fields."""
-        yaml_data = {
-            "entity_config": {
-                "light.test": {"sber_name": "Kitchen"}
-            }
-        }
+        yaml_data = {"entity_config": {"light.test": {"sber_name": "Kitchen"}}}
         config = parse_yaml_config(yaml_data)
         cfg = config.get("light.test")
         assert cfg is not None
@@ -356,11 +362,13 @@ class TestPersistRedefinitions:
     @pytest.mark.asyncio
     async def test_change_group_persists(self, bridge):
         """_handle_change_group calls _persist_redefinitions."""
-        payload = json.dumps({
-            "device_id": "light.living_room",
-            "home": "Home",
-            "room": "Living Room",
-        }).encode()
+        payload = json.dumps(
+            {
+                "device_id": "light.living_room",
+                "home": "Home",
+                "room": "Living Room",
+            }
+        ).encode()
 
         await bridge._handle_change_group(payload)
         bridge._flush_redefinitions()  # debounced — flush manually for test
@@ -371,10 +379,12 @@ class TestPersistRedefinitions:
     @pytest.mark.asyncio
     async def test_rename_device_persists(self, bridge):
         """_handle_rename_device calls _persist_redefinitions."""
-        payload = json.dumps({
-            "device_id": "light.kitchen",
-            "new_name": "Kitchen Light New",
-        }).encode()
+        payload = json.dumps(
+            {
+                "device_id": "light.kitchen",
+                "new_name": "Kitchen Light New",
+            }
+        ).encode()
 
         await bridge._handle_rename_device(payload)
         bridge._flush_redefinitions()  # debounced — flush manually for test
@@ -397,10 +407,12 @@ class TestPersistRedefinitions:
         hass = MagicMock()
         hass.data = {}
         # Include light.saved in exposed list so it survives pruning
-        entry = _make_entry(options={
-            CONF_EXPOSED_ENTITIES: ["light.saved"],
-            "redefinitions": {"light.saved": {"room": "Saved Room"}},
-        })
+        entry = _make_entry(
+            options={
+                CONF_EXPOSED_ENTITIES: ["light.saved"],
+                "redefinitions": {"light.saved": {"room": "Saved Room"}},
+            }
+        )
         bridge = SberBridge(hass, entry)
 
         # Mock registries: entity registry returns a valid entry for light.saved
@@ -418,10 +430,12 @@ class TestPersistRedefinitions:
         mock_reg_entry.disabled_by = None
         mock_reg_entry.hidden_by = None
 
-        with patch("custom_components.sber_mqtt_bridge.entity_registry.er") as mock_er, \
-             patch("custom_components.sber_mqtt_bridge.entity_registry.dr"), \
-             patch("custom_components.sber_mqtt_bridge.entity_registry.ar"), \
-             patch("custom_components.sber_mqtt_bridge.sber_bridge.check_and_create_issues"):
+        with (
+            patch("custom_components.sber_mqtt_bridge.entity_registry.er") as mock_er,
+            patch("custom_components.sber_mqtt_bridge.entity_registry.dr"),
+            patch("custom_components.sber_mqtt_bridge.entity_registry.ar"),
+            patch("custom_components.sber_mqtt_bridge.sber_bridge.check_and_create_issues"),
+        ):
             mock_entity_reg = MagicMock()
             mock_entity_reg.async_get.return_value = mock_reg_entry
             mock_er.async_get.return_value = mock_entity_reg

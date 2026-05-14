@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.led_strip import LedStripEntity
 
-
 ENTITY_DATA = {"entity_id": "light.led_strip", "name": "LED Strip"}
 
 
@@ -63,9 +62,7 @@ class TestLedStripProcessCmd(unittest.TestCase):
     def test_on_off_command(self):
         entity = LedStripEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off"))
-        result = entity.process_cmd({
-            "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]})
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service"], "turn_on")
         self.assertEqual(result[0]["url"]["domain"], "light")

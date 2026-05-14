@@ -193,9 +193,7 @@ class TestCommandEcho:
 
         # Spy on the three DevTools entry points used by _publish_states.
         bridge._trace_collector.record_publish = MagicMock(wraps=bridge._trace_collector.record_publish)
-        bridge._diff_collector.record_publish_payload = MagicMock(
-            wraps=bridge._diff_collector.record_publish_payload
-        )
+        bridge._diff_collector.record_publish_payload = MagicMock(wraps=bridge._diff_collector.record_publish_payload)
         bridge._validation_collector.record_publish_payload = MagicMock(
             wraps=bridge._validation_collector.record_publish_payload
         )
@@ -229,9 +227,7 @@ class TestCommandEcho:
             {
                 "devices": {
                     "switch.broken": {"states": []},
-                    "switch.lamp": {
-                        "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]
-                    },
+                    "switch.lamp": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]},
                 }
             }
         )
@@ -291,9 +287,7 @@ class TestConfirmTasksCleanupRace:
         # After old task's `finally` runs, the new_task entry must NOT have
         # been popped — only old_task's own entry (which was already replaced).
         current = bridge._confirm_tasks.get("switch.lamp")
-        assert current is new_task, (
-            f"Old task's finally must not pop new_task's slot; got: {current!r}"
-        )
+        assert current is new_task, f"Old task's finally must not pop new_task's slot; got: {current!r}"
 
         # Cleanup: cancel the long-running new_task so the event loop is clean.
         new_task.cancel()

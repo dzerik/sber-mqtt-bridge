@@ -3,6 +3,8 @@
 import json
 import unittest
 
+from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
+from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
 from custom_components.sber_mqtt_bridge.sber_protocol import (
     build_devices_list_json,
     build_hub_device,
@@ -11,9 +13,6 @@ from custom_components.sber_mqtt_bridge.sber_protocol import (
     parse_sber_status_request,
     resolve_ha_serial_number,
 )
-from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
-from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
-
 
 RELAY_ENTITY_DATA = {
     "entity_id": "switch.lamp",
@@ -44,7 +43,6 @@ HA_STATE_TEMP = {
 
 
 class TestBuildHubDevice(unittest.TestCase):
-
     def test_hub_device_structure(self):
         hub = build_hub_device("1.0.0")
         self.assertEqual(hub["id"], "root")
@@ -58,7 +56,6 @@ class TestBuildHubDevice(unittest.TestCase):
 
 
 class TestBuildDevicesListJson(unittest.TestCase):
-
     def setUp(self):
         self.relay = RelayEntity(RELAY_ENTITY_DATA)
         self.relay.fill_by_ha_state(HA_STATE_ON)
@@ -94,7 +91,6 @@ class TestBuildDevicesListJson(unittest.TestCase):
 
 
 class TestBuildStatesListJson(unittest.TestCase):
-
     def setUp(self):
         self.relay = RelayEntity(RELAY_ENTITY_DATA)
         self.relay.fill_by_ha_state(HA_STATE_ON)
@@ -136,15 +132,10 @@ class TestBuildStatesListJson(unittest.TestCase):
 
 
 class TestParseSberCommand(unittest.TestCase):
-
     def test_parse_valid_command(self):
-        payload = json.dumps({
-            "devices": {
-                "switch.lamp": {
-                    "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]
-                }
-            }
-        })
+        payload = json.dumps(
+            {"devices": {"switch.lamp": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}}}
+        )
         result = parse_sber_command(payload)
         self.assertIn("switch.lamp", result["devices"])
 
@@ -155,7 +146,6 @@ class TestParseSberCommand(unittest.TestCase):
 
 
 class TestParseSberStatusRequest(unittest.TestCase):
-
     def test_parse_specific_devices(self):
         payload = json.dumps({"devices": ["light.a", "switch.b"]})
         result = parse_sber_status_request(payload)

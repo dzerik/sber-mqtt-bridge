@@ -14,10 +14,9 @@ from __future__ import annotations
 import pytest
 
 from custom_components.sber_mqtt_bridge.devices.climate import (
-    ClimateEntity,
-    HA_TO_SBER_FAN_MODE,
     HA_TO_SBER_SWING,
     HA_TO_SBER_WORK_MODE,
+    ClimateEntity,
 )
 from custom_components.sber_mqtt_bridge.devices.curtain import CurtainEntity
 from custom_components.sber_mqtt_bridge.devices.light import LightEntity
@@ -26,18 +25,14 @@ from custom_components.sber_mqtt_bridge.devices.scenario_button import (
     ScenarioButtonEntity,
 )
 from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
-from custom_components.sber_mqtt_bridge.devices.simple_sensor import (
-    SimpleReadOnlySensor,
-)
 from custom_components.sber_mqtt_bridge.devices.tv import TvEntity
 from custom_components.sber_mqtt_bridge.devices.utils.signal import (
     rssi_to_signal_strength,
 )
 from custom_components.sber_mqtt_bridge.devices.vacuum_cleaner import (
-    VacuumCleanerEntity,
     _HA_STATE_TO_SBER_STATUS,
+    VacuumCleanerEntity,
 )
-
 
 # ---------------------------------------------------------------------------
 # Documented Sber C2C enum value sets

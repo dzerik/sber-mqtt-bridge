@@ -112,9 +112,7 @@ class TestLightCreateFeaturesList(unittest.TestCase):
     def test_features_xy_and_color_temp(self):
         """Both xy and color_temp modes produce full feature list."""
         entity = LightEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(
-            _make_ha_state(supported_color_modes=["color_temp", "xy"])
-        )
+        entity.fill_by_ha_state(_make_ha_state(supported_color_modes=["color_temp", "xy"]))
         features = entity.get_final_features_list()
         self.assertIn("on_off", features)
         self.assertIn("light_colour", features)
@@ -126,9 +124,7 @@ class TestLightCreateFeaturesList(unittest.TestCase):
     def test_features_only_color_temp(self):
         """Only color_temp mode omits xy-related features."""
         entity = LightEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(
-            _make_ha_state(supported_color_modes=["color_temp"])
-        )
+        entity.fill_by_ha_state(_make_ha_state(supported_color_modes=["color_temp"]))
         features = entity.get_final_features_list()
         self.assertIn("on_off", features)
         self.assertIn("light_colour_temp", features)
@@ -159,9 +155,7 @@ class TestLightToSberCurrentState(unittest.TestCase):
     def test_on_state_color_temp_mode(self):
         """On state in color_temp mode includes on_off, brightness, light_colour_temp, light_mode=white."""
         entity = LightEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(
-            _make_ha_state(state="on", color_mode="color_temp", brightness=200, color_temp=300)
-        )
+        entity.fill_by_ha_state(_make_ha_state(state="on", color_mode="color_temp", brightness=200, color_temp=300))
         result = entity.to_sber_current_state()
         self.assertIn("light.room", result)
         states = result["light.room"]["states"]
@@ -180,9 +174,7 @@ class TestLightToSberCurrentState(unittest.TestCase):
     def test_on_state_xy_mode(self):
         """On state in xy mode includes light_colour and light_mode=colour."""
         entity = LightEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(
-            _make_ha_state(state="on", color_mode="xy", hs_color=[30, 80], brightness=200)
-        )
+        entity.fill_by_ha_state(_make_ha_state(state="on", color_mode="xy", hs_color=[30, 80], brightness=200))
         result = entity.to_sber_current_state()
         states = result["light.room"]["states"]
         keys = [s["key"] for s in states]
@@ -243,9 +235,7 @@ class TestLightProcessCmd(unittest.TestCase):
     def test_cmd_on_off_turn_on(self):
         """on_off=True generates light.turn_on service call."""
         entity = self._make_entity(state="off")
-        result = entity.process_cmd({
-            "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]})
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["domain"], "light")
@@ -255,18 +245,16 @@ class TestLightProcessCmd(unittest.TestCase):
     def test_cmd_on_off_turn_off(self):
         """on_off=False generates light.turn_off service call."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": False}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": False}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_off")
 
     def test_cmd_brightness_when_on(self):
         """light_brightness while on generates turn_on with brightness."""
         entity = self._make_entity(state="on")
-        result = entity.process_cmd({
-            "states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": 500}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": 500}}]}
+        )
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_on")
@@ -278,24 +266,22 @@ class TestLightProcessCmd(unittest.TestCase):
     def test_cmd_brightness_when_off_still_sends(self):
         """light_brightness while off still generates service call (state not gated)."""
         entity = self._make_entity(state="off")
-        result = entity.process_cmd({
-            "states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": 500}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": 500}}]}
+        )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service"], "turn_on")
 
     def test_cmd_light_colour_when_on(self):
         """light_colour with HSV generates turn_on with hs_color."""
         entity = self._make_entity(state="on")
-        result = entity.process_cmd({
-            "states": [{
-                "key": "light_colour",
-                "value": {
-                    "type": "COLOUR",
-                    "colour_value": {"h": 120, "s": 500, "v": 500}
-                }
-            }]
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {"key": "light_colour", "value": {"type": "COLOUR", "colour_value": {"h": 120, "s": 500, "v": 500}}}
+                ]
+            }
+        )
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_on")
@@ -305,30 +291,29 @@ class TestLightProcessCmd(unittest.TestCase):
     def test_cmd_light_colour_when_off_still_sends(self):
         """light_colour while off still generates service call (state not gated)."""
         entity = self._make_entity(state="off")
-        result = entity.process_cmd({
-            "states": [{
-                "key": "light_colour",
-                "value": {"type": "COLOUR", "colour_value": {"h": 120, "s": 500, "v": 500}}
-            }]
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {"key": "light_colour", "value": {"type": "COLOUR", "colour_value": {"h": 120, "s": 500, "v": 500}}}
+                ]
+            }
+        )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service"], "turn_on")
 
     def test_cmd_light_colour_none_value(self):
         """light_colour with no colour_value uses default."""
         entity = self._make_entity(state="on")
-        result = entity.process_cmd({
-            "states": [{"key": "light_colour", "value": {"type": "COLOUR"}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "light_colour", "value": {"type": "COLOUR"}}]})
         self.assertEqual(len(result), 1)
 
     def test_cmd_light_mode_colour_no_hs(self):
         """light_mode=colour without hs_color returns update_state fallback."""
         entity = self._make_entity()
         entity.hs_color = None  # Clear hs_color to test fallback
-        result = entity.process_cmd({
-            "states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "colour"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "colour"}}]}
+        )
         self.assertEqual(len(result), 1)
         self.assertIn("update_state", result[0])
         # current_color_mode is NOT mutated in process_cmd — it will be
@@ -338,9 +323,9 @@ class TestLightProcessCmd(unittest.TestCase):
         """light_mode=colour with hs_color sends turn_on with hs_color."""
         entity = self._make_entity()
         entity.hs_color = [120.0, 80.0]
-        result = entity.process_cmd({
-            "states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "colour"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "colour"}}]}
+        )
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_on")
@@ -350,9 +335,9 @@ class TestLightProcessCmd(unittest.TestCase):
     def test_cmd_light_mode_white(self):
         """light_mode=white sends turn_on with color_temp to switch HA mode."""
         entity = self._make_entity()
-        result = entity.process_cmd({
-            "states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}}]}
+        )
         self.assertEqual(entity.current_color_mode, "color_temp")
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_on")
@@ -361,9 +346,9 @@ class TestLightProcessCmd(unittest.TestCase):
     def test_cmd_light_colour_temp_when_on(self):
         """light_colour_temp generates turn_on with color_temp."""
         entity = self._make_entity(state="on")
-        result = entity.process_cmd({
-            "states": [{"key": "light_colour_temp", "value": {"type": "INTEGER", "integer_value": 500}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "light_colour_temp", "value": {"type": "INTEGER", "integer_value": 500}}]}
+        )
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_on")
@@ -372,9 +357,9 @@ class TestLightProcessCmd(unittest.TestCase):
     def test_cmd_light_colour_temp_when_off_still_sends(self):
         """light_colour_temp while off still generates service call (state not gated)."""
         entity = self._make_entity(state="off")
-        result = entity.process_cmd({
-            "states": [{"key": "light_colour_temp", "value": {"type": "INTEGER", "integer_value": 500}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "light_colour_temp", "value": {"type": "INTEGER", "integer_value": 500}}]}
+        )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service"], "turn_on")
 
@@ -393,12 +378,14 @@ class TestLightProcessCmd(unittest.TestCase):
     def test_cmd_multiple_commands(self):
         """Multiple commands in one payload are all processed."""
         entity = self._make_entity(state="on")
-        result = entity.process_cmd({
-            "states": [
-                {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}},
-                {"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": 700}},
-            ]
-        })
+        result = entity.process_cmd(
+            {
+                "states": [
+                    {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}},
+                    {"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": 700}},
+                ]
+            }
+        )
         self.assertEqual(len(result), 2)
 
 
@@ -422,9 +409,7 @@ class TestLightAllowedValues(unittest.TestCase):
     def test_allowed_values_xy_and_color_temp(self):
         """Both modes produce brightness, colour, mode, and colour_temp."""
         entity = LightEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(
-            _make_ha_state(supported_color_modes=["color_temp", "xy"])
-        )
+        entity.fill_by_ha_state(_make_ha_state(supported_color_modes=["color_temp", "xy"]))
         av = entity.create_allowed_values_list()
         self.assertIn("light_brightness", av)
         self.assertIn("light_colour", av)

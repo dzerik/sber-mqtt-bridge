@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.gas_sensor import GasSensorEntity
 
-
 ENTITY_DATA = {"entity_id": "binary_sensor.gas", "name": "Gas Detector"}
 
 

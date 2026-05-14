@@ -5,7 +5,6 @@ import unittest
 from custom_components.sber_mqtt_bridge.devices.intercom import IntercomEntity
 from custom_components.sber_mqtt_bridge.devices.on_off_entity import OnOffEntity
 
-
 ENTITY_DATA = {"entity_id": "switch.intercom", "name": "Front Door Intercom"}
 
 

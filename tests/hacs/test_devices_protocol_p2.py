@@ -2,19 +2,17 @@
 
 import unittest
 
-from custom_components.sber_mqtt_bridge.devices.light import LightEntity
-from custom_components.sber_mqtt_bridge.devices.valve import ValveEntity
-from custom_components.sber_mqtt_bridge.devices.curtain import CurtainEntity
-from custom_components.sber_mqtt_bridge.devices.climate import ClimateEntity
-from custom_components.sber_mqtt_bridge.devices.humidifier import HumidifierEntity
-from custom_components.sber_mqtt_bridge.devices.scenario_button import ScenarioButtonEntity
-from custom_components.sber_mqtt_bridge.devices.base_entity import BaseEntity
-from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
 from custom_components.sber_mqtt_bridge.custom_capabilities import (
     EntityCustomConfig,
     parse_yaml_config,
 )
-
+from custom_components.sber_mqtt_bridge.devices.climate import ClimateEntity
+from custom_components.sber_mqtt_bridge.devices.curtain import CurtainEntity
+from custom_components.sber_mqtt_bridge.devices.humidifier import HumidifierEntity
+from custom_components.sber_mqtt_bridge.devices.light import LightEntity
+from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
+from custom_components.sber_mqtt_bridge.devices.scenario_button import ScenarioButtonEntity
+from custom_components.sber_mqtt_bridge.devices.valve import ValveEntity
 
 LIGHT_DATA = {"entity_id": "light.room", "name": "Room Light"}
 VALVE_DATA = {"entity_id": "valve.main", "name": "Main Valve"}

@@ -2,12 +2,11 @@
 
 import unittest
 
-from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
-from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
 from custom_components.sber_mqtt_bridge.devices.humidity_sensor import HumiditySensorEntity
 from custom_components.sber_mqtt_bridge.devices.motion_sensor import MotionSensorEntity
+from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
+from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
 from custom_components.sber_mqtt_bridge.devices.water_leak_sensor import WaterLeakSensorEntity
-
 
 ENTITY_DATA = {"entity_id": "sensor.temp", "name": "Temperature"}
 HUMIDITY_DATA = {"entity_id": "sensor.hum", "name": "Humidity"}

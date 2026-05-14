@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.38.2] - 2026-05-14
+
+### Security
+
+- **WS schemas validate entity_id format.** `vol.Required("entity_id"): str`
+  was promoted to `cv.entity_id` / `cv.entity_ids` via shared
+  `WS_ENTITY_ID` / `WS_ENTITY_IDS` validators in
+  `websocket_api/_common.py`. Stops an authenticated frontend user
+  from poisoning `entry.options` with malformed strings that survive
+  reloads. Also tightened `category` fields in `set_override`,
+  `list_devices_for_category`, and `add_ha_device` to
+  `vol.In(OVERRIDABLE_CATEGORIES)`. `add_entities` / `remove_entities`
+  reject empty lists. P0-1 from the 2026-05-14 audit.
+- **WS payload-size guard.** `send_raw_config`, `send_raw_state`,
+  `inject_sber_message`, `replay_message` now reject payloads above
+  `MAX_MQTT_PAYLOAD_SIZE` (default 1 MB) using a shared `WS_PAYLOAD`
+  validator that measures **UTF-8 byte length** — matching the inbound
+  MQTT guard. P0-2.
+
+### Fixed
+
+- **`_delayed_confirm` cancel-and-replace race.** Cancelled tasks no
+  longer pop the successor's entry from `_confirm_tasks` — the
+  `finally` block now only deletes the slot if the current task still
+  owns it. Prevents task-handle leaks and double publishes on rapid
+  follow-up Sber commands. P0-4.
+- **Echo records into DevTools collectors.** `_publish_command_echo`
+  now feeds `_trace_collector`, `_diff_collector` and
+  `_validation_collector` the same way `_publish_states` does — the
+  v1.38.0 echo was invisible in Trace / Diff / Validation tabs.
+  Code-review follow-up for commit `e38d5be`. P0-5.
+
+### Changed
+
+- **`BaseEntity.process_cmd` contract tightened.** The docstring
+  no longer claims `cmd_data` may be `None` — the dispatcher always
+  passes a dict from parsed JSON. Removed the dead `if cmd_data is
+  None: return []` guard from `LightEntity`. P0-3.
+
 ## [1.38.1] - 2026-05-14
 
 ### Security

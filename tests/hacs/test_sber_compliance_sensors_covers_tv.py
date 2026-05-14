@@ -25,7 +25,6 @@ from custom_components.sber_mqtt_bridge.devices.water_leak_sensor import (
     WaterLeakSensorEntity,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

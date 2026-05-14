@@ -7,7 +7,6 @@ from custom_components.sber_mqtt_bridge.const import (
     CONF_SBER_LOGIN,
     CONF_SBER_PASSWORD,
     CONF_SBER_PORT,
-    DOMAIN,
 )
 
 MOCK_CONFIG = {

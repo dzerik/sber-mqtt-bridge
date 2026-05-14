@@ -7,14 +7,13 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.core import Context
 
-from custom_components.sber_mqtt_bridge.sber_bridge import SberBridge
 from custom_components.sber_mqtt_bridge.const import (
-    CONF_EXPOSED_ENTITIES,
     CONF_SBER_BROKER,
     CONF_SBER_LOGIN,
     CONF_SBER_PASSWORD,
     CONF_SBER_PORT,
 )
+from custom_components.sber_mqtt_bridge.sber_bridge import SberBridge
 
 
 def _make_entry(config=None, options=None):

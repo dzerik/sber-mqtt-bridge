@@ -4,7 +4,6 @@ import unittest
 
 from custom_components.sber_mqtt_bridge.devices.hvac_fan import HvacFanEntity
 
-
 ENTITY_DATA = {"entity_id": "fan.living_room", "name": "Living Room Fan"}
 
 
@@ -92,43 +91,39 @@ class TestHvacFanProcessCmd(unittest.TestCase):
 
     def test_cmd_turn_on(self):
         entity = self._make_entity("off")
-        result = entity.process_cmd({
-            "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]})
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service"], "turn_on")
         self.assertEqual(result[0]["url"]["domain"], "fan")
 
     def test_cmd_turn_off(self):
         entity = self._make_entity("on")
-        result = entity.process_cmd({
-            "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": False}}]
-        })
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": False}}]})
         self.assertEqual(result[0]["url"]["service"], "turn_off")
 
     def test_cmd_set_preset_mode(self):
         entity = self._make_entity("on", preset_modes=["low", "medium", "high"])
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": "medium"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": "medium"}}]}
+        )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service"], "set_preset_mode")
         self.assertEqual(result[0]["url"]["service_data"]["preset_mode"], "medium")
 
     def test_cmd_set_percentage_fallback(self):
         entity = self._make_entity("on", preset_modes=[])
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": "high"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": "high"}}]}
+        )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service"], "set_percentage")
         self.assertEqual(result[0]["url"]["service_data"]["percentage"], 75)
 
     def test_cmd_auto_turns_on(self):
         entity = self._make_entity("on", preset_modes=[])
-        result = entity.process_cmd({
-            "states": [{"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": "auto"}}]
-        })
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_air_flow_power", "value": {"type": "ENUM", "enum_value": "auto"}}]}
+        )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service"], "turn_on")
 

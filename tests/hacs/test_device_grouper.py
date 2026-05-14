@@ -303,10 +303,7 @@ class TestPrimaryAlternatives:
         _set_devices(device_reg, [_make_device("strip", name="PowerStrip")])
         _set_entities(
             entity_reg,
-            [
-                _make_entity(f"switch.strip_no{i}", device_id="strip")
-                for i in range(1, 6)
-            ],
+            [_make_entity(f"switch.strip_no{i}", device_id="strip") for i in range(1, 6)],
         )
         exposed = {"switch.strip_no1"}
         grouper = HaDeviceGrouper(hass, exposed_ids=exposed)
