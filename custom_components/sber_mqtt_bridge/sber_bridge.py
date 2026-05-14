@@ -53,6 +53,7 @@ from .mqtt_client_service import (
 )
 from .repairs import check_and_create_issues
 from .sber_constants import MqttTopicSuffix
+from .redefinitions_store import RedefinitionsStore
 from .sber_publisher import SberPublisher
 from .schema_validator import ValidationCollector
 from .state_diff import DiffCollector
@@ -164,7 +165,8 @@ class SberBridge:
         """Cached 8-char prefix of HA instance UUID; populated in ``async_start``."""
         self._entities: dict[str, BaseEntity] = {}
         self._enabled_entity_ids: list[str] = []
-        self._redefinitions: dict[str, dict] = {}
+        # Persisted redefinitions delegated to RedefinitionsStore (v1.38.4).
+        self._redef_store = RedefinitionsStore(self)
         self._entity_links: dict[str, dict[str, str]] = {}
         """Primary entity → {role: linked_entity_id}."""
         self._linked_reverse: dict[str, tuple[str, str]] = {}
@@ -242,10 +244,6 @@ class SberBridge:
         # Delayed confirm tasks per entity (dedup: cancel previous on new command)
         self._confirm_tasks: dict[str, asyncio.Task] = {}
 
-        # Debounced redefinitions persistence (avoid reload mid-MQTT-loop)
-        self._redef_dirty = False
-        self._redef_timer: asyncio.TimerHandle | None = None
-
         # Ring buffer + subscribers for MQTT message log (DevTools)
         self._msg_logger = MessageLogger(maxlen=self._message_log_size)
 
@@ -275,6 +273,33 @@ class SberBridge:
     @_last_config_publish_time.setter
     def _last_config_publish_time(self, value: float | None) -> None:
         self._publisher._last_config_publish_time = value
+
+    @property
+    def _redefinitions(self) -> dict[str, dict]:
+        """Backward-compat proxy — actual storage lives on RedefinitionsStore."""
+        return self._redef_store.raw
+
+    @_redefinitions.setter
+    def _redefinitions(self, value: dict[str, dict]) -> None:
+        self._redef_store.raw = value
+
+    @property
+    def _redef_dirty(self) -> bool:
+        """Backward-compat proxy — dirty flag lives on RedefinitionsStore."""
+        return self._redef_store._dirty
+
+    @_redef_dirty.setter
+    def _redef_dirty(self, value: bool) -> None:
+        self._redef_store._dirty = value
+
+    @property
+    def _redef_timer(self) -> asyncio.TimerHandle | None:
+        """Backward-compat proxy — timer handle lives on RedefinitionsStore."""
+        return self._redef_store._timer
+
+    @_redef_timer.setter
+    def _redef_timer(self, value: asyncio.TimerHandle | None) -> None:
+        self._redef_store._timer = value
 
     @property
     def is_connected(self) -> bool:
