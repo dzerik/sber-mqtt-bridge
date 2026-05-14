@@ -24,12 +24,8 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv
 
-from ..const import CONF_MAX_MQTT_PAYLOAD, SETTINGS_DEFAULTS
-from ._common import get_bridge
-
-_MAX_PAYLOAD = SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]
+from ._common import WS_PAYLOAD, get_bridge
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +34,7 @@ _LOGGER = logging.getLogger(__name__)
     {
         vol.Required("type"): "sber_mqtt_bridge/inject_sber_message",
         vol.Required("topic"): str,
-        vol.Required("payload"): vol.All(cv.string, vol.Length(max=_MAX_PAYLOAD)),
+        vol.Required("payload"): WS_PAYLOAD,
         vol.Optional("mark_replay", default=True): bool,
     }
 )
@@ -71,7 +67,7 @@ async def ws_inject_sber_message(
     {
         vol.Required("type"): "sber_mqtt_bridge/replay_message",
         vol.Required("topic"): str,
-        vol.Required("payload"): vol.All(cv.string, vol.Length(max=_MAX_PAYLOAD)),
+        vol.Required("payload"): WS_PAYLOAD,
     }
 )
 @websocket_api.async_response

@@ -8,7 +8,7 @@ import voluptuous as vol  # type: ignore[import-untyped]
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 
-from ..const import DOMAIN
+from ..const import CONF_MAX_MQTT_PAYLOAD, DOMAIN, SETTINGS_DEFAULTS
 from ..sber_entity_map import CATEGORY_DOMAIN_MAP
 
 if TYPE_CHECKING:
@@ -31,6 +31,30 @@ like a real entity_id (``domain.object_id``)."""
 OVERRIDABLE_CATEGORIES = sorted(CATEGORY_DOMAIN_MAP.keys())
 """Sorted list of valid Sber category strings, used to validate
 ``category`` fields in WS schemas."""
+
+_MAX_PAYLOAD = SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]
+"""Frozen at import; runtime option changes require HA restart
+to update WS schema caps."""
+
+
+def _payload_byte_cap(value: str) -> str:
+    """Reject WS payloads whose UTF-8 byte length exceeds the MQTT cap.
+
+    ``vol.Length`` would count Unicode code points instead of bytes,
+    which diverges from the inbound MQTT guard in
+    :meth:`SberBridge._handle_mqtt_message` (it sees raw ``bytes``).
+    This validator preserves byte-level parity between both paths.
+    """
+    if len(value.encode("utf-8")) > _MAX_PAYLOAD:
+        raise vol.Invalid(f"payload exceeds {_MAX_PAYLOAD} bytes")
+    return value
+
+
+WS_PAYLOAD = vol.All(cv.string, _payload_byte_cap)
+"""Validator for a Sber-bound JSON payload in DevTools WS commands.
+
+Enforces the same byte-length cap as the inbound MQTT guard so a
+payload accepted by the schema cannot be rejected at publish time."""
 
 
 def get_config_entry(hass: HomeAssistant) -> ConfigEntry | None:

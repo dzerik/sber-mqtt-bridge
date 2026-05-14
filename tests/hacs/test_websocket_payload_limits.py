@@ -133,3 +133,47 @@ def test_replay_replay_accepts_payload_at_limit() -> None:
         }
     )
     assert result["payload"] == _OK
+
+
+# ---------------------------------------------------------------------------
+# Byte-vs-character regression (v1.38.2 code-review)
+# ---------------------------------------------------------------------------
+
+
+def test_raw_send_config_rejects_multibyte_oversize() -> None:
+    """Non-ASCII payload whose UTF-8 byte length exceeds the cap must be rejected.
+
+    Regression for v1.38.2 code-review: vol.Length counted code points,
+    not bytes — a 1MB multi-byte string slipped through but would exceed
+    the inbound MQTT byte cap.
+    """
+    from custom_components.sber_mqtt_bridge.websocket_api.raw import ws_send_raw_config
+
+    schema = ws_send_raw_config._ws_schema  # type: ignore[attr-defined]
+    # "ñ" is 2 bytes in UTF-8. (_MAX_PAYLOAD // 2 + 1) chars => >_MAX_PAYLOAD bytes.
+    multibyte_oversize = "ñ" * (SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD] // 2 + 1)
+    with pytest.raises(vol.Invalid):
+        schema(
+            {
+                "id": 1,
+                "type": "sber_mqtt_bridge/send_raw_config",
+                "payload": multibyte_oversize,
+            }
+        )
+
+
+def test_replay_inject_rejects_multibyte_oversize() -> None:
+    """Same regression for the replay path."""
+    from custom_components.sber_mqtt_bridge.websocket_api.replay import ws_inject_sber_message
+
+    schema = ws_inject_sber_message._ws_schema  # type: ignore[attr-defined]
+    multibyte_oversize = "ñ" * (SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD] // 2 + 1)
+    with pytest.raises(vol.Invalid):
+        schema(
+            {
+                "id": 1,
+                "type": "sber_mqtt_bridge/inject_sber_message",
+                "topic": "sberdevices/v1/test/down/commands",
+                "payload": multibyte_oversize,
+            }
+        )
