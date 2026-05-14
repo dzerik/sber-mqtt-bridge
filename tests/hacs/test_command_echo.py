@@ -181,3 +181,64 @@ class TestCommandEcho:
         cmd = json.dumps({"devices": {"light.ghost": {"states": []}}})
         await bridge._handle_sber_command(cmd.encode())
         assert _publishes(bridge, "up/status") == []
+
+    @pytest.mark.asyncio
+    async def test_echo_records_into_devtools_collectors(self) -> None:
+        """Echo publish must be visible in DevTools Validation/Diff/Trace tabs."""
+        bridge = _make_bridge()
+        entity = RelayEntity({"entity_id": "switch.lamp", "name": "Lamp"})
+        entity.fill_by_ha_state({"entity_id": "switch.lamp", "state": "off", "attributes": {}})
+        bridge._entities["switch.lamp"] = entity
+        bridge._enabled_entity_ids = ["switch.lamp"]
+
+        # Spy on the three DevTools entry points used by _publish_states.
+        bridge._trace_collector.record_publish = MagicMock(wraps=bridge._trace_collector.record_publish)
+        bridge._diff_collector.record_publish_payload = MagicMock(
+            wraps=bridge._diff_collector.record_publish_payload
+        )
+        bridge._validation_collector.record_publish_payload = MagicMock(
+            wraps=bridge._validation_collector.record_publish_payload
+        )
+
+        cmd = json.dumps(
+            {"devices": {"switch.lamp": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}}}
+        )
+        await bridge._handle_sber_command(cmd.encode())
+
+        # Echo path must touch each collector at least once.
+        assert bridge._trace_collector.record_publish.called
+        assert bridge._diff_collector.record_publish_payload.called
+        assert bridge._validation_collector.record_publish_payload.called
+
+    @pytest.mark.asyncio
+    async def test_echo_continues_when_to_sber_current_state_raises(self) -> None:
+        """If one entity's snapshot fails, the echo skips it and keeps going."""
+        bridge = _make_bridge()
+
+        good = RelayEntity({"entity_id": "switch.lamp", "name": "Lamp"})
+        good.fill_by_ha_state({"entity_id": "switch.lamp", "state": "off", "attributes": {}})
+        bridge._entities["switch.lamp"] = good
+
+        broken = MagicMock(spec=RelayEntity)
+        broken.to_sber_current_state.side_effect = AttributeError("boom")
+        bridge._entities["switch.broken"] = broken
+
+        bridge._enabled_entity_ids = ["switch.lamp", "switch.broken"]
+
+        cmd = json.dumps(
+            {
+                "devices": {
+                    "switch.broken": {"states": []},
+                    "switch.lamp": {
+                        "states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]
+                    },
+                }
+            }
+        )
+        await bridge._handle_sber_command(cmd.encode())
+
+        # Good entity still echoed; broken one omitted.
+        published = _publishes(bridge, "up/status")
+        assert published, "Echo must still publish the healthy entity"
+        assert "switch.lamp" in published[0]["devices"]
+        assert "switch.broken" not in published[0]["devices"]

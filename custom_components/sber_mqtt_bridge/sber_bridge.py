@@ -1039,6 +1039,26 @@ class SberBridge:
         _LOGGER.debug("Published command echo for %s: %s", list(echo_devices), payload)
         self._log_message("out", topic, payload)
 
+        # DevTools correlation: attach echo to each entity's active trace.
+        for eid in echo_devices:
+            self._trace_collector.record_publish(eid, topic, payload)
+        # DevTools state-diff: same per-entity deltas reporting as _publish_states.
+        try:
+            self._diff_collector.record_publish_payload(payload, topic=topic)
+        except Exception:  # pragma: no cover — must never break publish
+            _LOGGER.exception("DiffCollector.record_publish_payload failed (echo)")
+        # DevTools schema validation: catch malformed echoes early.
+        try:
+            categories = {eid: ent.category for eid, ent in self._entities.items()}
+            declared = {eid: ent.get_final_features_list() for eid, ent in self._entities.items()}
+            self._validation_collector.record_publish_payload(
+                payload,
+                categories=categories,
+                declared_features=declared,
+            )
+        except Exception:  # pragma: no cover — must never break publish
+            _LOGGER.exception("ValidationCollector.record_publish_payload failed (echo)")
+
     async def _delayed_confirm(self, entity_id: str) -> None:
         """Delayed state confirmation for a commanded entity.
 
