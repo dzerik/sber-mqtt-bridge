@@ -1085,7 +1085,11 @@ class SberBridge:
             _LOGGER.debug("Delayed state confirm for %s", entity_id)
             await self._publish_states([entity_id], force=True)
         finally:
-            self._confirm_tasks.pop(entity_id, None)
+            # Only pop if THIS task still owns the slot. A faster follow-up
+            # command may have already replaced us; we must not delete the
+            # successor's handle.
+            if self._confirm_tasks.get(entity_id) is asyncio.current_task():
+                self._confirm_tasks.pop(entity_id, None)
 
     async def _handle_sber_status_request(self, payload: bytes) -> None:
         """Delegate Sber status request to :class:`SberCommandDispatcher`."""

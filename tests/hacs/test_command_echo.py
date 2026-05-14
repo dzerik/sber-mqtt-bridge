@@ -242,3 +242,59 @@ class TestCommandEcho:
         assert published, "Echo must still publish the healthy entity"
         assert "switch.lamp" in published[0]["devices"]
         assert "switch.broken" not in published[0]["devices"]
+
+
+class TestConfirmTasksCleanupRace:
+    """Regression for the cancel/replace race in _confirm_tasks (P0-4)."""
+
+    @pytest.mark.asyncio
+    async def test_old_task_finally_does_not_pop_new_task(self) -> None:
+        """The old cancelled task must NOT clear the new task's entry."""
+        import asyncio as _asyncio
+
+        bridge = _make_bridge()
+        # Wire hass.async_create_task to the real event loop so tasks are
+        # genuine asyncio.Task objects with distinct identities and real
+        # cancellation semantics.
+        bridge._hass.async_create_task = lambda coro, **_kw: _asyncio.get_event_loop().create_task(coro)
+
+        entity = RelayEntity({"entity_id": "switch.lamp", "name": "Lamp"})
+        entity.fill_by_ha_state({"entity_id": "switch.lamp", "state": "off", "attributes": {}})
+        bridge._entities["switch.lamp"] = entity
+        bridge._enabled_entity_ids = ["switch.lamp"]
+        bridge._confirm_delay = 10.0  # long delay — tasks will not finish on their own
+
+        # First command schedules an old task.
+        cmd = json.dumps(
+            {"devices": {"switch.lamp": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}}}
+        )
+        await bridge._handle_sber_command(cmd.encode())
+        old_task = bridge._confirm_tasks.get("switch.lamp")
+        assert old_task is not None
+
+        # Yield to let old_task reach its `await asyncio.sleep(confirm_delay)`
+        # so it is actually suspended when we cancel it below.
+        await _asyncio.sleep(0)
+
+        # Second command should cancel old_task and register a new one.
+        await bridge._handle_sber_command(cmd.encode())
+        new_task = bridge._confirm_tasks.get("switch.lamp")
+        assert new_task is not None
+        assert new_task is not old_task
+
+        # Yield to give the cancelled old_task a chance to run its finally block.
+        # With the buggy code: old_task.finally calls `_confirm_tasks.pop(eid)`
+        # unconditionally, removing new_task's entry — causing new_task to leak
+        # and a double-publish to occur on the next command.
+        await _asyncio.sleep(0)
+
+        # After old task's `finally` runs, the new_task entry must NOT have
+        # been popped — only old_task's own entry (which was already replaced).
+        current = bridge._confirm_tasks.get("switch.lamp")
+        assert current is new_task, (
+            f"Old task's finally must not pop new_task's slot; got: {current!r}"
+        )
+
+        # Cleanup: cancel the long-running new_task so the event loop is clean.
+        new_task.cancel()
+        await _asyncio.sleep(0)
