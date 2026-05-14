@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.38.6] - 2026-05-14
+
+### Changed
+
+- **Internal refactor — `BridgeCommandContext` narrowed.** The Protocol
+  in `command_dispatcher.py` now exposes the three concrete
+  collaborators extracted in Rounds 2-3b (`_publisher`, `_redef_store`,
+  `_devtools`) instead of the wrapper methods previously proxied
+  through `SberBridge`. The dispatcher's body uses
+  `bridge._publisher.publish_states(...)` /
+  `bridge._redef_store.schedule_persist(...)` /
+  `bridge._devtools.trace_collector` directly — explicit coupling, no
+  fake encapsulation. Round 4 of the post-2026-05-14-audit refactor.
+  No user-visible behaviour change.
+
 ## [1.38.5] - 2026-05-14
 
 ### Changed
