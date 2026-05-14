@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.1] - 2026-05-14
+
+### Changed
+
+- **Internal refactor — three shared mixins in `devices/`.** Round 6 of
+  the post-2026-05-14-audit refactor: three duplication clusters in
+  the device classes pulled into reusable mixins (~210 LOC removed):
+
+  - **`FanSpeedMixin`** (`devices/fan_speed_mixin.py`) consolidates
+    `_get_sber_speed` / `_cmd_fan_speed` / `SBER_SPEED_VALUES` /
+    `_percentage_to_sber_speed` shared by `HvacFanEntity` and
+    `HvacAirPurifierEntity`.
+  - **`BatteryAndSignalLinkMixin`**
+    (`devices/battery_signal_mixin.py`) owns `_battery_level` /
+    `_battery_low` / `_signal_strength_raw` plus the
+    `update_linked_data` role dispatch and `_append_battery_signal_*`
+    helpers — adopted by `CurtainEntity`, `ValveEntity`, and
+    `SimpleReadOnlySensor`.
+  - **`TamperAlarmMuteMixin`** (`devices/tamper_alarm_mute_mixin.py`)
+    owns `_tamper` / `_alarm_mute` parsing, features and state
+    emission for the 5 binary sensors (door / motion / water_leak /
+    smoke / gas). `SUPPORTS_ALARM_MUTE` class flag opts into the
+    second field for water_leak / smoke / gas. Also standardised the
+    "reset tamper to None when HA attribute disappears" behaviour
+    across all 5 (previously inconsistent).
+
+  No user-visible behaviour change.
+
 ## [1.39.0] - 2026-05-14
 
 ### Changed

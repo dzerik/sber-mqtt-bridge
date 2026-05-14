@@ -12,7 +12,7 @@ Master TOC for all refactoring rounds derived from the 2026-05-14 architecture a
 | 3b | `DevToolsHub` extraction (collector aggregate) | v1.38.5 | `2026-05-14-v1.38.5-devtools-hub.md` | ✅ shipped |
 | 4 | `BridgeCommandContext` narrowed to expose concrete collaborators | v1.38.6 | inline (no separate plan file) | ✅ shipped |
 | 5 | CC reduction: `handle_command`, `ws_add_ha_device`, `ws_device_detail`, `climate.to_sber_current_state`, `tv.process_cmd` | v1.39.0 | inline (no separate plan file) | ✅ shipped |
-| 6 | `devices/` mixins: `TamperAlarmMuteMixin`, `BatteryAndSignalLinkMixin`, `FanSpeedMixin` + `process_cmd` dispatch-table unification | v1.39.1 | TBD | TODO |
+| 6 | `devices/` mixins: `TamperAlarmMuteMixin`, `BatteryAndSignalLinkMixin`, `FanSpeedMixin` (process_cmd dispatch deferred — only TV was D-rated, done in Round 5) | v1.39.1 | inline (no separate plan file) | ✅ shipped |
 | 7 | Minor leftovers (vulture findings, `vol.Invalid` in catch tuple, silent `json.JSONDecodeError` swallows, `@requires_bridge` decorator) | v1.39.2 | TBD | TODO |
 
 ## Dependencies
