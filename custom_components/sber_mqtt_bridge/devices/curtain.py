@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
 from typing import ClassVar
 
@@ -16,7 +15,7 @@ from .base_entity import (
     _safe_clamped_int_parser,
     _safe_int_parser,
 )
-from .utils.signal import rssi_to_signal_strength
+from .battery_signal_mixin import BATTERY_SIGNAL_ATTR_SPECS, BatteryAndSignalLinkMixin
 
 CURTAIN_ENTITY_CATEGORY = "curtain"
 """Sber device category for curtain/cover entities."""
@@ -24,7 +23,7 @@ CURTAIN_ENTITY_CATEGORY = "curtain"
 _LOGGER = logging.getLogger(__name__)
 
 
-class CurtainEntity(BaseEntity):
+class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
     """Sber curtain entity for cover control with position support.
 
     Maps HA cover entities to the Sber 'curtain' category with support for:
@@ -36,19 +35,10 @@ class CurtainEntity(BaseEntity):
     LINKABLE_ROLES = SENSOR_LINK_ROLES
 
     ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
-        AttrSpec(
-            field="_battery_level",
-            attr_keys=("battery", "battery_level"),
-            parser=_safe_int_parser,
-        ),
+        *BATTERY_SIGNAL_ATTR_SPECS,
         AttrSpec(
             field="_tilt_position",
             attr_keys=("current_tilt_position",),
-            parser=_safe_int_parser,
-        ),
-        AttrSpec(
-            field="_signal_strength_raw",
-            attr_keys=("signal_strength", "rssi", "linkquality"),
             parser=_safe_int_parser,
         ),
     )
@@ -74,9 +64,6 @@ class CurtainEntity(BaseEntity):
         """
         super().__init__(category, entity_data)
         self.current_position = 0
-        self._battery_level: int | None = None
-        self._battery_low: bool | None = None
-        self._signal_strength_raw: int | None = None
         self._open_rate: str | None = None
         self._tilt_position: int | None = None
 
@@ -116,25 +103,6 @@ class CurtainEntity(BaseEntity):
         if speed_str not in ("auto", "low", "high"):
             return None
         return speed_str
-
-    def update_linked_data(self, role: str, ha_state: dict) -> None:
-        """Inject data from a linked entity (battery, battery_low, signal).
-
-        Args:
-            role: Link role name.
-            ha_state: HA state dict with 'state'.
-        """
-        state_val = ha_state.get("state")
-        if state_val in (None, "unknown", "unavailable"):
-            return
-        if role == "battery":
-            with contextlib.suppress(TypeError, ValueError):
-                self._battery_level = int(float(state_val))
-        elif role == "battery_low":
-            self._battery_low = state_val == "on"
-        elif role == "signal_strength":
-            with contextlib.suppress(TypeError, ValueError):
-                self._signal_strength_raw = int(float(state_val))
 
     def _convert_position(self, ha_position: int) -> int:
         """Convert HA position (0-100) to Sber position (0-100).
@@ -209,11 +177,7 @@ class CurtainEntity(BaseEntity):
             "open_set",
             "open_state",
         ]
-        if self._battery_level is not None or self._battery_low is not None:
-            features.append("battery_percentage")
-            features.append("battery_low_power")
-        if self._signal_strength_raw is not None:
-            features.append("signal_strength")
+        self._append_battery_signal_features(features)
         if self._open_rate is not None:
             features.append("open_rate")
         if self._tilt_position is not None:
@@ -271,19 +235,7 @@ class CurtainEntity(BaseEntity):
                 open_state = "close"
         states.append(make_state(SberFeature.OPEN_STATE, make_enum_value(open_state)))
 
-        if self._battery_level is not None:
-            states.append(make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level)))
-            battery_low = self._battery_low if self._battery_low is not None else self._battery_level < 20
-            states.append(make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(battery_low)))
-        elif self._battery_low is not None:
-            states.append(make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(self._battery_low)))
-
-        if self._signal_strength_raw is not None:
-            states.append(
-                make_state(
-                    SberFeature.SIGNAL_STRENGTH, make_enum_value(rssi_to_signal_strength(self._signal_strength_raw))
-                )
-            )
+        self._append_battery_signal_states(states)
         if self._open_rate is not None:
             states.append(make_state(SberFeature.OPEN_RATE, make_enum_value(self._open_rate)))
         if self._tilt_position is not None:

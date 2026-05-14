@@ -11,20 +11,19 @@ reports battery level via attributes.
 
 from __future__ import annotations
 
-import contextlib
 import logging
 from abc import abstractmethod
 from typing import ClassVar
 
 from ..sber_constants import SberFeature
-from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import SENSOR_LINK_ROLES, AttrSpec, BaseEntity, CommandResult, _safe_int_parser
-from .utils.signal import rssi_to_signal_strength
+from ..sber_models import make_bool_value, make_enum_value, make_state
+from .base_entity import SENSOR_LINK_ROLES, AttrSpec, BaseEntity, CommandResult
+from .battery_signal_mixin import BATTERY_SIGNAL_ATTR_SPECS_PRESERVE, BatteryAndSignalLinkMixin
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class SimpleReadOnlySensor(BaseEntity):
+class SimpleReadOnlySensor(BatteryAndSignalLinkMixin, BaseEntity):
     """Base class for read-only sensors that expose a single Sber feature.
 
     Subclasses must define the class-level attributes ``_sber_value_key``
@@ -37,20 +36,7 @@ class SimpleReadOnlySensor(BaseEntity):
 
     LINKABLE_ROLES = SENSOR_LINK_ROLES
 
-    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
-        AttrSpec(
-            field="_battery_level",
-            attr_keys=("battery", "battery_level"),
-            parser=_safe_int_parser,
-            preserve_on_missing=True,
-        ),
-        AttrSpec(
-            field="_signal_strength_raw",
-            attr_keys=("signal_strength", "rssi", "linkquality"),
-            parser=_safe_int_parser,
-            preserve_on_missing=True,
-        ),
-    )
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (*BATTERY_SIGNAL_ATTR_SPECS_PRESERVE,)
 
     _sber_value_key: str
     """Sber state key name (e.g., 'temperature', 'pir', 'water_leak')."""
@@ -96,31 +82,9 @@ class SimpleReadOnlySensor(BaseEntity):
             entity_data: HA entity registry dict containing entity metadata.
         """
         super().__init__(category, entity_data)
-        self._battery_level: int | None = None
-        self._battery_low_linked: bool | None = None
-        self._signal_strength_raw: int | None = None
         self._sensor_sensitive: str | None = None
         self._linked_entities: dict[str, str] = {}
         """Linked entity IDs by role: {role: entity_id}."""
-
-    def update_linked_data(self, role: str, ha_state: dict) -> None:
-        """Inject data from a linked entity into this sensor.
-
-        Args:
-            role: Link role name (battery, battery_low, signal_strength, humidity, temperature).
-            ha_state: HA state dict with 'state' and 'attributes'.
-        """
-        state_val = ha_state.get("state")
-        if state_val in (None, "unknown", "unavailable"):
-            return
-        if role == "battery":
-            with contextlib.suppress(TypeError, ValueError):
-                self._battery_level = int(float(state_val))
-        elif role == "battery_low":
-            self._battery_low_linked = state_val == "on"
-        elif role == "signal_strength":
-            with contextlib.suppress(TypeError, ValueError):
-                self._signal_strength_raw = int(float(state_val))
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update internal state including battery and signal.
@@ -178,11 +142,7 @@ class SimpleReadOnlySensor(BaseEntity):
             List of Sber feature strings supported by this entity.
         """
         features = [*super()._create_features_list(), self._sber_value_key]
-        if self._battery_level is not None or self._battery_low_linked is not None:
-            features.append("battery_percentage")
-            features.append("battery_low_power")
-        if self._signal_strength_raw is not None:
-            features.append("signal_strength")
+        self._append_battery_signal_features(features)
         if self._sensor_sensitive is not None:
             features.append("sensor_sensitive")
         return features
@@ -197,20 +157,7 @@ class SimpleReadOnlySensor(BaseEntity):
             make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
             {"key": self._sber_value_key, "value": self._build_sber_value_dict()},
         ]
-        if self._battery_level is not None:
-            states.append(make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level)))
-            # Use linked binary_sensor if available, otherwise derive from percentage
-            battery_low = self._battery_low_linked if self._battery_low_linked is not None else self._battery_level < 20
-            states.append(make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(battery_low)))
-        elif self._battery_low_linked is not None:
-            # Only linked battery_low binary_sensor, no percentage sensor
-            states.append(make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(self._battery_low_linked)))
-        if self._signal_strength_raw is not None:
-            states.append(
-                make_state(
-                    SberFeature.SIGNAL_STRENGTH, make_enum_value(rssi_to_signal_strength(self._signal_strength_raw))
-                )
-            )
+        self._append_battery_signal_states(states)
         if self._sensor_sensitive is not None:
             states.append(make_state(SberFeature.SENSOR_SENSITIVE, make_enum_value(self._sensor_sensitive)))
         return {self.entity_id: {"states": states}}

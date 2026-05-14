@@ -7,7 +7,6 @@ Supports optional battery and signal strength reporting.
 
 from __future__ import annotations
 
-import contextlib
 import logging
 from typing import ClassVar
 
@@ -18,9 +17,8 @@ from .base_entity import (
     AttrSpec,
     BaseEntity,
     CommandResult,
-    _safe_int_parser,
 )
-from .utils.signal import rssi_to_signal_strength
+from .battery_signal_mixin import BATTERY_SIGNAL_ATTR_SPECS, BatteryAndSignalLinkMixin
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +33,7 @@ _VALVE_OPEN_SET_SERVICES: dict[str, str] = {
 """Map Sber ``open_set`` ENUM values to HA valve services."""
 
 
-class ValveEntity(BaseEntity):
+class ValveEntity(BatteryAndSignalLinkMixin, BaseEntity):
     """Sber valve entity for open/close valve control.
 
     Maps HA valve entities to the Sber 'valve' category.
@@ -48,18 +46,7 @@ class ValveEntity(BaseEntity):
 
     LINKABLE_ROLES = SENSOR_LINK_ROLES
 
-    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
-        AttrSpec(
-            field="_battery_level",
-            attr_keys=("battery", "battery_level"),
-            parser=_safe_int_parser,
-        ),
-        AttrSpec(
-            field="_signal_strength_raw",
-            attr_keys=("signal_strength", "rssi", "linkquality"),
-            parser=_safe_int_parser,
-        ),
-    )
+    ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (*BATTERY_SIGNAL_ATTR_SPECS,)
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize valve entity.
@@ -69,9 +56,6 @@ class ValveEntity(BaseEntity):
         """
         super().__init__(VALVE_CATEGORY, entity_data)
         self.is_open: bool = False
-        self._battery_level: int | None = None
-        self._battery_low: bool | None = None
-        self._signal_strength_raw: int | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update open/close status, battery, and signal.
@@ -82,25 +66,6 @@ class ValveEntity(BaseEntity):
         super().fill_by_ha_state(ha_state)
         self.is_open = ha_state.get("state") == "open"
         self._apply_attr_specs(ha_state.get("attributes", {}))
-
-    def update_linked_data(self, role: str, ha_state: dict) -> None:
-        """Inject data from a linked entity (battery, battery_low, signal).
-
-        Args:
-            role: Link role name.
-            ha_state: HA state dict with 'state'.
-        """
-        state_val = ha_state.get("state")
-        if state_val in (None, "unknown", "unavailable"):
-            return
-        if role == "battery":
-            with contextlib.suppress(TypeError, ValueError):
-                self._battery_level = int(float(state_val))
-        elif role == "battery_low":
-            self._battery_low = state_val == "on"
-        elif role == "signal_strength":
-            with contextlib.suppress(TypeError, ValueError):
-                self._signal_strength_raw = int(float(state_val))
 
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list with open_set, open_state, open_percentage and optional battery/signal.
@@ -113,11 +78,7 @@ class ValveEntity(BaseEntity):
             List of Sber feature strings supported by this entity.
         """
         features = [*super()._create_features_list(), "open_set", "open_state", "open_percentage"]
-        if self._battery_level is not None or self._battery_low is not None:
-            features.append("battery_percentage")
-            features.append("battery_low_power")
-        if self._signal_strength_raw is not None:
-            features.append("signal_strength")
+        self._append_battery_signal_features(features)
         return features
 
     def create_allowed_values_list(self) -> dict[str, dict]:
@@ -140,18 +101,7 @@ class ValveEntity(BaseEntity):
             make_state(SberFeature.OPEN_STATE, make_enum_value("open" if self.is_open else "close")),
             make_state(SberFeature.OPEN_PERCENTAGE, make_integer_value(100 if self.is_open else 0)),
         ]
-        if self._battery_level is not None:
-            states.append(make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level)))
-            battery_low = self._battery_low if self._battery_low is not None else self._battery_level < 20
-            states.append(make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(battery_low)))
-        elif self._battery_low is not None:
-            states.append(make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(self._battery_low)))
-        if self._signal_strength_raw is not None:
-            states.append(
-                make_state(
-                    SberFeature.SIGNAL_STRENGTH, make_enum_value(rssi_to_signal_strength(self._signal_strength_raw))
-                )
-            )
+        self._append_battery_signal_states(states)
         return {self.entity_id: {"states": states}}
 
     def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
