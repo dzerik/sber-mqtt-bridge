@@ -43,6 +43,7 @@ from .const import (
     SETTINGS_DEFAULTS,
 )
 from .devices.base_entity import BaseEntity
+from .devtools_hub import DevToolsHub
 from .entity_registry import SberEntityLoader
 from .ha_state_forwarder import HaStateForwarder
 from .message_logger import MessageLogger
@@ -51,7 +52,6 @@ from .mqtt_client_service import (
     MqttServiceHooks,
     SberMqttCredentials,
 )
-from .devtools_hub import DevToolsHub
 from .redefinitions_store import RedefinitionsStore
 from .repairs import check_and_create_issues
 from .sber_constants import MqttTopicSuffix
