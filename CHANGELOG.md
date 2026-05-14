@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.38.1] - 2026-05-14
+
+### Security
+
+- **Workflow GITHUB_TOKEN least-privilege.** Добавлен явный
+  `permissions: contents: read` в `.github/workflows/ci.yaml`,
+  `hacs.yml`, `hassfest.yml` — закрывает 4 открытых CodeQL alert
+  по правилу `actions/missing-workflow-permissions`. Эти три workflow
+  только читают исходники, поэтому минимальный scope `contents: read`
+  достаточен. Workflows `docs.yml`, `release.yaml`, `sber-compliance.yml`
+  уже имели корректные `permissions:` блоки.
+
 ## [1.38.0] - 2026-05-14
 
 ### Added
