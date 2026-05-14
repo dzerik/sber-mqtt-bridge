@@ -16,7 +16,7 @@ from .sber_models import validate_config_payload, validate_device, validate_stat
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.38.4"
+VERSION = "1.38.5"
 """Protocol version string included in the hub device descriptor."""
 
 

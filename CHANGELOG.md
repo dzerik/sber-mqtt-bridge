@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.38.5] - 2026-05-14
+
+### Changed
+
+- **Internal refactor — `DevToolsHub` extraction.** The four DevTools
+  collectors (`MessageLogger`, `TraceCollector`, `DiffCollector`,
+  `ValidationCollector`) plus their lifecycle (resize, sweep, log)
+  moved out of `SberBridge` into the new `DevToolsHub` class
+  (`custom_components/sber_mqtt_bridge/devtools_hub.py`). Bridge keeps
+  backward-compat proxy properties (`_msg_logger`, `_trace_collector`,
+  `_diff_collector`, `_validation_collector`, plus the public
+  `trace_collector` / `diff_collector` / `validation_collector` /
+  `message_log` / `clear_message_log` / `subscribe_messages` API) so
+  the ~83 existing call sites (publisher, dispatcher, WS API,
+  diagnostics_advisor) see no API change. Round 3b. No user-visible
+  behaviour change.
+
 ## [1.38.4] - 2026-05-14
 
 ### Changed
