@@ -697,9 +697,13 @@ class BaseEntity(ABC):
         """
         return cls._build_service_call(domain, SERVICE_TURN_ON if on else SERVICE_TURN_OFF, entity_id)
 
-    @abstractmethod
     def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process a command from Sber cloud.
+        """Process a Sber command via the ``_cmd_handlers`` dispatch table.
+
+        Subclasses declare which Sber feature keys they handle by
+        overriding :attr:`_cmd_handlers`.  The base implementation walks
+        ``cmd_data["states"]``, routes each entry to its handler, and
+        returns the concatenated service-call list.
 
         Args:
             cmd_data: Command payload with 'states' list. Always a dict —
@@ -709,7 +713,25 @@ class BaseEntity(ABC):
             List of :class:`ServiceCallResult` or :class:`UpdateStateResult`
             items, or empty list if no action needed.
         """
-        return []
+        handlers = self._cmd_handlers
+        if not handlers:
+            return []
+        results: list[CommandResult] = []
+        for item in cmd_data.get("states", []):
+            handler = handlers.get(item.get("key", ""))
+            if handler is None:
+                continue
+            results.extend(handler(item.get("value", {})))
+        return results
+
+    @property
+    def _cmd_handlers(self) -> dict[str, Callable[[dict], list[CommandResult]]]:
+        """Return dispatch map from Sber feature key to handler method.
+
+        Override in subclasses that accept Sber commands.  Default is an
+        empty dict — read-only sensors return ``[]`` automatically.
+        """
+        return {}
 
     @property
     def _is_online(self) -> bool:

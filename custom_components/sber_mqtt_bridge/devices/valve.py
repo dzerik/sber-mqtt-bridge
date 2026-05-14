@@ -8,6 +8,7 @@ Supports optional battery and signal strength reporting.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
@@ -104,8 +105,13 @@ class ValveEntity(BatteryAndSignalLinkMixin, BaseEntity):
         self._append_battery_signal_states(states)
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process Sber open_set command and produce HA valve service calls.
+    @property
+    def _cmd_handlers(self) -> dict[str, Callable[[dict], list[CommandResult]]]:
+        """Return dispatch map for valve commands."""
+        return {SberFeature.OPEN_SET: self._cmd_open_set}
+
+    def _cmd_open_set(self, value: dict) -> list[CommandResult]:
+        """Handle ``open_set``: open_valve / close_valve / stop_valve.
 
         Maps ``open_set`` ENUM values:
         - ``"open"`` -> ``open_valve``
@@ -116,19 +122,14 @@ class ValveEntity(BatteryAndSignalLinkMixin, BaseEntity):
         ``state_changed`` event that is handled by ``fill_by_ha_state``.
 
         Args:
-            cmd_data: Sber command dict with 'states' list.
+            value: Sber value dict from the command payload.
 
         Returns:
             List of HA service call dicts to execute.
         """
-        results: list[dict] = []
-        for item in cmd_data.get("states", []):
-            key = item.get("key", "")
-            value = item.get("value", {})
-            if key != SberFeature.OPEN_SET or value.get("type") != SberValueType.ENUM:
-                continue
-            service = _VALVE_OPEN_SET_SERVICES.get(value.get("enum_value") or "")
-            if service is None:
-                continue
-            results.append(self._build_service_call("valve", service, self.entity_id))
-        return results
+        if value.get("type") != SberValueType.ENUM:
+            return []
+        service = _VALVE_OPEN_SET_SERVICES.get(value.get("enum_value") or "")
+        if service is None:
+            return []
+        return [self._build_service_call("valve", service, self.entity_id)]

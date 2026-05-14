@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from ..sber_constants import (
     SERVICE_PRESS,
@@ -36,29 +37,23 @@ class RelayEntity(OnOffEntity):
         """
         super().__init__(category, entity_data)
 
-    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process Sber on/off command and produce HA service calls.
+    @property
+    def _cmd_handlers(self) -> dict[str, Callable[[dict], list[CommandResult]]]:
+        """Return dispatch map for relay commands."""
+        return {SberFeature.ON_OFF: self._cmd_on_off}
 
-        Handles the ``on_off`` key to generate ``turn_on``/``turn_off`` (or
-        ``press`` for button domain) service calls.
-
-        State is NOT mutated here — it will be updated when HA fires a
-        ``state_changed`` event that is handled by ``fill_by_ha_state``.
+    def _cmd_on_off(self, value: dict) -> list[CommandResult]:
+        """Handle ``on_off``: turn_on / turn_off (or press for button domain).
 
         Args:
-            cmd_data: Sber command dict with 'states' list.
+            value: Sber value dict from the command payload.
 
         Returns:
             List of HA service call dicts to execute.
         """
-        results: list[dict] = []
-        for item in cmd_data.get("states", []):
-            key = item.get("key")
-            value = item.get("value", {})
-            if key != SberFeature.ON_OFF or value.get("type") != SberValueType.BOOL:
-                continue
-            on = value.get("bool_value", False)
-            domain = self.entity_id.split(".", 1)[0]
-            service = SERVICE_PRESS if domain == "button" else SERVICE_TURN_ON if on else SERVICE_TURN_OFF
-            results.append(self._build_service_call(domain, service, self.entity_id))
-        return results
+        if value.get("type") != SberValueType.BOOL:
+            return []
+        on = value.get("bool_value", False)
+        domain = self.entity_id.split(".", 1)[0]
+        service = SERVICE_PRESS if domain == "button" else SERVICE_TURN_ON if on else SERVICE_TURN_OFF
+        return [self._build_service_call(domain, service, self.entity_id)]

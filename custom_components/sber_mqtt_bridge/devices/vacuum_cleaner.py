@@ -7,6 +7,7 @@ cleaning program (fan speed), and battery level.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
@@ -155,35 +156,42 @@ class VacuumCleanerEntity(BaseEntity):
             states.append(make_state(SberFeature.BATTERY_PERCENTAGE, make_integer_value(self._battery_level)))
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process Sber vacuum commands and produce HA service calls.
+    @property
+    def _cmd_handlers(self) -> dict[str, Callable[[dict], list[CommandResult]]]:
+        """Return dispatch map for vacuum cleaner commands."""
+        return {
+            SberFeature.VACUUM_CLEANER_COMMAND: self._cmd_vacuum_command,
+            SberFeature.VACUUM_CLEANER_PROGRAM: self._cmd_vacuum_program,
+        }
 
-        Handles the following Sber keys:
-        - ``vacuum_cleaner_command``: start/stop/pause/return_to_base
-        - ``vacuum_cleaner_program``: vacuum.set_fan_speed
+    def _cmd_vacuum_command(self, value: dict) -> list[CommandResult]:
+        """Handle ``vacuum_cleaner_command``: start/stop/pause/return_to_base.
 
         Args:
-            cmd_data: Sber command dict with 'states' list.
+            value: Sber value dict from the command payload.
 
         Returns:
             List of HA service call dicts to execute.
         """
-        results: list[dict] = []
-        for item in cmd_data.get("states", []):
-            key = item.get("key", "")
-            value = item.get("value", {})
-            if value.get("type") != SberValueType.ENUM:
-                continue
-            if key == SberFeature.VACUUM_CLEANER_COMMAND:
-                ha_service = _SBER_CMD_TO_HA_SERVICE.get(value.get("enum_value") or "")
-                if ha_service is None:
-                    continue
-                results.append(self._build_service_call("vacuum", ha_service, self.entity_id))
-            elif key == SberFeature.VACUUM_CLEANER_PROGRAM:
-                fan_speed = value.get("enum_value")
-                if not fan_speed:
-                    continue
-                results.append(
-                    self._build_service_call("vacuum", "set_fan_speed", self.entity_id, {"fan_speed": fan_speed})
-                )
-        return results
+        if value.get("type") != SberValueType.ENUM:
+            return []
+        ha_service = _SBER_CMD_TO_HA_SERVICE.get(value.get("enum_value") or "")
+        if ha_service is None:
+            return []
+        return [self._build_service_call("vacuum", ha_service, self.entity_id)]
+
+    def _cmd_vacuum_program(self, value: dict) -> list[CommandResult]:
+        """Handle ``vacuum_cleaner_program``: vacuum.set_fan_speed.
+
+        Args:
+            value: Sber value dict from the command payload.
+
+        Returns:
+            List of HA service call dicts to execute.
+        """
+        if value.get("type") != SberValueType.ENUM:
+            return []
+        fan_speed = value.get("enum_value")
+        if not fan_speed:
+            return []
+        return [self._build_service_call("vacuum", "set_fan_speed", self.entity_id, {"fan_speed": fan_speed})]

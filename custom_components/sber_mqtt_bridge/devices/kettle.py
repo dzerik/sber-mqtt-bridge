@@ -6,6 +6,7 @@ Supports on/off control, water temperature reading, and target temperature setti
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
@@ -136,33 +137,42 @@ class KettleEntity(BaseEntity):
         states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process Sber kettle commands and produce HA service calls.
+    @property
+    def _cmd_handlers(self) -> dict[str, Callable[[dict], list[CommandResult]]]:
+        """Return dispatch map for kettle commands."""
+        return {
+            SberFeature.ON_OFF: self._cmd_on_off,
+            SberFeature.KITCHEN_WATER_TEMPERATURE_SET: self._cmd_water_temp_set,
+        }
 
-        Handles the following Sber keys:
-        - ``on_off``: turn_on / turn_off (domain auto-detected from entity_id)
-        - ``kitchen_water_temperature_set``: water_heater.set_temperature
+    def _cmd_on_off(self, value: dict) -> list[CommandResult]:
+        """Handle ``on_off``: turn_on / turn_off (domain auto-detected from entity_id).
 
         Args:
-            cmd_data: Sber command dict with 'states' list.
+            value: Sber value dict from the command payload.
 
         Returns:
             List of HA service call dicts to execute.
         """
-        results: list[dict] = []
+        if value.get("type") != SberValueType.BOOL:
+            return []
+        on = value.get("bool_value", False)
         domain = self.get_entity_domain()
-        for item in cmd_data.get("states", []):
-            key = item.get("key", "")
-            value = item.get("value", {})
-            vtype = value.get("type", "")
-            if key == SberFeature.ON_OFF and vtype == SberValueType.BOOL:
-                on = value.get("bool_value", False)
-                results.append(self._build_on_off_service_call(self.entity_id, domain, on))
-            elif key == SberFeature.KITCHEN_WATER_TEMPERATURE_SET and vtype == SberValueType.INTEGER:
-                temp = _safe_int_parser(value.get("integer_value"))
-                if temp is None:
-                    continue
-                results.append(
-                    self._build_service_call(domain, "set_temperature", self.entity_id, {"temperature": temp})
-                )
-        return results
+        return [self._build_on_off_service_call(self.entity_id, domain, on)]
+
+    def _cmd_water_temp_set(self, value: dict) -> list[CommandResult]:
+        """Handle ``kitchen_water_temperature_set``: water_heater.set_temperature.
+
+        Args:
+            value: Sber value dict from the command payload.
+
+        Returns:
+            List of HA service call dicts to execute.
+        """
+        if value.get("type") != SberValueType.INTEGER:
+            return []
+        temp = _safe_int_parser(value.get("integer_value"))
+        if temp is None:
+            return []
+        domain = self.get_entity_domain()
+        return [self._build_service_call(domain, "set_temperature", self.entity_id, {"temperature": temp})]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from collections.abc import Callable
 from typing import ClassVar
 
 from ..sber_constants import SberFeature
@@ -239,31 +240,17 @@ class HumidifierEntity(BaseEntity):
             states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}
 
-    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process Sber humidifier commands and produce HA service calls.
-
-        State is NOT mutated here -- it will be updated when HA fires a
-        ``state_changed`` event that is handled by ``fill_by_ha_state``.
-
-        Args:
-            cmd_data: Sber command dict with 'states' list.
-
-        Returns:
-            List of HA service call dicts to execute.
-        """
-        results: list[dict] = []
-        for item in cmd_data.get("states", []):
-            key = item.get("key", "")
-            value = item.get("value", {})
-            if key == SberFeature.ON_OFF:
-                results.extend(self._cmd_on_off(value))
-            elif key in (SberFeature.HUMIDITY, SberFeature.HVAC_HUMIDITY_SET):
-                results.extend(self._cmd_humidity(value))
-            elif key in (SberFeature.HVAC_AIR_FLOW_POWER, SberFeature.HVAC_WORK_MODE):
-                results.extend(self._cmd_mode(value))
-            elif key == SberFeature.HVAC_NIGHT_MODE:
-                results.extend(self._cmd_night_mode(value))
-        return results
+    @property
+    def _cmd_handlers(self) -> dict[str, Callable[[dict], list[CommandResult]]]:
+        """Return dispatch map for humidifier commands."""
+        return {
+            SberFeature.ON_OFF: self._cmd_on_off,
+            SberFeature.HUMIDITY: self._cmd_humidity,
+            SberFeature.HVAC_HUMIDITY_SET: self._cmd_humidity,
+            SberFeature.HVAC_AIR_FLOW_POWER: self._cmd_mode,
+            SberFeature.HVAC_WORK_MODE: self._cmd_mode,
+            SberFeature.HVAC_NIGHT_MODE: self._cmd_night_mode,
+        }
 
     def _cmd_on_off(self, value: dict) -> list[dict]:
         on = value.get("bool_value", False)
