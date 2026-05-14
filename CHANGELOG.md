@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.38.3] - 2026-05-14
+
+### Changed
+
+- **Internal refactor — `SberPublisher` extraction.** The three Sber
+  publish flows (`_publish_states`, `_publish_config`,
+  `_publish_command_echo`) and the `_last_config_publish_time` slot
+  moved out of `SberBridge` into the new `SberPublisher` class
+  (`custom_components/sber_mqtt_bridge/sber_publisher.py`). The bridge
+  retains thin async delegators so existing call sites — command
+  dispatcher, state forwarder, WS API, tests — see no API change.
+  Round 2 of the post-2026-05-14-audit refactor; see
+  `docs/superpowers/plans/2026-05-14-roadmap-post-audit.md`. No
+  user-visible behaviour change. Bridge LOC reduced from 1278 to 1108.
+
 ## [1.38.2] - 2026-05-14
 
 ### Security
