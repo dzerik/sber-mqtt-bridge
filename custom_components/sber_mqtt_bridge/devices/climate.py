@@ -373,43 +373,75 @@ class ClimateEntity(BaseEntity):
             make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
             make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
+        states.extend(self._state_temperature())
+        states.extend(self._state_fan_with_presets())
+        states.extend(self._state_swing())
+        states.extend(self._state_work_mode_with_presets())
+        states.extend(self._state_thermostat())
+        states.extend(self._state_optional_flags())
+        return {self.entity_id: {"states": states}}
+
+    def _state_temperature(self) -> list:
+        """Build temperature + target_temperature state entries (if available)."""
+        out: list = []
         if self.temperature is not None and math.isfinite(self.temperature):
-            states.append(make_state(SberFeature.TEMPERATURE, make_integer_value(int(self.temperature * 10))))
+            out.append(make_state(SberFeature.TEMPERATURE, make_integer_value(int(self.temperature * 10))))
         if self.target_temperature is not None:
-            states.append(make_state(SberFeature.HVAC_TEMP_SET, make_integer_value(round(self.target_temperature))))
-        if self._supports_fan and self.fan_mode:
-            fan_value = HA_TO_SBER_FAN_MODE.get(self.fan_mode, self.fan_mode)
-            # Map HA preset modes to Sber air flow power values
-            if self._preset_mode == "boost":
-                fan_value = "turbo"
-            elif self._preset_mode == "sleep" and "quiet" not in (self.fan_modes or []):
-                fan_value = "quiet"
-            states.append(make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(fan_value)))
-        if self._supports_swing and self.swing_mode:
-            sber_swing = HA_TO_SBER_SWING.get(self.swing_mode, self.swing_mode)
-            states.append(make_state(SberFeature.HVAC_AIR_FLOW_DIRECTION, make_enum_value(sber_swing)))
-        if self._supports_work_mode and self.hvac_mode and self.hvac_mode != "off":
-            # Map HA preset modes to Sber work modes (turbo/quiet)
-            if self._preset_mode == "boost":
-                sber_mode = "turbo"
-            elif self._preset_mode in ("sleep", "eco"):
-                sber_mode = "quiet"
-            else:
-                sber_mode = HA_TO_SBER_WORK_MODE.get(self.hvac_mode)
-            if sber_mode:
-                states.append(make_state(SberFeature.HVAC_WORK_MODE, make_enum_value(sber_mode)))
-        if self._supports_thermostat_mode and self.hvac_mode and self.hvac_mode != "off":
-            sber_mode = HA_TO_SBER_THERMOSTAT_MODE.get(self.hvac_mode)
-            if sber_mode:
-                states.append(make_state(SberFeature.HVAC_THERMOSTAT_MODE, make_enum_value(sber_mode)))
+            out.append(make_state(SberFeature.HVAC_TEMP_SET, make_integer_value(round(self.target_temperature))))
+        return out
+
+    def _state_fan_with_presets(self) -> list:
+        """Build hvac_air_flow_power state entry, mapping HA presets to Sber turbo/quiet."""
+        if not (self._supports_fan and self.fan_mode):
+            return []
+        fan_value = HA_TO_SBER_FAN_MODE.get(self.fan_mode, self.fan_mode)
+        if self._preset_mode == "boost":
+            fan_value = "turbo"
+        elif self._preset_mode == "sleep" and "quiet" not in (self.fan_modes or []):
+            fan_value = "quiet"
+        return [make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(fan_value))]
+
+    def _state_swing(self) -> list:
+        """Build hvac_air_flow_direction state entry (if swing supported)."""
+        if not (self._supports_swing and self.swing_mode):
+            return []
+        sber_swing = HA_TO_SBER_SWING.get(self.swing_mode, self.swing_mode)
+        return [make_state(SberFeature.HVAC_AIR_FLOW_DIRECTION, make_enum_value(sber_swing))]
+
+    def _state_work_mode_with_presets(self) -> list:
+        """Build hvac_work_mode state entry, mapping HA presets (boost/sleep/eco) to Sber turbo/quiet."""
+        if not (self._supports_work_mode and self.hvac_mode and self.hvac_mode != "off"):
+            return []
+        if self._preset_mode == "boost":
+            sber_mode = "turbo"
+        elif self._preset_mode in ("sleep", "eco"):
+            sber_mode = "quiet"
+        else:
+            sber_mode = HA_TO_SBER_WORK_MODE.get(self.hvac_mode)
+        if not sber_mode:
+            return []
+        return [make_state(SberFeature.HVAC_WORK_MODE, make_enum_value(sber_mode))]
+
+    def _state_thermostat(self) -> list:
+        """Build hvac_thermostat_mode state entry (if supported)."""
+        if not (self._supports_thermostat_mode and self.hvac_mode and self.hvac_mode != "off"):
+            return []
+        sber_mode = HA_TO_SBER_THERMOSTAT_MODE.get(self.hvac_mode)
+        if not sber_mode:
+            return []
+        return [make_state(SberFeature.HVAC_THERMOSTAT_MODE, make_enum_value(sber_mode))]
+
+    def _state_optional_flags(self) -> list:
+        """Build optional state entries: humidity_set, night_mode, child_lock."""
+        out: list = []
         if self._target_humidity is not None:
-            states.append(make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(self._target_humidity)))
+            out.append(make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(self._target_humidity)))
         if self._has_night_mode:
             is_night = self._preset_mode in ("sleep", "night")
-            states.append(make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(is_night)))
+            out.append(make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(is_night)))
         if self._child_lock is not None:
-            states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
-        return {self.entity_id: {"states": states}}
+            out.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
+        return out
 
     def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
         """Process Sber climate commands and produce HA service calls.
