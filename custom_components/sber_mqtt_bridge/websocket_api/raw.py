@@ -9,8 +9,12 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 
+from ..const import CONF_MAX_MQTT_PAYLOAD, SETTINGS_DEFAULTS
 from ._common import get_bridge
+
+_MAX_PAYLOAD = SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,7 +73,7 @@ async def ws_raw_states(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/send_raw_config",
-        vol.Required("payload"): str,
+        vol.Required("payload"): vol.All(cv.string, vol.Length(max=_MAX_PAYLOAD)),
     }
 )
 @websocket_api.async_response
@@ -85,7 +89,7 @@ async def ws_send_raw_config(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/send_raw_state",
-        vol.Required("payload"): str,
+        vol.Required("payload"): vol.All(cv.string, vol.Length(max=_MAX_PAYLOAD)),
     }
 )
 @websocket_api.async_response
