@@ -33,7 +33,7 @@ from ..sber_entity_map import (
     CATEGORY_UI_META,
     create_sber_entity,
 )
-from ._common import get_bridge, get_config_entry
+from ._common import WS_ENTITY_ID, WS_ENTITY_IDS, get_bridge, get_config_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -140,9 +140,9 @@ async def ws_list_devices_for_category(
     {
         vol.Required("type"): "sber_mqtt_bridge/add_ha_device",
         vol.Required("device_id"): str,
-        vol.Required("primary_entity_id"): str,
+        vol.Required("primary_entity_id"): WS_ENTITY_ID,
         vol.Required("category"): str,
-        vol.Optional("linked_entity_ids", default=[]): [str],
+        vol.Optional("linked_entity_ids", default=[]): WS_ENTITY_IDS,
         vol.Optional("name"): str,
         vol.Optional("room"): str,
     }
@@ -305,7 +305,7 @@ async def ws_add_ha_device(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/suggest_links",
-        vol.Required("entity_id"): str,
+        vol.Required("entity_id"): WS_ENTITY_ID,
         vol.Optional("category"): str,
     }
 )

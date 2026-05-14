@@ -15,7 +15,7 @@ from ..const import (
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
 )
-from ._common import get_bridge, get_config_entry
+from ._common import WS_ENTITY_ID, get_bridge, get_config_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ async def ws_import(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/update_redefinitions",
-        vol.Required("entity_id"): str,
+        vol.Required("entity_id"): WS_ENTITY_ID,
         vol.Optional("name"): str,
         vol.Optional("room"): str,
         vol.Optional("home"): str,

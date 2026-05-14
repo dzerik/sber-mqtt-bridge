@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from ..const import CONF_ENTITY_LINKS, CONF_EXPOSED_ENTITIES
-from ._common import get_bridge, get_config_entry
+from ._common import WS_ENTITY_ID, get_bridge, get_config_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/set_entity_links",
-        vol.Required("entity_id"): str,
+        vol.Required("entity_id"): WS_ENTITY_ID,
         vol.Required("links"): dict,
     }
 )

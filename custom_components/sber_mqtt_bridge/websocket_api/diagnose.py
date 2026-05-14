@@ -18,7 +18,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
 from ..diagnostics_advisor import diagnose_entity
-from ._common import get_bridge
+from ._common import WS_ENTITY_ID, get_bridge
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ _LOGGER = logging.getLogger(__name__)
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/diagnose_entity",
-        vol.Required("entity_id"): str,
+        vol.Required("entity_id"): WS_ENTITY_ID,
     }
 )
 @callback

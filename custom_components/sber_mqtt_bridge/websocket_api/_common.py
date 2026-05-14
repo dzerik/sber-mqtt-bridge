@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import voluptuous as vol  # type: ignore[import-untyped]
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 
 from ..const import DOMAIN
 
@@ -12,6 +14,18 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
 
     from ..sber_bridge import SberBridge
+
+WS_ENTITY_ID = vol.All(cv.string, cv.entity_id)
+"""Validator for a single entity_id field in a WS schema.
+
+Use as ``vol.Required("entity_id"): WS_ENTITY_ID`` so HA rejects
+malformed strings before they reach the handler and risk poisoning
+``entry.options``.
+"""
+
+WS_ENTITY_IDS = vol.All(cv.ensure_list, [cv.entity_id])
+"""Validator for an entity_ids list field — every element must look
+like a real entity_id (``domain.object_id``)."""
 
 
 def get_config_entry(hass: HomeAssistant) -> ConfigEntry | None:

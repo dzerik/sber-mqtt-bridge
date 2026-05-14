@@ -12,7 +12,7 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
-from ._common import get_bridge, get_config_entry
+from ._common import WS_ENTITY_ID, get_bridge, get_config_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ async def ws_republish(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/related_sensors",
-        vol.Required("entity_id"): str,
+        vol.Required("entity_id"): WS_ENTITY_ID,
     }
 )
 @websocket_api.async_response
@@ -196,7 +196,7 @@ async def ws_related_sensors(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/publish_one_status",
-        vol.Required("entity_id"): str,
+        vol.Required("entity_id"): WS_ENTITY_ID,
     }
 )
 @websocket_api.async_response
@@ -217,7 +217,7 @@ async def ws_publish_one_status(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/device_detail",
-        vol.Required("entity_id"): str,
+        vol.Required("entity_id"): WS_ENTITY_ID,
     }
 )
 @websocket_api.async_response

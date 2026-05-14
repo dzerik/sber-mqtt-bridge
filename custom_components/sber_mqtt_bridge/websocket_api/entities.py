@@ -19,7 +19,11 @@ from ..const import (
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
 )
-from ._common import get_config_entry
+from ..sber_entity_map import CATEGORY_DOMAIN_MAP
+from ._common import WS_ENTITY_ID, WS_ENTITY_IDS, get_config_entry
+
+OVERRIDABLE_CATEGORIES = sorted(CATEGORY_DOMAIN_MAP.keys())
+"""All valid Sber category strings, used to tighten ``set_override`` schema."""
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,7 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/add_entities",
-        vol.Required("entity_ids"): [str],
+        vol.Required("entity_ids"): WS_ENTITY_IDS,
     }
 )
 @websocket_api.async_response
@@ -64,7 +68,7 @@ async def ws_add_entities(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/remove_entities",
-        vol.Required("entity_ids"): [str],
+        vol.Required("entity_ids"): WS_ENTITY_IDS,
     }
 )
 @websocket_api.async_response
@@ -104,8 +108,8 @@ async def ws_remove_entities(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/set_override",
-        vol.Required("entity_id"): str,
-        vol.Required("category"): str,
+        vol.Required("entity_id"): WS_ENTITY_ID,
+        vol.Required("category"): vol.In(["auto", *OVERRIDABLE_CATEGORIES]),
     }
 )
 @websocket_api.async_response
