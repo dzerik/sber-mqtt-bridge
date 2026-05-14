@@ -33,7 +33,7 @@ from ..sber_entity_map import (
     CATEGORY_UI_META,
     create_sber_entity,
 )
-from ._common import WS_ENTITY_ID, WS_ENTITY_IDS, get_bridge, get_config_entry
+from ._common import OVERRIDABLE_CATEGORIES, WS_ENTITY_ID, WS_ENTITY_IDS, get_bridge, get_config_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -95,7 +95,7 @@ def ws_list_categories(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/list_devices_for_category",
-        vol.Required("category"): str,
+        vol.Required("category"): vol.In(OVERRIDABLE_CATEGORIES),
     }
 )
 @websocket_api.async_response
@@ -141,7 +141,7 @@ async def ws_list_devices_for_category(
         vol.Required("type"): "sber_mqtt_bridge/add_ha_device",
         vol.Required("device_id"): str,
         vol.Required("primary_entity_id"): WS_ENTITY_ID,
-        vol.Required("category"): str,
+        vol.Required("category"): vol.In(OVERRIDABLE_CATEGORIES),
         vol.Optional("linked_entity_ids", default=[]): WS_ENTITY_IDS,
         vol.Optional("name"): str,
         vol.Optional("room"): str,

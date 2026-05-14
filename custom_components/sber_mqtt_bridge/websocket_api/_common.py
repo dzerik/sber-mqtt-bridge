@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 
 from ..const import DOMAIN
+from ..sber_entity_map import CATEGORY_DOMAIN_MAP
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -26,6 +27,10 @@ malformed strings before they reach the handler and risk poisoning
 WS_ENTITY_IDS = vol.All(cv.ensure_list, [cv.entity_id])
 """Validator for an entity_ids list field — every element must look
 like a real entity_id (``domain.object_id``)."""
+
+OVERRIDABLE_CATEGORIES = sorted(CATEGORY_DOMAIN_MAP.keys())
+"""Sorted list of valid Sber category strings, used to validate
+``category`` fields in WS schemas."""
 
 
 def get_config_entry(hass: HomeAssistant) -> ConfigEntry | None:
