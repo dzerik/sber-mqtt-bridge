@@ -96,77 +96,20 @@ class SberCommandDispatcher:
         bridge = self._bridge
         data = parse_sber_command(payload)
         bridge._stats.commands_received += 1
-
         devices = data.get("devices", {})
 
-        if bridge._ack_audit.is_awaiting:
-            if bridge._ack_audit.timeout_check():
-                pass  # Guard cleared by timeout — fall through to process
-            else:
-                entity_ids = [eid for eid in devices if eid in bridge._entities]
-                _LOGGER.warning(
-                    "Ignoring Sber command (awaiting Sber ack after reconnect, "
-                    "HA state is authoritative): %s [%s] — re-publishing states",
-                    entity_ids,
-                    ", ".join(s.get("key", "?") for cmd in devices.values() for s in cmd.get("states", [])),
-                )
-                if entity_ids:
-                    await bridge._publisher.publish_states(entity_ids, force=True)
-                return
+        if await self._handle_reconnect_grace(devices):
+            return
 
-        _LOGGER.debug(
-            "Sber command for %d device(s): %s",
-            len(devices),
-            list(devices.keys()),
-        )
+        _LOGGER.debug("Sber command for %d device(s): %s", len(devices), list(devices.keys()))
+
+        context = Context()
+        self._open_command_trace(devices, context)
 
         update_state_ids: list[str] = []
-        context = Context()
-
-        # DevTools correlation timeline: open a trace keyed by context.id so
-        # the subsequent HA service calls and state_changed events (which HA
-        # automatically tags with the same Context) land in the same trace.
-        known_ids = [eid for eid in devices if eid in bridge._entities]
-        bridge._devtools.trace_collector.begin(
-            trace_id=context.id,
-            trigger="sber_command",
-            entity_ids=known_ids,
-            topic="down/commands",
-            payload=devices,
-        )
-        bridge._devtools.sweep_traces()
-
         for entity_id, cmd_data in devices.items():
-            bridge._stats.acknowledged_entities.add(entity_id)
-            entity = bridge._entities.get(entity_id)
-            if entity is None:
-                _LOGGER.warning("Sber command for unknown entity: %s", entity_id)
-                continue
-
-            _LOGGER.info(
-                "Sber → HA command: %s [%s]",
-                entity_id,
-                ", ".join(s.get("key", "?") for s in cmd_data.get("states", [])),
-            )
-
-            results = entity.process_cmd(cmd_data)
-            for result in results:
-                cmd = result.get("url")
-                if cmd is None:
-                    if result.get("update_state"):
-                        update_state_ids.append(entity_id)
-                    continue
-                await self._call_ha_service(entity_id, cmd, context)
-                bridge._devtools.trace_collector.record(
-                    context.id,
-                    type_="ha_service_call",
-                    entity_id=entity_id,
-                    payload={
-                        "domain": cmd.get("domain"),
-                        "service": cmd.get("service"),
-                        "service_data": cmd.get("service_data"),
-                    },
-                )
+            if await self._process_one_entity(entity_id, cmd_data, context):
+                update_state_ids.append(entity_id)
 
         commanded_ids = [eid for eid in devices if eid in bridge._entities]
 
@@ -182,8 +125,98 @@ class SberCommandDispatcher:
         if commanded_ids:
             await bridge._publisher.publish_command_echo(devices)
 
-        # Schedule a delayed force-publish for all commanded entities.
-        # Sber expects state confirmation after every command.
+        self._schedule_confirms(commanded_ids)
+
+        # Receiving any command is positive evidence that Sber accepted at
+        # least one entity — re-evaluate the silent-rejection issue so a
+        # stale repair tile clears as soon as the user activates the device.
+        self._refresh_repair_issues()
+
+    async def _handle_reconnect_grace(self, devices: dict) -> bool:
+        """Reject the command and re-publish states if Sber ack-audit is awaiting.
+
+        Returns:
+            True if the caller should return (command was rejected),
+            False to continue processing.
+        """
+        bridge = self._bridge
+        if not bridge._ack_audit.is_awaiting:
+            return False
+        if bridge._ack_audit.timeout_check():
+            return False  # Guard cleared by timeout
+        entity_ids = [eid for eid in devices if eid in bridge._entities]
+        _LOGGER.warning(
+            "Ignoring Sber command (awaiting Sber ack after reconnect, "
+            "HA state is authoritative): %s [%s] — re-publishing states",
+            entity_ids,
+            ", ".join(s.get("key", "?") for cmd in devices.values() for s in cmd.get("states", [])),
+        )
+        if entity_ids:
+            await bridge._publisher.publish_states(entity_ids, force=True)
+        return True
+
+    def _open_command_trace(self, devices: dict, context: Context) -> None:
+        """Open a DevTools correlation trace for an inbound Sber command."""
+        bridge = self._bridge
+        known_ids = [eid for eid in devices if eid in bridge._entities]
+        bridge._devtools.trace_collector.begin(
+            trace_id=context.id,
+            trigger="sber_command",
+            entity_ids=known_ids,
+            topic="down/commands",
+            payload=devices,
+        )
+        bridge._devtools.sweep_traces()
+
+    async def _process_one_entity(self, entity_id: str, cmd_data: dict, context: Context) -> bool:
+        """Run process_cmd for one entity and dispatch the resulting service calls.
+
+        Returns:
+            True if at least one result requested a state update (no ``url``,
+            ``update_state=True``). The caller adds the entity_id to a
+            post-loop force-publish list.
+        """
+        bridge = self._bridge
+        bridge._stats.acknowledged_entities.add(entity_id)
+        entity = bridge._entities.get(entity_id)
+        if entity is None:
+            _LOGGER.warning("Sber command for unknown entity: %s", entity_id)
+            return False
+
+        _LOGGER.info(
+            "Sber → HA command: %s [%s]",
+            entity_id,
+            ", ".join(s.get("key", "?") for s in cmd_data.get("states", [])),
+        )
+
+        needs_state_update = False
+        for result in entity.process_cmd(cmd_data):
+            cmd = result.get("url")
+            if cmd is None:
+                if result.get("update_state"):
+                    needs_state_update = True
+                continue
+            await self._call_ha_service(entity_id, cmd, context)
+            bridge._devtools.trace_collector.record(
+                context.id,
+                type_="ha_service_call",
+                entity_id=entity_id,
+                payload={
+                    "domain": cmd.get("domain"),
+                    "service": cmd.get("service"),
+                    "service_data": cmd.get("service_data"),
+                },
+            )
+        return needs_state_update
+
+    def _schedule_confirms(self, commanded_ids: list[str]) -> None:
+        """Cancel any prior delayed-confirm task and schedule a fresh one per entity.
+
+        Sber expects a state confirmation after every command; the timer
+        delivers it independently of HA's state_changed propagation, which
+        can be delayed or missing for no-op commands (issue #35).
+        """
+        bridge = self._bridge
         for eid in commanded_ids:
             old_task = bridge._confirm_tasks.pop(eid, None)
             if old_task and not old_task.done():
@@ -191,11 +224,6 @@ class SberCommandDispatcher:
             bridge._confirm_tasks[eid] = bridge._create_safe_task(
                 bridge._delayed_confirm(eid), name=f"delayed_confirm_{eid}"
             )
-
-        # Receiving any command is positive evidence that Sber accepted at
-        # least one entity — re-evaluate the silent-rejection issue so a
-        # stale repair tile clears as soon as the user activates the device.
-        self._refresh_repair_issues()
 
     def _refresh_repair_issues(self) -> None:
         """Ask the bridge to recompute its HA repair-issue set.
