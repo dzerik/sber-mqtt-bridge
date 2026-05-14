@@ -214,6 +214,103 @@ async def ws_publish_one_status(
     connection.send_result(msg["id"], {"success": True})
 
 
+def _section_overview(entity: Any, resolved_room: str) -> dict[str, Any]:
+    """Return the base entity overview block."""
+    return {
+        "entity_id": entity.entity_id,
+        "name": entity.name,
+        "sber_category": entity.category,
+        "features": entity.get_final_features_list(),
+        "room": resolved_room,
+        "is_online": entity.is_online,
+        "is_filled": entity.is_filled_by_state,
+        "state": entity.state,
+    }
+
+
+def _section_sber_states(entity: Any) -> list[dict[str, Any]]:
+    """Build the Sber current-state list; empty list on failure."""
+    try:
+        sber_state = entity.to_sber_current_state()
+        return sber_state.get(entity.entity_id, {}).get("states", [])
+    except (RuntimeError, TypeError, ValueError):
+        return []
+
+
+def _section_sber_model(entity: Any) -> dict[str, Any]:
+    """Build the Sber device-config model block; empty dict on failure."""
+    try:
+        sber_config = entity.to_sber_state()
+        return sber_config.get("model", {})
+    except (RuntimeError, TypeError, ValueError):
+        return {}
+
+
+def _section_ha_state(hass: HomeAssistant, entity_id: str) -> dict[str, Any]:
+    """Return HA state + attributes (or None/empty if entity missing)."""
+    ha_state = hass.states.get(entity_id)
+    if ha_state is None:
+        return {"ha_state": None, "ha_attributes": {}}
+    return {
+        "ha_state": ha_state.state,
+        "ha_attributes": dict(ha_state.attributes),
+    }
+
+
+def _section_device_info(entry: Any, device_reg: Any, area_reg: Any) -> dict[str, Any] | None:
+    """Return HA device-registry info, or None if no device linked."""
+    if not entry or not entry.device_id:
+        return None
+    device = device_reg.async_get(entry.device_id)
+    if device is None:
+        return None
+    area_obj = area_reg.async_get_area(device.area_id) if device.area_id else None
+    resolved_device_area = area_obj.name if area_obj else (device.area_id or "")
+    return {
+        "name": device.name_by_user or device.name,
+        "manufacturer": device.manufacturer,
+        "model": device.model,
+        "sw_version": device.sw_version,
+        "hw_version": device.hw_version,
+        "area_id": resolved_device_area,
+    }
+
+
+def _friendly_name(linked_state: Any, linked_entry: Any, linked_id: str) -> str:
+    """Resolve a friendly_name for a linked entity (3-way fallback)."""
+    if linked_state is not None:
+        return linked_state.attributes.get("friendly_name", linked_id)
+    if linked_entry is not None:
+        return linked_entry.name or linked_entry.original_name or linked_id
+    return linked_id
+
+
+def _section_linked_entities(
+    bridge: Any,
+    entity_id: str,
+    hass: HomeAssistant,
+    entity_reg: Any,
+) -> list[dict[str, Any]]:
+    """Return the linked-sensor detail list (or empty if no links)."""
+    links = bridge.entity_links.get(entity_id, {})
+    if not links:
+        return []
+    out: list[dict[str, Any]] = []
+    for role, linked_id in links.items():
+        linked_state = hass.states.get(linked_id)
+        linked_entry = entity_reg.async_get(linked_id)
+        out.append(
+            {
+                "role": role,
+                "entity_id": linked_id,
+                "friendly_name": _friendly_name(linked_state, linked_entry, linked_id),
+                "state": linked_state.state if linked_state else None,
+                "device_class": (linked_entry.original_device_class if linked_entry else None),
+            }
+        )
+    return out
+
+
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/device_detail",
@@ -248,75 +345,19 @@ async def ws_device_detail(
     resolved_room = area_obj.name if area_obj else raw_area
 
     result: dict[str, Any] = {
-        "entity_id": entity_id,
-        "name": entity.name,
-        "sber_category": entity.category,
-        "features": entity.get_final_features_list(),
-        "room": resolved_room,
-        "is_online": entity.is_online,
-        "is_filled": entity.is_filled_by_state,
-        "state": entity.state,
+        **_section_overview(entity, resolved_room),
+        "sber_states": _section_sber_states(entity),
+        "sber_model": _section_sber_model(entity),
+        **_section_ha_state(hass, entity_id),
     }
 
-    try:
-        sber_state = entity.to_sber_current_state()
-        result["sber_states"] = sber_state.get(entity_id, {}).get("states", [])
-    except (RuntimeError, TypeError, ValueError):
-        result["sber_states"] = []
+    device_info = _section_device_info(entry, device_reg, area_reg)
+    if device_info is not None:
+        result["device_info"] = device_info
 
-    try:
-        sber_config = entity.to_sber_state()
-        result["sber_model"] = sber_config.get("model", {})
-    except (RuntimeError, TypeError, ValueError):
-        result["sber_model"] = {}
-
-    ha_state = hass.states.get(entity_id)
-    if ha_state:
-        result["ha_state"] = ha_state.state
-        result["ha_attributes"] = dict(ha_state.attributes)
-    else:
-        result["ha_state"] = None
-        result["ha_attributes"] = {}
-
-    if entry and entry.device_id:
-        device = device_reg.async_get(entry.device_id)
-        if device:
-            resolved_device_area = (
-                area_reg.async_get_area(device.area_id).name
-                if device.area_id and area_reg.async_get_area(device.area_id)
-                else device.area_id or ""
-            )
-            result["device_info"] = {
-                "name": device.name_by_user or device.name,
-                "manufacturer": device.manufacturer,
-                "model": device.model,
-                "sw_version": device.sw_version,
-                "hw_version": device.hw_version,
-                "area_id": resolved_device_area,
-            }
-
-    links = bridge.entity_links.get(entity_id, {})
-    if links:
-        linked_detail: list[dict[str, Any]] = []
-        for role, linked_id in links.items():
-            linked_state = hass.states.get(linked_id)
-            linked_entry = entity_reg.async_get(linked_id)
-            if linked_state:
-                friendly_name = linked_state.attributes.get("friendly_name", linked_id)
-            elif linked_entry:
-                friendly_name = linked_entry.name or linked_entry.original_name or linked_id
-            else:
-                friendly_name = linked_id
-            linked_detail.append(
-                {
-                    "role": role,
-                    "entity_id": linked_id,
-                    "friendly_name": friendly_name,
-                    "state": linked_state.state if linked_state else None,
-                    "device_class": (linked_entry.original_device_class if linked_entry else None),
-                }
-            )
-        result["linked_entities"] = linked_detail
+    linked = _section_linked_entities(bridge, entity_id, hass, entity_reg)
+    if linked:
+        result["linked_entities"] = linked
 
     redefs = bridge.redefinitions.get(entity_id)
     if redefs:
