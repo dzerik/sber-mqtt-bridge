@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import logging
 
-from ..sber_constants import SberFeature
-from ..sber_models import make_bool_value, make_state
 from .simple_sensor import SimpleReadOnlySensor
+from .tamper_alarm_mute_mixin import TamperAlarmMuteMixin
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -14,7 +13,7 @@ MOTION_SENSOR_CATEGORY = "sensor_pir"
 """Sber device category for PIR / motion sensor entities."""
 
 
-class MotionSensorEntity(SimpleReadOnlySensor):
+class MotionSensorEntity(TamperAlarmMuteMixin, SimpleReadOnlySensor):
     """Sber motion sensor entity.
 
     Reports motion detection state from HA binary_sensor entities
@@ -36,7 +35,6 @@ class MotionSensorEntity(SimpleReadOnlySensor):
         """
         super().__init__(MOTION_SENSOR_CATEGORY, entity_data)
         self.motion_detected = False
-        self._tamper: bool | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update motion detection flag and tamper alarm.
@@ -46,12 +44,7 @@ class MotionSensorEntity(SimpleReadOnlySensor):
         """
         super().fill_by_ha_state(ha_state)
         self.motion_detected = ha_state.get("state") == "on"
-        attrs = ha_state.get("attributes", {})
-        tamper = attrs.get("tamper")
-        if tamper is not None:
-            self._tamper = bool(tamper)
-        else:
-            self._tamper = None
+        self._parse_tamper_alarm_mute(ha_state.get("attributes", {}))
 
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list including tamper_alarm when available.
@@ -60,8 +53,7 @@ class MotionSensorEntity(SimpleReadOnlySensor):
             List of Sber feature strings supported by this entity.
         """
         features = super()._create_features_list()
-        if self._tamper is not None:
-            features.append("tamper_alarm")
+        self._append_tamper_alarm_mute_features(features)
         return features
 
     def _get_sber_value(self) -> str:
@@ -87,7 +79,6 @@ class MotionSensorEntity(SimpleReadOnlySensor):
             # Remove the pir state entry added by parent
             entity_states[:] = [s for s in entity_states if s.get("key") != "pir"]
 
-        if self._tamper is not None:
-            entity_states.append(make_state(SberFeature.TAMPER_ALARM, make_bool_value(self._tamper)))
+        self._append_tamper_alarm_mute_states(entity_states)
 
         return result

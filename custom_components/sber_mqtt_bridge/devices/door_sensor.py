@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import logging
 
-from ..sber_constants import SberFeature
-from ..sber_models import make_bool_value, make_state
 from .simple_sensor import SimpleReadOnlySensor
+from .tamper_alarm_mute_mixin import TamperAlarmMuteMixin
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -14,7 +13,7 @@ DOOR_SENSOR_CATEGORY = "sensor_door"
 """Sber device category for door/window contact sensor entities."""
 
 
-class DoorSensorEntity(SimpleReadOnlySensor):
+class DoorSensorEntity(TamperAlarmMuteMixin, SimpleReadOnlySensor):
     """Sber door sensor entity.
 
     Reports open/close state from HA binary_sensor entities
@@ -38,7 +37,6 @@ class DoorSensorEntity(SimpleReadOnlySensor):
         """
         super().__init__(DOOR_SENSOR_CATEGORY, entity_data)
         self.is_open = False
-        self._tamper: bool | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update open/close status and tamper alarm.
@@ -48,12 +46,7 @@ class DoorSensorEntity(SimpleReadOnlySensor):
         """
         super().fill_by_ha_state(ha_state)
         self.is_open = ha_state.get("state") == "on"
-        attrs = ha_state.get("attributes", {})
-        tamper = attrs.get("tamper")
-        if tamper is not None:
-            self._tamper = bool(tamper)
-        else:
-            self._tamper = None
+        self._parse_tamper_alarm_mute(ha_state.get("attributes", {}))
 
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list including tamper_alarm when available.
@@ -62,8 +55,7 @@ class DoorSensorEntity(SimpleReadOnlySensor):
             List of Sber feature strings supported by this entity.
         """
         features = super()._create_features_list()
-        if self._tamper is not None:
-            features.append("tamper_alarm")
+        self._append_tamper_alarm_mute_features(features)
         return features
 
     def to_sber_current_state(self) -> dict[str, dict]:
@@ -73,8 +65,7 @@ class DoorSensorEntity(SimpleReadOnlySensor):
             Dict mapping entity_id to its Sber state representation.
         """
         result = super().to_sber_current_state()
-        if self._tamper is not None:
-            result[self.entity_id]["states"].append(make_state(SberFeature.TAMPER_ALARM, make_bool_value(self._tamper)))
+        self._append_tamper_alarm_mute_states(result[self.entity_id]["states"])
         return result
 
     def _get_sber_value(self) -> bool:
