@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.2] - 2026-05-14
+
+### Fixed
+
+- **`vol.Invalid` propagation in service-call dispatcher.** HA
+  service-call schema validation raises `vol.Invalid`;
+  `SberCommandDispatcher._call_ha_service` did not catch it, so an
+  invalid service payload from Sber would bubble up as an uncaught
+  exception. Now caught alongside the other expected service-call
+  exceptions.
+
+### Changed
+
+- **DEBUG-log truncated payload on silent `JSONDecodeError`.** Three
+  Sber message handlers (`handle_change_group`,
+  `handle_rename_device`, `handle_global_config`) used to silently
+  return on malformed JSON. They now emit a DEBUG log with the
+  truncated payload and exception text so persistent malformed
+  traffic is visible to operators.
+- **Cleanup of vulture-flagged unused locals** in `config_flow.py`
+  (`entry_data` → `_entry_data`) and `devices/base_entity.py`
+  (`process_state_change` `old_state` → `_old_state`). No behaviour
+  change.
+
 ## [1.39.1] - 2026-05-14
 
 ### Changed
