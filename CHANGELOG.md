@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.4] - 2026-05-14
+
+### Changed
+
+- **Internal refactor — final `process_cmd` unification.** Removed the
+  last 7 redundant `process_cmd` overrides: `LightEntity`,
+  `ClimateEntity`, `TvEntity`, and `SimpleReadOnlySensor` were
+  re-declaring exactly what `BaseEntity.process_cmd` now provides;
+  `CurtainEntity`, `IntercomEntity`, `ScenarioButtonEntity` carried
+  small if/elif bodies converted to `_cmd_handlers` dispatch.
+
+  Result: all 15 device classes use the canonical pattern — declare
+  `_cmd_handlers` and per-feature `_cmd_*` helpers; `process_cmd`
+  itself is supplied by `BaseEntity`. New device classes have a
+  smaller boilerplate footprint.
+
+  No user-visible behaviour change. The `LightEntity.process_cmd`
+  DEBUG log line `"(LightEntity.process_cmd) processing res: %s"` was
+  dropped — DevTools traces remain the canonical way to inspect
+  command processing.
+
 ## [1.39.3] - 2026-05-14
 
 ### Changed

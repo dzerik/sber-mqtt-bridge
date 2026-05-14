@@ -15,6 +15,7 @@ Master TOC for all refactoring rounds derived from the 2026-05-14 architecture a
 | 6 | `devices/` mixins: `TamperAlarmMuteMixin`, `BatteryAndSignalLinkMixin`, `FanSpeedMixin` (process_cmd dispatch deferred — only TV was D-rated, done in Round 5) | v1.39.1 | inline (no separate plan file) | ✅ shipped |
 | 7 | Minor leftovers (vulture findings, `vol.Invalid` in catch tuple, silent `json.JSONDecodeError` swallows, `@requires_bridge` decorator) | v1.39.2 | inline (no separate plan file) | ✅ shipped (`@requires_bridge` deferred — scope too large for final round) |
 | 8 | `process_cmd` dispatch lifted into `BaseEntity` (closes the deferred unification from Round 6) | v1.39.3 | inline (no separate plan file) | ✅ shipped |
+| 9 | Final `process_cmd` unification cleanup (drop 7 redundant overrides, 15/15 classes now use the canonical pattern) | v1.39.4 | inline | ✅ shipped |
 
 ## Dependencies
 
