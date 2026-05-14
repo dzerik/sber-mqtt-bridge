@@ -84,9 +84,7 @@ class SberPublisher:
                 _LOGGER.exception("Building command-echo baseline failed for %s", entity_id)
                 continue
             baseline_states: list[dict] = list(current.get("states", []))
-            cmd_states_by_key: dict[str, dict] = {
-                s.get("key"): s for s in cmd_data.get("states", []) if s.get("key")
-            }
+            cmd_states_by_key: dict[str, dict] = {s.get("key"): s for s in cmd_data.get("states", []) if s.get("key")}
             merged: list[dict] = []
             overridden: set[str] = set()
             for state in baseline_states:
@@ -157,18 +155,14 @@ class SberPublisher:
 
         if not force and entity_ids:
             changed_ids = [
-                eid
-                for eid in entity_ids
-                if (e := bridge._entities.get(eid)) is not None and e.has_significant_change()
+                eid for eid in entity_ids if (e := bridge._entities.get(eid)) is not None and e.has_significant_change()
             ]
             if not changed_ids:
                 _LOGGER.debug("All %d entities unchanged, skipping publish", len(entity_ids))
                 return
             entity_ids = changed_ids
 
-        payload, payload_valid = build_states_list_json(
-            bridge._entities, entity_ids, bridge._enabled_entity_ids
-        )
+        payload, payload_valid = build_states_list_json(bridge._entities, entity_ids, bridge._enabled_entity_ids)
         topic = f"{bridge._root_topic}/up/status"
         _LOGGER.debug(
             "Publishing state to %s (%d bytes): %s",

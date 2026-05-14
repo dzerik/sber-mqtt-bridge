@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 import logging
 import time
 from collections.abc import Callable
@@ -30,7 +29,6 @@ from .const import (
     CONF_CONFIRM_DELAY,
     CONF_DEBOUNCE_DELAY,
     CONF_HA_SERIAL_NUMBER,
-    CONF_HUB_AUTO_PARENT,
     CONF_MAX_MQTT_PAYLOAD,
     CONF_MESSAGE_LOG_SIZE,
     CONF_RECONNECT_MAX,
@@ -55,12 +53,8 @@ from .mqtt_client_service import (
 )
 from .repairs import check_and_create_issues
 from .sber_constants import MqttTopicSuffix
-from .sber_protocol import (
-    build_devices_list_json,
-    build_states_list_json,
-)
-from .schema_validator import ValidationCollector
 from .sber_publisher import SberPublisher
+from .schema_validator import ValidationCollector
 from .state_diff import DiffCollector
 from .trace_collector import TraceCollector
 
