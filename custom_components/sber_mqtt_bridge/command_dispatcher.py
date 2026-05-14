@@ -64,6 +64,7 @@ class BridgeCommandContext(Protocol):
 
     async def _publish_states(self, ids: list[str] | None, *, force: bool = False) -> None: ...
     async def _publish_config(self, entity_ids: list[str] | None = None) -> None: ...
+    async def _publish_command_echo(self, devices: dict[str, dict]) -> None: ...
     def _persist_redefinitions(self) -> None: ...
     def _create_safe_task(self, coro: object, *, name: str | None = None) -> asyncio.Task: ...
     async def _delayed_confirm(self, entity_id: str) -> None: ...
@@ -172,6 +173,15 @@ class SberCommandDispatcher:
 
         if update_state_ids:
             await bridge._publish_states(update_state_ids, force=True)
+
+        # Immediate echo ack: publish the received command states back to
+        # Sber within milliseconds so its ack timer does not expire before
+        # HA propagates the real state change.  Required for integrations
+        # that delay/omit ``state_changed`` events on no-op commands (e.g.
+        # HA WLED integration with WLED 16.0.0 — see GitHub issue #35 and
+        # HA core issue #170435).
+        if commanded_ids:
+            await bridge._publish_command_echo(devices)
 
         # Schedule a delayed force-publish for all commanded entities.
         # Sber expects state confirmation after every command.

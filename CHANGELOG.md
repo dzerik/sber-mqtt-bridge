@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.38.0] - 2026-05-14
+
+### Added
+
+- **Immediate command echo for fast Sber ack.** После каждой команды от
+  Sber (`down/commands`) мост теперь сразу публикует на `up/status`
+  echo-payload: текущее состояние сущности с overlaid значениями из
+  команды. Авторитетный `_delayed_confirm` через `confirm_delay` секунд
+  по-прежнему публикует реальное состояние из HA. Защищает от
+  ситуации, когда HA-интеграция задерживает или не отправляет
+  `state_changed` после no-op команды (HA WLED ↔ WLED 16.0.0,
+  [issue #35](https://github.com/dzerik/sber-mqtt-bridge/issues/35),
+  [HA core #170435](https://github.com/home-assistant/core/issues/170435)):
+  Sber успевает получить ack до своего внутреннего таймаута и не
+  «забывает» о состоянии при повторных голосовых запросах. Полное
+  покрытие тестами в `tests/hacs/test_command_echo.py`.
+
 ## [1.37.0] - 2026-04-27
 
 ### Added

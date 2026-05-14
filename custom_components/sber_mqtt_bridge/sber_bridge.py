@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import time
 from collections.abc import Callable
@@ -971,6 +972,72 @@ class SberBridge:
     async def _handle_sber_command(self, payload: bytes) -> None:
         """Delegate Sber command handling to :class:`SberCommandDispatcher`."""
         await self._command_dispatcher.handle_command(payload)
+
+    async def _publish_command_echo(self, devices: dict[str, dict]) -> None:
+        """Publish immediate echo of a received Sber command as fast ack.
+
+        After Sber sends a command on ``down/commands``, it expects a state
+        confirmation on ``up/status``.  The authoritative confirmation goes
+        out via :meth:`_delayed_confirm` after ``confirm_delay`` seconds —
+        but if a HA integration delays or omits the corresponding
+        ``state_changed`` event (e.g. HA WLED integration with WLED 16.0.0,
+        see HA core issue #170435), the delay can exceed Sber's internal
+        ack timeout and the next voice request returns the NLU fallback
+        «у этого устройства нет такой возможности».
+
+        This method bridges that gap by publishing immediately a status
+        payload built from each entity's current Sber state with the
+        command's own ``states`` overlaid on top — Sber sees the command
+        echoed back within milliseconds.  ``_delayed_confirm`` still runs
+        afterwards and refreshes with the real HA state once it propagates.
+
+        Args:
+            devices: ``devices`` dict from the incoming Sber command
+                (``entity_id`` → ``{"states": [...]}``).
+        """
+        if not self._connected or self._mqtt_service is None:
+            return
+
+        echo_devices: dict[str, dict] = {}
+        for entity_id, cmd_data in devices.items():
+            entity = self._entities.get(entity_id)
+            if entity is None:
+                continue
+            try:
+                current = entity.to_sber_current_state().get(entity_id, {"states": []})
+            except (TypeError, ValueError, KeyError, AttributeError):
+                _LOGGER.exception("Building command-echo baseline failed for %s", entity_id)
+                continue
+            baseline_states: list[dict] = list(current.get("states", []))
+            cmd_states_by_key: dict[str, dict] = {s.get("key"): s for s in cmd_data.get("states", []) if s.get("key")}
+            merged: list[dict] = []
+            overridden: set[str] = set()
+            for state in baseline_states:
+                key = state.get("key")
+                if key in cmd_states_by_key:
+                    merged.append(cmd_states_by_key[key])
+                    overridden.add(key)
+                else:
+                    merged.append(state)
+            for key, state in cmd_states_by_key.items():
+                if key not in overridden:
+                    merged.append(state)
+            echo_devices[entity_id] = {"states": merged}
+
+        if not echo_devices:
+            return
+
+        payload = json.dumps({"devices": echo_devices})
+        topic = f"{self._root_topic}/up/status"
+        try:
+            await self._mqtt_service.publish(topic, payload)
+        except (aiomqtt.MqttError, RuntimeError):
+            self._stats.publish_errors += 1
+            _LOGGER.exception("Error publishing command echo to Sber")
+            return
+        self._stats.messages_sent += 1
+        _LOGGER.debug("Published command echo for %s: %s", list(echo_devices), payload)
+        self._log_message("out", topic, payload)
 
     async def _delayed_confirm(self, entity_id: str) -> None:
         """Delayed state confirmation for a commanded entity.
