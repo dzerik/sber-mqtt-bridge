@@ -235,7 +235,7 @@ class TestClimateProcessCmd(unittest.TestCase):
 
     def test_cmd_on_off_turn_on(self):
         entity = self._make_entity()
-        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"bool_value": True}}]})
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]})
         self.assertEqual(len(result), 1)
         url = result[0]["url"]
         self.assertEqual(url["domain"], "climate")
@@ -243,9 +243,15 @@ class TestClimateProcessCmd(unittest.TestCase):
 
     def test_cmd_on_off_turn_off(self):
         entity = self._make_entity()
-        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"bool_value": False}}]})
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": False}}]})
         url = result[0]["url"]
         self.assertEqual(url["service"], "turn_off")
+
+    def test_cmd_on_off_wrong_type_rejected(self):
+        """on_off with non-BOOL type must be silently rejected."""
+        entity = self._make_entity()
+        result = entity.process_cmd({"states": [{"key": "on_off", "value": {"type": "INTEGER", "integer_value": "1"}}]})
+        self.assertEqual(result, [])
 
     def test_cmd_hvac_temp_set(self):
         entity = self._make_entity()
@@ -303,7 +309,7 @@ class TestClimateProcessCmd(unittest.TestCase):
         result = entity.process_cmd(
             {
                 "states": [
-                    {"key": "on_off", "value": {"bool_value": True}},
+                    {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}},
                     {"key": "hvac_temp_set", "value": {"integer_value": 20}},
                     {"key": "hvac_air_flow_power", "value": {"enum_value": "high"}},
                 ]

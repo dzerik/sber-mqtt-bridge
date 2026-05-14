@@ -1,4 +1,4 @@
-# Post-Audit Roadmap (Rounds 2–7)
+# Post-Audit Roadmap (Rounds 2–10)
 
 Master TOC for all refactoring rounds derived from the 2026-05-14 architecture audit. Each round is shippable as a standalone version. Round 1 = v1.38.2 (P0 security/correctness, already merged).
 
@@ -13,9 +13,10 @@ Master TOC for all refactoring rounds derived from the 2026-05-14 architecture a
 | 4 | `BridgeCommandContext` narrowed to expose concrete collaborators | v1.38.6 | inline (no separate plan file) | ✅ shipped |
 | 5 | CC reduction: `handle_command`, `ws_add_ha_device`, `ws_device_detail`, `climate.to_sber_current_state`, `tv.process_cmd` | v1.39.0 | inline (no separate plan file) | ✅ shipped |
 | 6 | `devices/` mixins: `TamperAlarmMuteMixin`, `BatteryAndSignalLinkMixin`, `FanSpeedMixin` (process_cmd dispatch deferred — only TV was D-rated, done in Round 5) | v1.39.1 | inline (no separate plan file) | ✅ shipped |
-| 7 | Minor leftovers (vulture findings, `vol.Invalid` in catch tuple, silent `json.JSONDecodeError` swallows, `@requires_bridge` decorator) | v1.39.2 | inline (no separate plan file) | ✅ shipped (`@requires_bridge` deferred — scope too large for final round) |
+| 7 | Minor leftovers (vulture findings, `vol.Invalid` in catch tuple, silent `json.JSONDecodeError` swallows, `@requires_bridge` decorator) | v1.39.2 | inline (no separate plan file) | ✅ shipped (see Round 10 for `@requires_bridge`) |
 | 8 | `process_cmd` dispatch lifted into `BaseEntity` (closes the deferred unification from Round 6) | v1.39.3 | inline (no separate plan file) | ✅ shipped |
 | 9 | Final `process_cmd` unification cleanup (drop 7 redundant overrides, 15/15 classes now use the canonical pattern) | v1.39.4 | inline | ✅ shipped |
+| 10 | `@requires_bridge` / `@requires_entry` decorators across WS handlers (closes the C1 deferred item from R7) | v1.39.5 | inline | ✅ shipped |
 
 ## Dependencies
 

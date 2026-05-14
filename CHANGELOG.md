@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.6b1] - 2026-05-14
+
+### Beta release
+
+First beta release of the post-2026-05-14-audit refactor session. All 9
+rounds shipped on `main` since v1.30.0 (the last tagged release):
+v1.38.0 immediate command echo, v1.38.1 workflow GITHUB_TOKEN
+hardening, v1.38.2 P0 hardening (5 fixes), v1.38.3–v1.38.6 god-class
+extraction (Publisher / RedefinitionsStore / DevToolsHub) + Protocol
+narrowing, v1.39.0 CC reductions (5 hot-path functions), v1.39.1 device
+mixins (FanSpeed / BatteryAndSignal / TamperAlarmMute), v1.39.2 misc
+cleanup, v1.39.3–v1.39.4 `process_cmd` unification (15/15 device
+classes inherit canonical dispatch from `BaseEntity`), v1.39.5
+`@requires_bridge`/`@requires_entry` decorators in WS API.
+
+### Fixed (over v1.39.5)
+
+- **`_cmd_on_off` type-guard parity** in `climate.py`, `tv.py`, and
+  `humidifier.py` — adds the `if value.get("type") != SberValueType.BOOL: return []`
+  guard already present in the other 6 device classes that handle
+  `on_off`. Closes an Important finding from the cumulative review.
+
+### Documentation
+
+- Updated the post-audit roadmap to reflect that Round 10 (`@requires_bridge`
+  decorators in WS) shipped at v1.39.5; removed the obsolete "deferred"
+  note from Round 7.
+
 ## [1.39.5] - 2026-05-14
 
 ### Changed

@@ -7,7 +7,7 @@ import math
 from collections.abc import Callable
 from typing import ClassVar
 
-from ..sber_constants import SberFeature
+from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import (
     ROLE_TEMPERATURE,
@@ -457,6 +457,8 @@ class ClimateEntity(BaseEntity):
         }
 
     def _cmd_on_off(self, value: dict) -> list[dict]:
+        if value.get("type") != SberValueType.BOOL:
+            return []
         on = value.get("bool_value", False)
         return [self._build_on_off_service_call(self.entity_id, "climate", on)]
 
