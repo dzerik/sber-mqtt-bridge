@@ -136,6 +136,163 @@ async def ws_list_devices_for_category(
 # ---------------------------------------------------------------------------
 
 
+class _AddDeviceError(Exception):
+    """Raised by ws_add_ha_device helpers to signal a user-facing validation
+    failure. The handler converts ``code`` / ``detail`` to a structured WS error.
+    """
+
+    def __init__(self, code: str, detail: str) -> None:
+        super().__init__(detail)
+        self.code = code
+        self.detail = detail
+
+
+def _validate_primary(
+    msg: dict[str, Any],
+    entity_reg: Any,
+) -> tuple[Any, Any, set[str]]:
+    """Resolve and validate the primary entity for an add_ha_device request.
+
+    Returns:
+        ``(primary_entry, primary_sber_entity, accepted_role_names)``.
+
+    Raises:
+        _AddDeviceError: when category is unknown, entity isn't in
+            the registry, doesn't belong to the requested device, or
+            cannot be promoted to the requested Sber category.
+    """
+    category: str = msg["category"]
+    spec = CATEGORY_DOMAIN_MAP.get(category)
+    if spec is None:
+        raise _AddDeviceError("unknown_category", f"Sber category {category!r} is not registered")
+
+    primary_id: str = msg["primary_entity_id"]
+    primary_entry = entity_reg.async_get(primary_id)
+    if primary_entry is None:
+        raise _AddDeviceError("primary_not_found", f"Entity {primary_id} not in registry")
+
+    device_id: str = msg["device_id"]
+    # Orphan entities (no device_id, e.g. SmartIR) use entity_id as device_id
+    is_orphan = primary_entry.device_id is None and device_id == primary_id
+    if not is_orphan and primary_entry.device_id != device_id:
+        raise _AddDeviceError(
+            "primary_device_mismatch",
+            f"Entity {primary_id} does not belong to device {device_id}",
+        )
+
+    if not spec.matches(primary_entry.domain, primary_entry.original_device_class or ""):
+        raise _AddDeviceError(
+            "primary_category_mismatch",
+            f"Entity {primary_id} cannot be promoted to category {category!r}",
+        )
+
+    primary_sber = create_sber_entity(
+        primary_id,
+        {
+            "entity_id": primary_entry.entity_id,
+            "original_device_class": primary_entry.original_device_class or "",
+            "device_id": primary_entry.device_id,
+            "name": primary_entry.name or primary_entry.original_name or primary_id,
+            "original_name": primary_entry.original_name,
+            "platform": primary_entry.platform,
+            "unique_id": primary_entry.unique_id,
+        },
+        sber_category=category,
+    )
+    accepted_role_names = {r.role for r in primary_sber.LINKABLE_ROLES} if primary_sber is not None else set()
+    return primary_entry, primary_sber, accepted_role_names
+
+
+def _resolve_role_mapping(
+    linked_entity_ids: list[str],
+    entity_reg: Any,
+    accepted_role_names: set[str],
+    category: str,
+) -> dict[str, str]:
+    """Resolve linked entities to ``role -> entity_id`` for the primary's category.
+
+    Raises:
+        _AddDeviceError: when a linked entity is missing, its role isn't
+            accepted by the primary's category, or two linked entities
+            claim the same role.
+    """
+    role_mapping: dict[str, str] = {}
+    for linked_id in linked_entity_ids:
+        linked_entry = entity_reg.async_get(linked_id)
+        if linked_entry is None:
+            raise _AddDeviceError("linked_not_found", f"Entity {linked_id} not in registry")
+        link_role = resolve_link_role(linked_entry.domain, linked_entry.original_device_class or "")
+        if not link_role or link_role not in accepted_role_names:
+            raise _AddDeviceError(
+                "linked_role_not_accepted",
+                f"Entity {linked_id} does not map to a role accepted by {category}",
+            )
+        if link_role in role_mapping:
+            raise _AddDeviceError(
+                "role_conflict",
+                f"Two linked entities claim role {link_role!r}",
+            )
+        role_mapping[link_role] = linked_id
+    return role_mapping
+
+
+def _build_options_patch(
+    existing_options: dict,
+    primary_id: str,
+    category: str,
+    role_mapping: dict[str, str],
+    name: str,
+    room: str,
+) -> dict:
+    """Build the updated ConfigEntry options dict for an add_ha_device request.
+
+    Pure function — no HA side-effects. Suitable for unit testing.
+    """
+    new_options = dict(existing_options)
+
+    exposed: list[str] = list(new_options.get(CONF_EXPOSED_ENTITIES, []))
+    if primary_id not in exposed:
+        exposed.append(primary_id)
+    new_options[CONF_EXPOSED_ENTITIES] = exposed
+
+    overrides: dict[str, str] = dict(new_options.get(CONF_ENTITY_TYPE_OVERRIDES, {}))
+    overrides[primary_id] = category
+    new_options[CONF_ENTITY_TYPE_OVERRIDES] = overrides
+
+    all_links: dict[str, dict] = dict(new_options.get(CONF_ENTITY_LINKS, {}))
+    if role_mapping:
+        all_links[primary_id] = role_mapping
+    else:
+        all_links.pop(primary_id, None)
+    new_options[CONF_ENTITY_LINKS] = all_links
+
+    if name or room:
+        redefs: dict[str, dict] = dict(new_options.get("redefinitions", {}))
+        entity_redef = dict(redefs.get(primary_id, {}))
+        if name:
+            entity_redef["name"] = name
+        if room:
+            entity_redef["room"] = room
+        redefs[primary_id] = entity_redef
+        new_options["redefinitions"] = redefs
+
+    return new_options
+
+
+def _hot_reload(hass: HomeAssistant) -> None:
+    """Hot-reload bridge entities + republish config without tearing the entry down.
+
+    A full async_reload would remove the sidebar panel mid-navigation,
+    kicking the user out of the UI.
+    """
+    bridge = get_bridge(hass)
+    if bridge is None:
+        return
+    bridge._reload_entities_and_resubscribe()
+    if bridge.is_connected:
+        hass.async_create_task(bridge._publish_config())
+
+
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/add_ha_device",
@@ -165,131 +322,41 @@ async def ws_add_ha_device(
         connection.send_error(msg["id"], "entry_not_found", "Config entry not found")
         return
 
-    category: str = msg["category"]
-    spec = CATEGORY_DOMAIN_MAP.get(category)
-    if spec is None:
-        connection.send_error(msg["id"], "unknown_category", f"Sber category {category!r} is not registered")
-        return
-
     from homeassistant.helpers import entity_registry as er
 
     entity_reg = er.async_get(hass)
+    category: str = msg["category"]
     primary_id: str = msg["primary_entity_id"]
-    primary_entry = entity_reg.async_get(primary_id)
-    if primary_entry is None:
-        connection.send_error(msg["id"], "primary_not_found", f"Entity {primary_id} not in registry")
-        return
 
-    device_id: str = msg["device_id"]
-    # Orphan entities (no device_id, e.g. SmartIR) use entity_id as device_id
-    is_orphan = primary_entry.device_id is None and device_id == primary_id
-    if not is_orphan and primary_entry.device_id != device_id:
-        connection.send_error(
-            msg["id"],
-            "primary_device_mismatch",
-            f"Entity {primary_id} does not belong to device {device_id}",
+    try:
+        _, _, accepted_role_names = _validate_primary(msg, entity_reg)
+        role_mapping = _resolve_role_mapping(
+            list(msg.get("linked_entity_ids", [])),
+            entity_reg,
+            accepted_role_names,
+            category,
         )
+    except _AddDeviceError as err:
+        connection.send_error(msg["id"], err.code, err.detail)
         return
 
-    if not spec.matches(primary_entry.domain, primary_entry.original_device_class or ""):
-        connection.send_error(
-            msg["id"],
-            "primary_category_mismatch",
-            f"Entity {primary_id} cannot be promoted to category {category!r}",
-        )
-        return
-
-    # ------------------------------------------------------------------
-    # Resolve linked sensors → role mapping via the primary's Sber class.
-    # ------------------------------------------------------------------
-    primary_sber = create_sber_entity(
-        primary_id,
-        {
-            "entity_id": primary_entry.entity_id,
-            "original_device_class": primary_entry.original_device_class or "",
-            "device_id": primary_entry.device_id,
-            "name": primary_entry.name or primary_entry.original_name or primary_id,
-            "original_name": primary_entry.original_name,
-            "platform": primary_entry.platform,
-            "unique_id": primary_entry.unique_id,
-        },
-        sber_category=category,
+    new_options = _build_options_patch(
+        entry.options,
+        primary_id=primary_id,
+        category=category,
+        role_mapping=role_mapping,
+        name=(msg.get("name") or "").strip(),
+        room=(msg.get("room") or "").strip(),
     )
-    accepted_role_names = {r.role for r in primary_sber.LINKABLE_ROLES} if primary_sber is not None else set()
-
-    linked_entity_ids: list[str] = list(msg.get("linked_entity_ids", []))
-    role_mapping: dict[str, str] = {}
-    for linked_id in linked_entity_ids:
-        linked_entry = entity_reg.async_get(linked_id)
-        if linked_entry is None:
-            connection.send_error(msg["id"], "linked_not_found", f"Entity {linked_id} not in registry")
-            return
-        link_role = resolve_link_role(linked_entry.domain, linked_entry.original_device_class or "")
-        if not link_role or link_role not in accepted_role_names:
-            connection.send_error(
-                msg["id"],
-                "linked_role_not_accepted",
-                f"Entity {linked_id} does not map to a role accepted by {category}",
-            )
-            return
-        if link_role in role_mapping:
-            connection.send_error(
-                msg["id"],
-                "role_conflict",
-                f"Two linked entities claim role {link_role!r}",
-            )
-            return
-        role_mapping[link_role] = linked_id
-
-    # ------------------------------------------------------------------
-    # Build the atomic options patch
-    # ------------------------------------------------------------------
-    new_options = dict(entry.options)
-
-    exposed: list[str] = list(new_options.get(CONF_EXPOSED_ENTITIES, []))
-    if primary_id not in exposed:
-        exposed.append(primary_id)
-    new_options[CONF_EXPOSED_ENTITIES] = exposed
-
-    overrides: dict[str, str] = dict(new_options.get(CONF_ENTITY_TYPE_OVERRIDES, {}))
-    overrides[primary_id] = category
-    new_options[CONF_ENTITY_TYPE_OVERRIDES] = overrides
-
-    all_links: dict[str, dict] = dict(new_options.get(CONF_ENTITY_LINKS, {}))
-    if role_mapping:
-        all_links[primary_id] = role_mapping
-    else:
-        all_links.pop(primary_id, None)
-    new_options[CONF_ENTITY_LINKS] = all_links
-
-    name = (msg.get("name") or "").strip()
-    room = (msg.get("room") or "").strip()
-    if name or room:
-        redefs: dict[str, dict] = dict(new_options.get("redefinitions", {}))
-        entity_redef = dict(redefs.get(primary_id, {}))
-        if name:
-            entity_redef["name"] = name
-        if room:
-            entity_redef["room"] = room
-        redefs[primary_id] = entity_redef
-        new_options["redefinitions"] = redefs
-
     hass.config_entries.async_update_entry(entry, options=new_options)
 
-    # Hot-reload entities without tearing down the entire config entry.
-    # A full async_reload would remove the sidebar panel mid-navigation,
-    # kicking the user out of the UI.
-    bridge = get_bridge(hass)
-    if bridge is not None:
-        bridge._reload_entities_and_resubscribe()
-        if bridge.is_connected:
-            hass.async_create_task(bridge._publish_config())
+    _hot_reload(hass)
 
     connection.send_result(
         msg["id"],
         {
             "success": True,
-            "device_id": device_id,
+            "device_id": msg["device_id"],
             "primary_entity_id": primary_id,
             "category": category,
             "linked_count": len(role_mapping),
