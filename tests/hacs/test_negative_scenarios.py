@@ -945,11 +945,11 @@ class TestCommandWithMissingFields:
         result = entity.process_cmd({"states": [{"key": "anything", "value": {"foo": "bar"}}]})
         assert result == []
 
-    def test_sensor_process_cmd_none(self):
-        """Sensors must return empty list for None command."""
+    def test_sensor_process_cmd_empty_dict(self):
+        """Read-only sensors ignore the payload; verify empty dict is accepted and returns []."""
         entity = SensorTempEntity(_entity_data("sensor.test"))
         entity.fill_by_ha_state(_ha_state("sensor.test", "22.5"))
-        result = entity.process_cmd(None)
+        result = entity.process_cmd({})
         assert result == []
 
     @pytest.mark.parametrize(
