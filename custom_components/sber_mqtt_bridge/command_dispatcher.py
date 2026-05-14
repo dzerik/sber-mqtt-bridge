@@ -31,7 +31,9 @@ from .sber_protocol import parse_sber_command, parse_sber_status_request
 if TYPE_CHECKING:
     from .ack_audit import AckAudit
     from .devices.base_entity import BaseEntity
-    from .trace_collector import TraceCollector
+    from .devtools_hub import DevToolsHub
+    from .redefinitions_store import RedefinitionsStore
+    from .sber_publisher import SberPublisher
 
 
 class _BridgeStats(Protocol):
@@ -48,9 +50,9 @@ class _BridgeStats(Protocol):
 class BridgeCommandContext(Protocol):
     """Narrow interface for SberCommandDispatcher's bridge dependency.
 
-    Replaces the full ``SberBridge`` reference to make the coupling
-    explicit and testable.  Every field/method the dispatcher touches
-    is declared here.
+    Exposes the concrete collaborators owned by SberBridge — the
+    dispatcher reaches publish, redefinitions, and DevTools flows
+    through them, not through bridge-proxied wrapper methods.
     """
 
     _hass: HomeAssistant
@@ -58,17 +60,14 @@ class BridgeCommandContext(Protocol):
     _ack_audit: AckAudit
     _entities: dict[str, BaseEntity]
     _enabled_entity_ids: list[str]
-    _redefinitions: dict[str, dict]
     _confirm_tasks: dict[str, asyncio.Task]
-    _trace_collector: TraceCollector
+    # Concrete collaborators (exposed in Rounds 2-3b).
+    _publisher: SberPublisher
+    _redef_store: RedefinitionsStore
+    _devtools: DevToolsHub
 
-    async def _publish_states(self, ids: list[str] | None, *, force: bool = False) -> None: ...
-    async def _publish_config(self, entity_ids: list[str] | None = None) -> None: ...
-    async def _publish_command_echo(self, devices: dict[str, dict]) -> None: ...
-    def _persist_redefinitions(self) -> None: ...
     def _create_safe_task(self, coro: object, *, name: str | None = None) -> asyncio.Task: ...
     async def _delayed_confirm(self, entity_id: str) -> None: ...
-    def _sweep_traces(self) -> None: ...
     def refresh_repair_issues(self) -> None: ...
 
 
@@ -112,7 +111,7 @@ class SberCommandDispatcher:
                     ", ".join(s.get("key", "?") for cmd in devices.values() for s in cmd.get("states", [])),
                 )
                 if entity_ids:
-                    await bridge._publish_states(entity_ids, force=True)
+                    await bridge._publisher.publish_states(entity_ids, force=True)
                 return
 
         _LOGGER.debug(
@@ -128,14 +127,14 @@ class SberCommandDispatcher:
         # the subsequent HA service calls and state_changed events (which HA
         # automatically tags with the same Context) land in the same trace.
         known_ids = [eid for eid in devices if eid in bridge._entities]
-        bridge._trace_collector.begin(
+        bridge._devtools.trace_collector.begin(
             trace_id=context.id,
             trigger="sber_command",
             entity_ids=known_ids,
             topic="down/commands",
             payload=devices,
         )
-        bridge._sweep_traces()
+        bridge._devtools.sweep_traces()
 
         for entity_id, cmd_data in devices.items():
             bridge._stats.acknowledged_entities.add(entity_id)
@@ -158,7 +157,7 @@ class SberCommandDispatcher:
                         update_state_ids.append(entity_id)
                     continue
                 await self._call_ha_service(entity_id, cmd, context)
-                bridge._trace_collector.record(
+                bridge._devtools.trace_collector.record(
                     context.id,
                     type_="ha_service_call",
                     entity_id=entity_id,
@@ -172,7 +171,7 @@ class SberCommandDispatcher:
         commanded_ids = [eid for eid in devices if eid in bridge._entities]
 
         if update_state_ids:
-            await bridge._publish_states(update_state_ids, force=True)
+            await bridge._publisher.publish_states(update_state_ids, force=True)
 
         # Immediate echo ack: publish the received command states back to
         # Sber within milliseconds so its ack timer does not expire before
@@ -181,7 +180,7 @@ class SberCommandDispatcher:
         # HA WLED integration with WLED 16.0.0 — see GitHub issue #35 and
         # HA core issue #170435).
         if commanded_ids:
-            await bridge._publish_command_echo(devices)
+            await bridge._publisher.publish_command_echo(devices)
 
         # Schedule a delayed force-publish for all commanded entities.
         # Sber expects state confirmation after every command.
@@ -256,7 +255,7 @@ class SberCommandDispatcher:
                     "Sber asked about unknown entities, re-publishing config: %s",
                     unknown,
                 )
-                await bridge._publish_config()
+                await bridge._publisher.publish_config()
 
         if requested_ids:
             for eid in requested_ids:
@@ -273,7 +272,7 @@ class SberCommandDispatcher:
                 len(bridge._enabled_entity_ids),
             )
 
-        await bridge._publish_states(requested_ids if requested_ids else None, force=True)
+        await bridge._publisher.publish_states(requested_ids if requested_ids else None, force=True)
 
         # status_request is the strongest single ack signal we get from
         # Sber (it explicitly enumerates accepted entities or asks for
@@ -290,7 +289,7 @@ class SberCommandDispatcher:
             "Sber config request received (will publish %d entities)",
             len(bridge._enabled_entity_ids),
         )
-        await bridge._publish_config()
+        await bridge._publisher.publish_config()
 
     def handle_error(self, payload: bytes) -> None:
         """Handle error message from Sber cloud.
@@ -333,11 +332,11 @@ class SberCommandDispatcher:
         entity_id = data.get("device_id")
         if not entity_id:
             return
-        existing = bridge._redefinitions.get(entity_id, {})
+        existing = dict(bridge._redef_store.raw.get(entity_id, {}))
         existing["home"] = data.get("home")
         existing["room"] = data.get("room")
-        bridge._redefinitions[entity_id] = existing
-        bridge._persist_redefinitions()
+        bridge._redef_store.raw[entity_id] = existing
+        bridge._redef_store.schedule_persist()
         _LOGGER.info("Sber group change stored: %s → room=%s", entity_id, data.get("room"))
 
     async def handle_rename_device(self, payload: bytes) -> None:
@@ -354,9 +353,9 @@ class SberCommandDispatcher:
         entity_id = data.get("device_id")
         new_name = data.get("new_name")
         if entity_id and new_name:
-            redef = bridge._redefinitions.setdefault(entity_id, {})
+            redef = bridge._redef_store.raw.setdefault(entity_id, {})
             redef["name"] = new_name
-            bridge._persist_redefinitions()
+            bridge._redef_store.schedule_persist()
             _LOGGER.info("Sber rename stored: %s → %s", entity_id, new_name)
 
     def handle_global_config(self, payload: bytes) -> None:

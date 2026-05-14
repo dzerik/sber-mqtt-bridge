@@ -301,8 +301,8 @@ class TestAutoRepublishConfig:
         hass = MagicMock()
         entry = _make_entry()
         b = SberBridge(hass, entry)
-        b._publish_config = AsyncMock()
-        b._publish_states = AsyncMock()
+        b._publisher.publish_config = AsyncMock()
+        b._publisher.publish_states = AsyncMock()
         b._connected = True
         b._entities = {"light.known": _make_entity("light.known")}
         b._enabled_entity_ids = ["light.known"]
@@ -314,8 +314,8 @@ class TestAutoRepublishConfig:
         payload = json.dumps({"devices": ["light.unknown"]}).encode()
         await bridge._handle_sber_status_request(payload)
 
-        bridge._publish_config.assert_called_once()
-        bridge._publish_states.assert_called_once()
+        bridge._publisher.publish_config.assert_called_once()
+        bridge._publisher.publish_states.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_no_republish_for_known_entities(self, bridge):
@@ -323,8 +323,8 @@ class TestAutoRepublishConfig:
         payload = json.dumps({"devices": ["light.known"]}).encode()
         await bridge._handle_sber_status_request(payload)
 
-        bridge._publish_config.assert_not_called()
-        bridge._publish_states.assert_called_once()
+        bridge._publisher.publish_config.assert_not_called()
+        bridge._publisher.publish_states.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_no_republish_for_root(self, bridge):
@@ -332,7 +332,7 @@ class TestAutoRepublishConfig:
         payload = json.dumps({"devices": ["root"]}).encode()
         await bridge._handle_sber_status_request(payload)
 
-        bridge._publish_config.assert_not_called()
+        bridge._publisher.publish_config.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_no_republish_for_all_entities_request(self, bridge):
@@ -340,7 +340,7 @@ class TestAutoRepublishConfig:
         payload = json.dumps({"devices": [""]}).encode()
         await bridge._handle_sber_status_request(payload)
 
-        bridge._publish_config.assert_not_called()
+        bridge._publisher.publish_config.assert_not_called()
 
 
 # ===========================================================================
