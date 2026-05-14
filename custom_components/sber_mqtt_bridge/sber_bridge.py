@@ -51,9 +51,9 @@ from .mqtt_client_service import (
     MqttServiceHooks,
     SberMqttCredentials,
 )
+from .redefinitions_store import RedefinitionsStore
 from .repairs import check_and_create_issues
 from .sber_constants import MqttTopicSuffix
-from .redefinitions_store import RedefinitionsStore
 from .sber_publisher import SberPublisher
 from .schema_validator import ValidationCollector
 from .state_diff import DiffCollector

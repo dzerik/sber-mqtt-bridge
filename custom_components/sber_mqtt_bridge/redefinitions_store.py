@@ -100,9 +100,7 @@ class RedefinitionsStore:
         self._dirty = True
         if self._timer is not None:
             self._timer.cancel()
-        self._timer = self._bridge._hass.loop.call_later(
-            _PERSIST_DEBOUNCE_SECONDS, self._flush
-        )
+        self._timer = self._bridge._hass.loop.call_later(_PERSIST_DEBOUNCE_SECONDS, self._flush)
 
     def _flush(self) -> None:
         """Persist the redefinitions to ``ConfigEntry.options`` if dirty.
