@@ -7,6 +7,7 @@ Supports on/off control and read-only call/unlock features from HA attributes.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_state
@@ -83,24 +84,22 @@ class IntercomEntity(OnOffEntity):
         )
         return base
 
-    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process Sber intercom commands and produce HA service calls.
+    @property
+    def _cmd_handlers(self) -> dict[str, Callable[[dict], list[CommandResult]]]:
+        """Return dispatch map from Sber feature key to handler method."""
+        return {SberFeature.ON_OFF: self._cmd_on_off}
 
-        Handles ``on_off`` key for turn_on/turn_off. Other features
-        (incoming_call, reject_call, unlock) are read-only.
+    def _cmd_on_off(self, value: dict) -> list[CommandResult]:
+        """Handle ``on_off`` for intercom (turn_on / turn_off).
 
         Args:
-            cmd_data: Sber command dict with 'states' list.
+            value: Sber value dict from the command payload.
 
         Returns:
-            List of HA service call dicts to execute.
+            List with a single HA service call, or empty list if type is wrong.
         """
-        results: list[dict] = []
+        if value.get("type") != "BOOL":
+            return []
+        on = value.get("bool_value", False)
         domain = self.get_entity_domain()
-        for item in cmd_data.get("states", []):
-            key = item.get("key")
-            value = item.get("value", {})
-            if key == "on_off" and value.get("type") == "BOOL":
-                on = value.get("bool_value", False)
-                results.append(self._build_on_off_service_call(self.entity_id, domain, on))
-        return results
+        return [self._build_on_off_service_call(self.entity_id, domain, on)]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import ClassVar
 
 from ..sber_constants import SberFeature
@@ -124,30 +125,18 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
     }
     """Map Sber ``open_set`` enum values to HA cover services."""
 
-    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process Sber curtain commands and produce HA service calls.
+    @property
+    def _cmd_handlers(self) -> dict[str, Callable[[dict], list[CommandResult]]]:
+        """Return dispatch map from Sber feature key to handler method.
 
-        Handles the following Sber keys:
-        - ``open_percentage`` / ``cover_position``: set_cover_position (0-100)
-        - ``open_set``: open_cover / close_cover / stop_cover
-
-        Args:
-            cmd_data: Sber command dict with 'states' list.
-
-        Returns:
-            List of HA service call dicts to execute.
+        Handles ``open_percentage`` (and legacy ``cover_position``) for
+        set_cover_position, and ``open_set`` for open/close/stop.
         """
-        results: list[dict] = []
-        for data_item in cmd_data.get("states", []):
-            key = data_item.get("key")
-            value = data_item.get("value", {})
-            if key is None:
-                continue
-            if key in (SberFeature.OPEN_PERCENTAGE, "cover_position"):
-                results.extend(self._cmd_set_position(value))
-            elif key == SberFeature.OPEN_SET:
-                results.extend(self._cmd_open_set(value))
-        return results
+        return {
+            SberFeature.OPEN_PERCENTAGE: self._cmd_set_position,
+            "cover_position": self._cmd_set_position,
+            SberFeature.OPEN_SET: self._cmd_open_set,
+        }
 
     def _cmd_set_position(self, value: dict) -> list[dict]:
         ha_position = _safe_clamped_int_parser(value.get("integer_value"), 0, 100)

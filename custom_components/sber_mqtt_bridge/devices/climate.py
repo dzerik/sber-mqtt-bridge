@@ -13,7 +13,6 @@ from .base_entity import (
     ROLE_TEMPERATURE,
     AttrSpec,
     BaseEntity,
-    CommandResult,
     _safe_clamped_int_parser,
     _safe_float_parser,
     _safe_int_parser,
@@ -442,31 +441,6 @@ class ClimateEntity(BaseEntity):
         if self._child_lock is not None:
             out.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return out
-
-    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process Sber climate commands and produce HA service calls.
-
-        Uses a command handler dispatch table (``_cmd_handlers``) to route
-        each Sber feature key to a dedicated handler method.  Each handler
-        returns a list of service calls (possibly empty).
-
-        State is NOT mutated here -- it will be updated when HA fires a
-        ``state_changed`` event that is handled by ``fill_by_ha_state``.
-
-        Args:
-            cmd_data: Sber command dict with 'states' list.
-
-        Returns:
-            List of HA service call dicts to execute.
-        """
-        handlers = self._cmd_handlers
-        results: list[dict] = []
-        for item in cmd_data.get("states", []):
-            handler = handlers.get(item.get("key", ""))
-            if handler is None:
-                continue
-            results.extend(handler(item.get("value", {})))
-        return results
 
     @property
     def _cmd_handlers(self) -> dict[str, Callable[[dict], list[dict]]]:

@@ -12,7 +12,7 @@ from typing import ClassVar
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_bool_parser, _safe_int_parser
+from .base_entity import AttrSpec, BaseEntity, _safe_bool_parser, _safe_int_parser
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -202,29 +202,6 @@ class TvEntity(BaseEntity):
             SberFeature.NUMBER: self._cmd_number,
             SberFeature.CUSTOM_KEY: self._cmd_custom_key,
         }
-
-    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process Sber TV commands and produce HA service calls.
-
-        Uses a command handler dispatch table (``_cmd_handlers``) to route
-        each Sber state key to its handler.
-
-        Args:
-            cmd_data: Sber command dict with 'states' list.
-
-        Returns:
-            List of HA service call dicts to execute.
-        """
-        handlers = self._cmd_handlers
-        results: list[dict] = []
-        for item in cmd_data.get("states", []):
-            key = item.get("key", "")
-            value = item.get("value", {})
-            handler = handlers.get(key)
-            if handler is None:
-                continue
-            results.extend(handler(value))
-        return results
 
     def _cmd_on_off(self, value: dict) -> list[dict]:
         on = value.get("bool_value", False)

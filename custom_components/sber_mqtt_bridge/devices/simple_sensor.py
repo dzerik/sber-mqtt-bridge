@@ -17,7 +17,7 @@ from typing import ClassVar
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_state
-from .base_entity import SENSOR_LINK_ROLES, AttrSpec, BaseEntity, CommandResult
+from .base_entity import SENSOR_LINK_ROLES, AttrSpec, BaseEntity
 from .battery_signal_mixin import BATTERY_SIGNAL_ATTR_SPECS_PRESERVE, BatteryAndSignalLinkMixin
 
 _LOGGER = logging.getLogger(__name__)
@@ -161,14 +161,3 @@ class SimpleReadOnlySensor(BatteryAndSignalLinkMixin, BaseEntity):
         if self._sensor_sensitive is not None:
             states.append(make_state(SberFeature.SENSOR_SENSITIVE, make_enum_value(self._sensor_sensitive)))
         return {self.entity_id: {"states": states}}
-
-    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process Sber command (no-op for read-only sensor).
-
-        Args:
-            cmd_data: Sber command dict (ignored).
-
-        Returns:
-            Empty list -- sensors do not accept commands.
-        """
-        return []

@@ -18,7 +18,7 @@ from ..sber_models import (
     make_integer_value,
     make_state,
 )
-from .base_entity import SENSOR_LINK_ROLES, AttrSpec, BaseEntity, CommandResult, _safe_int_parser
+from .base_entity import SENSOR_LINK_ROLES, AttrSpec, BaseEntity, _safe_int_parser
 from .utils.color_converter import ColorConverter
 from .utils.linear_converter import LinearConverter
 
@@ -261,30 +261,6 @@ class LightEntity(BaseEntity):
                 states.append(make_state(SberFeature.LIGHT_MODE, make_enum_value("white")))
 
         return {self.entity_id: {"states": states}}
-
-    def process_cmd(self, cmd_data: dict) -> list[CommandResult]:
-        """Process Sber light commands and produce HA service calls.
-
-        Uses a command handler dispatch table (``_cmd_handlers``) instead
-        of an inline ``if/elif`` chain.  Each handler returns a list of
-        service calls (possibly empty) for its sber key.
-
-        Args:
-            cmd_data: Sber command dict with 'states' list.
-
-        Returns:
-            List of HA service call dicts to execute.
-        """
-        handlers = self._cmd_handlers
-        results: list[dict] = []
-        for item in cmd_data.get("states", []):
-            handler = handlers.get(item.get("key", ""))
-            if handler is None:
-                continue
-            results.extend(handler(item.get("value", {})))
-
-        _LOGGER.debug("(LightEntity.process_cmd) processing res: %s", results)
-        return results
 
     @property
     def _cmd_handlers(self) -> dict[str, Callable[[dict], list[dict]]]:
