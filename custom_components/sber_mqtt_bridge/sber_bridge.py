@@ -284,24 +284,6 @@ class SberBridge:
         self._redef_store.raw = value
 
     @property
-    def _redef_dirty(self) -> bool:
-        """Backward-compat proxy — dirty flag lives on RedefinitionsStore."""
-        return self._redef_store._dirty
-
-    @_redef_dirty.setter
-    def _redef_dirty(self, value: bool) -> None:
-        self._redef_store._dirty = value
-
-    @property
-    def _redef_timer(self) -> asyncio.TimerHandle | None:
-        """Backward-compat proxy — timer handle lives on RedefinitionsStore."""
-        return self._redef_store._timer
-
-    @_redef_timer.setter
-    def _redef_timer(self, value: asyncio.TimerHandle | None) -> None:
-        self._redef_store._timer = value
-
-    @property
     def is_connected(self) -> bool:
         """Return True if connected to Sber MQTT."""
         return self._connected
@@ -382,6 +364,8 @@ class SberBridge:
 
         Public API for frontend / WebSocket handlers to update a device's
         Sber-side name / room / home without reaching into private state.
+        Delegates data mutation and debounced persistence to
+        :meth:`RedefinitionsStore.async_update`.
 
         Args:
             entity_id: Target Sber entity identifier (must exist in the bridge).
@@ -397,18 +381,7 @@ class SberBridge:
         """
         if entity_id not in self._entities:
             raise KeyError(entity_id)
-        existing = dict(self._redefinitions.get(entity_id, {}))
-        for key in ("name", "room", "home"):
-            if key not in fields:
-                continue
-            raw = fields[key]
-            value = raw.strip() if isinstance(raw, str) else ""
-            if value:
-                existing[key] = value
-            else:
-                existing.pop(key, None)
-        self._redefinitions[entity_id] = existing
-        self._persist_redefinitions()
+        existing = await self._redef_store.async_update(entity_id, fields)
         await self._publish_config()
         return existing
 
@@ -1068,25 +1041,13 @@ class SberBridge:
 
     @callback
     def _persist_redefinitions(self) -> None:
-        """Schedule debounced save of redefinitions to config entry options.
-
-        Debounced to 2s to avoid triggering OptionsFlowWithReload mid-MQTT-loop
-        when Sber sends rapid group/rename changes (e.g. user moves 10 devices).
-        """
-        self._redef_dirty = True
-        if self._redef_timer is not None:
-            self._redef_timer.cancel()
-        self._redef_timer = self._hass.loop.call_later(2.0, self._flush_redefinitions)
+        """Delegate to :meth:`RedefinitionsStore.schedule_persist`."""
+        self._redef_store.schedule_persist()
 
     @callback
     def _flush_redefinitions(self) -> None:
-        """Actually persist redefinitions to config entry options."""
-        self._redef_timer = None
-        if not self._redef_dirty:
-            return
-        self._redef_dirty = False
-        new_options = {**self._entry.options, "redefinitions": self._redefinitions}
-        self._hass.config_entries.async_update_entry(self._entry, options=new_options)
+        """Delegate to :meth:`RedefinitionsStore._flush`."""
+        self._redef_store._flush()
 
     def _handle_global_config(self, payload: bytes) -> None:
         """Delegate global config handling to :class:`SberCommandDispatcher`."""
