@@ -1100,77 +1100,14 @@ class SberBridge:
         """
         await self._publish_states([entity_id])
 
-    async def _publish_states(self, entity_ids: list[str] | None = None, *, force: bool = False) -> None:
-        """Publish entity states to Sber MQTT.
-
-        Args:
-            entity_ids: Specific entity IDs to publish, or None for all enabled.
-            force: If True, skip value diffing (used for status_request responses).
-        """
-        # Snapshot the client locally to avoid TOCTOU race: ``self._mqtt_client``
-        # may become None between the connectivity check and the ``publish``
-        # call if the transport drops mid-await.  The local reference is
-        # stable even if the attribute is cleared concurrently.
-        if not self._connected or self._mqtt_service is None:
-            return
-
-        # Value change diffing: skip entities whose Sber state has not changed
-        if not force and entity_ids:
-            changed_ids = [
-                eid for eid in entity_ids if (e := self._entities.get(eid)) is not None and e.has_significant_change()
-            ]
-            if not changed_ids:
-                _LOGGER.debug("All %d entities unchanged, skipping publish", len(entity_ids))
-                return
-            entity_ids = changed_ids
-
-        payload, payload_valid = build_states_list_json(self._entities, entity_ids, self._enabled_entity_ids)
-        topic = f"{self._root_topic}/up/status"
-        _LOGGER.debug(
-            "Publishing state to %s (%d bytes): %s",
-            topic,
-            len(payload) if isinstance(payload, str) else 0,
-            payload,
-        )
-        try:
-            await self._mqtt_service.publish(topic, payload)
-        except (aiomqtt.MqttError, RuntimeError):
-            self._stats.publish_errors += 1
-            _LOGGER.exception("Error publishing states to Sber")
-            return
-        self._stats.messages_sent += 1
-        # Only mark entities as published when the payload passed
-        # validation.  If Sber silently rejects an invalid payload,
-        # keeping the "dirty" flag ensures we retry on the next cycle.
-        if payload_valid:
-            for eid in entity_ids or self._enabled_entity_ids:
-                entity = self._entities.get(eid)
-                if entity is not None:
-                    entity.mark_state_published()
-        # DevTools: log outgoing message
-        payload_str = payload if isinstance(payload, str) else ""
-        self._log_message("out", topic, payload_str)
-        # DevTools correlation: attach this publish to each entity's active trace.
-        for eid in entity_ids or self._enabled_entity_ids:
-            self._trace_collector.record_publish(eid, topic, payload_str)
-        # DevTools state-diff: record per-entity deltas from the serialized payload.
-        try:
-            self._diff_collector.record_publish_payload(payload_str, topic=topic)
-        except Exception:  # pragma: no cover — must never break publish
-            _LOGGER.exception("DiffCollector.record_publish_payload failed")
-        # DevTools schema validation: check the payload against the Sber spec
-        # (obligatory features / feature types / unknown keys) so silent
-        # rejections become explicit actionable issues.
-        try:
-            categories = {eid: ent.category for eid, ent in self._entities.items()}
-            declared = {eid: ent.get_final_features_list() for eid, ent in self._entities.items()}
-            self._validation_collector.record_publish_payload(
-                payload_str,
-                categories=categories,
-                declared_features=declared,
-            )
-        except Exception:  # pragma: no cover — must never break publish
-            _LOGGER.exception("ValidationCollector.record_publish_payload failed")
+    async def _publish_states(
+        self,
+        entity_ids: list[str] | None = None,
+        *,
+        force: bool = False,
+    ) -> None:
+        """Delegate to :meth:`SberPublisher.publish_states`."""
+        await self._publisher.publish_states(entity_ids, force=force)
 
     async def _publish_config(self, entity_ids: list[str] | None = None) -> None:
         """Publish device config to Sber MQTT."""
