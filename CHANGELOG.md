@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.6] - 2026-05-16
+
+### Released
+
+Stable release of the post-2026-05-14-audit refactor line (betas
+`1.39.6b1`–`1.39.6b3`). No code changes over `1.39.6b3` — promotes the
+beta line to a full release after the issue #35 WLED colour-control fix
+was confirmed working on a live Home Assistant instance.
+
+The release consolidates: the post-audit refactor (9 rounds shipped
+since v1.30.0 — see `1.39.6b1`), the `_cmd_on_off` type-guard parity
+fix, and the issue #35 WLED RGB-only `light_mode: white` correction
+(see `1.39.6b2` / `1.39.6b3`).
+
 ## [1.39.6b3] - 2026-05-16
 
 ### Fixed
