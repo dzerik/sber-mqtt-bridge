@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.6b2] - 2026-05-16
+
+### Fixed
+
+- **WLED RGB-only strips no longer mishandle `light_mode: white`
+  (issue #35).** A pure-RGB strip (`supported_color_modes: ["rgb"]`,
+  no white channel, no colour temperature) was advertised with the
+  Sber `light_mode` feature. A `light_mode: white` command — sent by
+  Sber voice even though the app UI hides the toggle for such strips —
+  was routed through `color_temp_kelvin`, which Home Assistant
+  translated into an orange RGB approximation.
+
+  Fix: `light_mode` is now advertised only for lights with a genuine
+  white output — colour temperature (CCT) or a dedicated white channel
+  (`rgbw` / `rgbww` / `white`). Pure RGB strips expose only
+  `light_colour` + `light_brightness`, matching what the Sber app UI
+  shows. As a defensive measure, `_cmd_mode` now treats a stray
+  `light_mode: white` on an RGB-only light as desaturated RGB
+  (`hs_color = [0, 0]`) instead of a colour temperature. The
+  `color_temp` HA attribute is now read without a `0` fallback so an
+  absent value is correctly `None`.
+
 ## [1.39.6b1] - 2026-05-14
 
 ### Beta release

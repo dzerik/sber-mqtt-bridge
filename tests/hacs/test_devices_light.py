@@ -425,3 +425,97 @@ class TestLightAllowedValues(unittest.TestCase):
         entity.fill_by_ha_state(_make_ha_state(supported_color_modes=[]))
         av = entity.create_allowed_values_list()
         self.assertEqual(av, {})
+
+
+class TestRgbWhitePathFix(unittest.TestCase):
+    """Regression tests for issue #35 — WLED RGB-only light_mode fix."""
+
+    def _make_rgb_entity(self):
+        """Build an RGB-only LightEntity (no CCT, no white channel)."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                supported_color_modes=["rgb"],
+                color_mode="rgb",
+                color_temp=None,
+                hs_color=[30.0, 80.0],
+            )
+        )
+        return entity
+
+    def _make_cct_entity(self):
+        """Build a CCT-capable LightEntity (color_temp in supported modes)."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                supported_color_modes=["color_temp", "hs"],
+                color_mode="color_temp",
+                color_temp=300,
+            )
+        )
+        return entity
+
+    def _make_rgbw_entity(self):
+        """Build a RGBW LightEntity (dedicated white channel)."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                supported_color_modes=["rgbw"],
+                color_mode="rgbw",
+                color_temp=None,
+                hs_color=[120.0, 50.0],
+            )
+        )
+        return entity
+
+    def test_rgb_only_light_has_no_light_mode(self):
+        """RGB-only light must NOT have light_mode in features or allowed_values."""
+        entity = self._make_rgb_entity()
+        features = entity.get_final_features_list()
+        self.assertNotIn("light_mode", features)
+        av = entity.create_allowed_values_list()
+        self.assertNotIn("light_mode", av)
+        # But colour and brightness must still be present
+        self.assertIn("light_colour", features)
+        self.assertIn("light_brightness", features)
+
+    def test_cct_light_has_light_mode(self):
+        """Light with color_temp in supported_color_modes must have light_mode."""
+        entity = self._make_cct_entity()
+        features = entity.get_final_features_list()
+        self.assertIn("light_mode", features)
+        av = entity.create_allowed_values_list()
+        self.assertIn("light_mode", av)
+
+    def test_rgbw_light_has_light_mode(self):
+        """Light with rgbw mode (white channel) must have light_mode."""
+        entity = self._make_rgbw_entity()
+        features = entity.get_final_features_list()
+        self.assertIn("light_mode", features)
+        av = entity.create_allowed_values_list()
+        self.assertIn("light_mode", av)
+
+    def test_cmd_mode_white_on_rgb_only_sets_desaturated_rgb(self):
+        """RGB-only light: light_mode:white must produce hs_color=[0,0], NOT color_temp_kelvin."""
+        entity = self._make_rgb_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "turn_on")
+        self.assertIn("hs_color", url["service_data"])
+        self.assertEqual(url["service_data"]["hs_color"], [0, 0])
+        self.assertNotIn("color_temp_kelvin", url["service_data"])
+
+    def test_cmd_mode_white_on_cct_uses_color_temp(self):
+        """CCT light: light_mode:white must produce color_temp_kelvin, NOT hs_color."""
+        entity = self._make_cct_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "turn_on")
+        self.assertIn("color_temp_kelvin", url["service_data"])
+        self.assertNotIn("hs_color", url["service_data"])
