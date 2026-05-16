@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.6b3] - 2026-05-16
+
+### Fixed
+
+- **Correction to the issue #35 WLED fix.** v1.39.6b2 stopped
+  advertising the Sber `light_mode` feature for RGB-only strips —
+  this broke colour control entirely: Sber caches the device model
+  by `model_id` (the unchanged `Mdl_light`), so its cached model kept
+  the `light_colour → light_mode=colour` dependency while the bridge
+  stopped emitting `light_mode` state, leaving every colour command
+  rejected on a dependency violation.
+
+  `light_mode` is required and is now always advertised for
+  colour-capable lights. The actual issue-#35 fix is retained: a
+  `light_mode: white` command on an RGB-only strip applies desaturated
+  RGB (`hs_color = [0, 0]`) instead of being routed through
+  `color_temp_kelvin` (which Home Assistant rendered as orange). The
+  `color_temp` HA attribute is still read without a `0` fallback.
+
 ## [1.39.6b2] - 2026-05-16
 
 ### Fixed

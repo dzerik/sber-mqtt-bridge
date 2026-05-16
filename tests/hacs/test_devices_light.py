@@ -427,8 +427,8 @@ class TestLightAllowedValues(unittest.TestCase):
         self.assertEqual(av, {})
 
 
-class TestRgbWhitePathFix(unittest.TestCase):
-    """Regression tests for issue #35 — WLED RGB-only light_mode fix."""
+class TestWhiteModeHandling(unittest.TestCase):
+    """Regression tests for issue #35 — WLED RGB-only white-mode fix."""
 
     def _make_rgb_entity(self):
         """Build an RGB-only LightEntity (no CCT, no white channel)."""
@@ -468,14 +468,19 @@ class TestRgbWhitePathFix(unittest.TestCase):
         )
         return entity
 
-    def test_rgb_only_light_has_no_light_mode(self):
-        """RGB-only light must NOT have light_mode in features or allowed_values."""
+    def test_rgb_only_light_has_light_mode(self):
+        """RGB-only light must have light_mode in features and allowed_values.
+
+        light_mode is required for all colour-capable lights because Sber
+        caches the device model and the light_colour feature has a
+        light_colour → light_mode=colour dependency in that model.
+        """
         entity = self._make_rgb_entity()
         features = entity.get_final_features_list()
-        self.assertNotIn("light_mode", features)
+        self.assertIn("light_mode", features)
         av = entity.create_allowed_values_list()
-        self.assertNotIn("light_mode", av)
-        # But colour and brightness must still be present
+        self.assertIn("light_mode", av)
+        # Colour and brightness must also be present
         self.assertIn("light_colour", features)
         self.assertIn("light_brightness", features)
 

@@ -28,9 +28,6 @@ LIGHT_ENTITY_CATEGORY = "light"
 COLOR_MODES = {"hs", "rgb", "rgbw", "rgbww", "xy"}
 """HA color modes that map to Sber colour features."""
 
-WHITE_CHANNEL_MODES = {"rgbw", "rgbww", "white"}
-"""HA color modes that carry a dedicated white LED channel."""
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -160,12 +157,7 @@ class LightEntity(BaseEntity):
         features = [*super()._create_features_list(), "on_off"]
 
         if COLOR_MODES & set(self.supported_color_modes):
-            features += ["light_colour", "light_brightness"]
-            # light_mode (white / colour) only makes sense when the light
-            # has a real white path — CCT or a white channel. Pure RGB
-            # strips skip it (Sber's own UI hides the toggle for them).
-            if self._has_white_path:
-                features.append("light_mode")
+            features += ["light_colour", "light_mode", "light_brightness"]
         elif "brightness" in self.supported_color_modes:
             features.append("light_brightness")
         if "color_temp" in self.supported_color_modes:
@@ -187,8 +179,7 @@ class LightEntity(BaseEntity):
                 "integer_values": {"min": "100", "max": "900", "step": "1"},
             }
             allowed_values["light_colour"] = {"type": "COLOUR"}
-            if self._has_white_path:
-                allowed_values["light_mode"] = {"type": "ENUM", "enum_values": {"values": ["white", "colour"]}}
+            allowed_values["light_mode"] = {"type": "ENUM", "enum_values": {"values": ["white", "colour"]}}
         elif "brightness" in self.supported_color_modes:
             allowed_values["light_brightness"] = {
                 "type": "INTEGER",
@@ -219,19 +210,6 @@ class LightEntity(BaseEntity):
             }
         return {}
 
-    @property
-    def _has_white_path(self) -> bool:
-        """True if the light has a genuine white output.
-
-        A light has a "white path" when it supports colour temperature
-        (CCT) or carries a dedicated white LED channel. Only such lights
-        get the Sber ``light_mode`` (white / colour) feature — pure RGB
-        strips have no meaningful white mode (white is just desaturated
-        RGB), and the Sber app UI hides the toggle for them anyway.
-        """
-        modes = set(self.supported_color_modes)
-        return "color_temp" in modes or bool(WHITE_CHANNEL_MODES & modes)
-
     def _is_current_color_mode_colored(self) -> bool:
         """Check if the current color mode is a colored (non-white) mode.
 
@@ -255,7 +233,6 @@ class LightEntity(BaseEntity):
             make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
             make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
-        mode_advertised = "light_mode" in self.get_final_features_list()
 
         if self.current_sber_brightness != 0:
             states.append(make_state(SberFeature.LIGHT_BRIGHTNESS, make_integer_value(self.current_sber_brightness)))
@@ -275,15 +252,13 @@ class LightEntity(BaseEntity):
                         make_colour_value(current_color_sber[0], current_color_sber[1], current_color_sber[2]),
                     )
                 )
-                if mode_advertised:
-                    states.append(make_state(SberFeature.LIGHT_MODE, make_enum_value("colour")))
+                states.append(make_state(SberFeature.LIGHT_MODE, make_enum_value("colour")))
             else:
                 if self.current_sber_color_temp is not None:
                     states.append(
                         make_state(SberFeature.LIGHT_COLOUR_TEMP, make_integer_value(self.current_sber_color_temp))
                     )
-                if mode_advertised:
-                    states.append(make_state(SberFeature.LIGHT_MODE, make_enum_value("white")))
+                states.append(make_state(SberFeature.LIGHT_MODE, make_enum_value("white")))
 
         return {self.entity_id: {"states": states}}
 
