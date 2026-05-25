@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
 [![Tests](https://img.shields.io/badge/tests-1760+-brightgreen)](tests/hacs/)
 [![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions)
+[![Downloads](https://img.shields.io/github/downloads/dzerik/sber-mqtt-bridge/total.svg?label=Downloads)](https://github.com/dzerik/sber-mqtt-bridge/releases)
 
 **[English documentation](README_ENG.md)** | **[Документация (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)**
 
