@@ -1,0 +1,14 @@
+# Central pin file for CI-installed tools.
+# Consumed via:  uv pip install --constraint=.github/workflows/constraints.txt ...
+#
+# Adding a tool here pins its version across every CI job that uses
+# `--constraint=` against this file. Keep entries narrow and justified.
+
+# pytest-homeassistant-custom-component >= 0.13.317 requires Python >= 3.14,
+# which breaks the 3.13 leg of our matrix. 0.13.316 is the last release that
+# installs on both 3.13 and 3.14.
+pytest-homeassistant-custom-component==0.13.316
+
+# syrupy 5.x writes/reads __snapshots__/ (our committed location). syrupy 6.x
+# changes serializer behaviour; lock to 5.x until that migration is done.
+syrupy>=5.0,<6.0

@@ -3,5 +3,6 @@
   "render_readme": true,
   "homeassistant": "2025.1.0",
   "zip_release": true,
-  "filename": "sber_mqtt_bridge.zip"
+  "filename": "sber_mqtt_bridge.zip",
+  "hide_default_branch": true
 }

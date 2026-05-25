@@ -4,9 +4,18 @@ on:
   push:
     branches: [main, develop]
   pull_request:
+  # Nightly drift catcher — picks up breakage from new HA releases,
+  # plugin updates and OS-image rolls without waiting for a PR.
+  # Off-hour minute (17) keeps us out of the :00 thundering herd.
+  schedule:
+    - cron: "17 4 * * *"
 
 permissions:
   contents: read
+
+env:
+  UV_VERSION: "0.7.9"
+  UV_SYSTEM_PYTHON: 1
 
 jobs:
   lint:
@@ -17,8 +26,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
       - name: Install ruff
-        run: pip install ruff
+        run: uv pip install --constraint=.github/workflows/constraints.txt ruff
       - name: Ruff check
         run: ruff check custom_components/
       - name: Ruff format check
@@ -30,6 +43,7 @@ jobs:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ['3.13', '3.14']
     steps:
@@ -38,14 +52,29 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
       - name: Install dependencies
-        # pytest-homeassistant-custom-component is pinned because newer releases
-        # tighten lingering-task detection and force broad fixture rewrites
-        # across our integration tests. 0.13.323 matches the dev environment
-        # used to vet these tests locally.
+        # Tool pins live in .github/workflows/constraints.txt.
         run: |
-          pip install -e ".[dev]" 2>/dev/null || pip install -e .
-          pip install aiomqtt pytest pytest-asyncio "pytest-homeassistant-custom-component==0.13.316" pytest-cov "syrupy>=5.0,<6.0" pydantic ruff
+          uv pip install --constraint=.github/workflows/constraints.txt -e ".[dev]" 2>/dev/null \
+            || uv pip install --constraint=.github/workflows/constraints.txt -e .
+          uv pip install --constraint=.github/workflows/constraints.txt \
+            aiomqtt pytest pytest-asyncio pytest-cov pytest-xdist pytest-timeout \
+            pytest-homeassistant-custom-component syrupy pydantic ruff
       - name: Run tests
+        # -n auto      parallel across CPU cores (3× on GitHub runners)
+        # --timeout    kills hung tests instead of timing out the whole job
+        # --durations  surfaces the slowest 10 tests every run
         run: |
-          pytest tests/hacs/ -v -o asyncio_mode=auto --cov=custom_components/sber_mqtt_bridge --cov-report=term-missing --cov-report=xml -k "not test_config_flow"
+          pytest tests/hacs/ \
+            -o asyncio_mode=auto \
+            -n auto \
+            --timeout=30 \
+            --durations=10 \
+            --cov=custom_components/sber_mqtt_bridge \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            -k "not test_config_flow"

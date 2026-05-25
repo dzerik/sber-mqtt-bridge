@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  # Required by sigstore/gh-action-sigstore-python for keyless OIDC signing.
+  id-token: write
 
 jobs:
   release:
@@ -35,9 +37,19 @@ jobs:
           zip -r "${GITHUB_WORKSPACE}/sber_mqtt_bridge.zip" . \
             -x "*__pycache__*" "*.pyc" "*.pyo"
 
+      # Keyless signing via Sigstore (OIDC, no secrets).
+      # Produces sber_mqtt_bridge.zip.sigstore alongside the zip, which any
+      # downstream consumer can verify with `sigstore verify identity`.
+      - name: Sign release artifact (sigstore)
+        uses: sigstore/gh-action-sigstore-python@v3.0.1
+        with:
+          inputs: sber_mqtt_bridge.zip
+
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
-          files: sber_mqtt_bridge.zip
+          files: |
+            sber_mqtt_bridge.zip
+            sber_mqtt_bridge.zip.sigstore
           prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') || contains(github.ref_name, 'b1') || contains(github.ref_name, 'b2') || contains(github.ref_name, 'b3') || contains(github.ref_name, 'a1') || contains(github.ref_name, 'a2') || contains(github.ref_name, 'rc') }}
