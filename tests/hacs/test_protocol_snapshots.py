@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from syrupy.assertion import SnapshotAssertion
 
+from custom_components.sber_mqtt_bridge import sber_protocol
 from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
 from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
 from custom_components.sber_mqtt_bridge.sber_protocol import (
@@ -18,6 +20,27 @@ from custom_components.sber_mqtt_bridge.sber_protocol import (
     build_hub_device,
     build_states_list_json,
 )
+
+
+@pytest.fixture(autouse=True)
+def _pin_version_for_snapshots(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the hub-device version so snapshots don't drift on every release bump.
+
+    ``build_hub_device(version: str = VERSION, ...)`` binds ``VERSION`` to the
+    default argument at import time, so monkeypatching the module constant
+    has no effect. We wrap the function itself and force ``version="1.0.0"``,
+    which makes the hub descriptor's ``hw_version`` / ``sw_version`` stable
+    across patch/minor/major bumps. Without this the snapshot had to be
+    regenerated after every release — historically that was forgotten and CI
+    went red on each bump.
+    """
+    original = sber_protocol.build_hub_device
+
+    def _frozen(*args: object, **kwargs: object) -> dict:
+        kwargs.setdefault("version", "1.0.0")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(sber_protocol, "build_hub_device", _frozen)
 
 RELAY_ENTITY_DATA = {
     "entity_id": "switch.lamp",

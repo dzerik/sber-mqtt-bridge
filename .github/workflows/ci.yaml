@@ -39,9 +39,13 @@ jobs:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
       - name: Install dependencies
+        # pytest-homeassistant-custom-component is pinned because newer releases
+        # tighten lingering-task detection and force broad fixture rewrites
+        # across our integration tests. 0.13.323 matches the dev environment
+        # used to vet these tests locally.
         run: |
           pip install -e ".[dev]" 2>/dev/null || pip install -e .
-          pip install aiomqtt pytest pytest-asyncio pytest-homeassistant-custom-component pytest-cov syrupy pydantic ruff
+          pip install aiomqtt pytest pytest-asyncio "pytest-homeassistant-custom-component==0.13.323" pytest-cov syrupy pydantic ruff
       - name: Run tests
         run: |
           pytest tests/hacs/ -v -o asyncio_mode=auto --cov=custom_components/sber_mqtt_bridge --cov-report=term-missing --cov-report=xml -k "not test_config_flow"
