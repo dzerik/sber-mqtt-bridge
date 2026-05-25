@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.8] - 2026-05-25
+
+### Fixed
+
+- **Correlation Timeline: expanded group no longer collapses when a
+  new identical trace arrives.** Expansion state was keyed by
+  `trace_id`, which changes for each new trace; once a fresh
+  duplicate trace became the group's representative, its `trace_id`
+  had no entry in `_expanded` and the group rendered as closed even
+  though the user had just opened it. Expansion is now keyed by the
+  group's signature instead, so `×N` just keeps ticking up while the
+  expanded events stay visible. Stale keys are dropped on
+  `Clear Traces`.
+
+### Added
+
+- **`tools/bump_version.py`** — atomic version-bump script that
+  updates `pyproject.toml`, `manifest.json`, `sber_protocol.py`, and
+  `CHANGELOG.md` (`[Unreleased]` → `[X.Y.Z] - <date>` + new empty
+  `[Unreleased]`) in one go. Supports `patch` / `minor` / `major` /
+  explicit `X.Y.Z(b1|rc1|…)`, `--current`, `--dry-run`,
+  `--no-changelog`, `--date`. Fails fast if the four version
+  locations are out of sync at the start.
+
 ## [1.39.7] - 2026-05-25
 
 ### Added

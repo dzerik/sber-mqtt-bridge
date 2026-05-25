@@ -194,17 +194,17 @@ class SberTraces extends LitElement {
         <div class="trace-container">
           ${groups.length === 0
             ? html`<div class="empty">No traces yet. A trace is opened for every Sber command or HA state change.</div>`
-            : html`${groups.map((g) => this._renderTrace(g.trace, g.count))}`}
+            : html`${groups.map((g) => this._renderTrace(g.trace, g.count, g.sig))}`}
         </div>
       </div>
     `;
   }
 
-  _renderTrace(trace, count = 1) {
-    const open = !!this._expanded[trace.trace_id];
+  _renderTrace(trace, count = 1, expandKey = trace.trace_id) {
+    const open = !!this._expanded[expandKey];
     return html`
       <div class="trace trace-${trace.status}">
-        <div class="trace-header" @click=${() => this._toggle(trace.trace_id)}>
+        <div class="trace-header" @click=${() => this._toggle(expandKey)}>
           <span class="caret ${open ? "open" : ""}">&#9654;</span>
           <span class="status-badge status-${trace.status}">${STATUS_LABEL[trace.status] || trace.status}</span>
           <span class="trigger">${trace.trigger}</span>
