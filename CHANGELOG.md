@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.7] - 2026-05-25
+
+### Added
+
+- **HACS download counter wiring.** `hacs.json` now declares
+  `zip_release: true` with `filename: "sber_mqtt_bridge.zip"`, and the
+  release workflow builds and attaches that zip (content of
+  `custom_components/sber_mqtt_bridge/`, with `__pycache__/*.pyc/*.pyo`
+  excluded) to every GitHub Release. HACS counts asset downloads — old
+  releases (no zip asset) remain at zero; the counter starts moving
+  from this release onward. The workflow now also fails fast if the
+  pushed tag and `manifest.json` version drift apart.
+
+### Changed
+
+- **Correlation Timeline (DevTools).** The viewer now caps the local
+  history at the **250** most recent traces (older entries are
+  dropped from both snapshots and the live stream) and **collapses
+  consecutive identical traces** into a single row with an `×N`
+  badge. "Identical" compares everything the user sees — `trigger`,
+  `status`, `entity_ids`, and the `(type, entity_id, summary)` of each
+  event — but ignores `trace_id` and any timestamps. Expanding a
+  collapsed group shows the events of the most recent trace in it.
+
 ## [1.39.6] - 2026-05-16
 
 ### Released

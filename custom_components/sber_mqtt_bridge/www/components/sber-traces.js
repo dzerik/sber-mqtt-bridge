@@ -19,6 +19,8 @@ const STATUS_LABEL = {
   timeout: "Timeout",
 };
 
+const MAX_TRACES = 250;
+
 const EVENT_ARROW = {
   sber_command: "⬇",        // Sber → us
   ha_service_call: "→",     // us → HA
@@ -64,7 +66,7 @@ class SberTraces extends LitElement {
       this._unsub = await this.hass.connection.subscribeMessage(
         (event) => {
           if (event.snapshot) {
-            this._traces = event.snapshot;
+            this._traces = event.snapshot.slice(-MAX_TRACES);
           } else if (event.trace) {
             this._applyLiveUpdate(event.kind, event.trace);
           }
@@ -86,7 +88,10 @@ class SberTraces extends LitElement {
   _applyLiveUpdate(kind, trace) {
     const existing = this._traces.findIndex((t) => t.trace_id === trace.trace_id);
     if (existing === -1) {
-      this._traces = [...this._traces, trace];
+      const appended = [...this._traces, trace];
+      this._traces = appended.length > MAX_TRACES
+        ? appended.slice(-MAX_TRACES)
+        : appended;
       return;
     }
     const next = [...this._traces];
@@ -142,8 +147,37 @@ class SberTraces extends LitElement {
     return "";
   }
 
+  _traceSignature(t) {
+    const events = (t.events || []).map((ev) => [
+      ev.type,
+      ev.entity_id || "",
+      this._eventSummary(ev),
+    ]);
+    return JSON.stringify({
+      trigger: t.trigger || "",
+      status: t.status || "",
+      entity_ids: t.entity_ids || [],
+      events,
+    });
+  }
+
+  _groupTraces(traces) {
+    const groups = [];
+    for (const t of traces) {
+      const sig = this._traceSignature(t);
+      const last = groups[groups.length - 1];
+      if (last && last.sig === sig) {
+        last.count += 1;
+        continue;
+      }
+      groups.push({ trace: t, sig, count: 1 });
+    }
+    return groups;
+  }
+
   render() {
     const traces = [...this._traces].reverse(); // newest first
+    const groups = this._groupTraces(traces);
     return html`
       <div class="section">
         <div class="section-header">
@@ -158,15 +192,15 @@ class SberTraces extends LitElement {
         </div>
         ${this._error ? html`<div class="error-text">${this._error}</div>` : ""}
         <div class="trace-container">
-          ${traces.length === 0
+          ${groups.length === 0
             ? html`<div class="empty">No traces yet. A trace is opened for every Sber command or HA state change.</div>`
-            : html`${traces.map((t) => this._renderTrace(t))}`}
+            : html`${groups.map((g) => this._renderTrace(g.trace, g.count))}`}
         </div>
       </div>
     `;
   }
 
-  _renderTrace(trace) {
+  _renderTrace(trace, count = 1) {
     const open = !!this._expanded[trace.trace_id];
     return html`
       <div class="trace trace-${trace.status}">
@@ -175,7 +209,10 @@ class SberTraces extends LitElement {
           <span class="status-badge status-${trace.status}">${STATUS_LABEL[trace.status] || trace.status}</span>
           <span class="trigger">${trace.trigger}</span>
           <span class="entities">${trace.entity_ids.join(", ") || "(no entity)"}</span>
-          <span class="counts">${trace.events.length} ev</span>
+          <span class="counts">
+            ${count > 1 ? html`<span class="dup-badge" title="${count} identical traces collapsed">×${count}</span>` : ""}
+            ${trace.events.length} ev
+          </span>
           <span class="time">${this._formatTime(trace.started_at)}</span>
         </div>
         ${open ? html`
@@ -269,7 +306,16 @@ class SberTraces extends LitElement {
       .status-timeout { background: rgba(255, 152, 0, 0.15); color: var(--warning-color, #ff9800); }
       .trigger { color: var(--secondary-text-color); font-family: monospace; font-size: 0.85em; }
       .entities { color: var(--primary-text-color); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .counts { color: var(--secondary-text-color); font-size: 0.8em; text-align: right; }
+      .counts { color: var(--secondary-text-color); font-size: 0.8em; text-align: right; display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+      .dup-badge {
+        background: var(--secondary-background-color);
+        border: 1px solid var(--divider-color);
+        color: var(--primary-text-color);
+        padding: 1px 6px;
+        border-radius: 10px;
+        font-size: 0.9em;
+        font-weight: 600;
+      }
       .time { color: var(--secondary-text-color); font-family: monospace; font-size: 0.8em; text-align: right; }
       .event-table {
         width: 100%;
