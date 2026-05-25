@@ -3,8 +3,10 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 [![GitHub Release](https://img.shields.io/github/v/release/dzerik/sber-mqtt-bridge)](https://github.com/dzerik/sber-mqtt-bridge/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
-[![Tests](https://img.shields.io/badge/tests-1760+-brightgreen)](tests/hacs/)
+[![Tests](https://img.shields.io/badge/tests-1900+-brightgreen)](tests/hacs/)
 [![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yaml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions/workflows/ci.yaml)
+[![HACS Validation](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/hacs.yml?label=HACS%20validation)](https://github.com/dzerik/sber-mqtt-bridge/actions/workflows/hacs.yml)
+[![Hassfest](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/hassfest.yml?label=Hassfest)](https://github.com/dzerik/sber-mqtt-bridge/actions/workflows/hassfest.yml)
 [![Downloads](https://img.shields.io/github/downloads/dzerik/sber-mqtt-bridge/total?color=41BDF5&label=downloads)](https://github.com/dzerik/sber-mqtt-bridge/releases)
 
 **[Документация на русском / Russian documentation](README.md)** | **[Documentation (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)**
