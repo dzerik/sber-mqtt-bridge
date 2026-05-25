@@ -4,14 +4,14 @@
 [![GitHub Release](https://img.shields.io/github/v/release/dzerik/sber-mqtt-bridge)](https://github.com/dzerik/sber-mqtt-bridge/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
 [![Tests](https://img.shields.io/badge/tests-1760+-brightgreen)](tests/hacs/)
-[![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions)
-[![Downloads](https://img.shields.io/github/downloads/dzerik/sber-mqtt-bridge/total.svg?label=Downloads)](https://github.com/dzerik/sber-mqtt-bridge/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/dzerik/sber-mqtt-bridge/ci.yaml?label=CI)](https://github.com/dzerik/sber-mqtt-bridge/actions/workflows/ci.yaml)
+[![Downloads](https://img.shields.io/github/downloads/dzerik/sber-mqtt-bridge/total?color=41BDF5&label=downloads)](https://github.com/dzerik/sber-mqtt-bridge/releases)
 
 **[Документация на русском / Russian documentation](README.md)** | **[Documentation (GitHub Pages)](https://dzerik.github.io/sber-mqtt-bridge/)**
 
 > [!IMPORTANT]
 > **🧪 PUBLIC TESTING — Testers wanted!**
->
+> 
 > The project has entered **public testing**. Core functionality is stable, but the
 > diversity of real-world Home Assistant devices is enormous, and we need your help
 > to uncover edge cases and polish the mapping.
