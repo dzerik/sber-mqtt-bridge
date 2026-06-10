@@ -41,7 +41,7 @@ jobs:
       # Produces sber_mqtt_bridge.zip.sigstore alongside the zip, which any
       # downstream consumer can verify with `sigstore verify identity`.
       - name: Sign release artifact (sigstore)
-        uses: sigstore/gh-action-sigstore-python@v3.0.1
+        uses: sigstore/gh-action-sigstore-python@v3.3.0
         with:
           inputs: sber_mqtt_bridge.zip
 
