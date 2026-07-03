@@ -45,6 +45,16 @@ class SensorTempEntity(SimpleReadOnlySensor):
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update temperature and air pressure values.
 
+        When the HA sensor reports Fahrenheit (``unit_of_measurement == "°F"``),
+        the incoming value is converted to Celsius before storage. Sber's
+        ``temperature`` feature is always transmitted as ``°C × 10`` on the
+        wire (see
+        https://developers.sber.ru/docs/ru/smarthome/c2c/temperature —
+        "The 'integer_value' should be set to the temperature multiplied
+        by 10 (e.g., 220 for 22 degrees Celsius)"); ``temp_unit_view`` is
+        a display-only hint. Without conversion, ``72°F`` would ship as
+        ``720`` and be decoded as ``72°C``.
+
         Args:
             ha_state: HA state dict with 'state' containing the temperature reading.
                 Attributes may include 'pressure' for air pressure.
@@ -58,6 +68,9 @@ class SensorTempEntity(SimpleReadOnlySensor):
         attrs = ha_state.get("attributes", {})
         unit = attrs.get("unit_of_measurement", "")
         self._temp_unit = "f" if unit == "°F" else "c"
+        if self._temp_unit == "f":
+            # Sber wire spec is °C × 10; convert Fahrenheit → Celsius.
+            self.temperature = (self.temperature - 32.0) * 5.0 / 9.0
         pressure = attrs.get("pressure")
         if pressure is not None:
             try:

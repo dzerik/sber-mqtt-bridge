@@ -262,7 +262,12 @@ class TestTempUnitView:
         assert e._temp_unit == "c"
 
     def test_temp_unit_from_fill_by_ha_state_fahrenheit(self):
-        """fill_by_ha_state with °F unit sets temp_unit to 'f'."""
+        """fill_by_ha_state with °F unit sets temp_unit to 'f' AND converts to °C.
+
+        Sber's wire spec is °C × 10 for the ``temperature`` feature; the
+        Fahrenheit value must be converted before storage so downstream
+        emission produces the correct integer.  ``72°F ≈ 22.22°C``.
+        """
         e = SensorAirEntity(ENTITY_DATA)
         e.fill_by_ha_state({
             "state": "72",
@@ -271,7 +276,7 @@ class TestTempUnitView:
                 "unit_of_measurement": "°F",
             },
         })
-        assert e._temperature == pytest.approx(72.0)
+        assert e._temperature == pytest.approx((72 - 32) * 5 / 9)
         assert e._temp_unit == "f"
 
     def test_temp_unit_from_update_linked_data_celsius(self):
@@ -285,7 +290,11 @@ class TestTempUnitView:
         assert e._temp_unit == "c"
 
     def test_temp_unit_from_update_linked_data_fahrenheit(self):
-        """update_linked_data with °F unit sets temp_unit to 'f'."""
+        """update_linked_data with °F unit sets temp_unit to 'f' AND converts to °C.
+
+        ``68°F == 20.0°C`` exactly, which is a nice round check that the
+        Fahrenheit-to-Celsius conversion is applied before storage.
+        """
         e = SensorAirEntity(ENTITY_DATA)
         e.update_linked_data("temperature", {
             "state": "68",
@@ -294,7 +303,7 @@ class TestTempUnitView:
                 "unit_of_measurement": "°F",
             },
         })
-        assert e._temperature == pytest.approx(68.0)
+        assert e._temperature == pytest.approx(20.0)
         assert e._temp_unit == "f"
 
     def test_temp_unit_view_in_features_when_temperature_set(self):
@@ -346,4 +355,112 @@ class TestTempUnitView:
             (s for s in states if s["key"] == "temp_unit_view"), None
         )
         assert temp_unit_entry is not None
+        assert temp_unit_entry["value"]["enum_value"] == "f"
+
+
+class TestFahrenheitConversionOnWire:
+    """Lock the semantic contract established by Sber's spec for
+    ``temperature``: the ``integer_value`` is always temperature ×10 in
+    **Celsius**, and ``temp_unit_view`` is a display-only hint that does
+    NOT reinterpret the numeric value.
+
+    Source: https://developers.sber.ru/docs/ru/smarthome/c2c/temperature
+    ("The 'integer_value' should be set to the temperature multiplied
+    by 10 (e.g., 220 for 22 degrees Celsius).")
+
+    Regression guard: before this fix, a 72°F reading was emitted as
+    ``720`` on the wire, which Sber decoded as 72°C — a ~50°C misread.
+    """
+
+    def _emit_temperature(self, entity: SensorAirEntity) -> int:
+        entity.is_filled_by_state = True
+        temp_entry = next(
+            s for s in entity.to_sber_current_state()[entity.entity_id]["states"]
+            if s["key"] == "temperature"
+        )
+        # Wire type is INTEGER; integer_value is serialised as str.
+        return int(temp_entry["value"]["integer_value"])
+
+    def test_primary_fahrenheit_wire_value_is_celsius_times_ten(self):
+        """72°F primary fill → wire = 222 (22.2°C × 10, rounded)."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state({
+            "state": "72",
+            "attributes": {
+                "device_class": "temperature",
+                "unit_of_measurement": "°F",
+            },
+        })
+        wire = self._emit_temperature(e)
+        # 72°F = 22.222…°C  → round(22.222… × 10) = 222
+        assert wire == 222, (
+            f"Expected wire=222 (22.2°C × 10); got {wire}. "
+            "See https://developers.sber.ru/docs/ru/smarthome/c2c/temperature"
+        )
+
+    def test_linked_fahrenheit_wire_value_is_celsius_times_ten(self):
+        """68°F via linked companion → wire = 200 (20.0°C × 10)."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data("temperature", {
+            "state": "68",
+            "attributes": {"unit_of_measurement": "°F"},
+        })
+        wire = self._emit_temperature(e)
+        # 68°F = exactly 20.0°C → 200
+        assert wire == 200, (
+            f"Expected wire=200 (20.0°C × 10); got {wire}. "
+            "See https://developers.sber.ru/docs/ru/smarthome/c2c/temperature"
+        )
+
+    def test_celsius_pass_through_unchanged(self):
+        """Celsius input already matches the wire spec — no conversion."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state({
+            "state": "21.5",
+            "attributes": {
+                "device_class": "temperature",
+                "unit_of_measurement": "°C",
+            },
+        })
+        wire = self._emit_temperature(e)
+        assert wire == 215
+
+    def test_missing_unit_defaults_to_celsius(self):
+        """No ``unit_of_measurement`` attribute → assume Celsius (HA default)."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state({
+            "state": "20",
+            "attributes": {"device_class": "temperature"},
+        })
+        wire = self._emit_temperature(e)
+        assert wire == 200
+        assert e._temp_unit == "c"
+
+    def test_negative_fahrenheit_converts_below_zero_celsius(self):
+        """-4°F = -20°C ; wire = -200.  Guards against sign errors."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state({
+            "state": "-4",
+            "attributes": {
+                "device_class": "temperature",
+                "unit_of_measurement": "°F",
+            },
+        })
+        wire = self._emit_temperature(e)
+        assert wire == -200
+
+    def test_temp_unit_view_still_carries_display_hint(self):
+        """Conversion happens but ``temp_unit_view`` remains ``"f"`` so
+        the device screen still shows Fahrenheit."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e.fill_by_ha_state({
+            "state": "68",
+            "attributes": {
+                "device_class": "temperature",
+                "unit_of_measurement": "°F",
+            },
+        })
+        states = e.to_sber_current_state()[e.entity_id]["states"]
+        temp_unit_entry = next(s for s in states if s["key"] == "temp_unit_view")
         assert temp_unit_entry["value"]["enum_value"] == "f"

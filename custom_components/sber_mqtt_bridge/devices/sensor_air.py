@@ -41,6 +41,29 @@ _LOGGER = logging.getLogger(__name__)
 SENSOR_AIR_CATEGORY = "sensor_air"
 """Sber device category for the air-quality sensor entity."""
 
+
+def _fahrenheit_to_celsius(value: float) -> float:
+    """Convert Fahrenheit to Celsius.
+
+    Sber's ``temperature`` feature is always transmitted as
+    ``°C × 10`` on the wire (see
+    https://developers.sber.ru/docs/ru/smarthome/c2c/temperature —
+    "The 'integer_value' should be set to the temperature multiplied
+    by 10 (e.g., 220 for 22 degrees Celsius)"). ``temp_unit_view`` is
+    a display-only hint on the device screen and does NOT reinterpret
+    the numeric value. HA sensors that report Fahrenheit therefore need
+    an explicit °F→°C conversion before scaling, otherwise a value like
+    ``72°F`` becomes ``720`` on the wire and Sber decodes it as
+    ``72.0°C`` (a ~50°C misread).
+
+    Args:
+        value: Fahrenheit temperature.
+
+    Returns:
+        Celsius temperature.
+    """
+    return (value - 32.0) * 5.0 / 9.0
+
 # Map: HA device_class -> (internal field, parser). Used to route the
 # primary HA state (fill_by_ha_state) into the matching measurement field.
 _DEVICE_CLASS_ROUTING: dict[str, tuple[str, type]] = {
@@ -188,11 +211,14 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
             return
         field, parser = routing
         value = _parse_state(ha_state.get("state"), parser)
-        setattr(self, field, value)
-        # Track temperature unit for temp_unit_view emission.
+        # Track temperature unit for temp_unit_view emission + Fahrenheit conversion.
         if device_class == "temperature":
             unit = attrs.get("unit_of_measurement", "")
             self._temp_unit = "f" if unit == "°F" else "c"
+            if value is not None and self._temp_unit == "f":
+                # Sber wire spec is °C × 10; convert before storing.
+                value = _fahrenheit_to_celsius(float(value))
+        setattr(self, field, value)
 
     def update_linked_data(self, role: str, ha_state: dict) -> None:
         """Fill a specific measurement (or battery/signal) from a linked HA sensor.
@@ -207,12 +233,15 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
             return
         field, parser = routing
         value = _parse_state(ha_state.get("state"), parser)
-        setattr(self, field, value)
-        # Track temperature unit for temp_unit_view emission.
+        # Track temperature unit for temp_unit_view emission + Fahrenheit conversion.
         if role == "temperature":
             attrs = ha_state.get("attributes") or {}
             unit = attrs.get("unit_of_measurement", "")
             self._temp_unit = "f" if unit == "°F" else "c"
+            if value is not None and self._temp_unit == "f":
+                # Sber wire spec is °C × 10; convert before storing.
+                value = _fahrenheit_to_celsius(float(value))
+        setattr(self, field, value)
 
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list including populated measurements and battery/signal.
