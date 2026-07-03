@@ -196,6 +196,27 @@ ROLE_TEMPERATURE = LinkableRole("temperature", frozenset({"sensor"}), frozenset(
 ROLE_HUMIDITY = LinkableRole("humidity", frozenset({"sensor"}), frozenset({"humidity"}))
 """Humidity sensor (sensor domain, humidity device_class)."""
 
+ROLE_CO2 = LinkableRole("co2", frozenset({"sensor"}), frozenset({"carbon_dioxide"}))
+"""Carbon-dioxide concentration link (Sber ``sensor_air.co2``, ppm)."""
+
+ROLE_PM1 = LinkableRole("pm1", frozenset({"sensor"}), frozenset({"pm1"}))
+"""PM1.0 particulate matter link (Sber ``sensor_air.pm1_0``, µg/m³)."""
+
+ROLE_PM25 = LinkableRole("pm25", frozenset({"sensor"}), frozenset({"pm25"}))
+"""PM2.5 particulate matter link (Sber ``sensor_air.pm2_5``, µg/m³)."""
+
+ROLE_PM10 = LinkableRole("pm10", frozenset({"sensor"}), frozenset({"pm10"}))
+"""PM10 particulate matter link (Sber ``sensor_air.pm10``, µg/m³)."""
+
+ROLE_TVOC = LinkableRole("tvoc", frozenset({"sensor"}), frozenset({"volatile_organic_compounds"}))
+"""TVOC concentration link (Sber ``sensor_air.tvoc_float``, mg/m³)."""
+
+ROLE_HCHO = LinkableRole("hcho", frozenset({"sensor"}), frozenset({"volatile_organic_compounds_parts"}))
+"""Formaldehyde link (Sber ``sensor_air.hcho_float``, mg/m³). HA has no
+dedicated device_class for formaldehyde; the closest match is
+``volatile_organic_compounds_parts``. Users with a distinct HCHO sensor
+will link it manually via the wizard."""
+
 SENSOR_LINK_ROLES: tuple[LinkableRole, ...] = (ROLE_BATTERY, ROLE_BATTERY_LOW, ROLE_SIGNAL)
 """Common linkable roles for battery-powered devices (sensors, covers, valves)."""
 
