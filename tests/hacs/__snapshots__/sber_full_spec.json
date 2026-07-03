@@ -643,6 +643,54 @@
         "online"
       ]
     },
+    "sensor_air": {
+      "all_features": [
+        "battery_low_power",
+        "battery_percentage",
+        "co2",
+        "hcho_float",
+        "humidity",
+        "online",
+        "pm10",
+        "pm1_0",
+        "pm2_5",
+        "signal_strength",
+        "temp_unit_view",
+        "temperature",
+        "tvoc_float"
+      ],
+      "allowed_values": {},
+      "category": "sensor_air",
+      "conditional": [
+        "co2",
+        "hcho_float",
+        "humidity",
+        "pm10",
+        "pm1_0",
+        "pm2_5",
+        "temperature",
+        "tvoc_float"
+      ],
+      "dependencies": {},
+      "features": [
+        "battery_low_power",
+        "battery_percentage",
+        "co2",
+        "hcho_float",
+        "humidity",
+        "online",
+        "pm10",
+        "pm1_0",
+        "pm2_5",
+        "signal_strength",
+        "temp_unit_view",
+        "temperature",
+        "tvoc_float"
+      ],
+      "obligatory": [
+        "online"
+      ]
+    },
     "sensor_door": {
       "all_features": [
         "battery_low_power",
@@ -1105,6 +1153,7 @@
       "used_in_categories": [
         "curtain",
         "scenario_button",
+        "sensor_air",
         "sensor_door",
         "sensor_gas",
         "sensor_pir",
@@ -1122,6 +1171,7 @@
       "used_in_categories": [
         "curtain",
         "scenario_button",
+        "sensor_air",
         "sensor_door",
         "sensor_gas",
         "sensor_pir",
@@ -1299,7 +1349,9 @@
       "name": "co2",
       "range": "0, 10000",
       "type": "INTEGER",
-      "used_in_categories": []
+      "used_in_categories": [
+        "sensor_air"
+      ]
     },
     "current": {
       "name": "current",
@@ -1346,7 +1398,9 @@
       "name": "hcho_float",
       "range": "0, 1.999",
       "type": "FLOAT",
-      "used_in_categories": []
+      "used_in_categories": [
+        "sensor_air"
+      ]
     },
     "humidity": {
       "name": "humidity",
@@ -1355,6 +1409,7 @@
       "used_in_categories": [
         "hvac_ac",
         "hvac_humidifier",
+        "sensor_air",
         "sensor_temp"
       ]
     },
@@ -1655,6 +1710,7 @@
         "light",
         "relay",
         "scenario_button",
+        "sensor_air",
         "sensor_door",
         "sensor_gas",
         "sensor_pir",
@@ -1777,19 +1833,25 @@
       "name": "pm10",
       "range": "0, 1000",
       "type": "INTEGER",
-      "used_in_categories": []
+      "used_in_categories": [
+        "sensor_air"
+      ]
     },
     "pm1_0": {
       "name": "pm1_0",
       "range": "0, 500",
       "type": "INTEGER",
-      "used_in_categories": []
+      "used_in_categories": [
+        "sensor_air"
+      ]
     },
     "pm2_5": {
       "name": "pm2_5",
       "range": "0, 500",
       "type": "INTEGER",
-      "used_in_categories": []
+      "used_in_categories": [
+        "sensor_air"
+      ]
     },
     "power": {
       "name": "power",
@@ -1827,6 +1889,7 @@
         "curtain",
         "gate",
         "scenario_button",
+        "sensor_air",
         "sensor_door",
         "sensor_gas",
         "sensor_pir",
@@ -1866,6 +1929,7 @@
       "range": null,
       "type": "ENUM",
       "used_in_categories": [
+        "sensor_air",
         "sensor_temp"
       ]
     },
@@ -1879,6 +1943,7 @@
         "hvac_heater",
         "hvac_radiator",
         "hvac_underfloor_heating",
+        "sensor_air",
         "sensor_temp"
       ]
     },
@@ -1886,7 +1951,9 @@
       "name": "tvoc_float",
       "range": "0, 9.999",
       "type": "FLOAT",
-      "used_in_categories": []
+      "used_in_categories": [
+        "sensor_air"
+      ]
     },
     "unlock": {
       "name": "unlock",
@@ -1962,6 +2029,6 @@
       ]
     }
   },
-  "generated_at": "2026-07-03T13:58:58.047793+00:00",
+  "generated_at": "2026-07-03T14:23:03.048208+00:00",
   "source": "https://developers.sber.ru/docs/ru/smarthome/c2c"
 }

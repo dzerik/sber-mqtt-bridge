@@ -5,7 +5,7 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-07-03T13:58:58.047793+00:00
+Spec generated at: 2026-07-03T14:23:03.048208+00:00
 """
 
 from __future__ import annotations
@@ -139,6 +139,23 @@ CATEGORY_REFERENCE_FEATURES: dict[str, frozenset[str]] = {
             "button_top_right_event",
             "online",
             "signal_strength",
+        }
+    ),
+    "sensor_air": frozenset(
+        {
+            "battery_low_power",
+            "battery_percentage",
+            "co2",
+            "hcho_float",
+            "humidity",
+            "online",
+            "pm10",
+            "pm1_0",
+            "pm2_5",
+            "signal_strength",
+            "temp_unit_view",
+            "temperature",
+            "tvoc_float",
         }
     ),
     "sensor_door": frozenset(

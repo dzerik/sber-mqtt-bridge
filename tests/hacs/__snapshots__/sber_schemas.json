@@ -642,6 +642,54 @@
       "online"
     ]
   },
+  "sensor_air": {
+    "all_features": [
+      "battery_low_power",
+      "battery_percentage",
+      "co2",
+      "hcho_float",
+      "humidity",
+      "online",
+      "pm10",
+      "pm1_0",
+      "pm2_5",
+      "signal_strength",
+      "temp_unit_view",
+      "temperature",
+      "tvoc_float"
+    ],
+    "allowed_values": {},
+    "category": "sensor_air",
+    "conditional": [
+      "co2",
+      "hcho_float",
+      "humidity",
+      "pm10",
+      "pm1_0",
+      "pm2_5",
+      "temperature",
+      "tvoc_float"
+    ],
+    "dependencies": {},
+    "features": [
+      "battery_low_power",
+      "battery_percentage",
+      "co2",
+      "hcho_float",
+      "humidity",
+      "online",
+      "pm10",
+      "pm1_0",
+      "pm2_5",
+      "signal_strength",
+      "temp_unit_view",
+      "temperature",
+      "tvoc_float"
+    ],
+    "obligatory": [
+      "online"
+    ]
+  },
   "sensor_door": {
     "all_features": [
       "battery_low_power",
