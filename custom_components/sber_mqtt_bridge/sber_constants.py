@@ -67,7 +67,12 @@ class SberFeature(StrEnum):
 
     # Sensors
     AIR_PRESSURE = "air_pressure"
+    CO2 = "co2"
+    HCHO_FLOAT = "hcho_float"
     PIR = "pir"
+    PM1_0 = "pm1_0"
+    PM2_5 = "pm2_5"
+    PM10 = "pm10"
     DOORCONTACT_STATE = "doorcontact_state"
     WATER_LEAK_STATE = "water_leak_state"
     SMOKE_STATE = "smoke_state"
@@ -76,6 +81,7 @@ class SberFeature(StrEnum):
     ALARM_MUTE = "alarm_mute"
     SENSOR_SENSITIVE = "sensor_sensitive"
     TEMP_UNIT_VIEW = "temp_unit_view"
+    TVOC_FLOAT = "tvoc_float"
 
     # Battery / Signal
     BATTERY_PERCENTAGE = "battery_percentage"
