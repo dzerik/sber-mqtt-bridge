@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.40.0] - 2026-07-03
+
+### Added
+
+- **New Sber category `sensor_air`** — air-quality sensor with up to 8
+  measurements per device (CO₂, PM1/2.5/10, TVOC, formaldehyde,
+  temperature, humidity). Uses Entity Linking to bundle multiple HA
+  `sensor.*` entities into one Sber device.
+- **`hvac_water_percentage`** — humidifiers now report tank fullness
+  via the HA `water_level` attribute.
+
+### Changed
+
+- **Relaxed obligatory features** for `sensor_temp`, `curtain`, `gate`,
+  `valve`, `window_blind`. The 2026-05 Sber spec reclassified
+  `humidity`/`temperature` (for sensor_temp) and `open_percentage`/
+  `open_set` (for covers) from strict-mandatory (`✔︎`) to conditional
+  (`✔︎*`, "at least one of these"). Our local validator no longer
+  false-rejects devices that only expose the other member of the
+  conditional group — e.g. a temperature-only HA sensor without
+  humidity is now accepted.
+- **Scraper (`tools/fetch_sber_schemas.py`)** hardened: inverse-index
+  for feature↔category links (replaces fragile text parsing), split
+  ✔︎ vs ✔︎* marker, Phase 0b browserless discovery via Docusaurus
+  webpack manifest. Snapshots regenerated with correct data.
+
 ## [1.39.8] - 2026-05-25
 
 ### Fixed

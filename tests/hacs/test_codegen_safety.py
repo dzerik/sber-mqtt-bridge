@@ -45,8 +45,9 @@ class TestGeneratedArtifacts:
         invalid = [(k, v) for k, v in FEATURE_TYPES.items() if v not in valid]
         assert not invalid, f"features with invalid types: {invalid}"
 
-    def test_category_reference_features_covers_all_28(self):
-        assert len(CATEGORY_REFERENCE_FEATURES) == 28
+    def test_category_reference_features_covers_all_29(self):
+        # 28 original Sber categories + sensor_air (added v1.40.0).
+        assert len(CATEGORY_REFERENCE_FEATURES) == 29
 
     def test_every_category_has_online_in_reference(self):
         for cat, features in CATEGORY_REFERENCE_FEATURES.items():
@@ -125,7 +126,8 @@ class TestObligatoryFeatures:
     """CATEGORY_OBLIGATORY_FEATURES + missing_obligatory_features() correctness."""
 
     def test_obligatory_covers_all_categories(self):
-        assert len(CATEGORY_OBLIGATORY_FEATURES) == 28
+        # 28 original Sber categories + sensor_air (added v1.40.0).
+        assert len(CATEGORY_OBLIGATORY_FEATURES) == 29
 
     def test_online_is_obligatory_almost_everywhere(self):
         """Every category except possibly exotic ones must have online obligatory."""
