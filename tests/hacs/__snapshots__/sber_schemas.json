@@ -29,6 +29,10 @@
       }
     },
     "category": "curtain",
+    "conditional": [
+      "open_percentage",
+      "open_set"
+    ],
     "dependencies": {},
     "features": [
       "battery_low_power",
@@ -45,8 +49,6 @@
     ],
     "obligatory": [
       "online",
-      "open_percentage",
-      "open_set",
       "open_state"
     ]
   },
@@ -78,6 +80,10 @@
       }
     },
     "category": "gate",
+    "conditional": [
+      "open_percentage",
+      "open_set"
+    ],
     "dependencies": {},
     "features": [
       "online",
@@ -94,8 +100,6 @@
     ],
     "obligatory": [
       "online",
-      "open_percentage",
-      "open_set",
       "open_state"
     ]
   },
@@ -105,6 +109,7 @@
     ],
     "allowed_values": {},
     "category": "hub",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "online"
@@ -142,6 +147,7 @@
       }
     },
     "category": "hvac_ac",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "hvac_air_flow_direction",
@@ -186,6 +192,7 @@
       }
     },
     "category": "hvac_air_purifier",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "hvac_air_flow_power",
@@ -222,6 +229,7 @@
       }
     },
     "category": "hvac_boiler",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "hvac_temp_set",
@@ -257,6 +265,7 @@
       }
     },
     "category": "hvac_fan",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "hvac_air_flow_power",
@@ -292,6 +301,7 @@
       }
     },
     "category": "hvac_heater",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "hvac_air_flow_power",
@@ -336,6 +346,7 @@
       }
     },
     "category": "hvac_humidifier",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "humidity",
@@ -373,6 +384,7 @@
       }
     },
     "category": "hvac_radiator",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "hvac_temp_set",
@@ -405,6 +417,7 @@
       }
     },
     "category": "hvac_underfloor_heating",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "hvac_temp_set",
@@ -427,6 +440,7 @@
     ],
     "allowed_values": {},
     "category": "intercom",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "incoming_call",
@@ -459,6 +473,7 @@
       }
     },
     "category": "kettle",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "child_lock",
@@ -494,6 +509,7 @@
       }
     },
     "category": "led_strip",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "light_brightness",
@@ -529,6 +545,7 @@
       }
     },
     "category": "light",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "light_brightness",
@@ -562,6 +579,7 @@
       }
     },
     "category": "relay",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "current",
@@ -611,6 +629,7 @@
       }
     },
     "category": "scenario_button",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "battery_percentag",
@@ -645,6 +664,7 @@
       }
     },
     "category": "sensor_door",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "battery_low_power",
@@ -682,6 +702,7 @@
       }
     },
     "category": "sensor_gas",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "alarm_mute",
@@ -718,6 +739,7 @@
       }
     },
     "category": "sensor_pir",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "battery_low_power",
@@ -753,6 +775,7 @@
       }
     },
     "category": "sensor_smoke",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "alarm_mute",
@@ -791,6 +814,10 @@
       }
     },
     "category": "sensor_temp",
+    "conditional": [
+      "humidity",
+      "temperature"
+    ],
     "dependencies": {},
     "features": [
       "air_pressure",
@@ -804,9 +831,7 @@
       "temperature"
     ],
     "obligatory": [
-      "humidity",
-      "online",
-      "temperature"
+      "online"
     ]
   },
   "sensor_water_leak": {
@@ -829,6 +854,7 @@
       }
     },
     "category": "sensor_water_leak",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "battery_low_power",
@@ -862,6 +888,7 @@
       }
     },
     "category": "socket",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "child_lock",
@@ -908,6 +935,7 @@
       }
     },
     "category": "tv",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "channel",
@@ -950,6 +978,7 @@
       }
     },
     "category": "vacuum_cleaner",
+    "conditional": [],
     "dependencies": {},
     "features": [
       "battery_percentage",
@@ -986,6 +1015,10 @@
       }
     },
     "category": "valve",
+    "conditional": [
+      "open_percentage",
+      "open_set"
+    ],
     "dependencies": {},
     "features": [
       "battery_low_power",
@@ -997,8 +1030,6 @@
     ],
     "obligatory": [
       "online",
-      "open_percentage",
-      "open_set",
       "open_state"
     ]
   },
@@ -1027,6 +1058,10 @@
       }
     },
     "category": "window_blind",
+    "conditional": [
+      "open_percentage",
+      "open_set"
+    ],
     "dependencies": {},
     "features": [
       "battery_low_power",
@@ -1040,8 +1075,6 @@
     ],
     "obligatory": [
       "online",
-      "open_percentage",
-      "open_set",
       "open_state"
     ]
   }
