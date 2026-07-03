@@ -121,18 +121,5 @@
       "title": "Devices excluded from Sber config",
       "description": "{count} device(s) failed protocol validation and were NOT published to Sber cloud. Fix the device configuration or report a bug. Affected: {entities}"
     }
-  },
-  "category_labels": {
-    "Temperature": "Temperature sensor",
-    "Humidity": "Humidity sensor",
-    "Air quality": "Air quality sensor"
-  },
-  "role_labels": {
-    "co2": "CO₂",
-    "pm1": "PM1.0",
-    "pm25": "PM2.5",
-    "pm10": "PM10",
-    "tvoc": "TVOC",
-    "hcho": "Formaldehyde"
   }
 }
