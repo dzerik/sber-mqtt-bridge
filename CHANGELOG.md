@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.40.1] - 2026-07-03
+
+### Fixed
+
+- **Fahrenheit → Celsius conversion for `SensorAirEntity` and
+  `SensorTempEntity`.** Sber's `temperature` feature is transmitted as
+  `°C × 10` on the wire per official docs; `temp_unit_view` is a
+  display-only hint that does NOT reinterpret the numeric value. Both
+  classes were previously storing the raw HA reading regardless of
+  unit, so a HA sensor reporting `72°F` shipped as `720` on the wire
+  and Sber cloud decoded it as `72.0°C` — a ~50°C misread that
+  silently poisoned the room's climate telemetry. Now `(f − 32) × 5/9`
+  is applied when `unit_of_measurement == "°F"` before wire scaling;
+  `temp_unit_view` still carries `"f"` so the device screen keeps
+  displaying Fahrenheit.
+- **`SensorAirEntity` crash on `"inf"`/`"nan"` inputs.** `_parse_state`
+  now checks `math.isfinite` so a HA sensor briefly emitting `inf` on
+  an integer field (co2, pm*, humidity) no longer raises `OverflowError`
+  during MQTT publish.
+
+### Changed
+
+- **Dead `_water_level` field removed from `HumidifierEntity`.** After
+  v1.40.0's `hvac_water_percentage` addition, the old un-clamped
+  `_water_level` field was write-only. No behaviour change.
+
+### Coverage
+
+- **+76 new tests / ~112 IDs** across `sensor_air`, `humidifier`,
+  codegen safety, and category-domain-map — real adversarial scenarios
+  (out-of-range wire values, `unavailable`/`NaN`/junk-string inputs,
+  populated → unavailable transitions, cross-role isolation, primary
+  device_class variants, factory dispatch end-to-end, Fahrenheit
+  semantic contract). Total suite: 2035 → 2147 tests.
+
 ## [1.40.0] - 2026-07-03
 
 ### Added
