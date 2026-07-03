@@ -88,11 +88,6 @@ class HumidifierEntity(BaseEntity):
             default=85,
         ),
         AttrSpec(
-            field="_water_level",
-            attr_keys=("water_level",),
-            parser=_safe_int_parser,
-        ),
-        AttrSpec(
             field="_water_percentage",
             attr_keys=("water_level",),
             parser=lambda v: max(0, min(100, int(float(v)))),
@@ -124,7 +119,6 @@ class HumidifierEntity(BaseEntity):
         self.mode: str | None = None
         self._min_humidity: int = 35
         self._max_humidity: int = 85
-        self._water_level: int | None = None
         self._water_percentage: int | None = None
         self._water_low_level: bool | None = None
         self._child_lock: bool | None = None
