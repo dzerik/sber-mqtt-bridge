@@ -36,6 +36,7 @@ from .devices.light import LightEntity
 from .devices.motion_sensor import MotionSensorEntity
 from .devices.relay import RelayEntity
 from .devices.scenario_button import ScenarioButtonEntity
+from .devices.sensor_air import SensorAirEntity
 from .devices.sensor_temp import SensorTempEntity
 from .devices.smoke_sensor import SmokeSensorEntity
 from .devices.socket_entity import SocketEntity
@@ -274,6 +275,22 @@ CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
         device_classes=("humidity",),
         preferred_rank=30,
     ),
+    "sensor_air": CategorySpec(
+        cls=SensorAirEntity,
+        domains=("sensor",),
+        device_classes=(
+            "carbon_dioxide",
+            "pm1",
+            "pm25",
+            "pm10",
+            "volatile_organic_compounds",
+        ),
+        # Lower rank than sensor_temp (30) so a truly ambiguous entity
+        # (impossible today — no overlap in device_classes) would prefer
+        # sensor_air. Room-quality devices are less common than plain
+        # temp sensors, so we still put it below light/relay.
+        preferred_rank=25,
+    ),
     # ── Binary sensors ─────────────────────────────────────────────────
     "sensor_pir": CategorySpec(
         cls=MotionSensorEntity,
@@ -361,6 +378,7 @@ CATEGORY_UI_META: dict[str, CategoryUiMeta] = {
     "intercom": CategoryUiMeta("🔔", "control", "Intercom"),
     "sensor_temp": CategoryUiMeta("🌡️", "sensors", "Temperature"),
     "sensor_humidity": CategoryUiMeta("💦", "sensors", "Humidity", user_selectable=False),
+    "sensor_air": CategoryUiMeta("🌫️", "sensors", "Air quality"),
     "sensor_pir": CategoryUiMeta("🚶", "sensors", "Motion"),
     "sensor_door": CategoryUiMeta("🚪", "sensors", "Door / Window"),
     "sensor_water_leak": CategoryUiMeta("🌊", "sensors", "Water leak"),

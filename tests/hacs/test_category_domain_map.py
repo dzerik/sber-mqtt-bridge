@@ -121,6 +121,30 @@ class TestCategoryDomainMap:
         # wizard as "unknown sensor type".
         assert categories_for_domain("sensor", None) == []
 
+    def test_sensor_air_registered_in_category_domain_map(self):
+        """sensor_air must be dispatchable from CATEGORY_DOMAIN_MAP.
+
+        Wizard resolves category via matches(); air-quality HA device_classes
+        (carbon_dioxide, pm25, pm10, pm1, volatile_organic_compounds) all
+        route to sensor_air.
+        """
+        from custom_components.sber_mqtt_bridge.devices.sensor_air import SensorAirEntity
+
+        spec = CATEGORY_DOMAIN_MAP.get("sensor_air")
+        assert spec is not None, "sensor_air category not registered"
+        assert spec.cls is SensorAirEntity
+        for dc in ("carbon_dioxide", "pm25", "pm10", "pm1", "volatile_organic_compounds"):
+            assert spec.matches("sensor", dc), f"sensor_air should match device_class={dc}"
+        # Should not steal ownership of pure temperature sensors from sensor_temp:
+        assert not spec.matches("sensor", "temperature")
+
+    def test_sensor_air_ranks_above_sensor_temp_for_ambiguous_matches(self):
+        """When a device_class shares nothing with sensor_temp, sensor_air
+        should be picked without competition. But there's no ambiguity — this
+        is just a sanity guard against a future refactor accidentally putting
+        temperature into sensor_air's device_classes."""
+        assert "temperature" not in CATEGORY_DOMAIN_MAP["sensor_air"].device_classes
+
     def test_binary_sensor_motion_maps_to_pir(self):
         cats = categories_for_domain("binary_sensor", "motion")
         assert cats == ["sensor_pir"]
