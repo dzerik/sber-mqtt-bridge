@@ -21,7 +21,7 @@ import logging
 import math
 
 from ..sber_constants import SberFeature
-from ..sber_models import make_bool_value, make_integer_value, make_state
+from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import (
     ROLE_CO2,
     ROLE_HCHO,
@@ -162,6 +162,7 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
         self._hcho: float | None = None
         self._temperature: float | None = None
         self._humidity: int | None = None
+        self._temp_unit: str = "c"
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Route the primary HA sensor's state into the field matching its
@@ -188,6 +189,10 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
         field, parser = routing
         value = _parse_state(ha_state.get("state"), parser)
         setattr(self, field, value)
+        # Track temperature unit for temp_unit_view emission.
+        if device_class == "temperature":
+            unit = attrs.get("unit_of_measurement", "")
+            self._temp_unit = "f" if unit == "°F" else "c"
 
     def update_linked_data(self, role: str, ha_state: dict) -> None:
         """Fill a specific measurement (or battery/signal) from a linked HA sensor.
@@ -203,6 +208,11 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
         field, parser = routing
         value = _parse_state(ha_state.get("state"), parser)
         setattr(self, field, value)
+        # Track temperature unit for temp_unit_view emission.
+        if role == "temperature":
+            attrs = ha_state.get("attributes") or {}
+            unit = attrs.get("unit_of_measurement", "")
+            self._temp_unit = "f" if unit == "°F" else "c"
 
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list including populated measurements and battery/signal.
@@ -225,6 +235,7 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
             features.append("hcho_float")
         if self._temperature is not None:
             features.append("temperature")
+            features.append("temp_unit_view")
         if self._humidity is not None:
             features.append("humidity")
         self._append_battery_signal_features(features)
@@ -263,6 +274,9 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
                     SberFeature.TEMPERATURE,
                     make_integer_value(round(self._temperature * 10)),
                 )
+            )
+            states.append(
+                make_state(SberFeature.TEMP_UNIT_VIEW, make_enum_value(self._temp_unit))
             )
         if self._humidity is not None:
             states.append(make_state(SberFeature.HUMIDITY, make_integer_value(self._humidity)))

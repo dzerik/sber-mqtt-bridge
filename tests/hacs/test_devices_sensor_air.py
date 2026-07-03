@@ -240,3 +240,110 @@ class TestCreateFeaturesList:
         assert "co2" in features
         assert "temperature" in features
         assert "pm10" not in features
+
+
+class TestTempUnitView:
+    """temp_unit_view should be emitted alongside temperature when
+    temperature is populated."""
+
+    def test_temp_unit_defaults_to_celsius(self):
+        """Default temperature unit is Celsius."""
+        e = SensorAirEntity(ENTITY_DATA)
+        assert e._temp_unit == "c"
+
+    def test_temp_unit_from_fill_by_ha_state_celsius(self):
+        """fill_by_ha_state with primary temperature and no unit defaults to Celsius."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state({
+            "state": "22.5",
+            "attributes": {"device_class": "temperature"},
+        })
+        assert e._temperature == pytest.approx(22.5)
+        assert e._temp_unit == "c"
+
+    def test_temp_unit_from_fill_by_ha_state_fahrenheit(self):
+        """fill_by_ha_state with °F unit sets temp_unit to 'f'."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state({
+            "state": "72",
+            "attributes": {
+                "device_class": "temperature",
+                "unit_of_measurement": "°F",
+            },
+        })
+        assert e._temperature == pytest.approx(72.0)
+        assert e._temp_unit == "f"
+
+    def test_temp_unit_from_update_linked_data_celsius(self):
+        """update_linked_data with temperature role and no unit defaults to Celsius."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data("temperature", {
+            "state": "21.0",
+            "attributes": {"device_class": "temperature"},
+        })
+        assert e._temperature == pytest.approx(21.0)
+        assert e._temp_unit == "c"
+
+    def test_temp_unit_from_update_linked_data_fahrenheit(self):
+        """update_linked_data with °F unit sets temp_unit to 'f'."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data("temperature", {
+            "state": "68",
+            "attributes": {
+                "device_class": "temperature",
+                "unit_of_measurement": "°F",
+            },
+        })
+        assert e._temperature == pytest.approx(68.0)
+        assert e._temp_unit == "f"
+
+    def test_temp_unit_view_in_features_when_temperature_set(self):
+        """temp_unit_view feature is advertised only when temperature is populated."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e._temperature = 20.0
+        features = e._create_features_list()
+        assert "temp_unit_view" in features
+
+    def test_temp_unit_view_not_in_features_when_temperature_none(self):
+        """temp_unit_view feature is NOT advertised when temperature is None."""
+        e = SensorAirEntity(ENTITY_DATA)
+        # _temperature is None by default
+        features = e._create_features_list()
+        assert "temp_unit_view" not in features
+
+    def test_temp_unit_view_emitted_when_temperature_populated(self):
+        """to_sber_current_state emits temp_unit_view when temperature is set."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._temperature = 22.5
+        e._temp_unit = "c"
+        states = e.to_sber_current_state()[e.entity_id]["states"]
+        temp_unit_entry = next(
+            (s for s in states if s["key"] == "temp_unit_view"), None
+        )
+        assert temp_unit_entry is not None
+        assert temp_unit_entry["value"]["enum_value"] == "c"
+
+    def test_temp_unit_view_not_emitted_when_temperature_none(self):
+        """to_sber_current_state does NOT emit temp_unit_view when temperature is None."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        # _temperature is None by default
+        states = e.to_sber_current_state()[e.entity_id]["states"]
+        temp_unit_entry = next(
+            (s for s in states if s["key"] == "temp_unit_view"), None
+        )
+        assert temp_unit_entry is None
+
+    def test_temp_unit_view_fahrenheit_emitted(self):
+        """to_sber_current_state emits temp_unit_view with 'f' when set to Fahrenheit."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._temperature = 72.0
+        e._temp_unit = "f"
+        states = e.to_sber_current_state()[e.entity_id]["states"]
+        temp_unit_entry = next(
+            (s for s in states if s["key"] == "temp_unit_view"), None
+        )
+        assert temp_unit_entry is not None
+        assert temp_unit_entry["value"]["enum_value"] == "f"
