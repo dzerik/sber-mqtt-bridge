@@ -276,6 +276,105 @@ class TestMissingObligatoryFeaturesBehaviour:
         assert missing_obligatory_features("sensor_air", {"co2", "pm2_5"}) == {"online"}
 
 
+class TestSensorAirGeneratedTables:
+    """Direct assertions against the ``_generated/`` tables for the
+    v1.40.0 ``sensor_air`` category — closes audit Subject 4.
+
+    Existing tests here treat the tables holistically ("count == 29",
+    "online present everywhere").  These lock the shape for the
+    single most-recent addition, so a scraper regression that quietly
+    drops ``co2`` from the reference list — or that emits it with the
+    wrong type — fails a targeted test instead of hiding behind
+    downstream integration failures.
+    """
+
+    EXPECTED_REFERENCE = frozenset({
+        "online",
+        # ✔︎* conditional measurements (eight)
+        "co2",
+        "pm1_0",
+        "pm2_5",
+        "pm10",
+        "tvoc_float",
+        "hcho_float",
+        "temperature",
+        "humidity",
+        # Display + telemetry
+        "temp_unit_view",
+        "battery_percentage",
+        "battery_low_power",
+        "signal_strength",
+    })
+
+    def test_sensor_air_registered_in_reference(self):
+        assert "sensor_air" in CATEGORY_REFERENCE_FEATURES
+
+    def test_sensor_air_registered_in_obligatory(self):
+        assert "sensor_air" in CATEGORY_OBLIGATORY_FEATURES
+
+    def test_sensor_air_reference_matches_expected_shape(self):
+        """The reference set must exactly match the 13 features in the
+        2026-05 Sber spec.  If new features are added upstream, this
+        test needs to be updated deliberately, not silently."""
+        assert CATEGORY_REFERENCE_FEATURES["sensor_air"] == self.EXPECTED_REFERENCE
+
+    def test_sensor_air_obligatory_is_only_online(self):
+        """All eight measurement features are ✔︎* conditional per the
+        2026-05 spec.  Only ``online`` is strict-mandatory."""
+        assert CATEGORY_OBLIGATORY_FEATURES["sensor_air"] == frozenset({"online"})
+
+    @pytest.mark.parametrize("feature,expected_type", [
+        ("online", "BOOL"),
+        ("co2", "INTEGER"),
+        ("pm1_0", "INTEGER"),
+        ("pm2_5", "INTEGER"),
+        ("pm10", "INTEGER"),
+        ("humidity", "INTEGER"),
+        ("temperature", "INTEGER"),
+        ("tvoc_float", "FLOAT"),
+        ("hcho_float", "FLOAT"),
+        ("temp_unit_view", "ENUM"),
+        ("battery_percentage", "INTEGER"),
+        ("battery_low_power", "BOOL"),
+    ])
+    def test_sensor_air_feature_type_correct(self, feature, expected_type):
+        """Type mismatches are the exact class of bug the Feature-Type
+        validator was created for — e.g., emitting ``co2`` as BOOL would
+        cause Sber to silently drop the whole device.  Lock each type."""
+        assert FEATURE_TYPES.get(feature) == expected_type, (
+            f"{feature}: FEATURE_TYPES={FEATURE_TYPES.get(feature)!r}, expected {expected_type!r}"
+        )
+
+    def test_sensor_air_reference_features_include_all_measurements(self):
+        """Every conditional measurement (co2, pm*, tvoc/hcho, temp,
+        humidity) that the SensorAirEntity code populates must exist
+        in the reference — otherwise emit-time state entries would be
+        classified as ``unknown_features_for_category`` and rejected.
+        """
+        measurements = {"co2", "pm1_0", "pm2_5", "pm10",
+                        "tvoc_float", "hcho_float", "temperature", "humidity"}
+        assert measurements.issubset(CATEGORY_REFERENCE_FEATURES["sensor_air"])
+
+    def test_sensor_air_battery_signal_in_reference(self):
+        """Battery + signal telemetry come from the shared
+        ``BatteryAndSignalLinkMixin`` — assert they're recognised for
+        sensor_air specifically (mixin behaviour is category-agnostic
+        but the reference table must still list them)."""
+        for feat in ("battery_percentage", "battery_low_power", "signal_strength"):
+            assert feat in CATEGORY_REFERENCE_FEATURES["sensor_air"], (
+                f"{feat}: not in sensor_air reference — snapshot regression?"
+            )
+
+    def test_sensor_air_no_leaked_features_from_other_categories(self):
+        """Guard against a scraper bug where features from adjacent
+        categories (e.g. ``on_off`` from switch, ``pir`` from sensor_pir)
+        leak into sensor_air's reference set."""
+        forbidden = {"on_off", "pir", "gas_leak_state",
+                     "doorcontact_state", "hvac_temp_set", "light_brightness"}
+        overlap = CATEGORY_REFERENCE_FEATURES["sensor_air"] & forbidden
+        assert not overlap, f"Leaked features in sensor_air reference: {overlap}"
+
+
 class TestCodegenDriftCheck:
     """Codegen --check mode must accurately report drift."""
 
