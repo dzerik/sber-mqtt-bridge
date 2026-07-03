@@ -18,6 +18,7 @@ from custom_components.sber_mqtt_bridge.devices.humidity_sensor import (
 )
 from custom_components.sber_mqtt_bridge.devices.hvac_fan import HvacFanEntity
 from custom_components.sber_mqtt_bridge.devices.motion_sensor import MotionSensorEntity
+from custom_components.sber_mqtt_bridge.devices.sensor_air import SensorAirEntity
 from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
 from custom_components.sber_mqtt_bridge.devices.smoke_sensor import SmokeSensorEntity
 from custom_components.sber_mqtt_bridge.devices.tv import TvEntity
@@ -733,6 +734,185 @@ class TestGasSensorCompliance:
 
     def test_read_only_no_commands(self):
         """Gas sensor must not process commands."""
+        entity = self._make_entity()
+        result = entity.process_cmd({"states": []})
+        assert result == []
+
+
+# ---------------------------------------------------------------------------
+# SensorAirEntity -- category: sensor_air
+# ---------------------------------------------------------------------------
+
+
+class TestSensorAirCompliance:
+    """Sber C2C compliance tests for SensorAirEntity."""
+
+    ENTITY_ID = "sensor.air_quality"
+    ENTITY_DATA = {"entity_id": ENTITY_ID, "name": "Air Quality", "area_id": "living_room"}
+
+    def _make_entity(self, state="500", device_class="carbon_dioxide", **attrs) -> SensorAirEntity:
+        """Create a SensorAirEntity with a primary measurement."""
+        entity = SensorAirEntity(self.ENTITY_DATA)
+        entity.fill_by_ha_state(
+            {
+                "entity_id": self.ENTITY_ID,
+                "state": state,
+                "attributes": {"device_class": device_class, **attrs},
+            }
+        )
+        return entity
+
+    def test_category_is_sensor_air(self):
+        """Category must be 'sensor_air' per Sber spec."""
+        entity = SensorAirEntity(self.ENTITY_DATA)
+        assert entity.category == "sensor_air"
+
+    def test_features_minimal(self):
+        """Minimal features: online (mandatory) + primary measurement + temp_unit_view if temperature."""
+        entity = self._make_entity()
+        features = entity.get_final_features_list()
+        assert "online" in features
+        assert "co2" in features
+
+    def test_features_with_linked_humidity(self):
+        """When humidity is linked, 'humidity' feature must appear."""
+        entity = self._make_entity()
+        entity.update_linked_data("humidity", {"state": "45"})
+        features = entity.get_final_features_list()
+        assert "humidity" in features
+
+    def test_features_with_linked_temperature(self):
+        """When temperature is linked, 'temperature' and 'temp_unit_view' must appear."""
+        entity = self._make_entity()
+        entity.update_linked_data("temperature", {"state": "22.5"})
+        features = entity.get_final_features_list()
+        assert "temperature" in features
+        assert "temp_unit_view" in features
+
+    def test_features_with_linked_pm_values(self):
+        """When PM values are linked, their features must appear."""
+        entity = self._make_entity()
+        entity.update_linked_data("pm1", {"state": "3"})
+        entity.update_linked_data("pm25", {"state": "8"})
+        entity.update_linked_data("pm10", {"state": "15"})
+        features = entity.get_final_features_list()
+        assert "pm1_0" in features
+        assert "pm2_5" in features
+        assert "pm10" in features
+
+    def test_features_with_linked_vocs(self):
+        """When VOC values are linked, their features must appear."""
+        entity = self._make_entity()
+        entity.update_linked_data("tvoc", {"state": "0.12"})
+        entity.update_linked_data("hcho", {"state": "0.03"})
+        features = entity.get_final_features_list()
+        assert "tvoc_float" in features
+        assert "hcho_float" in features
+
+    def test_features_with_battery(self):
+        """When battery is linked, battery_percentage + battery_low_power appear."""
+        entity = self._make_entity()
+        entity.update_linked_data("battery", {"state": "85"})
+        features = entity.get_final_features_list()
+        assert "battery_percentage" in features
+        assert "battery_low_power" in features
+
+    def test_co2_integer_value_is_string(self):
+        """CRITICAL: co2 integer_value must be a string per Sber spec."""
+        entity = self._make_entity(state="500", device_class="carbon_dioxide")
+        states = _get_states(entity, self.ENTITY_ID)
+        _assert_integer_value_is_string(states, "co2")
+
+    def test_pm_values_integer_string(self):
+        """PM values must have integer_value as string."""
+        entity = self._make_entity()
+        entity.update_linked_data("pm1", {"state": "3"})
+        entity.update_linked_data("pm25", {"state": "8"})
+        entity.update_linked_data("pm10", {"state": "15"})
+        states = _get_states(entity, self.ENTITY_ID)
+        _assert_integer_value_is_string(states, "pm1_0")
+        _assert_integer_value_is_string(states, "pm2_5")
+        _assert_integer_value_is_string(states, "pm10")
+
+    def test_temperature_integer_value_is_string(self):
+        """CRITICAL: temperature integer_value must be a string per Sber spec."""
+        entity = self._make_entity(state="22.5", device_class="temperature")
+        states = _get_states(entity, self.ENTITY_ID)
+        _assert_integer_value_is_string(states, "temperature")
+
+    def test_humidity_integer_value_is_string(self):
+        """CRITICAL: humidity integer_value must be a string per Sber spec."""
+        entity = self._make_entity()
+        entity.update_linked_data("humidity", {"state": "45"})
+        states = _get_states(entity, self.ENTITY_ID)
+        _assert_integer_value_is_string(states, "humidity")
+
+    def test_online_bool_value(self):
+        """online state must be BOOL."""
+        entity = self._make_entity()
+        states = _get_states(entity, self.ENTITY_ID)
+        _assert_bool_value(states, "online", True)
+
+    def test_temp_unit_view_enum_celsius(self):
+        """temp_unit_view must be ENUM with value 'c' for Celsius."""
+        entity = self._make_entity(state="22.5", device_class="temperature")
+        states = _get_states(entity, self.ENTITY_ID)
+        _assert_enum_value(states, "temp_unit_view", "c")
+
+    def test_temp_unit_view_enum_fahrenheit(self):
+        """temp_unit_view must be ENUM with value 'f' for Fahrenheit."""
+        entity = self._make_entity(
+            state="72.5",
+            device_class="temperature",
+            unit_of_measurement="°F",
+        )
+        states = _get_states(entity, self.ENTITY_ID)
+        _assert_enum_value(states, "temp_unit_view", "f")
+
+    def test_payload_matches_spec_maximal_case(self):
+        """A fully-populated entity must emit only Sber-spec-approved features.
+
+        Validates that every emitted state.key is in sber_full_spec.json
+        and that obligatory features are present.
+        """
+        import json
+        from pathlib import Path
+
+        entity = SensorAirEntity(self.ENTITY_DATA)
+        entity.is_filled_by_state = True
+        # Populate every measurement to test maximal-payload case
+        entity._co2 = 500
+        entity._pm1 = 3
+        entity._pm25 = 8
+        entity._pm10 = 15
+        entity._tvoc = 0.12
+        entity._hcho = 0.03
+        entity._temperature = 22.5
+        entity._humidity = 45
+
+        payload = entity.to_sber_current_state()
+        # Extract states list from {entity_id: {"states": [...]}} structure
+        states = payload[self.ENTITY_ID]["states"]
+        emitted = {s["key"] for s in states}
+
+        spec = json.loads(
+            Path("tests/hacs/__snapshots__/sber_full_spec.json").read_text()
+        )
+        air = spec["categories"]["sensor_air"]
+        all_features = set(air["all_features"])
+        obligatory = set(air["obligatory"])
+
+        # Every emitted key must be a known Sber feature for sensor_air
+        assert emitted <= all_features, (
+            f"SensorAirEntity emitted unknown features: {emitted - all_features}"
+        )
+        # Strict obligatory ({online}) must be present
+        assert obligatory <= emitted, (
+            f"Missing strict-obligatory features: {obligatory - emitted}"
+        )
+
+    def test_read_only_no_commands(self):
+        """Air sensor must not process commands."""
         entity = self._make_entity()
         result = entity.process_cmd({"states": []})
         assert result == []
