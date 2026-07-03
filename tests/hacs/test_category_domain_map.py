@@ -186,6 +186,144 @@ class TestCategoryDomainMap:
         assert ranks == sorted(ranks)
 
 
+class TestSensorAirRoutingDetails:
+    """Closes audit Subject 5 — the top-level ``test_sensor_air_registered``
+    happy-path test covers 5 device_classes with a loop but doesn't
+    lock rank / tie-breaking behaviour, and doesn't guard against the
+    scenario where sensor_air would compete with another category.
+    """
+
+    @pytest.mark.parametrize("device_class,expected_first", [
+        ("carbon_dioxide", "sensor_air"),
+        ("pm1", "sensor_air"),
+        ("pm25", "sensor_air"),
+        ("pm10", "sensor_air"),
+        ("volatile_organic_compounds", "sensor_air"),
+    ])
+    def test_each_air_device_class_routes_to_sensor_air(self, device_class, expected_first):
+        """Each of the five HA air-quality device_classes must resolve to
+        sensor_air first, not accidentally to sensor_temp / sensor_humidity."""
+        cats = categories_for_domain("sensor", device_class)
+        assert cats
+        assert cats[0] == expected_first, (
+            f"sensor+{device_class} routed to {cats[0]!r}, expected {expected_first!r}"
+        )
+
+    def test_hcho_ha_device_class_is_not_a_sensor_domain_match(self):
+        """``volatile_organic_compounds_parts`` (HCHO) is only routed via
+        the *linked-role* path — sensor_air's ``device_classes`` tuple
+        does not include it, so it can't be picked in the wizard as
+        primary via auto-detection.  Locks this against a future
+        "just add all device_classes for symmetry" refactor that would
+        surface HCHO-only sensors as sensor_air primaries with no
+        actual primary field populated.
+        """
+        cats = categories_for_domain("sensor", "volatile_organic_compounds_parts")
+        assert cats == [], f"unexpected match: {cats}"
+
+    def test_sensor_air_rank_higher_priority_than_generic_default(self):
+        """sensor_air preferred_rank must sort ahead of any category
+        whose default rank (50) would otherwise beat it."""
+        assert CATEGORY_DOMAIN_MAP["sensor_air"].preferred_rank < 50
+
+    def test_sensor_air_does_not_match_binary_sensor_domain(self):
+        """Air-quality sensor_air lives in the ``sensor`` domain; a
+        ``binary_sensor.carbon_dioxide`` (which exists in HA for
+        threshold-crossing binary alerts) must NOT be picked as sensor_air."""
+        spec = CATEGORY_DOMAIN_MAP["sensor_air"]
+        assert not spec.matches("binary_sensor", "carbon_dioxide")
+
+    def test_sensor_air_does_not_match_switch_domain(self):
+        spec = CATEGORY_DOMAIN_MAP["sensor_air"]
+        assert not spec.matches("switch", "carbon_dioxide")
+
+    def test_sensor_air_no_fallback_when_device_class_empty(self):
+        """Without ``fallback_when_no_device_class``, a plain ``sensor.foo``
+        with no device_class must NOT accidentally end up as sensor_air.
+        Otherwise every diagnostic power/voltage sensor gets misclassified."""
+        spec = CATEGORY_DOMAIN_MAP["sensor_air"]
+        assert not spec.matches("sensor", None)
+        assert not spec.matches("sensor", "")
+
+
+class TestCategorySpecFallbackSemantics:
+    """The ``fallback_when_no_device_class`` flag has subtle interactions
+    with the ``device_classes`` allowlist that are easy to break in
+    refactors.  Lock the semantic contract with focused tests.
+    """
+
+    def test_fallback_does_not_relax_wrong_device_class(self):
+        """Even with ``fallback_when_no_device_class=True``, a mismatched
+        non-empty device_class must still be rejected — the fallback
+        rule only fires when device_class is missing, not wrong."""
+        spec = CategorySpec(
+            cls=_Stub,
+            domains=("switch",),
+            device_classes=("outlet",),
+            fallback_when_no_device_class=True,
+        )
+        assert spec.matches("switch", "outlet")  # allowed
+        assert spec.matches("switch", None)       # fallback fires
+        assert not spec.matches("switch", "bogus")  # wrong dc still rejected
+
+    def test_fallback_ignored_when_domain_wrong(self):
+        """Domain check runs first — a wrong domain is a hard reject,
+        the fallback flag never enters the picture."""
+        spec = CategorySpec(
+            cls=_Stub,
+            domains=("switch",),
+            device_classes=("outlet",),
+            fallback_when_no_device_class=True,
+        )
+        assert not spec.matches("light", None)
+
+    def test_device_classes_none_ignores_fallback_flag(self):
+        """When ``device_classes is None`` (accept any dc in domain),
+        the fallback flag is redundant — matches() must not crash
+        or behave differently."""
+        spec_with_flag = CategorySpec(
+            cls=_Stub, domains=("light",),
+            device_classes=None,
+            fallback_when_no_device_class=True,
+        )
+        spec_without = CategorySpec(
+            cls=_Stub, domains=("light",),
+            device_classes=None,
+            fallback_when_no_device_class=False,
+        )
+        for dc in (None, "", "anything", "led"):
+            assert spec_with_flag.matches("light", dc) == spec_without.matches("light", dc)
+
+
+class TestCategorySpecMultiDomainCategories:
+    """Categories that live in multiple HA domains (``intercom``, ``kettle``,
+    ``relay``) — their routing must respect every domain equally.
+    """
+
+    def test_intercom_matches_both_lock_and_switch(self):
+        spec = CATEGORY_DOMAIN_MAP["intercom"]
+        assert spec.matches("lock", None)
+        assert spec.matches("switch", None)
+        assert not spec.matches("light", None)
+
+    def test_relay_matches_switch_script_and_button(self):
+        spec = CATEGORY_DOMAIN_MAP["relay"]
+        assert spec.matches("switch", None)
+        assert spec.matches("script", None)
+        assert spec.matches("button", None)
+        # Cover isn't a relay domain
+        assert not spec.matches("cover", None)
+
+    def test_kettle_matches_water_heater_and_switch_with_fallback(self):
+        spec = CATEGORY_DOMAIN_MAP["kettle"]
+        assert spec.matches("water_heater", None)
+        assert spec.matches("switch", None)
+        # Fallback fires on empty device_class
+        assert spec.matches("switch", "")
+        # Wrong domain — even with fallback, no
+        assert not spec.matches("humidifier", None)
+
+
 class TestRegistryConsistency:
     """Cross-check that registries stay in sync with each other."""
 
