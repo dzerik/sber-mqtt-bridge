@@ -464,3 +464,320 @@ class TestFahrenheitConversionOnWire:
         states = e.to_sber_current_state()[e.entity_id]["states"]
         temp_unit_entry = next(s for s in states if s["key"] == "temp_unit_view")
         assert temp_unit_entry["value"]["enum_value"] == "f"
+
+
+def _entry(states: list[dict], key: str) -> dict | None:
+    """Helper — pull a single state entry by key."""
+    return next((s for s in states if s["key"] == key), None)
+
+
+class TestWireRangeSafety:
+    """Guard against garbage HA readings poisoning the Sber payload.
+
+    A broken or mis-configured HA sensor can report physically-impossible
+    values (negative CO2, PM readings in the thousands, humidity > 100 %).
+    Sber cloud will silently reject the WHOLE device descriptor when any
+    state is out of range — clamp at emit time so one buggy metric can't
+    take down the other seven.  Mirrors the ``water_level`` clamp
+    already applied by :class:`HumidifierEntity`.
+    """
+
+    def test_negative_co2_clamped_to_zero(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._co2 = -50
+        entry = _entry(e.to_sber_current_state()[e.entity_id]["states"], "co2")
+        assert entry is not None
+        assert int(entry["value"]["integer_value"]) == 0
+
+    def test_extreme_co2_clamped_to_upper_bound(self):
+        """Sber sensor_air co2 range is a few thousand ppm; 999999 is a
+        broken sensor.  Clamp to 5000 (dangerous-atmosphere ceiling)."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._co2 = 999999
+        entry = _entry(e.to_sber_current_state()[e.entity_id]["states"], "co2")
+        assert int(entry["value"]["integer_value"]) == 5000
+
+    @pytest.mark.parametrize("field,key", [
+        ("_pm1", "pm1_0"),
+        ("_pm25", "pm2_5"),
+        ("_pm10", "pm10"),
+    ])
+    def test_negative_pm_clamped_to_zero(self, field, key):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        setattr(e, field, -1)
+        entry = _entry(e.to_sber_current_state()[e.entity_id]["states"], key)
+        assert int(entry["value"]["integer_value"]) == 0
+
+    @pytest.mark.parametrize("field,key", [
+        ("_pm1", "pm1_0"),
+        ("_pm25", "pm2_5"),
+        ("_pm10", "pm10"),
+    ])
+    def test_extreme_pm_clamped_to_upper_bound(self, field, key):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        setattr(e, field, 5000)
+        entry = _entry(e.to_sber_current_state()[e.entity_id]["states"], key)
+        assert int(entry["value"]["integer_value"]) == 999
+
+    def test_humidity_over_100_clamped(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._humidity = 150
+        entry = _entry(e.to_sber_current_state()[e.entity_id]["states"], "humidity")
+        assert int(entry["value"]["integer_value"]) == 100
+
+    def test_humidity_negative_clamped(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._humidity = -5
+        entry = _entry(e.to_sber_current_state()[e.entity_id]["states"], "humidity")
+        assert int(entry["value"]["integer_value"]) == 0
+
+    def test_negative_tvoc_clamped(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._tvoc = -0.1
+        entry = _entry(e.to_sber_current_state()[e.entity_id]["states"], "tvoc_float")
+        assert entry["value"]["float_value"] == pytest.approx(0.0)
+
+    def test_negative_hcho_clamped(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._hcho = -0.5
+        entry = _entry(e.to_sber_current_state()[e.entity_id]["states"], "hcho_float")
+        assert entry["value"]["float_value"] == pytest.approx(0.0)
+
+    def test_valid_values_pass_through_unchanged(self):
+        """Realistic mid-range values must not be modified by the clamp."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._co2 = 600
+        e._pm25 = 15
+        e._humidity = 45
+        e._tvoc = 0.35
+        states = e.to_sber_current_state()[e.entity_id]["states"]
+        assert int(_entry(states, "co2")["value"]["integer_value"]) == 600
+        assert int(_entry(states, "pm2_5")["value"]["integer_value"]) == 15
+        assert int(_entry(states, "humidity")["value"]["integer_value"]) == 45
+        assert _entry(states, "tvoc_float")["value"]["float_value"] == pytest.approx(0.35)
+
+
+class TestPrimaryDeviceClassCoverage:
+    """Complete coverage of the primary-fill routing table.
+
+    ``TestPrimaryFill`` already covers five of the eight device_classes
+    routed by ``_DEVICE_CLASS_ROUTING``.  Close the gap so a future
+    refactor cannot silently drop ``humidity`` / ``temperature`` /
+    ``volatile_organic_compounds_parts`` without a failing test.
+    """
+
+    def test_humidity_device_class_routes_to_humidity_field(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state(_state("42", "humidity"))
+        assert e._humidity == 42
+        assert e._co2 is None  # no cross-contamination
+
+    def test_temperature_device_class_routes_to_temperature_field(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state({
+            "state": "21.5",
+            "attributes": {
+                "device_class": "temperature",
+                "unit_of_measurement": "°C",
+            },
+        })
+        assert e._temperature == pytest.approx(21.5)
+        assert e._humidity is None
+
+    def test_hcho_device_class_routes_to_hcho_field(self):
+        """HA's ``volatile_organic_compounds_parts`` is the HCHO analogue
+        of ``volatile_organic_compounds`` for TVOC — must land in ``_hcho``,
+        not ``_tvoc``."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state(_state("0.05", "volatile_organic_compounds_parts"))
+        assert e._hcho == pytest.approx(0.05)
+        assert e._tvoc is None
+
+
+class TestAdversarialStates:
+    """Malformed HA states must not crash or promote NaN/Inf onto the wire."""
+
+    @pytest.mark.parametrize("bad_state", [
+        "unknown", "unavailable", None, "", "NaN", "inf", "-inf", "abc",
+        # Empty-attribute variants:
+    ])
+    def test_bad_primary_state_leaves_field_none(self, bad_state):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state({
+            "state": bad_state,
+            "attributes": {"device_class": "carbon_dioxide"},
+        })
+        assert e._co2 is None
+
+    @pytest.mark.parametrize("bad_state", [
+        "unknown", "unavailable", None, "", "NaN", "inf", "abc",
+    ])
+    def test_bad_linked_state_leaves_field_none(self, bad_state):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data("co2", {"state": bad_state, "attributes": {}})
+        assert e._co2 is None
+
+    def test_nan_temperature_not_emitted(self):
+        """A NaN reading must not reach the wire — it would produce
+        ``round(nan * 10)`` which raises ValueError."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state({
+            "state": "NaN",
+            "attributes": {"device_class": "temperature"},
+        })
+        assert e._temperature is None
+        states = e.to_sber_current_state()[e.entity_id]["states"]
+        assert _entry(states, "temperature") is None
+        assert _entry(states, "temp_unit_view") is None
+
+    def test_infinity_tvoc_not_emitted(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data("tvoc", {"state": "inf", "attributes": {}})
+        assert e._tvoc is None
+        states = e.to_sber_current_state()[e.entity_id]["states"]
+        assert _entry(states, "tvoc_float") is None
+
+
+class TestPopulatedToUnavailable:
+    """A previously-populated field must clear back to ``None`` when its
+    source sensor drops to ``unavailable`` — otherwise Sber sees a stale
+    reading that never expires."""
+
+    def test_co2_clears_when_linked_sensor_becomes_unavailable(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data("co2", _state("500", "carbon_dioxide"))
+        assert e._co2 == 500
+        e.update_linked_data("co2", {"state": "unavailable", "attributes": {}})
+        assert e._co2 is None
+
+    def test_primary_temperature_clears_when_sensor_becomes_unknown(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state({
+            "state": "20.0",
+            "attributes": {"device_class": "temperature"},
+        })
+        assert e._temperature == pytest.approx(20.0)
+        e.fill_by_ha_state({
+            "state": "unknown",
+            "attributes": {"device_class": "temperature"},
+        })
+        assert e._temperature is None
+
+    def test_cleared_field_not_advertised_in_features(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data("humidity", _state("55", "humidity"))
+        assert "humidity" in e._create_features_list()
+        e.update_linked_data("humidity", {"state": "unavailable", "attributes": {}})
+        assert "humidity" not in e._create_features_list()
+
+    def test_cleared_field_not_emitted_in_state(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e.update_linked_data("pm25", _state("10", "pm25"))
+        states = e.to_sber_current_state()[e.entity_id]["states"]
+        assert _entry(states, "pm2_5") is not None
+        e.update_linked_data("pm25", {"state": "unavailable", "attributes": {}})
+        states = e.to_sber_current_state()[e.entity_id]["states"]
+        assert _entry(states, "pm2_5") is None
+
+
+class TestCrossRoleIsolation:
+    """A companion sensor with role X must never leak into field Y.
+
+    The routing table maps eight roles into eight distinct measurement
+    fields — a copy-paste bug that aliases two of them (e.g. CO2 into
+    ``_pm10``) would silently mis-report a critical safety metric.
+    """
+
+    def test_co2_role_does_not_touch_pm_or_temperature(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data("co2", _state("650", "carbon_dioxide"))
+        assert e._co2 == 650
+        assert e._pm1 is None
+        assert e._pm25 is None
+        assert e._pm10 is None
+        assert e._temperature is None
+        assert e._humidity is None
+        assert e._tvoc is None
+        assert e._hcho is None
+
+    def test_pm25_role_does_not_touch_pm10_or_pm1(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data("pm25", _state("12", "pm25"))
+        assert e._pm25 == 12
+        assert e._pm1 is None
+        assert e._pm10 is None
+
+    def test_tvoc_and_hcho_are_isolated(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data("tvoc", _state("0.30", "volatile_organic_compounds"))
+        e.update_linked_data("hcho", _state("0.05", "volatile_organic_compounds_parts"))
+        assert e._tvoc == pytest.approx(0.30)
+        assert e._hcho == pytest.approx(0.05)
+
+    def test_unknown_role_touches_nothing(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data("mystery_metric", _state("42", "anything"))
+        for f in ("_co2", "_pm1", "_pm25", "_pm10",
+                  "_tvoc", "_hcho", "_temperature", "_humidity"):
+            assert getattr(e, f) is None
+
+
+class TestFactoryIntegration:
+    """``create_sber_entity`` must build a ``SensorAirEntity`` for each
+    of the five HA device_classes declared in ``CATEGORY_DOMAIN_MAP``,
+    when the user picks ``sensor_air`` explicitly OR when auto-detection
+    routes the entity there.
+    """
+
+    @pytest.mark.parametrize("device_class", [
+        "carbon_dioxide", "pm1", "pm25", "pm10", "volatile_organic_compounds",
+    ])
+    def test_auto_detection_picks_sensor_air(self, device_class):
+        from custom_components.sber_mqtt_bridge.sber_entity_map import create_sber_entity
+        entity = create_sber_entity(
+            "sensor.air_quality",
+            {"entity_id": "sensor.air_quality",
+             "original_device_class": device_class,
+             "name": "Air Quality"},
+        )
+        assert entity is not None
+        assert isinstance(entity, SensorAirEntity)
+        assert entity.category == SENSOR_AIR_CATEGORY
+
+    def test_explicit_override_to_sensor_air(self):
+        """Even for a sensor without a device_class, an explicit
+        ``sber_category='sensor_air'`` override must construct the
+        entity — otherwise a user with a bare custom sensor can't
+        promote it via the wizard."""
+        from custom_components.sber_mqtt_bridge.sber_entity_map import create_sber_entity
+        entity = create_sber_entity(
+            "sensor.custom_air",
+            {"entity_id": "sensor.custom_air", "name": "Custom Air"},
+            sber_category="sensor_air",
+        )
+        assert isinstance(entity, SensorAirEntity)
+
+    def test_temperature_device_class_does_not_route_to_sensor_air(self):
+        """Pure temperature sensors must still go to sensor_temp, not
+        get stolen by sensor_air — otherwise every temperature sensor
+        installation would be mis-categorised after this integration.
+        """
+        from custom_components.sber_mqtt_bridge.sber_entity_map import create_sber_entity
+        entity = create_sber_entity(
+            "sensor.living_temp",
+            {"entity_id": "sensor.living_temp",
+             "original_device_class": "temperature",
+             "name": "Living Temp"},
+        )
+        assert entity is not None
+        assert not isinstance(entity, SensorAirEntity)

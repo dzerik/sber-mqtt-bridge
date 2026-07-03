@@ -107,12 +107,18 @@ def _parse_state(raw: str | None, parser: type) -> object | None:
     if raw in (None, "unknown", "unavailable", ""):
         return None
     try:
-        value = parser(float(raw))
+        as_float = float(raw)
     except (TypeError, ValueError):
         return None
-    if isinstance(value, float) and not math.isfinite(value):
+    # Reject non-finite values BEFORE calling the parser: ``int(inf)``
+    # raises ``OverflowError`` (not caught by ValueError below) and
+    # ``round(nan * 10)`` blows up further down the emit path.
+    if not math.isfinite(as_float):
         return None
-    return value
+    try:
+        return parser(as_float)
+    except (TypeError, ValueError, OverflowError):
+        return None
 
 
 def _make_float_value(value: float) -> dict:
@@ -278,23 +284,43 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
         eight measurement features are conditional (``✔︎*``) per Sber
         spec, missing ones are fine.
 
+        Numeric measurements are clamped to physically-reasonable
+        ranges at emit time so a broken HA sensor (negative CO2, PM
+        readings in the thousands, humidity > 100 %) cannot poison
+        the Sber payload and trigger a silent rejection of the whole
+        device. This mirrors the clamp
+        :class:`~.humidifier.HumidifierEntity` applies to
+        ``water_level``.
+
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
         states: list[dict] = [make_state(SberFeature.ONLINE, make_bool_value(self._is_online))]
 
         if self._co2 is not None:
-            states.append(make_state(SberFeature.CO2, make_integer_value(self._co2)))
+            states.append(
+                make_state(SberFeature.CO2, make_integer_value(max(0, min(5000, self._co2))))
+            )
         if self._pm1 is not None:
-            states.append(make_state(SberFeature.PM1_0, make_integer_value(self._pm1)))
+            states.append(
+                make_state(SberFeature.PM1_0, make_integer_value(max(0, min(999, self._pm1))))
+            )
         if self._pm25 is not None:
-            states.append(make_state(SberFeature.PM2_5, make_integer_value(self._pm25)))
+            states.append(
+                make_state(SberFeature.PM2_5, make_integer_value(max(0, min(999, self._pm25))))
+            )
         if self._pm10 is not None:
-            states.append(make_state(SberFeature.PM10, make_integer_value(self._pm10)))
+            states.append(
+                make_state(SberFeature.PM10, make_integer_value(max(0, min(999, self._pm10))))
+            )
         if self._tvoc is not None:
-            states.append(make_state(SberFeature.TVOC_FLOAT, _make_float_value(self._tvoc)))
+            states.append(
+                make_state(SberFeature.TVOC_FLOAT, _make_float_value(max(0.0, self._tvoc)))
+            )
         if self._hcho is not None:
-            states.append(make_state(SberFeature.HCHO_FLOAT, _make_float_value(self._hcho)))
+            states.append(
+                make_state(SberFeature.HCHO_FLOAT, _make_float_value(max(0.0, self._hcho)))
+            )
         if self._temperature is not None:
             # Sber wire spec: temperature is INTEGER = °C x 10 (same
             # convention as SensorTempEntity).
@@ -308,7 +334,12 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
                 make_state(SberFeature.TEMP_UNIT_VIEW, make_enum_value(self._temp_unit))
             )
         if self._humidity is not None:
-            states.append(make_state(SberFeature.HUMIDITY, make_integer_value(self._humidity)))
+            states.append(
+                make_state(
+                    SberFeature.HUMIDITY,
+                    make_integer_value(max(0, min(100, self._humidity))),
+                )
+            )
 
         self._append_battery_signal_states(states)
 
