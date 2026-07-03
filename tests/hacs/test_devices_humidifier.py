@@ -433,3 +433,132 @@ class TestWaterPercentageTelemetry(unittest.TestCase):
         states = result["humidifier.living_room"]["states"]
         keys = {s["key"] for s in states}
         self.assertNotIn("hvac_water_percentage", keys)
+
+    # --- Additional gap-closing coverage (audit Subject 2) -----------
+
+    def _entity(self):
+        return HumidifierEntity({
+            "entity_id": "humidifier.living_room",
+            "name": "Living room",
+            "original_name": "Living room",
+            "area_id": "living_room",
+        })
+
+    def _fill_water(self, entity, water_level, state="on"):
+        entity.fill_by_ha_state({
+            "entity_id": "humidifier.living_room",
+            "state": state,
+            "attributes": {"water_level": water_level},
+        })
+
+    def test_water_level_negative_clamped_to_zero(self):
+        """Negative water_level readings must clamp to 0, not passthrough.
+
+        A broken sensor reporting -30 would otherwise ship a negative
+        percentage; Sber's INTEGER field rejects negatives and would
+        silently drop the whole device descriptor.
+        """
+        entity = self._entity()
+        self._fill_water(entity, -30)
+        self.assertEqual(entity._water_percentage, 0)
+
+    def test_water_level_at_upper_bound_100_pass_through(self):
+        """Exactly 100 % — the legal maximum — must pass through cleanly."""
+        entity = self._entity()
+        self._fill_water(entity, 100)
+        self.assertEqual(entity._water_percentage, 100)
+
+    def test_water_level_at_zero_still_emits_feature(self):
+        """0 % is a valid reading (empty tank).  Must be emitted, not
+        confused with 'no value' — otherwise Sber never sees empty-tank
+        state and can't nag the user to refill.
+        """
+        entity = self._entity()
+        self._fill_water(entity, 0)
+        self.assertEqual(entity._water_percentage, 0)
+        result = entity.to_sber_current_state()
+        states = result["humidifier.living_room"]["states"]
+        keys_and_values = {s["key"]: s["value"] for s in states}
+        self.assertIn("hvac_water_percentage", keys_and_values)
+        self.assertEqual(keys_and_values["hvac_water_percentage"]["integer_value"], "0")
+
+    def test_water_level_fractional_truncates(self):
+        """Fractional water_level readings (some sensors report floats)
+        must truncate to int without crashing."""
+        entity = self._entity()
+        self._fill_water(entity, 75.9)
+        self.assertEqual(entity._water_percentage, 75)
+
+    def test_water_level_numeric_string_accepted(self):
+        """water_level arriving as a string "42" (some polling drivers
+        deliver strings) must still parse."""
+        entity = self._entity()
+        self._fill_water(entity, "42")
+        self.assertEqual(entity._water_percentage, 42)
+
+    def test_water_level_invalid_string_falls_back_to_none(self):
+        """Non-numeric string must NOT crash the fill path — should
+        default to None (feature omitted from wire payload)."""
+        entity = self._entity()
+        self._fill_water(entity, "not_a_number")
+        # Falls back to AttrSpec default (None) — feature omitted below.
+        self.assertIsNone(entity._water_percentage)
+        result = entity.to_sber_current_state()
+        keys = {s["key"] for s in result["humidifier.living_room"]["states"]}
+        self.assertNotIn("hvac_water_percentage", keys)
+
+    def test_water_level_feature_declared_when_populated(self):
+        """When _water_percentage is set, hvac_water_percentage must
+        appear in the features list — otherwise Sber will silently
+        reject the state entry for an undeclared feature."""
+        entity = self._entity()
+        self._fill_water(entity, 50)
+        features = entity.get_final_features_list()
+        self.assertIn("hvac_water_percentage", features)
+
+    def test_water_level_feature_absent_when_missing(self):
+        """Without water_level attribute, hvac_water_percentage must NOT
+        be in the features list (contract: features declared == states emitted)."""
+        entity = self._entity()
+        entity.fill_by_ha_state({
+            "entity_id": "humidifier.living_room",
+            "state": "on",
+            "attributes": {},
+        })
+        features = entity.get_final_features_list()
+        self.assertNotIn("hvac_water_percentage", features)
+
+    def test_water_percentage_wire_type_is_integer_string(self):
+        """Sber's INTEGER wire encoding requires integer_value serialised
+        as a STRING; the test guards against a future int→raw-int refactor
+        that would break C2C compliance."""
+        entity = self._entity()
+        self._fill_water(entity, 55)
+        result = entity.to_sber_current_state()
+        states = result["humidifier.living_room"]["states"]
+        wp = next(s for s in states if s["key"] == "hvac_water_percentage")
+        self.assertEqual(wp["value"]["type"], "INTEGER")
+        self.assertIsInstance(wp["value"]["integer_value"], str)
+        self.assertEqual(wp["value"]["integer_value"], "55")
+
+    def test_water_level_drops_from_populated_to_missing_between_fills(self):
+        """When a HA update no longer carries water_level, the field must
+        clear (default None), otherwise we'd ship a stale reading forever.
+
+        This locks the AttrSpec default-vs-preserve behaviour for
+        ``_water_percentage`` — it's declared without ``preserve_on_missing``,
+        so a missing key should reset to None.
+        """
+        entity = self._entity()
+        self._fill_water(entity, 60)
+        self.assertEqual(entity._water_percentage, 60)
+        # Next update — no water_level in attributes
+        entity.fill_by_ha_state({
+            "entity_id": "humidifier.living_room",
+            "state": "on",
+            "attributes": {"humidity": 45},
+        })
+        self.assertIsNone(entity._water_percentage)
+        result = entity.to_sber_current_state()
+        keys = {s["key"] for s in result["humidifier.living_room"]["states"]}
+        self.assertNotIn("hvac_water_percentage", keys)
