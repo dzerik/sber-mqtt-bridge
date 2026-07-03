@@ -5,7 +5,7 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-04-12T21:42:23.056807+00:00
+Spec generated at: 2026-07-03T13:58:58.047793+00:00
 """
 
 from __future__ import annotations
@@ -35,11 +35,13 @@ FEATURE_TYPES: dict[str, str] = {
     "channel": "ENUM",
     "channel_int": "INTEGER",
     "child_lock": "BOOL",
+    "co2": "INTEGER",
     "current": "INTEGER",
     "custom_key": "ENUM",
     "direction": "ENUM",
     "doorcontact_state": "BOOL",
     "gas_leak_state": "BOOL",
+    "hcho_float": "FLOAT",
     "humidity": "INTEGER",
     "hvac_air_flow_direction": "ENUM",
     "hvac_air_flow_power": "ENUM",
@@ -83,6 +85,9 @@ FEATURE_TYPES: dict[str, str] = {
     "open_set": "ENUM",
     "open_state": "ENUM",
     "pir": "ENUM",
+    "pm10": "INTEGER",
+    "pm1_0": "INTEGER",
+    "pm2_5": "INTEGER",
     "power": "INTEGER",
     "reject_call": "ENUM",
     "sensor_sensitive": "ENUM",
@@ -92,6 +97,7 @@ FEATURE_TYPES: dict[str, str] = {
     "tamper_alarm": "BOOL",
     "temp_unit_view": "ENUM",
     "temperature": "INTEGER",
+    "tvoc_float": "FLOAT",
     "unlock": "ENUM",
     "vacuum_cleaner_cleaning_type": "ENUM",
     "vacuum_cleaner_command": "ENUM",

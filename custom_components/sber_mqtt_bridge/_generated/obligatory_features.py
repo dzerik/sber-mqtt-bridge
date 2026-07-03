@@ -5,14 +5,14 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-04-12T21:42:23.056807+00:00
+Spec generated at: 2026-07-03T13:58:58.047793+00:00
 """
 
 from __future__ import annotations
 
 CATEGORY_OBLIGATORY_FEATURES: dict[str, frozenset[str]] = {
-    "curtain": frozenset({"online", "open_percentage", "open_set", "open_state"}),
-    "gate": frozenset({"online", "open_percentage", "open_set", "open_state"}),
+    "curtain": frozenset({"online", "open_state"}),
+    "gate": frozenset({"online", "open_state"}),
     "hub": frozenset({"online"}),
     "hvac_ac": frozenset({"hvac_temp_set", "on_off", "online"}),
     "hvac_air_purifier": frozenset({"on_off", "online"}),
@@ -32,13 +32,13 @@ CATEGORY_OBLIGATORY_FEATURES: dict[str, frozenset[str]] = {
     "sensor_gas": frozenset({"gas_leak_state", "online"}),
     "sensor_pir": frozenset({"online", "pir"}),
     "sensor_smoke": frozenset({"online", "smoke_state"}),
-    "sensor_temp": frozenset({"humidity", "online", "temperature"}),
+    "sensor_temp": frozenset({"online"}),
     "sensor_water_leak": frozenset({"online", "water_leak_state"}),
     "socket": frozenset({"on_off", "online"}),
     "tv": frozenset({"on_off", "online"}),
     "vacuum_cleaner": frozenset({"online"}),
-    "valve": frozenset({"online", "open_percentage", "open_set", "open_state"}),
-    "window_blind": frozenset({"online", "open_percentage", "open_set", "open_state"}),
+    "valve": frozenset({"online", "open_state"}),
+    "window_blind": frozenset({"online", "open_state"}),
 }
 """Features marked obligatory (``✔︎``) in Sber docs per category.
 

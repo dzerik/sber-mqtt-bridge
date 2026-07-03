@@ -5,7 +5,7 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-04-12T21:42:23.056807+00:00
+Spec generated at: 2026-07-03T13:58:58.047793+00:00
 """
 
 from __future__ import annotations

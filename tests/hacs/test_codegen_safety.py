@@ -153,6 +153,21 @@ class TestObligatoryFeatures:
         """Unknown categories fail-open (empty set, not false positive)."""
         assert missing_obligatory_features("does_not_exist", set()) == set()
 
+    def test_sensor_temp_obligatory_relaxed_after_2026_05(self):
+        """After the 2026-05 Sber spec update humidity/temperature became
+        ✔︎* conditional (at-least-one-of). Ensure our codegen no longer
+        marks them strict-mandatory — otherwise chunk-temperature-only
+        HA sensors get false-rejected locally by missing_obligatory_features().
+        """
+        assert CATEGORY_OBLIGATORY_FEATURES["sensor_temp"] == frozenset({"online"})
+
+    def test_cover_obligatory_relaxed_after_2026_05(self):
+        """open_percentage/open_set became ✔︎* conditional for four cover
+        categories; only online + open_state remain strict."""
+        for cat in ("curtain", "gate", "valve", "window_blind"):
+            assert CATEGORY_OBLIGATORY_FEATURES[cat] == frozenset({"online", "open_state"}), \
+                f"{cat}: unexpected obligatory set — snapshot may need re-scraping"
+
 
 class TestCodegenDriftCheck:
     """Codegen --check mode must accurately report drift."""
