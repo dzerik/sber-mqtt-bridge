@@ -171,6 +171,111 @@ class TestObligatoryFeatures:
                 f"{cat}: unexpected obligatory set — snapshot may need re-scraping"
 
 
+class TestMissingObligatoryFeaturesBehaviour:
+    """Behavioural tests for :func:`missing_obligatory_features` — the
+    helper that guards against silent Sber-cloud device rejection.
+
+    The audit flagged that ``TestObligatoryFeatures`` above verifies the
+    generated data tables + one happy path, but not the function's
+    edge behaviour (multiple missing, override interaction, whitespace,
+    return-type shape).  Locking these prevents regressions where a
+    refactor of the helper could pass the existing tests while breaking
+    the silent-rejection audit.
+    """
+
+    def test_reports_multiple_missing_simultaneously(self):
+        """A device emitting nothing must have EVERY obligatory feature
+        flagged, not just one — otherwise callers apply fixes one-at-a-time
+        and never converge."""
+        missing = missing_obligatory_features("light", set())
+        assert missing == {"online", "on_off"}
+
+    def test_light_missing_only_on_off(self):
+        """Emitting ``online`` alone leaves ``on_off`` missing."""
+        assert missing_obligatory_features("light", {"online"}) == {"on_off"}
+
+    def test_light_missing_only_online(self):
+        """Emitting ``on_off`` alone leaves ``online`` missing."""
+        assert missing_obligatory_features("light", {"on_off"}) == {"online"}
+
+    def test_extra_features_do_not_affect_result(self):
+        """Emitting extra unrelated features doesn't hide a missing
+        obligatory one — the check is set-difference-based."""
+        missing = missing_obligatory_features(
+            "light", {"online", "child_lock", "sensor_sensitive"}
+        )
+        assert missing == {"on_off"}
+
+    def test_sensor_temp_override_actually_relaxes_missing(self):
+        """The ``_CATEGORY_OBLIGATORY_OVERRIDES`` layer must flow through
+        :func:`missing_obligatory_features` — otherwise the override is
+        dead code and temperature-only sensors get flagged incorrectly.
+        """
+        # temperature-only sensor (no humidity) — must be considered
+        # complete because the override reduces obligatory to {online}.
+        assert missing_obligatory_features("sensor_temp", {"online", "temperature"}) == set()
+
+    def test_sensor_temp_online_alone_is_compliant(self):
+        """Override cascades: ``online`` alone is enough for sensor_temp
+        even though Sber's raw table historically wanted temperature/humidity.
+        """
+        assert missing_obligatory_features("sensor_temp", {"online"}) == set()
+
+    def test_return_supports_membership_and_set_ops(self):
+        """The result must be usable with the standard set-difference /
+        membership API — that's what dispatcher/logging code relies on.
+        Contract: it's a set-like of str; concrete class (frozenset vs
+        set) is an implementation detail but iterability and ``in`` must
+        both work.
+        """
+        result = missing_obligatory_features("light", {"online"})
+        # Membership works
+        assert "on_off" in result
+        assert "online" not in result
+        # Iterable
+        assert list(result) == ["on_off"]
+        # Set-difference with a plain set returns something set-like
+        assert (result - {"on_off"}) == set()
+
+    def test_empty_string_category_treated_as_unknown(self):
+        """Empty-string category should be treated as unknown and fail-open,
+        not crash — guards against a hall-of-mirrors bug where a missing
+        ``category`` field is coerced to ``""`` upstream."""
+        assert missing_obligatory_features("", {"online"}) == set()
+
+    def test_none_category_treated_as_unknown_via_dict_get(self):
+        """A ``None`` category flowing through ``dict.get`` returns None
+        obligatory → empty missing set.  If this ever raises, we'd crash
+        in ``sber_bridge`` when a malformed device slips through."""
+        # Cast to str to satisfy type-checker; runtime coerces None via .get.
+        assert missing_obligatory_features(None, {"online"}) == set()  # type: ignore[arg-type]
+
+    def test_case_sensitivity_categories_are_lowercase(self):
+        """Sber categories are lowercase; ``"Light"`` is a typo, not a
+        valid category — must fail-open (unknown) rather than false-match."""
+        assert missing_obligatory_features("Light", {"online"}) == set()
+
+    def test_cover_categories_missing_open_state(self):
+        """After the 2026-05 spec relaxation, four cover categories only
+        require ``online`` + ``open_state``.  A cover emitting only
+        ``open_percentage`` must still be flagged for missing ``open_state``.
+        """
+        for cat in ("curtain", "gate", "valve", "window_blind"):
+            missing = missing_obligatory_features(cat, {"online", "open_percentage"})
+            assert missing == {"open_state"}, f"{cat}: {missing}"
+
+    def test_sensor_air_requires_only_online(self):
+        """sensor_air (v1.40.0) was introduced with all measurement
+        features as ✔︎* conditional; ``online`` is the only obligatory
+        feature.  A device emitting just ``online`` is Sber-compliant."""
+        assert missing_obligatory_features("sensor_air", {"online"}) == set()
+
+    def test_sensor_air_online_missing_flagged(self):
+        """But an empty sensor_air (no online) must still fail — the
+        override does not remove ``online`` from the obligatory set."""
+        assert missing_obligatory_features("sensor_air", {"co2", "pm2_5"}) == {"online"}
+
+
 class TestCodegenDriftCheck:
     """Codegen --check mode must accurately report drift."""
 
