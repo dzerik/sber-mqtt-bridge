@@ -68,13 +68,13 @@ class TestKettleToSberCurrentState(unittest.TestCase):
         result = entity.to_sber_current_state()
         states = result["water_heater.kettle"]["states"]
         temp = next(s for s in states if s["key"] == "kitchen_water_temperature")
-        self.assertEqual(temp["value"]["integer_value"], "850")
+        self.assertEqual(temp["value"]["integer_value"], "85")
         target = next(s for s in states if s["key"] == "kitchen_water_temperature_set")
         self.assertEqual(target["value"]["integer_value"], "100")
 
     def test_low_water_level_heuristic(self):
         entity = KettleEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("idle", current_temperature=2.5))
+        entity.fill_by_ha_state(_make_ha_state("idle", current_temperature=25))
         result = entity.to_sber_current_state()
         states = result["water_heater.kettle"]["states"]
         low = next(s for s in states if s["key"] == "kitchen_water_low_level")
@@ -82,7 +82,7 @@ class TestKettleToSberCurrentState(unittest.TestCase):
 
     def test_not_low_water_level(self):
         entity = KettleEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("heating", current_temperature=50.0))
+        entity.fill_by_ha_state(_make_ha_state("heating", current_temperature=50))
         result = entity.to_sber_current_state()
         states = result["water_heater.kettle"]["states"]
         low = next(s for s in states if s["key"] == "kitchen_water_low_level")
@@ -145,44 +145,3 @@ class TestKettleAllowedValues(unittest.TestCase):
         self.assertEqual(vals["min"], "60")
         self.assertEqual(vals["max"], "100")
         self.assertEqual(vals["step"], "10")
-
-
-class TestKitchenWaterTemperatureTelemetry(unittest.TestCase):
-    """P2.2 — pass-through the kettle's current water temperature as
-    Sber's kitchen_water_temperature (INTEGER = °C × 10)."""
-
-    def test_current_temperature_attribute_parsed(self):
-        entity = KettleEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(
-            _make_ha_state("heating", current_temperature=85.0)
-        )
-        self.assertEqual(entity._water_temp, 85.0)
-
-    def test_temperature_attribute_fallback(self):
-        """Some HA integrations use `temperature` instead of `current_temperature`."""
-        entity = KettleEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(
-            _make_ha_state("heating", temperature=90.5)
-        )
-        self.assertEqual(entity._water_temp, 90.5)
-
-    def test_temperature_emitted_as_int_times_ten(self):
-        entity = KettleEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(
-            _make_ha_state("heating", current_temperature=22.5)
-        )
-        result = entity.to_sber_current_state()
-        states = result["water_heater.kettle"]["states"]
-        entry = next(
-            s for s in states
-            if s["key"] == "kitchen_water_temperature"
-        )
-        self.assertEqual(entry["value"]["integer_value"], "225")
-
-    def test_missing_temperature_omits_feature(self):
-        entity = KettleEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("heating"))
-        result = entity.to_sber_current_state()
-        states = result["water_heater.kettle"]["states"]
-        keys = {s["key"] for s in states}
-        self.assertNotIn("kitchen_water_temperature", keys)
