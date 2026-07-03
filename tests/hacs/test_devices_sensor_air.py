@@ -8,6 +8,10 @@ from custom_components.sber_mqtt_bridge.devices.base_entity import (
     ROLE_CO2, ROLE_HCHO, ROLE_HUMIDITY, ROLE_PM1, ROLE_PM10, ROLE_PM25,
     ROLE_TEMPERATURE, ROLE_TVOC, LinkableRole,
 )
+from custom_components.sber_mqtt_bridge.devices.sensor_air import (
+    SENSOR_AIR_CATEGORY,
+    SensorAirEntity,
+)
 from custom_components.sber_mqtt_bridge.sber_constants import SberFeature
 
 
@@ -52,3 +56,187 @@ class TestAirQualityRoles:
         assert role.role == expected_role_name
         assert "sensor" in role.domains
         assert expected_device_class in role.device_classes
+
+
+ENTITY_DATA = {
+    "entity_id": "sensor.air_quality",
+    "name": "Air Quality",
+    "original_name": "Air Quality",
+    "area_id": "living_room",
+}
+
+
+def _state(value, device_class):
+    """Helper to build an HA state dict for a sensor entity."""
+    return {
+        "entity_id": "sensor.foo",
+        "state": str(value),
+        "attributes": {"device_class": device_class},
+    }
+
+
+class TestSensorAirBasics:
+    def test_category_is_sensor_air(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        assert e.category == SENSOR_AIR_CATEGORY
+        assert SENSOR_AIR_CATEGORY == "sensor_air"
+
+    def test_linkable_roles_include_all_measurements(self):
+        role_names = {r.role for r in SensorAirEntity.LINKABLE_ROLES}
+        # The eight sensor_air conditional measurements + standard sensor
+        # links (battery, battery_low, signal_strength).
+        assert {
+            "co2", "pm1", "pm25", "pm10", "tvoc", "hcho",
+            "temperature", "humidity",
+            "battery", "battery_low", "signal_strength",
+        }.issubset(role_names)
+
+
+class TestPrimaryFill:
+    """Primary HA sensor state routes into the field matching its
+    device_class."""
+
+    @pytest.mark.parametrize(
+        "device_class,expected_field,input_state,expected_value",
+        [
+            ("carbon_dioxide", "_co2", "450", 450),
+            ("pm25", "_pm25", "12.4", 12),   # INT truncation ok
+            ("pm10", "_pm10", "22", 22),
+            ("pm1", "_pm1", "4", 4),
+            ("volatile_organic_compounds", "_tvoc", "0.35", pytest.approx(0.35)),
+        ],
+    )
+    def test_primary_state_routes_to_matching_field(
+        self, device_class, expected_field, input_state, expected_value
+    ):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state(_state(input_state, device_class))
+        assert getattr(e, expected_field) == expected_value
+
+    def test_unknown_state_is_ignored(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state(_state("unknown", "carbon_dioxide"))
+        assert e._co2 is None
+
+    def test_unhandled_device_class_leaves_all_fields_none(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.fill_by_ha_state(_state("42", "power"))
+        # None of the measurement fields populated.
+        for f in ("_co2", "_pm1", "_pm25", "_pm10", "_tvoc", "_hcho",
+                  "_temperature", "_humidity"):
+            assert getattr(e, f) is None
+
+
+class TestLinkedFill:
+    """Linked entities via update_linked_data fill their own field."""
+
+    @pytest.mark.parametrize(
+        "role_name,input_value,expected_field,expected_value",
+        [
+            ("co2", "600", "_co2", 600),
+            ("pm25", "8", "_pm25", 8),
+            ("pm10", "15", "_pm10", 15),
+            ("pm1", "3", "_pm1", 3),
+            ("tvoc", "0.12", "_tvoc", pytest.approx(0.12)),
+            ("hcho", "0.04", "_hcho", pytest.approx(0.04)),
+            ("humidity", "45", "_humidity", 45),
+            ("temperature", "22.5", "_temperature", pytest.approx(22.5)),
+        ],
+    )
+    def test_role_maps_to_field(self, role_name, input_value, expected_field, expected_value):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.update_linked_data(role_name, _state(input_value, "irrelevant"))
+        assert getattr(e, expected_field) == expected_value
+
+
+class TestToSberCurrentState:
+    """``to_sber_current_state`` returns ``{entity_id: {"states": [...]}}``
+    (see BaseEntity.to_sber_current_state docstring / SimpleReadOnlySensor /
+    SensorTempEntity for the established shape) — NOT a flat
+    ``{"states": [...]}`` dict."""
+
+    def test_no_measurements_emits_only_online(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        states = e.to_sber_current_state()[e.entity_id]["states"]
+        keys = {s["key"] for s in states}
+        assert "online" in keys
+        # No measurement features when all fields are None.
+        assert not (keys & {
+            "co2", "pm1_0", "pm2_5", "pm10", "tvoc_float", "hcho_float",
+            "temperature", "humidity",
+        })
+
+    def test_only_populated_measurements_emitted(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._co2 = 500
+        e._pm25 = 10
+        keys = {s["key"] for s in e.to_sber_current_state()[e.entity_id]["states"]}
+        assert "co2" in keys
+        assert "pm2_5" in keys
+        # None values not emitted:
+        assert "pm10" not in keys
+        assert "hcho_float" not in keys
+
+    def test_temperature_scaled_by_ten(self):
+        """Sber wire format for temperature is INTEGER = °C × 10."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._temperature = 22.5
+        temp_entry = next(
+            s for s in e.to_sber_current_state()[e.entity_id]["states"]
+            if s["key"] == "temperature"
+        )
+        assert temp_entry["value"]["integer_value"] == "225"
+
+    def test_float_measurement_uses_float_value(self):
+        """tvoc_float / hcho_float wire type is FLOAT, not INTEGER."""
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e._tvoc = 0.35
+        tvoc_entry = next(
+            s for s in e.to_sber_current_state()[e.entity_id]["states"]
+            if s["key"] == "tvoc_float"
+        )
+        assert tvoc_entry["value"]["type"] == "FLOAT"
+        assert tvoc_entry["value"]["float_value"] == pytest.approx(0.35)
+
+
+class TestBatterySignalLinking:
+    """battery/battery_low/signal_strength roles are handled via the
+    shared BatteryAndSignalLinkMixin, same as every other sensor class."""
+
+    def test_battery_level_emits_percentage_and_low_power(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e.update_linked_data("battery", _state("15", "battery"))
+        keys = {s["key"] for s in e.to_sber_current_state()[e.entity_id]["states"]}
+        assert "battery_percentage" in keys
+        assert "battery_low_power" in keys
+
+    def test_signal_strength_emits_feature(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e.is_filled_by_state = True
+        e.update_linked_data("signal_strength", _state("-60", "signal_strength"))
+        keys = {s["key"] for s in e.to_sber_current_state()[e.entity_id]["states"]}
+        assert "signal_strength" in keys
+
+
+class TestCreateFeaturesList:
+    """_create_features_list mirrors the conditional measurements actually
+    populated, so the model descriptor never advertises a feature that
+    to_sber_current_state won't emit."""
+
+    def test_minimal_features_only_online(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        assert e._create_features_list() == ["online"]
+
+    def test_features_grow_with_populated_measurements(self):
+        e = SensorAirEntity(ENTITY_DATA)
+        e._co2 = 500
+        e._temperature = 21.0
+        features = e._create_features_list()
+        assert "co2" in features
+        assert "temperature" in features
+        assert "pm10" not in features
