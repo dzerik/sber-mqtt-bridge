@@ -6,6 +6,7 @@ Supports on/off control, water temperature reading, and target temperature setti
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Callable
 from typing import ClassVar
 
@@ -57,6 +58,12 @@ class KettleEntity(BaseEntity):
             attr_keys=("water_level",),
             parser=_safe_int_parser,
         ),
+        AttrSpec(
+            field="_water_temp",
+            attr_keys=("current_temperature", "temperature"),
+            parser=float,
+            default=None,
+        ),
     )
 
     def __init__(self, entity_data: dict) -> None:
@@ -71,6 +78,7 @@ class KettleEntity(BaseEntity):
         self._target_temperature: int | None = None
         self._child_lock: bool = False
         self._water_level: int | None = None
+        self._water_temp: float | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update kettle attributes.
@@ -121,12 +129,15 @@ class KettleEntity(BaseEntity):
             make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
             make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
-        if self._current_temperature is not None:
+        if self._water_temp is not None and math.isfinite(self._water_temp):
             states.append(
-                make_state(SberFeature.KITCHEN_WATER_TEMPERATURE, make_integer_value(self._current_temperature))
+                make_state(
+                    SberFeature.KITCHEN_WATER_TEMPERATURE,
+                    make_integer_value(round(self._water_temp * 10)),
+                )
             )
             # Low water level heuristic: temperature below 30 indicates no/little water
-            low_level = self._current_temperature < 30
+            low_level = self._water_temp < 3.0  # 3°C threshold (30/10)
             states.append(make_state(SberFeature.KITCHEN_WATER_LOW_LEVEL, make_bool_value(low_level)))
         if self._water_level is not None:
             states.append(make_state(SberFeature.KITCHEN_WATER_LEVEL, make_integer_value(self._water_level)))
