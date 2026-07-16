@@ -42,7 +42,7 @@ jobs:
       # (older v3.0.x wrote <input>.sigstore) — any downstream consumer
       # can verify it with `sigstore verify identity`.
       - name: Sign release artifact (sigstore)
-        uses: sigstore/gh-action-sigstore-python@v3.3.0
+        uses: sigstore/gh-action-sigstore-python@v3.4.0
         with:
           inputs: sber_mqtt_bridge.zip
 
