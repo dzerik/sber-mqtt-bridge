@@ -64,6 +64,7 @@ def _fahrenheit_to_celsius(value: float) -> float:
     """
     return (value - 32.0) * 5.0 / 9.0
 
+
 # Map: HA device_class -> (internal field, parser). Used to route the
 # primary HA state (fill_by_ha_state) into the matching measurement field.
 _DEVICE_CLASS_ROUTING: dict[str, tuple[str, type]] = {
@@ -298,29 +299,17 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
         states: list[dict] = [make_state(SberFeature.ONLINE, make_bool_value(self._is_online))]
 
         if self._co2 is not None:
-            states.append(
-                make_state(SberFeature.CO2, make_integer_value(max(0, min(5000, self._co2))))
-            )
+            states.append(make_state(SberFeature.CO2, make_integer_value(max(0, min(5000, self._co2)))))
         if self._pm1 is not None:
-            states.append(
-                make_state(SberFeature.PM1_0, make_integer_value(max(0, min(999, self._pm1))))
-            )
+            states.append(make_state(SberFeature.PM1_0, make_integer_value(max(0, min(999, self._pm1)))))
         if self._pm25 is not None:
-            states.append(
-                make_state(SberFeature.PM2_5, make_integer_value(max(0, min(999, self._pm25))))
-            )
+            states.append(make_state(SberFeature.PM2_5, make_integer_value(max(0, min(999, self._pm25)))))
         if self._pm10 is not None:
-            states.append(
-                make_state(SberFeature.PM10, make_integer_value(max(0, min(999, self._pm10))))
-            )
+            states.append(make_state(SberFeature.PM10, make_integer_value(max(0, min(999, self._pm10)))))
         if self._tvoc is not None:
-            states.append(
-                make_state(SberFeature.TVOC_FLOAT, _make_float_value(max(0.0, self._tvoc)))
-            )
+            states.append(make_state(SberFeature.TVOC_FLOAT, _make_float_value(max(0.0, self._tvoc))))
         if self._hcho is not None:
-            states.append(
-                make_state(SberFeature.HCHO_FLOAT, _make_float_value(max(0.0, self._hcho)))
-            )
+            states.append(make_state(SberFeature.HCHO_FLOAT, _make_float_value(max(0.0, self._hcho))))
         if self._temperature is not None:
             # Sber wire spec: temperature is INTEGER = °C x 10 (same
             # convention as SensorTempEntity).
@@ -330,9 +319,7 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
                     make_integer_value(round(self._temperature * 10)),
                 )
             )
-            states.append(
-                make_state(SberFeature.TEMP_UNIT_VIEW, make_enum_value(self._temp_unit))
-            )
+            states.append(make_state(SberFeature.TEMP_UNIT_VIEW, make_enum_value(self._temp_unit)))
         if self._humidity is not None:
             states.append(
                 make_state(
