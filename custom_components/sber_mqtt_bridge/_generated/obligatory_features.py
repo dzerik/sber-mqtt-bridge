@@ -5,7 +5,7 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-07-03T14:23:03.048208+00:00
+Spec generated at: 2026-07-21T10:27:31.769095+00:00
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ CATEGORY_OBLIGATORY_FEATURES: dict[str, frozenset[str]] = {
     "light": frozenset({"on_off", "online"}),
     "relay": frozenset({"on_off", "online"}),
     "scenario_button": frozenset({"online"}),
-    "sensor_air": frozenset({"online"}),
+    "sensor_air": frozenset(),
     "sensor_door": frozenset({"doorcontact_state", "online"}),
     "sensor_gas": frozenset({"gas_leak_state", "online"}),
     "sensor_pir": frozenset({"online", "pir"}),
