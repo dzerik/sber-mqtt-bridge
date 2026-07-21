@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.40.2] - 2026-07-21
+
+### Fixed
+
+- **Ложный drift для `sensor_air` в schema-scraper.** На части страниц
+  документации Sber (напр. `sensor_air`) таблица «Доступные функции»
+  обёрнута в `<div>` и не является прямым `nextElementSibling`
+  заголовка. Старый экстрактор искал только таблицу-прямой-sibling,
+  не находил её, уходил в silent-fallback (`obligatory`/`conditional`
+  = `[]`) и на каждом прогоне drift-check генерировал ложный PR,
+  обнулявший `obligatory_features["sensor_air"]`. Экстрактор теперь
+  ищет таблицу и как прямой sibling, и вложенную внутрь sibling-блоков
+  (до следующего заголовка секции), а поиск заголовка расширен на
+  `h1–h4`. Проверено на живых страницах `sensor_air` (13 фич,
+  `online` обязательная) и `sensor_temp` (без регрессии).
+
 ## [1.40.1] - 2026-07-03
 
 ### Fixed

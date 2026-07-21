@@ -190,11 +190,13 @@ def extract_category_schema(page, category: str) -> dict | None:
     # obligatory  = ✔︎  (strict mandatory)
     # conditional = ✔︎* (at least one of the starred set must be present)
     #
-    # Таблица рендерится JS'ом и иногда не готова к первому проходу: пустой
-    # результат уходил в silent-fallback ниже (obligatory/conditional=[]) и
-    # давал ЛОЖНЫЙ дрифт при живой таблице (напр. sensor_air). Дожидаемся
-    # заголовка и ретраим; hub-страницы без таблицы отработают пустым fallback.
-    # страницы без таблицы (hub) → suppress + легитимный empty-fallback ниже
+    # На части страниц (напр. sensor_air) таблица обёрнута в <div> и не является
+    # прямым sibling'ом заголовка — старый экстрактор её не находил и уходил в
+    # silent-fallback (obligatory/conditional=[]), что давало ЛОЖНЫЙ дрифт при
+    # живой таблице. Структурный фикс — в _TABLE_EXTRACTOR_JS (поиск вложенной
+    # таблицы). Здесь дополнительно ждём заголовок и ретраим на случай, когда
+    # JS-рендер таблицы не готов к первому проходу; hub-страницы без таблицы
+    # легитимно отработают пустым fallback ниже.
     with contextlib.suppress(PlaywrightTimeout):
         page.wait_for_selector("h2:has-text('Доступные функции')", timeout=8_000)
     table_rows = _extract_features_table(page)
@@ -218,13 +220,24 @@ def extract_category_schema(page, category: str) -> dict | None:
 
 _TABLE_EXTRACTOR_JS = """
 () => {
-  const headings = Array.from(document.querySelectorAll('h2'));
+  const HEAD = /^H[1-4]$/;
+  const headings = Array.from(document.querySelectorAll('h1,h2,h3,h4'));
   const target = headings.find(h => h.innerText.includes('Доступные функции'));
   if (!target) return [];
+  // The table is not always a direct sibling of the heading — on some
+  // category pages (e.g. sensor_air) it is wrapped in a <div>. Scan the
+  // following siblings until the next section heading and pick the first
+  // <table>, whether it is the sibling itself or nested inside it.
+  let table = null;
   let el = target.nextElementSibling;
-  while (el && el.tagName !== 'TABLE') el = el.nextElementSibling;
-  if (!el) return [];
-  const rows = Array.from(el.querySelectorAll('tr'));
+  while (el && !HEAD.test(el.tagName)) {
+    if (el.tagName === 'TABLE') { table = el; break; }
+    const inner = el.querySelector ? el.querySelector('table') : null;
+    if (inner) { table = inner; break; }
+    el = el.nextElementSibling;
+  }
+  if (!table) return [];
+  const rows = Array.from(table.querySelectorAll('tr'));
   return rows.slice(1).map(tr => {
     const cells = Array.from(tr.querySelectorAll('td')).map(td => td.innerText.trim());
     const marker = cells[1] || '';
