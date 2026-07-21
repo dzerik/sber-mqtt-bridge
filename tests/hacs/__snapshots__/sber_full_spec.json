@@ -661,16 +661,7 @@
       ],
       "allowed_values": {},
       "category": "sensor_air",
-      "conditional": [
-        "co2",
-        "hcho_float",
-        "humidity",
-        "pm10",
-        "pm1_0",
-        "pm2_5",
-        "temperature",
-        "tvoc_float"
-      ],
+      "conditional": [],
       "dependencies": {},
       "features": [
         "battery_low_power",
@@ -687,9 +678,7 @@
         "temperature",
         "tvoc_float"
       ],
-      "obligatory": [
-        "online"
-      ]
+      "obligatory": []
     },
     "sensor_door": {
       "all_features": [
@@ -2029,6 +2018,6 @@
       ]
     }
   },
-  "generated_at": "2026-07-03T14:23:03.048208+00:00",
+  "generated_at": "2026-07-21T10:10:28.730081+00:00",
   "source": "https://developers.sber.ru/docs/ru/smarthome/c2c"
 }

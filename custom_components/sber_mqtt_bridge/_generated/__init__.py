@@ -5,7 +5,7 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-07-03T14:23:03.048208+00:00
+Spec generated at: 2026-07-21T10:10:28.730081+00:00
 """
 
 from __future__ import annotations
@@ -25,5 +25,5 @@ __all__ = [
 SPEC_SOURCE: str = "https://developers.sber.ru/docs/ru/smarthome/c2c"
 """Upstream documentation URL used to generate this package."""
 
-SPEC_GENERATED_AT: str = "2026-07-03T14:23:03.048208+00:00"
+SPEC_GENERATED_AT: str = "2026-07-21T10:10:28.730081+00:00"
 """ISO 8601 timestamp when the spec snapshot was fetched."""

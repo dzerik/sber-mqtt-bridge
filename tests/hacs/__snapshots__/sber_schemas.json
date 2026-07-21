@@ -660,16 +660,7 @@
     ],
     "allowed_values": {},
     "category": "sensor_air",
-    "conditional": [
-      "co2",
-      "hcho_float",
-      "humidity",
-      "pm10",
-      "pm1_0",
-      "pm2_5",
-      "temperature",
-      "tvoc_float"
-    ],
+    "conditional": [],
     "dependencies": {},
     "features": [
       "battery_low_power",
@@ -686,9 +677,7 @@
       "temperature",
       "tvoc_float"
     ],
-    "obligatory": [
-      "online"
-    ]
+    "obligatory": []
   },
   "sensor_door": {
     "all_features": [
