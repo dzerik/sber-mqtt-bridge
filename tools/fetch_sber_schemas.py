@@ -23,6 +23,7 @@ workflow creates a PR when the documentation changes upstream.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import sys
@@ -188,7 +189,20 @@ def extract_category_schema(page, category: str) -> dict | None:
     # Extract obligatory + conditional features from the "Доступные функции" table.
     # obligatory  = ✔︎  (strict mandatory)
     # conditional = ✔︎* (at least one of the starred set must be present)
+    #
+    # Таблица рендерится JS'ом и иногда не готова к первому проходу: пустой
+    # результат уходил в silent-fallback ниже (obligatory/conditional=[]) и
+    # давал ЛОЖНЫЙ дрифт при живой таблице (напр. sensor_air). Дожидаемся
+    # заголовка и ретраим; hub-страницы без таблицы отработают пустым fallback.
+    # страницы без таблицы (hub) → suppress + легитимный empty-fallback ниже
+    with contextlib.suppress(PlaywrightTimeout):
+        page.wait_for_selector("h2:has-text('Доступные функции')", timeout=8_000)
     table_rows = _extract_features_table(page)
+    for _ in range(3):
+        if table_rows:
+            break
+        page.wait_for_timeout(600)
+        table_rows = _extract_features_table(page)
     if table_rows:
         schema["all_features"] = sorted({row["feature"] for row in table_rows if row["feature"]})
         schema["obligatory"] = sorted({row["feature"] for row in table_rows if row.get("obligatory")})
