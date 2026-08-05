@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.40.3] - 2026-08-05
+
+### Fixed
+
+- **Красный Lint во всех PR (`LOG004`).** `_handle_disconnect()` логировал
+  неожиданную ошибку MQTT через `_LOGGER.exception()`, хотя вызывается
+  не из `except`-блока — исключение приходит аргументом `err`. Ruff 0.16.1
+  включил правило `LOG004` («`.exception()` call outside exception
+  handlers»), и Lint-джоба покраснела на `main` и на каждом открытом PR
+  (в т.ч. на dependabot #43, который к коду не относится). Теперь
+  используется `_LOGGER.error(..., exc_info=err)` — трейсбек сохраняется.
+- **Недетерминированный линтер в CI.** Lint-джоба ставила `ruff` без
+  ограничения версии, поэтому любой свежий релиз ruff с новым правилом
+  ронял CI без единого изменения в коде. `ruff==0.16.1` добавлен в
+  `.github/workflows/constraints.txt`; обновление версии теперь
+  осознанное, вместе с фиксами найденных нарушений.
+- **Рассинхрон версии.** `sber_protocol.VERSION` отставал (`1.40.1`)
+  от `manifest.json` / `pyproject.toml` (`1.40.2`) — все три источника
+  снова совпадают.
+
 ## [1.40.2] - 2026-07-21
 
 ### Fixed

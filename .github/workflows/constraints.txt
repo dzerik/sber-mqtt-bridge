@@ -12,3 +12,8 @@ pytest-homeassistant-custom-component==0.13.316
 # syrupy 5.x writes/reads __snapshots__/ (our committed location). syrupy 6.x
 # changes serializer behaviour; lock to 5.x until that migration is done.
 syrupy>=5.0,<6.0
+
+# ruff: без пина CI тянет последнюю версию, и новое правило в свежем релизе
+# красит Lint на всех открытых PR (так 0.16.1 уронила main новым LOG004).
+# Обновляем осознанно, вместе с фиксами найденных нарушений.
+ruff==0.16.1

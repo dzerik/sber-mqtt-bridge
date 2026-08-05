@@ -899,9 +899,10 @@ class SberBridge:
             return False
         interval = self._mqtt_service.reconnect_interval
         if unexpected:
-            _LOGGER.exception(
+            _LOGGER.error(
                 "Unexpected MQTT error. Reconnecting in %ds...",
                 interval,
+                exc_info=err,
             )
         else:
             _LOGGER.warning(
