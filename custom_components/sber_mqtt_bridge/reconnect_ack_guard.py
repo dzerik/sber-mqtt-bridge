@@ -54,10 +54,15 @@ class ReconnectAckGuard:
     def activate(self, grace_timeout: float, loop: object) -> None:
         """Activate the guard with a fallback timeout.
 
+        Cancels any previous fallback timer first: on rapid reconnects
+        a stale timer armed for the previous connection must not fire
+        and clear the new connection's guard ahead of its deadline.
+
         Args:
             grace_timeout: Seconds to wait before auto-clearing.
             loop: asyncio event loop for scheduling the timer callback.
         """
+        self._cancel_timer()
         self._awaiting = True
         self._deadline = time.monotonic() + grace_timeout
         self._timeout_handle = loop.call_later(grace_timeout, self._on_timeout)
@@ -88,6 +93,7 @@ class ReconnectAckGuard:
 
     def _on_timeout(self) -> None:
         """Fallback timer callback: auto-clear after grace period."""
+        self._timeout_handle = None
         if self._awaiting:
             _LOGGER.info("Sber ack timeout reached (timer) — accepting commands")
             self._awaiting = False

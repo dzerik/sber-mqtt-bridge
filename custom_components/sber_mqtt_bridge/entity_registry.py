@@ -198,7 +198,19 @@ class SberEntityLoader:
                     "state": state.state,
                     "attributes": dict(state.attributes),
                 }
-                sber_entity.fill_by_ha_state(ha_state_dict)
+                try:
+                    sber_entity.fill_by_ha_state(ha_state_dict)
+                except (TypeError, ValueError, KeyError, AttributeError):
+                    # Per-entity isolation: one broken entity (e.g. a light
+                    # with a degenerate CCT range raising ValueError in
+                    # linear_converter) must not abort loading of all the
+                    # others and take down async_setup_entry with it.
+                    _LOGGER.exception(
+                        "Failed to fill initial state for %s — entity skipped",
+                        entity_id,
+                    )
+                    new_entities.pop(entity_id, None)
+                    continue
 
         return new_entities
 
@@ -297,7 +309,19 @@ class SberEntityLoader:
                     "state": linked_state.state,
                     "attributes": dict(linked_state.attributes),
                 }
-                primary_entity.update_linked_data(role, ha_state_dict)
+                try:
+                    primary_entity.update_linked_data(role, ha_state_dict)
+                except (TypeError, ValueError, KeyError, AttributeError):
+                    # Keep the link registered even when the initial linked
+                    # state cannot be applied — the forwarder retries on the
+                    # next state change; dropping the link would silently
+                    # lose the user's configuration.
+                    _LOGGER.exception(
+                        "Failed to apply initial linked state %s (role=%s) for %s",
+                        linked_id,
+                        role,
+                        primary_id,
+                    )
                 primary_entity.register_link(role, linked_id)
             if valid_roles:
                 new_links[primary_id] = valid_roles

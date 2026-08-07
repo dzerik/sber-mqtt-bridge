@@ -13,7 +13,9 @@ v1.26.0.  See ``docs/DEVICE_WIZARD_PLAN.md`` for the full design.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from .devices.base_entity import BaseEntity
 from .devices.climate import ClimateEntity
@@ -49,33 +51,6 @@ from .devices.window_blind import WindowBlindEntity
 _LOGGER = logging.getLogger(__name__)
 
 
-# Categories available for user overrides in Options Flow
-OVERRIDABLE_CATEGORIES: list[str] = [
-    "light",
-    "led_strip",
-    "relay",
-    "socket",
-    "curtain",
-    "window_blind",
-    "gate",
-    "hvac_ac",
-    "hvac_radiator",
-    "hvac_heater",
-    "hvac_boiler",
-    "hvac_underfloor_heating",
-    "hvac_fan",
-    "valve",
-    "hvac_humidifier",
-    "scenario_button",
-    "hvac_air_purifier",
-    "kettle",
-    "tv",
-    "vacuum_cleaner",
-    "intercom",
-]
-"""Sber categories that users can select as type overrides."""
-
-
 # ---------------------------------------------------------------------------
 # Category promotion registry — v1.26.0 device-centric wizard
 # ---------------------------------------------------------------------------
@@ -95,9 +70,15 @@ class CategorySpec:
     """Rules for promoting an HA entity to a specific Sber category.
 
     Attributes:
-        cls: Entity class to instantiate for this category.  Serves as the
-            single source of truth for both auto-detection (pick by domain)
-            and user overrides (pick by explicit category name).
+        cls: Factory building the Sber entity for this category.  The
+            contract is ``cls(entity_data: dict) -> BaseEntity`` — every
+            registered value must accept the entity-registry data dict as
+            its single positional argument (leaf device classes do; the
+            abstract bases like ``BaseEntity`` / ``OnOffEntity`` take
+            ``(category, entity_data)`` and therefore must NOT be
+            registered directly).  Serves as the single source of truth
+            for both auto-detection (pick by domain) and user overrides
+            (pick by explicit category name).
         domains: HA domains that can match this category.  Order matters for
             presentation but not correctness — any listed domain is accepted.
         device_classes: If ``None`` — the category matches any device_class
@@ -114,7 +95,7 @@ class CategorySpec:
             device_class becomes a relay rather than silently unmatched.
     """
 
-    cls: type[BaseEntity]
+    cls: Callable[[dict[str, Any]], BaseEntity]
     domains: tuple[str, ...]
     device_classes: tuple[str, ...] | None = None
     preferred_rank: int = 50
@@ -278,6 +259,12 @@ CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
     "sensor_air": CategorySpec(
         cls=SensorAirEntity,
         domains=("sensor",),
+        # Subset of devices/sensor_air.py::_DEVICE_CLASS_ROUTING.  Do NOT
+        # "complete" this tuple for symmetry: "temperature" / "humidity"
+        # deliberately route to sensor_temp / sensor_humidity, and
+        # "volatile_organic_compounds_parts" (HCHO) is a linked-role-only
+        # class — as a primary it would yield a sensor_air device with no
+        # populated primary field (locked by test_category_domain_map.py).
         device_classes=(
             "carbon_dioxide",
             "pm1",
@@ -328,6 +315,29 @@ CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
 Every entry carries its own entity constructor via :attr:`CategorySpec.cls`,
 so this single dict drives both auto-detection (by HA domain/device_class)
 and user overrides (by explicit category id).
+"""
+
+
+OVERRIDABLE_CATEGORIES: list[str] = sorted(CATEGORY_DOMAIN_MAP)
+"""Sber categories a user may pick as an explicit type override.
+
+Derived from :data:`CATEGORY_DOMAIN_MAP` so it can never drift from the
+authoritative registry.  This is the **only** definition — the Options
+Flow selector and every WebSocket schema (``set_override``,
+``add_ha_device``, ``import``) import it from here (see
+``websocket_api/_common.py`` re-export).  Do NOT hand-write category
+lists elsewhere; the JS panel should fetch categories via the
+``sber_mqtt_bridge/list_categories`` WS command.
+"""
+
+
+SUPPORTED_DOMAINS: list[str] = sorted({domain for spec in CATEGORY_DOMAIN_MAP.values() for domain in spec.domains})
+"""HA entity domains that can be exported to Sber Smart Home.
+
+Computed as the union of :attr:`CategorySpec.domains` across
+:data:`CATEGORY_DOMAIN_MAP` — adding a category with a new domain
+automatically makes that domain selectable in the Options Flow
+fallback paths (manual select, by-domain, by-label, add-all).
 """
 
 
@@ -399,6 +409,23 @@ CATEGORY_GROUPS: tuple[tuple[str, str], ...] = (
     ("automations", "Automations"),
 )
 """Ordered list of ``(group_id, label)`` for Step 1 grid grouping."""
+
+
+def category_label(category: str) -> str:
+    """Return the human-readable label for a Sber category.
+
+    Single source of truth for category labels — resolves against
+    :data:`CATEGORY_UI_META` (``label_key`` doubles as the English
+    fallback label) so the Options Flow and the wizard never disagree.
+
+    Args:
+        category: Sber category id (e.g. ``"hvac_ac"``).
+
+    Returns:
+        Human-readable label, or the raw category id when unknown.
+    """
+    meta = CATEGORY_UI_META.get(category)
+    return meta.label_key if meta is not None else category
 
 
 def categories_for_domain(

@@ -19,6 +19,21 @@ from .base_entity import AttrSpec, BaseEntity, _safe_bool_parser, _safe_int_pars
 
 _LOGGER = logging.getLogger(__name__)
 
+_CHILD_LOCK_CATEGORIES = frozenset({"socket"})
+"""Sber categories (among OnOffEntity users) whose spec includes ``child_lock``.
+
+Per the Sber functions catalog, ``child_lock`` exists only for
+``socket`` / ``kettle`` / ``vacuum_cleaner`` — advertising it on
+``relay`` risks silent device rejection (issue #44 audit).  Default data
+for :attr:`OnOffEntity._supports_child_lock`; subclasses override the
+flag instead of editing this set."""
+
+_ENERGY_CATEGORIES = frozenset({"relay", "socket"})
+"""Sber categories whose spec includes power / voltage / current.
+
+Default data for :attr:`OnOffEntity._supports_energy`; subclasses
+override the flag instead of editing this set."""
+
 
 class OnOffEntity(BaseEntity):
     """Base class for on/off entities that expose the Sber 'on_off' feature.
@@ -40,15 +55,33 @@ class OnOffEntity(BaseEntity):
     _ha_on_state: str = "on"
     """HA state string that corresponds to 'on' (override in subclass if needed)."""
 
-    _CHILD_LOCK_CATEGORIES = frozenset({"socket"})
-    """Sber categories whose spec includes ``child_lock``.
+    @property
+    def _supports_child_lock(self) -> bool:
+        """Whether this entity may advertise the Sber ``child_lock`` feature.
 
-    Per the Sber functions catalog, ``child_lock`` exists only for
-    ``socket`` / ``kettle`` / ``vacuum_cleaner`` — advertising it on
-    ``relay`` risks silent device rejection (issue #44 audit)."""
+        Overridable capability flag (same pattern as ``_supports_*`` in
+        ``ClimateEntity``): subclasses may shadow this property with a
+        plain class attribute (``_supports_child_lock = True``) instead
+        of the base class enumerating its subclasses' categories.  The
+        default derives from the category per the Sber functions catalog.
 
-    _ENERGY_CATEGORIES = frozenset({"relay", "socket"})
-    """Sber categories whose spec includes power / voltage / current."""
+        Returns:
+            True if the Sber spec includes ``child_lock`` for this entity.
+        """
+        return self.category in _CHILD_LOCK_CATEGORIES
+
+    @property
+    def _supports_energy(self) -> bool:
+        """Whether this entity may advertise power / voltage / current.
+
+        Overridable capability flag; subclasses may shadow it with a
+        plain class attribute.  The default derives from the category
+        per the Sber functions catalog.
+
+        Returns:
+            True if the Sber spec includes energy features for this entity.
+        """
+        return self.category in _ENERGY_CATEGORIES
 
     ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
         AttrSpec(field="_power", attr_keys=("power",), parser=_safe_int_parser),
@@ -89,7 +122,8 @@ class OnOffEntity(BaseEntity):
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list including 'on_off' and optional features.
 
-        Energy and child_lock features are gated by category: the Sber
+        Energy and child_lock features are gated by the overridable
+        ``_supports_energy`` / ``_supports_child_lock`` flags: the Sber
         spec declares power/voltage/current only for relay/socket and
         ``child_lock`` only for socket-like categories (issue #44 audit).
 
@@ -97,14 +131,14 @@ class OnOffEntity(BaseEntity):
             List of Sber feature strings supported by this entity.
         """
         features = [*super()._create_features_list(), "on_off"]
-        if self.category in self._ENERGY_CATEGORIES:
+        if self._supports_energy:
             if self._power is not None:
                 features.append("power")
             if self._voltage is not None:
                 features.append("voltage")
             if self._current is not None:
                 features.append("current")
-        if self._child_lock is not None and self.category in self._CHILD_LOCK_CATEGORIES:
+        if self._child_lock is not None and self._supports_child_lock:
             features.append("child_lock")
         return features
 
@@ -118,13 +152,13 @@ class OnOffEntity(BaseEntity):
             make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
             make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
-        if self.category in self._ENERGY_CATEGORIES:
+        if self._supports_energy:
             if self._power is not None:
                 states.append(make_state(SberFeature.POWER, make_integer_value(self._power)))
             if self._voltage is not None:
                 states.append(make_state(SberFeature.VOLTAGE, make_integer_value(self._voltage)))
             if self._current is not None:
                 states.append(make_state(SberFeature.CURRENT, make_integer_value(self._current)))
-        if self._child_lock is not None and self.category in self._CHILD_LOCK_CATEGORIES:
+        if self._child_lock is not None and self._supports_child_lock:
             states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}

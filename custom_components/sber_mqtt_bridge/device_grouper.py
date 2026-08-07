@@ -197,6 +197,7 @@ class HaDeviceGrouper:
             else:
                 entities_by_device.setdefault(entry.device_id, []).append(entry)
 
+        role_index = self._build_role_index(entities_by_device)
         results: list[DeviceGroup] = []
 
         # Regular device-backed entities
@@ -211,7 +212,7 @@ class HaDeviceGrouper:
                 device=device,
                 device_entries=device_entries,
                 sber_category=sber_category,
-                all_entities_by_device=entities_by_device,
+                role_index=role_index,
             )
             if group is not None:
                 results.append(group)
@@ -264,7 +265,7 @@ class HaDeviceGrouper:
             device=device,
             device_entries=device_entries,
             sber_category=sber_category,
-            all_entities_by_device=entities_by_device,
+            role_index=self._build_role_index(entities_by_device),
         )
 
     # ------------------------------------------------------------------
@@ -277,7 +278,7 @@ class HaDeviceGrouper:
         device: dr.DeviceEntry,
         device_entries: list[er.RegistryEntry],
         sber_category: str,
-        all_entities_by_device: dict[str, list[er.RegistryEntry]],
+        role_index: dict[str, list[tuple[str, er.RegistryEntry]]],
     ) -> DeviceGroup | None:
         """Assemble one :class:`DeviceGroup` for a device + target category.
 
@@ -330,7 +331,7 @@ class HaDeviceGrouper:
             primary_device_id=device.id,
             accepted_roles=accepted_roles,
             already_used_roles=native_roles_used,
-            all_entities_by_device=all_entities_by_device,
+            role_index=role_index,
         )
 
         # 6. Alternatives mapped into GroupedEntity
@@ -460,13 +461,39 @@ class HaDeviceGrouper:
                 )
         return linked, unsupported
 
+    @staticmethod
+    def _build_role_index(
+        entities_by_device: dict[str, list[er.RegistryEntry]],
+    ) -> dict[str, list[tuple[str, er.RegistryEntry]]]:
+        """Index linkable entities by role for cross-device lookup.
+
+        Precomputes :func:`resolve_link_role` once per entity so that
+        :meth:`_find_cross_device_links` — called once per candidate
+        :class:`DeviceGroup` — scans only entities that actually resolve
+        to a link role instead of rescanning every entity of every device
+        (O(devices × total_entities) worst case on wide categories).
+
+        Args:
+            entities_by_device: Enabled registry entries grouped by device.
+
+        Returns:
+            Mapping ``link_role → [(device_id, entry), ...]``.
+        """
+        index: dict[str, list[tuple[str, er.RegistryEntry]]] = {}
+        for device_id, entries in entities_by_device.items():
+            for entry in entries:
+                link_role = resolve_link_role(entry.domain, entry.original_device_class or "")
+                if link_role:
+                    index.setdefault(link_role, []).append((device_id, entry))
+        return index
+
     def _find_cross_device_links(
         self,
         *,
         primary_device_id: str,
         accepted_roles: tuple[LinkableRole, ...],
         already_used_roles: set[str],
-        all_entities_by_device: dict[str, list[er.RegistryEntry]],
+        role_index: dict[str, list[tuple[str, er.RegistryEntry]]],
     ) -> list[GroupedEntity]:
         """Walk other devices for sensors that match primary's LinkableRoles.
 
@@ -480,18 +507,20 @@ class HaDeviceGrouper:
             return []
 
         results: list[GroupedEntity] = []
-        for other_device_id, entries in all_entities_by_device.items():
-            if other_device_id == primary_device_id:
-                continue
-            origin_device = self._device_reg.async_get(other_device_id)
-            if origin_device is None or origin_device.disabled_by is not None:
-                continue
-            origin_name = origin_device.name_by_user or origin_device.name or origin_device.model or other_device_id
-            for entry in entries:
-                dc = entry.original_device_class or ""
-                link_role = resolve_link_role(entry.domain, dc)
-                if not link_role or link_role not in accepted_role_names:
+        origin_cache: dict[str, dr.DeviceEntry | None] = {}
+        for link_role in accepted_role_names:
+            for other_device_id, entry in role_index.get(link_role, []):
+                if other_device_id == primary_device_id:
                     continue
+                if other_device_id not in origin_cache:
+                    device = self._device_reg.async_get(other_device_id)
+                    origin_cache[other_device_id] = (
+                        device if device is not None and device.disabled_by is None else None
+                    )
+                origin_device = origin_cache[other_device_id]
+                if origin_device is None:
+                    continue
+                origin_name = origin_device.name_by_user or origin_device.name or origin_device.model or other_device_id
                 results.append(
                     self._build_grouped_entity(
                         entry=entry,

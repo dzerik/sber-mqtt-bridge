@@ -113,27 +113,10 @@ SBER_TOPIC_PREFIX = "sberdevices/v1"
 SBER_GLOBAL_CONFIG_TOPIC = "sberdevices/v1/__config"
 """MQTT topic for receiving global Sber configuration (e.g. HTTP API endpoint)."""
 
-# Supported HA domains for export to Sber
-
 CONF_ENTITY_LINKS = "entity_links"
 """Options key for entity linking config: {primary_entity_id: {role: linked_entity_id}}."""
 
-
-SUPPORTED_DOMAINS = [
-    "light",
-    "switch",
-    "cover",
-    "climate",
-    "sensor",
-    "binary_sensor",
-    "humidifier",
-    "valve",
-    "input_boolean",
-    "script",
-    "button",
-    "fan",
-    "water_heater",
-    "media_player",
-    "vacuum",
-]
-"""List of HA entity domains that can be exported to Sber Smart Home."""
+# NOTE: the list of HA domains exportable to Sber lives in
+# ``sber_entity_map.SUPPORTED_DOMAINS`` — it is derived from
+# CATEGORY_DOMAIN_MAP so it cannot drift from the category registry.
+# (It used to be a hand-written copy here and lost the ``lock`` domain.)

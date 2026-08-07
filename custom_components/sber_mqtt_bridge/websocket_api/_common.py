@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 
 from ..const import CONF_MAX_MQTT_PAYLOAD, DOMAIN, SETTINGS_DEFAULTS
-from ..sber_entity_map import CATEGORY_DOMAIN_MAP
+from ..sber_entity_map import OVERRIDABLE_CATEGORIES as OVERRIDABLE_CATEGORIES
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -33,9 +33,10 @@ WS_ENTITY_IDS = vol.All(cv.ensure_list, [cv.entity_id])
 """Validator for an entity_ids list field — every element must look
 like a real entity_id (``domain.object_id``)."""
 
-OVERRIDABLE_CATEGORIES = sorted(CATEGORY_DOMAIN_MAP.keys())
-"""Sorted list of valid Sber category strings, used to validate
-``category`` fields in WS schemas."""
+# OVERRIDABLE_CATEGORIES is re-exported (see import above) so WS modules
+# keep their historical ``from ._common import OVERRIDABLE_CATEGORIES``
+# path while the single definition lives in sber_entity_map (derived
+# from CATEGORY_DOMAIN_MAP — no drift possible).
 
 _MAX_PAYLOAD = SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]
 """Frozen at import; runtime option changes require HA restart

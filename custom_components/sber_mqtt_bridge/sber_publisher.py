@@ -28,6 +28,9 @@ from .sber_protocol import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from .devices.base_entity import BaseEntity
     from .sber_bridge import SberBridge
 
 _LOGGER = logging.getLogger(__name__)
@@ -57,6 +60,88 @@ class SberPublisher:
     def last_config_publish_time(self) -> float | None:
         """Return the monotonic timestamp of the last successful config publish."""
         return self._last_config_publish_time
+
+    async def _publish_logged(self, topic: str, payload: str, error_context: str) -> bool:
+        """Publish a payload and apply the shared stats / message-log tail.
+
+        Args:
+            topic: Full MQTT topic to publish to.
+            payload: Serialized JSON payload.
+            error_context: Human-readable payload kind for the error log
+                (``"command echo"`` / ``"states"`` / ``"config"``).
+
+        Returns:
+            True when the publish succeeded (``messages_sent`` bumped and
+            the outbound message logged), False when it raised
+            (``publish_errors`` bumped, exception logged, nothing else done).
+        """
+        bridge = self._bridge
+        mqtt_service = bridge._mqtt_service
+        if mqtt_service is None:
+            return False
+        try:
+            await mqtt_service.publish(topic, payload)
+        except (aiomqtt.MqttError, RuntimeError):
+            bridge._stats.publish_errors += 1
+            _LOGGER.exception("Error publishing %s to Sber", error_context)
+            return False
+        bridge._stats.messages_sent += 1
+        bridge._log_message("out", topic, payload)
+        return True
+
+    def _record_devtools(self, topic: str, payload: str, entity_ids: Iterable[str], *, log_suffix: str = "") -> None:
+        """Feed the trace / diff / validation collectors after a publish.
+
+        Builds the ``categories`` / ``declared_features`` maps only for the
+        published ``entity_ids`` — the validation collector only looks up
+        devices present in the payload, so rebuilding them for every bridge
+        entity on each publish was pure overhead in the hot path.
+
+        Args:
+            topic: Topic the payload was published to.
+            payload: The exact payload string that went on the wire.
+            entity_ids: IDs of the entities included in the payload.
+            log_suffix: Suffix appended to collector failure log messages
+                (e.g. ``" (echo)"``) to keep historical log text intact.
+        """
+        bridge = self._bridge
+        ids = list(entity_ids)
+        for eid in ids:
+            bridge._trace_collector.record_publish(eid, topic, payload)
+        try:
+            bridge._diff_collector.record_publish_payload(payload, topic=topic)
+        except Exception:  # pragma: no cover — must never break publish
+            _LOGGER.exception("DiffCollector.record_publish_payload failed%s", log_suffix)
+        try:
+            published = {eid: ent for eid in ids if (ent := bridge._entities.get(eid)) is not None}
+            categories = {eid: ent.category for eid, ent in published.items()}
+            declared = {eid: ent.get_final_features_list() for eid, ent in published.items()}
+            bridge._validation_collector.record_publish_payload(
+                payload,
+                categories=categories,
+                declared_features=declared,
+            )
+        except Exception:  # pragma: no cover — must never break publish
+            _LOGGER.exception("ValidationCollector.record_publish_payload failed%s", log_suffix)
+
+    @staticmethod
+    def _snapshot_wire_state(entity: BaseEntity) -> dict | None:
+        """Snapshot the entity state exactly as serialized into the payload.
+
+        Mirrors the failure semantics of ``BaseEntity.mark_state_published``:
+        a snapshot failure yields ``None`` so the next diff treats the entity
+        as changed.
+
+        Args:
+            entity: Entity being published.
+
+        Returns:
+            The ``to_sber_current_state()`` dict, or ``None`` on failure.
+        """
+        try:
+            return entity.to_sber_current_state()
+        except (RuntimeError, TypeError, ValueError):
+            return None
 
     async def publish_command_echo(self, devices: dict[str, dict]) -> None:
         """Publish immediate echo of a received Sber command as fast ack.
@@ -104,32 +189,10 @@ class SberPublisher:
 
         payload = json.dumps({"devices": echo_devices})
         topic = f"{bridge._root_topic}/up/status"
-        try:
-            await bridge._mqtt_service.publish(topic, payload)
-        except (aiomqtt.MqttError, RuntimeError):
-            bridge._stats.publish_errors += 1
-            _LOGGER.exception("Error publishing command echo to Sber")
+        if not await self._publish_logged(topic, payload, "command echo"):
             return
-        bridge._stats.messages_sent += 1
         _LOGGER.debug("Published command echo for %s: %s", list(echo_devices), payload)
-        bridge._log_message("out", topic, payload)
-
-        for eid in echo_devices:
-            bridge._trace_collector.record_publish(eid, topic, payload)
-        try:
-            bridge._diff_collector.record_publish_payload(payload, topic=topic)
-        except Exception:  # pragma: no cover — must never break publish
-            _LOGGER.exception("DiffCollector.record_publish_payload failed (echo)")
-        try:
-            categories = {eid: ent.category for eid, ent in bridge._entities.items()}
-            declared = {eid: ent.get_final_features_list() for eid, ent in bridge._entities.items()}
-            bridge._validation_collector.record_publish_payload(
-                payload,
-                categories=categories,
-                declared_features=declared,
-            )
-        except Exception:  # pragma: no cover — must never break publish
-            _LOGGER.exception("ValidationCollector.record_publish_payload failed (echo)")
+        self._record_devtools(topic, payload, echo_devices, log_suffix=" (echo)")
 
     async def publish_states(
         self,
@@ -148,6 +211,13 @@ class SberPublisher:
         disconnected, applies the change diff unless ``force`` is set,
         marks state as published on success, and feeds the three DevTools
         collectors so the panel stays in sync.
+
+        Lost-update guard: the "last published" snapshot per entity is
+        captured synchronously with payload construction — *before* the
+        publish ``await`` yields the event loop.  A state change racing in
+        during the network round-trip therefore still differs from the
+        snapshot and is published by the next debounce flush instead of
+        being silently considered already-published.
         """
         bridge = self._bridge
         if not bridge._connected or bridge._mqtt_service is None:
@@ -162,44 +232,34 @@ class SberPublisher:
                 return
             entity_ids = changed_ids
 
+        # Freeze the publish set now: re-reading _enabled_entity_ids after the
+        # await could mark entities that were never in the payload (hot-reload).
+        ids_to_publish = list(entity_ids) if entity_ids else list(bridge._enabled_entity_ids)
         payload, payload_valid = build_states_list_json(bridge._entities, entity_ids, bridge._enabled_entity_ids)
+        payload_str = payload if isinstance(payload, str) else ""
+        snapshots: dict[str, dict | None] = {}
+        if payload_valid:
+            for eid in ids_to_publish:
+                entity = bridge._entities.get(eid)
+                if entity is not None:
+                    snapshots[eid] = self._snapshot_wire_state(entity)
         topic = f"{bridge._root_topic}/up/status"
         _LOGGER.debug(
             "Publishing state to %s (%d bytes): %s",
             topic,
-            len(payload) if isinstance(payload, str) else 0,
+            len(payload_str),
             payload,
         )
-        try:
-            await bridge._mqtt_service.publish(topic, payload)
-        except (aiomqtt.MqttError, RuntimeError):
-            bridge._stats.publish_errors += 1
-            _LOGGER.exception("Error publishing states to Sber")
+        if not await self._publish_logged(topic, payload_str, "states"):
             return
-        bridge._stats.messages_sent += 1
         if payload_valid:
-            for eid in entity_ids or bridge._enabled_entity_ids:
+            for eid, snapshot in snapshots.items():
                 entity = bridge._entities.get(eid)
                 if entity is not None:
-                    entity.mark_state_published()
-        payload_str = payload if isinstance(payload, str) else ""
-        bridge._log_message("out", topic, payload_str)
-        for eid in entity_ids or bridge._enabled_entity_ids:
-            bridge._trace_collector.record_publish(eid, topic, payload_str)
-        try:
-            bridge._diff_collector.record_publish_payload(payload_str, topic=topic)
-        except Exception:  # pragma: no cover — must never break publish
-            _LOGGER.exception("DiffCollector.record_publish_payload failed")
-        try:
-            categories = {eid: ent.category for eid, ent in bridge._entities.items()}
-            declared = {eid: ent.get_final_features_list() for eid, ent in bridge._entities.items()}
-            bridge._validation_collector.record_publish_payload(
-                payload_str,
-                categories=categories,
-                declared_features=declared,
-            )
-        except Exception:  # pragma: no cover — must never break publish
-            _LOGGER.exception("ValidationCollector.record_publish_payload failed")
+                    # Same effect as BaseEntity.mark_state_published(), but with
+                    # the pre-await snapshot of what actually went on the wire.
+                    entity._previous_sber_state = snapshot
+        self._record_devtools(topic, payload_str, ids_to_publish)
 
     async def publish_config(self, entity_ids: list[str] | None = None) -> None:
         """Publish device descriptor on ``up/config``.
@@ -238,26 +298,21 @@ class SberPublisher:
                 ", ".join(invalid_ids),
             )
         topic = f"{bridge._root_topic}/up/config"
+        payload_str = payload if isinstance(payload, str) else ""
         _LOGGER.debug(
             "Publishing config to %s (%d bytes): %s",
             topic,
-            len(payload) if isinstance(payload, str) else 0,
+            len(payload_str),
             payload,
         )
-        try:
-            await bridge._mqtt_service.publish(topic, payload)
-        except (aiomqtt.MqttError, RuntimeError):
-            bridge._stats.publish_errors += 1
-            _LOGGER.exception("Error publishing config to Sber")
+        if not await self._publish_logged(topic, payload_str, "config"):
             return
-        bridge._stats.messages_sent += 1
         self._last_config_publish_time = time.monotonic()
         _LOGGER.info(
             "Published device config to Sber (%d entities): %s",
             len(ids_to_publish),
             ", ".join(ids_to_publish),
         )
-        bridge._log_message("out", topic, payload if isinstance(payload, str) else "")
 
         bridge._ack_audit.schedule_audit()
 

@@ -26,12 +26,12 @@ def _bridge_clean() -> MagicMock:
     entity.category = "light"
     entity.is_filled_by_state = True
     entity.get_final_features_list = MagicMock(return_value=["on_off", "online"])
-    bridge._entities = {"light.x": entity}
-    bridge._enabled_entity_ids = ["light.x"]
+    # Public bridge contract (review remediation — the advisor no longer
+    # reaches into private fields).
+    bridge.entities = {"light.x": entity}
+    bridge.enabled_entity_ids = ["light.x"]
+    bridge.stats = {"acknowledged_entities": {"light.x"}}
     bridge._linked_reverse = {}
-    stats = MagicMock()
-    stats.acknowledged_entities = {"light.x"}
-    bridge._stats = stats
     bridge.trace_collector = TraceCollector()
     bridge.diff_collector = DiffCollector()
     bridge.validation_collector = ValidationCollector()

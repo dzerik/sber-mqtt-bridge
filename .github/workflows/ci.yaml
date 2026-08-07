@@ -64,6 +64,18 @@ jobs:
           uv pip install --constraint=.github/workflows/constraints.txt \
             aiomqtt pytest pytest-asyncio pytest-cov pytest-xdist pytest-timeout \
             pytest-homeassistant-custom-component syrupy pydantic ruff
+      - name: Install hass_frontend (required by config_flow tests)
+        # The config_flow tests set up HA's `frontend` component, which
+        # imports the `hass_frontend` module. It is NOT a transitive
+        # dependency of pytest-homeassistant-custom-component, so without
+        # it the whole config_flow suite errors out — that is why it used
+        # to be excluded via `-k "not test_config_flow"`.
+        # The exact version is pinned by the installed HA release itself.
+        run: |
+          REQ=$(python -c "import json,pathlib,homeassistant.components.frontend as f; \
+            print(json.loads((pathlib.Path(f.__file__).parent / 'manifest.json').read_text())['requirements'][0])")
+          echo "Installing $REQ"
+          uv pip install "$REQ"
       - name: Run tests
         # -n auto      parallel across CPU cores (3× on GitHub runners)
         # --timeout    kills hung tests instead of timing out the whole job
@@ -76,5 +88,4 @@ jobs:
             --durations=10 \
             --cov=custom_components/sber_mqtt_bridge \
             --cov-report=term-missing \
-            --cov-report=xml \
-            -k "not test_config_flow"
+            --cov-report=xml

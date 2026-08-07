@@ -41,6 +41,7 @@ class RedefinitionsStore:
         self._redefinitions: dict[str, dict] = {}
         self._dirty = False
         self._timer: asyncio.TimerHandle | None = None
+        self._stopped = False
 
     @property
     def redefinitions(self) -> dict[str, dict]:
@@ -96,22 +97,56 @@ class RedefinitionsStore:
         return dict(existing)
 
     def schedule_persist(self) -> None:
-        """Mark the store dirty and arm/refresh the debounced flush timer."""
+        """Mark the store dirty and arm/refresh the debounced flush timer.
+
+        After :meth:`shutdown` this becomes a no-op (aside from marking
+        dirty): a stopped store must never arm a timer that could write
+        stale options after the config entry has been unloaded and a
+        newer bridge instance owns the entry.
+        """
         self._dirty = True
+        if self._stopped:
+            _LOGGER.warning("Redefinitions store already shut down — dropping persist request")
+            return
         if self._timer is not None:
             self._timer.cancel()
         self._timer = self._bridge._hass.loop.call_later(_PERSIST_DEBOUNCE_SECONDS, self._flush)
+
+    def flush_now(self) -> None:
+        """Cancel the pending debounce timer and persist immediately.
+
+        Public API for teardown paths (:meth:`SberBridge.async_stop`)
+        and anyone who cannot wait out the debounce window. No-op when
+        the store is not dirty.
+        """
+        if self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
+        self._flush()
+
+    def shutdown(self) -> None:
+        """Finalize the store: flush pending changes, stop all timers.
+
+        Idempotent. After this call no new debounce timers are armed
+        (see :meth:`schedule_persist`), so a timer from a dying bridge
+        instance can never overwrite options written by its successor.
+        """
+        self._stopped = True
+        self.flush_now()
 
     def _flush(self) -> None:
         """Persist the redefinitions to ``ConfigEntry.options`` if dirty.
 
         Called by the debounce timer. Side effect: updates ConfigEntry
         options so the next reload picks up the new redefinitions.
+        Persists a per-entity copy so later in-memory mutations cannot
+        silently alter the already-written options snapshot.
         """
         self._timer = None
         if not self._dirty:
             return
         self._dirty = False
         bridge = self._bridge
-        new_options = {**bridge._entry.options, "redefinitions": self._redefinitions}
+        snapshot = {entity_id: dict(fields) for entity_id, fields in self._redefinitions.items()}
+        new_options = {**bridge._entry.options, "redefinitions": snapshot}
         bridge._hass.config_entries.async_update_entry(bridge._entry, options=new_options)

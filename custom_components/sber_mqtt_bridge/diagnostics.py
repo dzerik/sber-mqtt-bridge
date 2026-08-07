@@ -8,10 +8,15 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import SberBridgeConfigEntry
-from .const import CONF_SBER_PASSWORD
+from .const import CONF_SBER_LOGIN, CONF_SBER_PASSWORD
 
-TO_REDACT = {CONF_SBER_PASSWORD}
-"""Set of config keys whose values should be redacted in diagnostics output."""
+TO_REDACT = {CONF_SBER_PASSWORD, CONF_SBER_LOGIN}
+"""Set of config keys whose values should be redacted in diagnostics output.
+
+The Sber login doubles as the MQTT username **and** the root MQTT topic
+segment (``sberdevices/v1/<login>/...``) — diagnostics files are routinely
+attached to public GitHub issues, so it must not leak in clear text.
+"""
 
 
 def _build_entity_diagnostics(bridge) -> list[dict[str, Any]]:

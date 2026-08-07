@@ -10,7 +10,7 @@ import copy
 import hashlib
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import ClassVar, TypedDict
 
@@ -224,14 +224,61 @@ will link it manually via the wizard."""
 SENSOR_LINK_ROLES: tuple[LinkableRole, ...] = (ROLE_BATTERY, ROLE_BATTERY_LOW, ROLE_SIGNAL)
 """Common linkable roles for battery-powered devices (sensors, covers, valves)."""
 
-ALL_LINKABLE_ROLES: tuple[LinkableRole, ...] = (
-    ROLE_BATTERY,
-    ROLE_BATTERY_LOW,
-    ROLE_SIGNAL,
-    ROLE_TEMPERATURE,
-    ROLE_HUMIDITY,
-)
-"""Global registry of all known linkable roles for display in UI."""
+
+def _collect_declared_roles() -> tuple[LinkableRole, ...]:
+    """Collect every module-level ``LinkableRole`` constant declared above.
+
+    The global registry used to be a hand-maintained tuple and silently
+    drifted out of sync with per-class ``LINKABLE_ROLES`` (the six
+    air-quality roles were missing, so the wizard classified CO2/PM
+    siblings as unsupported while ``auto_link_all`` accepted them).
+    Auto-collection makes ``ALL_LINKABLE_ROLES`` a derived value: any new
+    ``ROLE_*`` constant defined in this module is registered automatically.
+
+    Returns:
+        Tuple of unique :class:`LinkableRole` instances in declaration
+        order, de-duplicated by role name.
+    """
+    seen: set[str] = set()
+    collected: list[LinkableRole] = []
+    for value in globals().values():
+        if isinstance(value, LinkableRole) and value.role not in seen:
+            seen.add(value.role)
+            collected.append(value)
+    return tuple(collected)
+
+
+ALL_LINKABLE_ROLES: tuple[LinkableRole, ...] = _collect_declared_roles()
+"""Global registry of all known linkable roles.
+
+Derived automatically from every ``ROLE_*`` constant declared in this
+module — device classes must compose their ``LINKABLE_ROLES`` from these
+constants so the wizard (``resolve_link_role``) and per-class matching
+(``LINKABLE_ROLES``) can never diverge again.
+"""
+
+
+def resolve_link_role_for(accepted_roles: Iterable[LinkableRole], domain: str, device_class: str) -> str:
+    """Resolve the link role of an HA entity against a specific role set.
+
+    Single source of truth for link-role matching: both the global
+    :func:`resolve_link_role` and any per-class validation (matching an
+    entity against a primary's ``LINKABLE_ROLES``) should go through this
+    function instead of re-implementing the loop.
+
+    Args:
+        accepted_roles: Roles to match against (e.g. a device class's
+            ``LINKABLE_ROLES`` or :data:`ALL_LINKABLE_ROLES`).
+        domain: HA entity domain.
+        device_class: HA original_device_class.
+
+    Returns:
+        Role name string of the first match, or empty string if no match.
+    """
+    for lr in accepted_roles:
+        if lr.matches(domain, device_class):
+            return lr.role
+    return ""
 
 
 def resolve_link_role(domain: str, device_class: str) -> str:
@@ -249,10 +296,7 @@ def resolve_link_role(domain: str, device_class: str) -> str:
     Returns:
         Role name string, or empty string if no match.
     """
-    for lr in ALL_LINKABLE_ROLES:
-        if lr.matches(domain, device_class):
-            return lr.role
-    return ""
+    return resolve_link_role_for(ALL_LINKABLE_ROLES, domain, device_class)
 
 
 class BaseEntity(ABC):
