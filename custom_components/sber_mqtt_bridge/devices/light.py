@@ -28,6 +28,13 @@ LIGHT_ENTITY_CATEGORY = "light"
 COLOR_MODES = {"hs", "rgb", "rgbw", "rgbww", "xy"}
 """HA color modes that map to Sber colour features."""
 
+NON_DIMMABLE_MODES = {"onoff", "unknown"}
+"""HA color modes that do NOT imply brightness support.
+
+Per HA light architecture, every color mode except ``onoff`` and
+``unknown`` supports brightness — including ``color_temp`` and ``white``
+(issue #44: CCT-only lamps must expose ``light_brightness``)."""
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -156,11 +163,13 @@ class LightEntity(BaseEntity):
         """
         features = [*super()._create_features_list(), "on_off"]
 
-        if COLOR_MODES & set(self.supported_color_modes):
-            features += ["light_colour", "light_mode", "light_brightness"]
-        elif "brightness" in self.supported_color_modes:
+        modes = set(self.supported_color_modes)
+        if COLOR_MODES & modes:
+            features += ["light_colour", "light_mode"]
+        if modes - NON_DIMMABLE_MODES:
+            # Any color mode except onoff/unknown implies brightness in HA.
             features.append("light_brightness")
-        if "color_temp" in self.supported_color_modes:
+        if "color_temp" in modes:
             features.append("light_colour_temp")
 
         return features
@@ -168,25 +177,27 @@ class LightEntity(BaseEntity):
     def create_allowed_values_list(self) -> dict[str, dict]:
         """Build allowed values map for light features.
 
+        Built from the **final** features list (with user overrides
+        applied) rather than from capability heuristics, so a feature
+        added via ``extra_features`` always gets its limits — without
+        them Sber renders a dead slider (issue #44).
+
         Returns:
             Dict mapping feature key to its allowed values descriptor.
         """
+        features = set(self.get_final_features_list())
         allowed_values: dict[str, dict] = {}
 
-        if COLOR_MODES & set(self.supported_color_modes):
+        if "light_brightness" in features:
             allowed_values["light_brightness"] = {
                 "type": "INTEGER",
                 "integer_values": {"min": "100", "max": "900", "step": "1"},
             }
+        if "light_colour" in features:
             allowed_values["light_colour"] = {"type": "COLOUR"}
+        if "light_mode" in features:
             allowed_values["light_mode"] = {"type": "ENUM", "enum_values": {"values": ["white", "colour"]}}
-        elif "brightness" in self.supported_color_modes:
-            allowed_values["light_brightness"] = {
-                "type": "INTEGER",
-                "integer_values": {"min": "100", "max": "900", "step": "1"},
-            }
-
-        if "color_temp" in self.supported_color_modes:
+        if "light_colour_temp" in features:
             allowed_values["light_colour_temp"] = {
                 "type": "INTEGER",
                 "integer_values": {"min": "0", "max": "1000", "step": "1"},

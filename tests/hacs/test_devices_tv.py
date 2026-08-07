@@ -185,10 +185,21 @@ class TestTvProcessCmd(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service_data"]["media_content_id"], "999")
 
-    def test_cmd_channel_int_none_skipped(self):
-        """channel_int with None integer_value must be skipped."""
+    def test_cmd_channel_int_omitted_value_is_zero(self):
+        """channel_int without integer_value means channel 0 (proto3 omission).
+
+        Sber drops proto3-default fields, so ``{"type": "INTEGER"}`` is a
+        legitimate command carrying 0 — it must not be skipped (issue #44).
+        """
         entity = self._make_entity("playing")
         result = entity.process_cmd({"states": [{"key": "channel_int", "value": {"type": "INTEGER"}}]})
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "play_media")
+
+    def test_cmd_channel_int_valueless_payload_skipped(self):
+        """channel_int without even a type must be skipped (malformed)."""
+        entity = self._make_entity("playing")
+        result = entity.process_cmd({"states": [{"key": "channel_int", "value": {}}]})
         self.assertEqual(len(result), 0)
 
     def test_cmd_direction_up(self):
@@ -353,10 +364,17 @@ class TestTvProcessCmdNewKeys(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service_data"]["media_content_id"], "0")
 
-    def test_number_none_skipped(self):
-        """number with no integer_value must be skipped."""
+    def test_number_omitted_value_is_zero(self):
+        """number without integer_value means digit 0 (proto3 omission)."""
         entity = self._make_entity()
         result = entity.process_cmd({"states": [{"key": "number", "value": {"type": "INTEGER"}}]})
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "play_media")
+
+    def test_number_valueless_payload_skipped(self):
+        """number without even a type must be skipped (malformed)."""
+        entity = self._make_entity()
+        result = entity.process_cmd({"states": [{"key": "number", "value": {}}]})
         self.assertEqual(len(result), 0)
 
     def test_custom_key_play(self):

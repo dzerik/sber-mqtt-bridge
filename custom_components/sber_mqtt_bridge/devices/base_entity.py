@@ -16,6 +16,7 @@ from typing import ClassVar, TypedDict
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 
 from ..sber_constants import SERVICE_CALL_TYPE, SERVICE_TURN_OFF, SERVICE_TURN_ON
+from ..sber_models import normalize_sber_value
 
 # ---------------------------------------------------------------------------
 #  Typed command result types for process_cmd return values
@@ -742,7 +743,9 @@ class BaseEntity(ABC):
             handler = handlers.get(item.get("key", ""))
             if handler is None:
                 continue
-            results.extend(handler(item.get("value", {})))
+            # Sber omits proto3-default fields: {"type": "INTEGER"} means 0.
+            # Normalize here so every handler sees a complete value dict.
+            results.extend(handler(normalize_sber_value(item.get("value", {}))))
         return results
 
     @property

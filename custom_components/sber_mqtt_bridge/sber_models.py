@@ -295,6 +295,51 @@ class SberCommandPayload(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+_PROTO3_VALUE_DEFAULTS: dict[str, tuple[str, Any]] = {
+    "BOOL": ("bool_value", False),
+    "INTEGER": ("integer_value", "0"),
+    "FLOAT": ("float_value", 0.0),
+    "STRING": ("string_value", ""),
+    "ENUM": ("enum_value", ""),
+}
+"""Per-type default injected when the typed field is omitted (proto3 rules)."""
+
+
+def normalize_sber_value(value: dict[str, Any]) -> dict[str, Any]:
+    """Fill in typed fields omitted by proto3 default-value elision.
+
+    Sber cloud serializes protobuf to JSON per proto3 rules: a field
+    holding its type's default value is **omitted** from the payload.
+    A command carrying ``0`` arrives as ``{"type": "INTEGER"}`` with no
+    ``integer_value`` key, ``false`` arrives without ``bool_value``, and
+    zero HSV components are dropped from ``colour_value`` (issue #44 —
+    the colour-temperature slider at its edge produced a command the
+    bridge silently ignored).
+
+    Args:
+        value: Raw Sber value dict from a command payload.
+
+    Returns:
+        The same dict if already complete, otherwise a shallow copy with
+        the type's default injected.  Payloads without a known ``type``
+        are returned unchanged.  The input is never mutated.
+    """
+    vtype = value.get("type")
+    typed = _PROTO3_VALUE_DEFAULTS.get(vtype or "")
+    if typed is not None:
+        field, default = typed
+        if field not in value:
+            return {**value, field: default}
+        return value
+    if vtype == "COLOUR":
+        colour = value.get("colour_value") or {}
+        if all(k in colour for k in ("h", "s", "v")):
+            return value
+        filled = {"h": 0, "s": 0, "v": 0, **colour}
+        return {**value, "colour_value": filled}
+    return value
+
+
 def make_bool_value(value: bool) -> dict[str, Any]:
     """Create a Sber BOOL value dict.
 

@@ -932,10 +932,22 @@ class TestCommandWithMissingFields:
         assert result == []
 
     def test_curtain_cmd_missing_integer_value(self):
-        """Curtain position command without integer_value must not crash."""
+        """Curtain position without integer_value means position 0 (proto3).
+
+        Sber omits proto3-default fields, so ``{"type": "INTEGER"}`` is a
+        real "fully close" command — it must not be dropped (issue #44).
+        """
         entity = CurtainEntity(_entity_data("cover.test"))
         entity.fill_by_ha_state(_ha_state("cover.test", "open", current_position=50))
         result = entity.process_cmd({"states": [{"key": "open_percentage", "value": {"type": "INTEGER"}}]})
+        assert len(result) == 1
+        assert result[0]["url"]["service_data"]["position"] == 0
+
+    def test_curtain_cmd_valueless_payload(self):
+        """Curtain position command without even a type must not crash."""
+        entity = CurtainEntity(_entity_data("cover.test"))
+        entity.fill_by_ha_state(_ha_state("cover.test", "open", current_position=50))
+        result = entity.process_cmd({"states": [{"key": "open_percentage", "value": {}}]})
         assert result == []
 
     def test_sensor_process_cmd_any_payload(self):

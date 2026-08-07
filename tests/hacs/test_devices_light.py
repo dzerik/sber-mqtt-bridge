@@ -426,6 +426,63 @@ class TestLightAllowedValues(unittest.TestCase):
         av = entity.create_allowed_values_list()
         self.assertEqual(av, {})
 
+    def test_allowed_values_color_temp_only_includes_brightness(self):
+        """CCT-only lamp gets brightness limits alongside colour_temp (issue #44)."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(supported_color_modes=["color_temp"]))
+        av = entity.create_allowed_values_list()
+        self.assertIn("light_brightness", av)
+        self.assertEqual(av["light_brightness"]["integer_values"], {"min": "100", "max": "900", "step": "1"})
+        self.assertIn("light_colour_temp", av)
+
+    def test_allowed_values_cover_extra_features(self):
+        """A feature added via extra_features gets its allowed values (issue #44).
+
+        Without limits Sber renders a dead slider — allowed_values must be
+        built from the final features list, not from capability heuristics.
+        """
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(supported_color_modes=[]))
+        entity.extra_features = ["light_brightness"]
+        av = entity.create_allowed_values_list()
+        self.assertIn("light_brightness", av)
+        self.assertEqual(av["light_brightness"]["type"], "INTEGER")
+
+    def test_allowed_values_respect_removed_features(self):
+        """A feature removed via removed_features loses its allowed values."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(supported_color_modes=["color_temp", "xy"]))
+        entity.removed_features = ["light_brightness"]
+        av = entity.create_allowed_values_list()
+        self.assertNotIn("light_brightness", av)
+        self.assertIn("light_colour", av)
+
+
+class TestColorTempOnlyBrightness(unittest.TestCase):
+    """CCT-only lamps support brightness in HA — feature list must include it (issue #44)."""
+
+    def test_features_color_temp_only_includes_brightness(self):
+        """supported_color_modes=["color_temp"] implies brightness support in HA."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(supported_color_modes=["color_temp"]))
+        features = entity.get_final_features_list()
+        self.assertIn("light_brightness", features)
+        self.assertIn("light_colour_temp", features)
+
+    def test_features_white_mode_includes_brightness(self):
+        """supported_color_modes=["white"] implies brightness support in HA."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(supported_color_modes=["white"]))
+        features = entity.get_final_features_list()
+        self.assertIn("light_brightness", features)
+
+    def test_features_onoff_mode_no_brightness(self):
+        """supported_color_modes=["onoff"] does NOT imply brightness."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(supported_color_modes=["onoff"]))
+        features = entity.get_final_features_list()
+        self.assertNotIn("light_brightness", features)
+
 
 class TestWhiteModeHandling(unittest.TestCase):
     """Regression tests for issue #35 — WLED RGB-only white-mode fix."""

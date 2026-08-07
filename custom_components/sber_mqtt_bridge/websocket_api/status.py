@@ -12,6 +12,7 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
+from ..const import CONF_HUB_AUTO_PARENT, SETTINGS_DEFAULTS
 from ._common import (  # noqa: F401 — get_bridge re-exported for test patching
     WS_ENTITY_ID,
     get_bridge,
@@ -88,7 +89,10 @@ async def ws_get_status(
 
     location = hass.config.location_name or "Мой дом"
     entry = get_config_entry(hass)
-    auto_parent = entry.options.get("hub_auto_parent_id", True) if entry else True
+    # Same default as sber_publisher — the panel must show what the
+    # bridge actually does (issue #44: defaults had drifted apart).
+    auto_parent_default = SETTINGS_DEFAULTS[CONF_HUB_AUTO_PARENT]
+    auto_parent = entry.options.get(CONF_HUB_AUTO_PARENT, auto_parent_default) if entry else auto_parent_default
 
     # Compute health score
     stats = bridge.stats

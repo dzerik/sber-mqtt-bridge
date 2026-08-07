@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.41.0] - 2026-08-07
+
+### Fixed
+
+- **Команды со значением 0 молча игнорировались** (#44). Sber cloud
+  сериализует protobuf→JSON по правилам proto3: поле со значением по
+  умолчанию опускается — команда «0» приходит как `{"type": "INTEGER"}`
+  без `integer_value`. Обработчики трактовали это как отсутствие значения
+  и возвращали пустой список: не работали крайнее положение ползунка
+  цветовой температуры (`light_colour_temp` = 0), полное закрытие шторы
+  (`open_percentage` = 0, включая `window_blind` и `gate`), громкость 0 и
+  цифра «0» у TV, влажность/температура 0 у climate. Добавлен
+  `normalize_sber_value()` в `sber_models.py`: `BaseEntity.process_cmd`
+  подставляет proto3-дефолт типа (`"0"` / `0.0` / `""` / `false` /
+  нулевые h/s/v) перед вызовом каждого обработчика — исправлены разом все
+  10 уязвимых мест и 14 мест, работавших «случайно» (`bool_value=false`).
+- **Панель показывала неверный `auto_parent_id`** (#44). WS-команда
+  `status` читала `hub_auto_parent_id` с дефолтом `True`, тогда как
+  publisher использует `False` из `SETTINGS_DEFAULTS` — пользователь
+  видел «hub-иерархия включена», хотя мост её не публиковал. Дефолт
+  берётся из единого источника `SETTINGS_DEFAULTS[CONF_HUB_AUTO_PARENT]`.
+
+### Added
+
+- **`light_brightness` для CCT-ламп из коробки** (#44). В HA любой color
+  mode, кроме `onoff`/`unknown`, подразумевает поддержку яркости — лампа
+  с `supported_color_modes: ["color_temp"]` (или `["white"]`) теперь
+  автоматически получает `light_brightness` с лимитами `100–900` (эталон
+  документации Sber категории light).
+
+### Changed
+
+- **`LightEntity.create_allowed_values_list()` строится из финального
+  списка фич** (с учётом `sber_features_add` / `sber_features_remove`),
+  а не из эвристик по `supported_color_modes`. Фича, добавленная
+  пользователем через `extra_features`, теперь получает свои
+  `allowed_values` — раньше Sber отображал «мёртвый» ползунок без
+  лимитов (#44).
+
 ## [1.40.3] - 2026-08-05
 
 ### Fixed
