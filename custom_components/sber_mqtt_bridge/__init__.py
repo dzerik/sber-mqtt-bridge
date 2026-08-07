@@ -12,6 +12,7 @@ from homeassistant.components.frontend import async_register_built_in_panel, asy
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import DOMAIN as DOMAIN
 from .custom_capabilities import parse_yaml_config
@@ -75,44 +76,59 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
     subscription happen immediately, while the MQTT connection is established
     asynchronously. Connection failures are logged and retried with backoff.
 
+    Every step after ``bridge.async_start()`` is rolled back on failure: a
+    started bridge holds an MQTT client, background tasks and
+    ``state_changed`` subscriptions, so leaving it running for an entry HA
+    considers *not loaded* would keep publishing to Sber from a dead entry
+    and would leak a second bridge on every setup retry.
+
     Args:
         hass: Home Assistant core instance.
         entry: Config entry with Sber broker credentials and options.
 
     Returns:
         True if setup succeeded.
+
+    Raises:
+        ConfigEntryNotReady: If frontend/WebSocket registration failed; the
+            bridge is stopped first and HA retries the whole setup.
     """
     bridge = SberBridge(hass, entry)
     await bridge.async_start()
 
-    entry.runtime_data = SberBridgeData(bridge=bridge)
+    try:
+        entry.runtime_data = SberBridgeData(bridge=bridge)
 
-    # Register WebSocket API (idempotent — skips if already registered)
-    async_setup_websocket_api(hass)
+        # Register WebSocket API (idempotent — skips if already registered)
+        async_setup_websocket_api(hass)
 
-    # Register frontend panel (static path + sidebar entry)
-    panel_dir = str(pathlib.Path(__file__).parent / "www")
-    await hass.http.async_register_static_paths(
-        [StaticPathConfig("/sber_mqtt_bridge/panel", panel_dir, cache_headers=False)]
-    )
+        # Register frontend panel (static path + sidebar entry)
+        panel_dir = str(pathlib.Path(__file__).parent / "www")
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig("/sber_mqtt_bridge/panel", panel_dir, cache_headers=False)]
+        )
 
-    async_register_built_in_panel(
-        hass,
-        component_name="custom",
-        sidebar_title="Sber Bridge",
-        sidebar_icon="mdi:home-assistant",
-        frontend_url_path="sber-mqtt-bridge",
-        config={
-            "_panel_custom": {
-                "name": "sber-mqtt-panel",
-                "module_url": f"/sber_mqtt_bridge/panel/sber-panel.js?v={INTEGRATION_VERSION}",
-            }
-        },
-        # Every WebSocket command of this integration is admin-only
-        # (websocket_api/__init__.py wraps them in require_admin), so a
-        # non-admin would see a panel where every action fails.
-        require_admin=True,
-    )
+        async_register_built_in_panel(
+            hass,
+            component_name="custom",
+            sidebar_title="Sber Bridge",
+            sidebar_icon="mdi:home-assistant",
+            frontend_url_path="sber-mqtt-bridge",
+            config={
+                "_panel_custom": {
+                    "name": "sber-mqtt-panel",
+                    "module_url": f"/sber_mqtt_bridge/panel/sber-panel.js?v={INTEGRATION_VERSION}",
+                }
+            },
+            # Every WebSocket command of this integration is admin-only
+            # (websocket_api/__init__.py wraps them in require_admin), so a
+            # non-admin would see a panel where every action fails.
+            require_admin=True,
+        )
+    except Exception as err:
+        _LOGGER.exception("Sber MQTT Bridge setup failed after bridge start, rolling back")
+        await bridge.async_stop()
+        raise ConfigEntryNotReady(f"Sber MQTT Bridge frontend registration failed: {err}") from err
 
     return True
 

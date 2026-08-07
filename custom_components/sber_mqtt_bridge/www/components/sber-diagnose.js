@@ -83,6 +83,7 @@ class SberDiagnose extends LitElement {
         <div class="form-row">
           <input
             type="text"
+            aria-label="Entity ID to diagnose"
             placeholder="entity_id (e.g. light.kitchen)"
             .value=${this._entityId}
             @input=${(e) => { this._entityId = e.target.value; }}
@@ -123,7 +124,19 @@ class SberDiagnose extends LitElement {
           </div>
         `)}
       </div>
-      <div class="raw-toggle" @click=${() => { this._rawOpen = !this._rawOpen; }}>
+      <div
+        class="raw-toggle"
+        role="button"
+        tabindex="0"
+        aria-expanded=${this._rawOpen ? "true" : "false"}
+        aria-label="Toggle raw summary"
+        @click=${() => { this._rawOpen = !this._rawOpen; }}
+        @keydown=${(e) => {
+          if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+          e.preventDefault();
+          this._rawOpen = !this._rawOpen;
+        }}
+      >
         <span class="caret ${this._rawOpen ? "open" : ""}">&#9654;</span>
         Raw summary
       </div>
@@ -224,6 +237,12 @@ class SberDiagnose extends LitElement {
         background: var(--secondary-background-color);
         border-radius: 3px;
         font-size: 0.85em;
+      }
+      .raw-toggle:focus-visible,
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
       }
       .raw-toggle {
         margin-top: 14px;

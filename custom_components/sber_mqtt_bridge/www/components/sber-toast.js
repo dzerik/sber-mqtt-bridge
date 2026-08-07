@@ -87,8 +87,15 @@ class SberToast extends LitElement {
   }
 
   render() {
+    /* role/aria-live make the toast audible to screen readers; errors are
+     * assertive so they interrupt, everything else is polite. */
     return html`
-      <div class="toast ${this._type} ${this._visible ? "visible" : ""}">
+      <div
+        class="toast ${this._type} ${this._visible ? "visible" : ""}"
+        role=${this._type === "error" ? "alert" : "status"}
+        aria-live=${this._type === "error" ? "assertive" : "polite"}
+        aria-atomic="true"
+      >
         ${this._message}
       </div>
     `;

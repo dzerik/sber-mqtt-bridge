@@ -65,6 +65,14 @@ class OnOffEntity(BaseEntity):
         of the base class enumerating its subclasses' categories.  The
         default derives from the category per the Sber functions catalog.
 
+        An override is a protocol-visible decision, not a free knob:
+        ``child_lock`` must be present in
+        ``CATEGORY_REFERENCE_FEATURES[self.category]`` or Sber silently
+        rejects the whole device (issue #44).
+        ``test_link_roles_registry.TestOnOffFlagsMatchSberSpec`` checks
+        every registered ``OnOffEntity`` subclass against the generated
+        spec table.
+
         Returns:
             True if the Sber spec includes ``child_lock`` for this entity.
         """
@@ -76,7 +84,10 @@ class OnOffEntity(BaseEntity):
 
         Overridable capability flag; subclasses may shadow it with a
         plain class attribute.  The default derives from the category
-        per the Sber functions catalog.
+        per the Sber functions catalog.  Same protocol constraint as
+        :attr:`_supports_child_lock`: ``power`` / ``voltage`` /
+        ``current`` must exist in
+        ``CATEGORY_REFERENCE_FEATURES[self.category]``.
 
         Returns:
             True if the Sber spec includes energy features for this entity.

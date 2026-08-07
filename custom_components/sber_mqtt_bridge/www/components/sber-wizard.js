@@ -17,6 +17,23 @@ const { slugify, isValidSalutName } = await import(`../utils.js${_v ? `?v=${_v}`
 import { LitElement, html, css } from "../lit-base.js";
 
 
+/**
+ * Resolve the element that really has focus, descending into shadow roots.
+ *
+ * ``document.activeElement`` only reports the outermost custom element, so a
+ * naive capture would restore focus to the panel host instead of the button
+ * the user actually activated.
+ *
+ * @returns {Element|null} Deepest focused element.
+ */
+function deepActiveElement() {
+  let el = document.activeElement;
+  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
+    el = el.shadowRoot.activeElement;
+  }
+  return el;
+}
+
 class SberWizard extends LitElement {
   static get properties() {
     return {
@@ -61,14 +78,43 @@ class SberWizard extends LitElement {
     this._error = "";
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    /* Modal keyboard contract: Escape closes.  Bound on the element so it
+     * survives shadow-DOM boundaries but never leaks past detach. */
+    this._escHandler = (e) => {
+      if (this.open && e.key === "Escape") {
+        e.stopPropagation();
+        this.hide();
+      }
+    };
+    document.addEventListener("keydown", this._escHandler);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._escHandler) {
+      document.removeEventListener("keydown", this._escHandler);
+      this._escHandler = null;
+    }
+  }
+
   async show() {
     this._reset();
+    this._returnFocusTo = deepActiveElement();
     this.open = true;
+    await this.updateComplete;
+    const dialog = this.shadowRoot.querySelector(".dialog");
+    if (dialog) dialog.focus();
     await this._loadCategories();
   }
 
   hide() {
     this.open = false;
+    /* Return focus to whatever opened the wizard (WCAG 2.4.3). */
+    const target = this._returnFocusTo;
+    this._returnFocusTo = null;
+    if (target && typeof target.focus === "function") target.focus();
   }
 
   /* ---------- data helpers ---------- */
@@ -295,16 +341,29 @@ class SberWizard extends LitElement {
     };
   }
 
+  /** Activate a ``role="button"`` card from the keyboard (Enter/Space). */
+  _onKeyActivate(e, handler) {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    e.preventDefault();
+    handler();
+  }
+
   /* ---------- render ---------- */
 
   render() {
     if (!this.open) return html``;
     return html`
       <div class="overlay" @click=${(e) => { if (e.target === e.currentTarget) this.hide(); }}>
-        <div class="dialog">
+        <div
+          class="dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="wizard-title"
+          tabindex="-1"
+        >
           <div class="dialog-header">
-            <h2>Add Device</h2>
-            <button class="close-btn" @click=${this.hide}>\u2715</button>
+            <h2 id="wizard-title">Add Device</h2>
+            <button class="close-btn" aria-label="Close wizard" @click=${this.hide}>\u2715</button>
           </div>
           ${this._renderStepper()}
           <div class="body">
@@ -355,11 +414,16 @@ class SberWizard extends LitElement {
     return html`
       ${[...byGroup.values()].map((group) => group.items.length === 0 ? "" : html`
         <div class="group-label">${group.label}</div>
-        <div class="type-grid">
+        <div class="type-grid" role="radiogroup" aria-label="${group.label} categories">
           ${group.items.map((cat) => html`
             <div
               class="type-card ${this._selectedCategory === cat.id ? "selected" : ""}"
+              role="radio"
+              tabindex="0"
+              aria-checked=${this._selectedCategory === cat.id ? "true" : "false"}
+              aria-label=${cat.label}
               @click=${() => { this._selectedCategory = cat.id; }}
+              @keydown=${(e) => this._onKeyActivate(e, () => { this._selectedCategory = cat.id; })}
             >
               <span class="type-icon">${cat.icon}</span>
               <span class="type-label">${cat.label}</span>
@@ -404,7 +468,8 @@ class SberWizard extends LitElement {
         </div>
         <input
           class="filter-input"
-          type="text"
+          type="search"
+          aria-label="Search devices"
           placeholder="Search by name, manufacturer, model, area..."
           .value=${this._deviceFilter}
           @input=${(e) => { this._deviceFilter = e.target.value; }}
@@ -428,7 +493,13 @@ class SberWizard extends LitElement {
     return html`
       <div
         class="device-card ${isSelected ? "selected" : ""} ${isDisabled ? "disabled" : ""}"
+        role="button"
+        tabindex=${isDisabled ? "-1" : "0"}
+        aria-pressed=${isSelected ? "true" : "false"}
+        aria-disabled=${isDisabled ? "true" : "false"}
+        aria-label=${device.name}
         @click=${() => this._selectDevice(device)}
+        @keydown=${(e) => this._onKeyActivate(e, () => this._selectDevice(device))}
       >
         <div class="device-card-header">
           <div class="device-title">
@@ -567,19 +638,21 @@ class SberWizard extends LitElement {
           <label>${isMulti ? "Name" : "Device name (for Salut voice)"}</label>
           <input
             type="text"
+            aria-label="Sber device name"
+            aria-invalid=${nameValid ? "false" : "true"}
             class="${!nameValid ? "invalid" : ""}"
             placeholder="e.g. Лампа кухня"
             .value=${form.name}
             @input=${(e) => this._onPrimaryNameInput(primaryId, e.target.value)}
           />
           ${!nameValid
-            ? html`<div class="error-hint">3-33 chars, Cyrillic + digits + spaces only</div>`
+            ? html`<div class="error-hint">3-33 chars, Cyrillic + digits + spaces + hyphens only</div>`
             : isMulti ? "" : html`<div class="hint">Will be spoken by Salut assistant</div>`}
         </div>
 
         <div class="field">
           <label>Device ID</label>
-          <input type="text" .value=${form.slug} readonly />
+          <input type="text" aria-label="Sber device id" .value=${form.slug} readonly />
           ${isMulti ? "" : html`<div class="hint">Transliterated slug for the Sber protocol</div>`}
         </div>
 
@@ -587,6 +660,7 @@ class SberWizard extends LitElement {
           <label>Room (optional)</label>
           <input
             type="text"
+            aria-label="Room"
             placeholder="e.g. Кухня"
             .value=${form.room}
             @input=${(e) => this._onPrimaryRoomInput(primaryId, e.target.value)}
@@ -658,6 +732,15 @@ class SberWizard extends LitElement {
         color: var(--secondary-text-color); padding: 4px 8px; border-radius: 4px;
       }
       .close-btn:hover { background: var(--secondary-background-color, #eee); }
+      .type-card:focus-visible,
+      .device-card:focus-visible,
+      .close-btn:focus-visible,
+      .btn:focus-visible,
+      input:focus-visible,
+      .dialog:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
 
       /* Stepper */
       .stepper {

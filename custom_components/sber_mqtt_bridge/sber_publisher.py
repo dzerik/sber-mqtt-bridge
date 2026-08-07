@@ -40,9 +40,16 @@ class SberPublisher:
     """Publish coordinator for the Sber MQTT bridge.
 
     Constructed with a reference to its parent :class:`SberBridge`; reads
-    shared state directly (entities, settings, MQTT service, collectors).
-    The coupling is deliberate and one-way — the bridge does not call
-    back into the publisher except via the publish methods themselves.
+    ~15 private bridge attributes directly (entities, settings, MQTT
+    service, stats, DevTools collectors).
+
+    Known debt — this back-reference is *not* the target design.  Review
+    asked for narrow constructor dependencies (the shape
+    :class:`~.ha_state_forwarder.HaStateForwarder` uses).  The v1.38.3
+    extraction was scoped as a behaviour-preserving move, and narrowing
+    the bridge-private surface is tracked with the identical debt on
+    ``BridgeCommandContext`` (see "What this plan does NOT cover" in
+    ``docs/superpowers/plans/2026-05-14-v1.38.3-publisher-extraction.md``).
     """
 
     def __init__(self, bridge: SberBridge) -> None:
@@ -78,6 +85,11 @@ class SberPublisher:
         bridge = self._bridge
         mqtt_service = bridge._mqtt_service
         if mqtt_service is None:
+            # Callers already guard on this; reaching here means the service
+            # was torn down mid-publish. Count it as a transport failure
+            # instead of a silent no-op, so DevTools stats stay truthful.
+            bridge._stats.publish_errors += 1
+            _LOGGER.error("Cannot publish %s: MQTT service is not initialized", error_context)
             return False
         try:
             await mqtt_service.publish(topic, payload)
@@ -128,9 +140,13 @@ class SberPublisher:
     def _snapshot_wire_state(entity: BaseEntity) -> dict | None:
         """Snapshot the entity state exactly as serialized into the payload.
 
-        Mirrors the failure semantics of ``BaseEntity.mark_state_published``:
-        a snapshot failure yields ``None`` so the next diff treats the entity
-        as changed.
+        Swallows the same exception set as
+        :func:`~.sber_protocol.build_states_list_json` (plus ``RuntimeError``,
+        as in ``BaseEntity.mark_state_published``).  That is an invariant, not
+        defensiveness: the payload builder deliberately drops a broken entity
+        and still ships the batch, so re-serializing here must never be able
+        to abort a publish that the builder already survived.  A snapshot
+        failure yields ``None`` so the next diff treats the entity as changed.
 
         Args:
             entity: Entity being published.
@@ -140,8 +156,33 @@ class SberPublisher:
         """
         try:
             return entity.to_sber_current_state()
-        except (RuntimeError, TypeError, ValueError):
+        except (RuntimeError, TypeError, ValueError, KeyError, AttributeError):
+            _LOGGER.debug("Wire-state snapshot failed for %s", entity.entity_id, exc_info=True)
             return None
+
+    @staticmethod
+    def _payload_device_ids(payload: str) -> set[str]:
+        """Return the device IDs that actually made it into a status payload.
+
+        ``build_states_list_json`` silently drops entities that are not in
+        ``enabled_entity_ids`` and entities whose serialization raised, and
+        substitutes a synthetic ``root`` device when nothing is left.  Only
+        the surviving IDs may be marked as published — marking a dropped
+        entity would suppress its first real publish once it is re-enabled.
+
+        Args:
+            payload: The serialized status payload.
+
+        Returns:
+            Set of entity IDs present in ``devices`` (excluding ``root``).
+        """
+        try:
+            devices = json.loads(payload)["devices"]
+        except (ValueError, TypeError, KeyError):  # pragma: no cover — builder always emits valid JSON
+            return set()
+        if not isinstance(devices, dict):  # pragma: no cover — builder always emits a dict
+            return set()
+        return {eid for eid in devices if eid != "root"}
 
     async def publish_command_echo(self, devices: dict[str, dict]) -> None:
         """Publish immediate echo of a received Sber command as fast ack.
@@ -218,6 +259,13 @@ class SberPublisher:
         during the network round-trip therefore still differs from the
         snapshot and is published by the next debounce flush instead of
         being silently considered already-published.
+
+        Residual (benign) race: with two overlapping ``publish_states``
+        calls the older coroutine may overwrite the newer snapshot, which
+        can cost one redundant publish of the *current* state — never a
+        lost update, and it cannot loop (the redundant publish stores an
+        up-to-date snapshot).  Serializing publishes behind a lock is not
+        worth the added head-of-line blocking.
         """
         bridge = self._bridge
         if not bridge._connected or bridge._mqtt_service is None:
@@ -236,30 +284,32 @@ class SberPublisher:
         # await could mark entities that were never in the payload (hot-reload).
         ids_to_publish = list(entity_ids) if entity_ids else list(bridge._enabled_entity_ids)
         payload, payload_valid = build_states_list_json(bridge._entities, entity_ids, bridge._enabled_entity_ids)
-        payload_str = payload if isinstance(payload, str) else ""
         snapshots: dict[str, dict | None] = {}
         if payload_valid:
+            published_ids = self._payload_device_ids(payload)
             for eid in ids_to_publish:
                 entity = bridge._entities.get(eid)
-                if entity is not None:
+                if entity is not None and eid in published_ids:
                     snapshots[eid] = self._snapshot_wire_state(entity)
         topic = f"{bridge._root_topic}/up/status"
         _LOGGER.debug(
             "Publishing state to %s (%d bytes): %s",
             topic,
-            len(payload_str),
+            len(payload),
             payload,
         )
-        if not await self._publish_logged(topic, payload_str, "states"):
+        if not await self._publish_logged(topic, payload, "states"):
             return
-        if payload_valid:
-            for eid, snapshot in snapshots.items():
-                entity = bridge._entities.get(eid)
-                if entity is not None:
-                    # Same effect as BaseEntity.mark_state_published(), but with
-                    # the pre-await snapshot of what actually went on the wire.
-                    entity._previous_sber_state = snapshot
-        self._record_devtools(topic, payload_str, ids_to_publish)
+        for eid, snapshot in snapshots.items():
+            entity = bridge._entities.get(eid)
+            if entity is not None:
+                # Same effect as BaseEntity.mark_state_published(), but with
+                # the pre-await snapshot of what actually went on the wire —
+                # that method re-serializes *now* and would re-introduce the
+                # lost update. Assigning the field directly is intentional
+                # until BaseEntity grows a snapshot-accepting overload.
+                entity._previous_sber_state = snapshot
+        self._record_devtools(topic, payload, ids_to_publish)
 
     async def publish_config(self, entity_ids: list[str] | None = None) -> None:
         """Publish device descriptor on ``up/config``.
@@ -298,14 +348,13 @@ class SberPublisher:
                 ", ".join(invalid_ids),
             )
         topic = f"{bridge._root_topic}/up/config"
-        payload_str = payload if isinstance(payload, str) else ""
         _LOGGER.debug(
             "Publishing config to %s (%d bytes): %s",
             topic,
-            len(payload_str),
+            len(payload),
             payload,
         )
-        if not await self._publish_logged(topic, payload_str, "config"):
+        if not await self._publish_logged(topic, payload, "config"):
             return
         self._last_config_publish_time = time.monotonic()
         _LOGGER.info(

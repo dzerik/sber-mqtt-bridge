@@ -8,6 +8,23 @@
 
 import { LitElement, html, css } from "../lit-base.js";
 
+/**
+ * Resolve the element that really has focus, descending into shadow roots.
+ *
+ * ``document.activeElement`` only reports the outermost custom element, so a
+ * naive capture would restore focus to the panel host instead of the button
+ * the user actually activated.
+ *
+ * @returns {Element|null} Deepest focused element.
+ */
+function deepActiveElement() {
+  let el = document.activeElement;
+  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
+    el = el.shadowRoot.activeElement;
+  }
+  return el;
+}
+
 class SberLinkDialog extends LitElement {
   static get properties() {
     return {
@@ -41,15 +58,43 @@ class SberLinkDialog extends LitElement {
     this._error = "";
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    /* Modal keyboard contract: Escape closes. */
+    this._escHandler = (e) => {
+      if (this.open && e.key === "Escape") {
+        e.stopPropagation();
+        this.hide();
+      }
+    };
+    document.addEventListener("keydown", this._escHandler);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._escHandler) {
+      document.removeEventListener("keydown", this._escHandler);
+      this._escHandler = null;
+    }
+  }
+
   async show(entityId) {
     this._reset();
     this._entityId = entityId;
+    this._returnFocusTo = deepActiveElement();
     this.open = true;
+    await this.updateComplete;
+    const dialog = this.shadowRoot.querySelector(".dialog");
+    if (dialog) dialog.focus();
     await this._loadCandidates();
   }
 
   hide() {
     this.open = false;
+    /* Return focus to the row action that opened the dialog (WCAG 2.4.3). */
+    const target = this._returnFocusTo;
+    this._returnFocusTo = null;
+    if (target && typeof target.focus === "function") target.focus();
   }
 
   async _loadCandidates() {
@@ -80,11 +125,28 @@ class SberLinkDialog extends LitElement {
     }
   }
 
+  /**
+   * Toggle a link candidate, enforcing one entity per Sber role.
+   *
+   * ``_save`` maps candidates into ``{role: entity_id}``, so two
+   * selections claiming the same role would silently collapse to the
+   * last one.  Selecting a candidate therefore unselects the previous
+   * holder of its role — the same guard sber-wizard applies.
+   */
   _toggle(entityId) {
     const sel = { ...this._selected };
     if (sel[entityId]) {
       delete sel[entityId];
     } else {
+      const picked = this._candidates.find((c) => c.entity_id === entityId);
+      const role = picked?.suggested_role;
+      if (role) {
+        for (const other of this._candidates) {
+          if (other.entity_id !== entityId && other.suggested_role === role) {
+            delete sel[other.entity_id];
+          }
+        }
+      }
       sel[entityId] = true;
     }
     this._selected = sel;
@@ -126,6 +188,7 @@ class SberLinkDialog extends LitElement {
       <div class="candidate-row ${!c.compatible ? 'incompatible' : ''}">
         <input
           type="checkbox"
+          aria-label="Link ${c.friendly_name || c.entity_id}"
           .checked=${!!this._selected[c.entity_id]}
           ?disabled=${!c.compatible}
           @change=${() => this._toggle(c.entity_id)}
@@ -187,6 +250,13 @@ class SberLinkDialog extends LitElement {
         color: var(--secondary-text-color); padding: 4px 8px; border-radius: 4px;
       }
       .close-btn:hover { background: var(--secondary-background-color, #eee); }
+      .close-btn:focus-visible,
+      .btn:focus-visible,
+      input:focus-visible,
+      .dialog:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
       .body { flex: 1; overflow-y: auto; padding: 16px 20px; }
       .info {
         font-size: 13px; color: var(--secondary-text-color); margin-bottom: 12px;
@@ -242,10 +312,16 @@ class SberLinkDialog extends LitElement {
 
     return html`
       <div class="overlay" @click=${(e) => { if (e.target === e.currentTarget) this.hide(); }}>
-        <div class="dialog">
+        <div
+          class="dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="link-dialog-title"
+          tabindex="-1"
+        >
           <div class="dialog-header">
-            <h2>Link Entities</h2>
-            <button class="close-btn" @click=${this.hide}>\u2715</button>
+            <h2 id="link-dialog-title">Link Entities</h2>
+            <button class="close-btn" aria-label="Close dialog" @click=${this.hide}>\u2715</button>
           </div>
 
           <div class="body">

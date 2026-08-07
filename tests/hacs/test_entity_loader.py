@@ -21,10 +21,14 @@ behavior, not mock call signatures.
 
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+import custom_components.sber_mqtt_bridge.entity_registry as entity_registry_module
 from custom_components.sber_mqtt_bridge.const import (
     CONF_ENTITY_LINKS,
     CONF_ENTITY_TYPE_OVERRIDES,
@@ -35,8 +39,10 @@ from custom_components.sber_mqtt_bridge.custom_capabilities import (
     CustomConfig,
     EntityCustomConfig,
 )
+from custom_components.sber_mqtt_bridge.devices.light import LightEntity
 from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
 from custom_components.sber_mqtt_bridge.entity_registry import SberEntityLoader
+from custom_components.sber_mqtt_bridge.sber_protocol import build_devices_list_json
 
 # ---------------------------------------------------------------------------
 # Minimal HA stubs (external boundary only)
@@ -181,14 +187,15 @@ _DEGENERATE_CCT_ATTRS = {"min_color_temp_kelvin": 6493, "max_color_temp_kelvin":
 # ---------------------------------------------------------------------------
 
 
-def test_broken_entity_does_not_abort_other_entities(env) -> None:
+def test_broken_entity_does_not_abort_other_entities(env, caplog) -> None:
     """One light with a degenerate CCT range must not break the whole load."""
     _add_light(env, "light.ok1", state="on")
     _add_light(env, "light.broken", attrs=_DEGENERATE_CCT_ATTRS)
     _add_light(env, "light.ok2", state="off")
     entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.ok1", "light.broken", "light.ok2"]})
 
-    result = SberEntityLoader(env.hass, entry).load()
+    with caplog.at_level(logging.WARNING, logger=entity_registry_module.__name__):
+        result = SberEntityLoader(env.hass, entry).load()
 
     assert set(result.entities) == {"light.ok1", "light.ok2"}
     assert result.enabled_entity_ids == ["light.ok1", "light.ok2"]
@@ -196,6 +203,16 @@ def test_broken_entity_does_not_abort_other_entities(env) -> None:
     assert result.entities["light.ok1"].current_state is True
     assert result.entities["light.ok1"].is_filled_by_state is True
     assert result.entities["light.ok2"].current_state is False
+    # The dropped entity MUST be traceable: this log line is the only signal
+    # a user gets that a device silently vanished from the Sber payload.
+    dropped_records = [
+        rec
+        for rec in caplog.records
+        if rec.name == entity_registry_module.__name__ and "light.broken" in rec.getMessage()
+    ]
+    assert len(dropped_records) == 1, "no diagnostic log naming the dropped entity"
+    assert dropped_records[0].exc_info is not None, "log must carry the traceback"
+    assert "light.ok1" not in dropped_records[0].getMessage()
 
 
 def test_broken_entity_order_does_not_matter(env) -> None:
@@ -218,6 +235,56 @@ def test_all_entities_broken_yields_empty_result_without_raising(env) -> None:
 
     assert result.entities == {}
     assert result.enabled_entity_ids == []
+
+
+def test_cancellation_during_fill_is_not_swallowed(env) -> None:
+    """The isolation ``except`` must stay narrow: cancellation propagates.
+
+    ``asyncio.CancelledError`` is a ``BaseException`` — widening the tuple
+    to ``Exception``/``BaseException`` would turn a HA shutdown into a
+    silently half-loaded registry.
+    """
+    _add_light(env, "light.a")
+    _add_light(env, "light.b")
+    entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.a", "light.b"]})
+
+    with (
+        patch.object(LightEntity, "fill_by_ha_state", side_effect=asyncio.CancelledError),
+        pytest.raises(asyncio.CancelledError),
+    ):
+        SberEntityLoader(env.hass, entry).load()
+
+
+def test_cancellation_during_linked_update_is_not_swallowed(env) -> None:
+    """Same narrowness contract for the linked-state ``except``."""
+    _add_temp_sensor(env, "sensor.temp")
+    env.states["sensor.hum"] = _FakeState("sensor.hum", "55")
+    entry = env.make_entry(
+        {
+            CONF_EXPOSED_ENTITIES: ["sensor.temp"],
+            CONF_ENTITY_LINKS: {"sensor.temp": {"humidity": "sensor.hum"}},
+        }
+    )
+
+    with (
+        patch.object(SensorTempEntity, "update_linked_data", side_effect=asyncio.CancelledError),
+        pytest.raises(asyncio.CancelledError),
+    ):
+        SberEntityLoader(env.hass, entry).load()
+
+
+def test_unsupported_domain_entity_is_skipped(env) -> None:
+    """A domain with no Sber category yields no entity instead of crashing."""
+    env.entries["camera.doorbell"] = _make_reg_entry("camera.doorbell")
+    env.states["camera.doorbell"] = _FakeState("camera.doorbell", "idle")
+    _add_light(env, "light.ok")
+    env.set_yaml({"camera.doorbell": EntityCustomConfig(sber_name="Камера")})
+    entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["camera.doorbell", "light.ok"]})
+
+    result = SberEntityLoader(env.hass, entry).load()
+
+    assert set(result.entities) == {"light.ok"}
+    assert result.enabled_entity_ids == ["light.ok"]
 
 
 def test_entity_missing_from_registry_is_skipped(env) -> None:
@@ -409,28 +476,104 @@ def test_device_registry_data_linked_with_mac_and_fallbacks(env) -> None:
     assert linked["mac"] == "aa:bb:cc:dd:ee:ff"  # bluetooth connection ignored
 
 
-def test_device_id_mismatch_is_not_fatal(env) -> None:
-    """Registry returning a foreign device must not crash the load."""
+def test_device_registry_without_mac_yields_empty_mac(env) -> None:
+    """Non-MAC connections (and none at all) must not leak into ``mac``."""
+    env.entries["light.ok"] = _make_reg_entry("light.ok", device_id="dev1")
+    env.states["light.ok"] = _FakeState("light.ok", "on")
+    env.devices["dev1"] = _make_device("dev1", connections={("zigbee", "0x00124b00")})
+    entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.ok"]})
+
+    result = SberEntityLoader(env.hass, entry).load()
+
+    assert result.entities["light.ok"].linked_device["mac"] == ""
+
+
+def _sber_device_ids(result) -> list[str]:
+    """Serialize a load result the way the publisher does and list device ids.
+
+    Uses the real ``build_devices_list_json`` so a half-initialised entity
+    (``device_id`` set + ``linked_device`` None) surfaces exactly as it
+    would in production: ``BaseEntity.to_sber_state`` raises ``RuntimeError``,
+    which the protocol layer does *not* catch, aborting the whole publish.
+    """
+    payload, _valid, _invalid = build_devices_list_json(
+        result.entities,
+        result.enabled_entity_ids,
+        result.redefinitions,
+        default_home="Дом",
+        default_room="Дом",
+    )
+    return [device["id"] for device in json.loads(payload)["devices"]]
+
+
+def test_device_id_mismatch_demotes_entity_to_standalone(env) -> None:
+    """A foreign device from the registry must not leave a half-linked entity.
+
+    ``device_id`` set without ``linked_device`` makes ``to_sber_state``
+    raise ``RuntimeError`` and kills the publication of the *entire*
+    device list, so the loader clears ``device_id`` instead.
+    """
     env.entries["light.ok"] = _make_reg_entry("light.ok", device_id="dev1")
     env.states["light.ok"] = _FakeState("light.ok", "on")
     env.devices["dev1"] = _make_device("other-id")
-    entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.ok"]})
+    _add_light(env, "light.healthy")
+    entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.ok", "light.healthy"]})
 
     result = SberEntityLoader(env.hass, entry).load()
 
     assert "light.ok" in result.entities
     assert result.entities["light.ok"].linked_device is None
+    assert result.entities["light.ok"].device_id is None
+    # Publication of the whole list still works and keeps both devices.
+    assert _sber_device_ids(result) == ["root", "light.ok", "light.healthy"]
 
 
-def test_device_absent_from_registry_leaves_entity_standalone(env) -> None:
+def test_device_absent_from_registry_demotes_entity_to_standalone(env) -> None:
+    """Device deleted between registry reads → entity published standalone."""
     env.entries["light.ok"] = _make_reg_entry("light.ok", device_id="dev-missing")
     env.states["light.ok"] = _FakeState("light.ok", "on")
-    entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.ok"]})
+    _add_light(env, "light.healthy")
+    entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.ok", "light.healthy"]})
 
     result = SberEntityLoader(env.hass, entry).load()
 
     assert "light.ok" in result.entities
     assert result.entities["light.ok"].linked_device is None
+    assert result.entities["light.ok"].device_id is None
+    # Without the demotion this call raises RuntimeError and NOTHING is
+    # published — not even the healthy light.
+    assert _sber_device_ids(result) == ["root", "light.ok", "light.healthy"]
+
+
+def test_multiple_entities_of_one_device_are_reported(env, caplog) -> None:
+    """Duplicate-risk warning fires only for real (non-linked) duplicates."""
+    for eid in ("light.a", "light.b"):
+        env.entries[eid] = _make_reg_entry(eid, device_id="dev1")
+        env.states[eid] = _FakeState(eid, "on")
+    env.devices["dev1"] = _make_device("dev1", name="Multi")
+    entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.a", "light.b"]})
+
+    with caplog.at_level(logging.WARNING, logger=entity_registry_module.__name__):
+        result = SberEntityLoader(env.hass, entry).load()
+
+    assert set(result.entities) == {"light.a", "light.b"}
+    conflict = [rec.getMessage() for rec in caplog.records if "may cause duplicates" in rec.getMessage()]
+    assert len(conflict) == 1
+    assert "light.a" in conflict[0]
+    assert "light.b" in conflict[0]
+
+
+def test_single_entity_per_device_reports_no_conflict(env, caplog) -> None:
+    """Control case: one entity per device must stay silent."""
+    env.entries["light.a"] = _make_reg_entry("light.a", device_id="dev1")
+    env.states["light.a"] = _FakeState("light.a", "on")
+    env.devices["dev1"] = _make_device("dev1")
+    entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.a"]})
+
+    with caplog.at_level(logging.WARNING, logger=entity_registry_module.__name__):
+        SberEntityLoader(env.hass, entry).load()
+
+    assert not [rec for rec in caplog.records if "may cause duplicates" in rec.getMessage()]
 
 
 # ---------------------------------------------------------------------------
@@ -464,6 +607,29 @@ def test_yaml_overrides_applied_to_entity(env) -> None:
     assert ent.groups == ["Кухня"]
     assert ent.extra_features == ["extra_feature"]
     assert ent.removed_features == ["on_off"]
+
+
+def test_yaml_parent_and_partner_meta_reach_sber_payload(env) -> None:
+    """``sber_parent_id`` / ``sber_partner_meta`` end up in the Sber descriptor."""
+    _add_light(env, "light.child")
+    env.set_yaml(
+        {
+            "light.child": EntityCustomConfig(
+                sber_parent_id="light.parent",
+                sber_partner_meta={"vendor": "acme"},
+            )
+        }
+    )
+    entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.child"]})
+
+    result = SberEntityLoader(env.hass, entry).load()
+
+    ent = result.entities["light.child"]
+    assert ent.parent_entity_id == "light.parent"
+    assert ent.partner_meta == {"vendor": "acme"}
+    descriptor = ent.to_sber_state()
+    assert descriptor["parent_id"] == "light.parent"
+    assert descriptor["partner_meta"] == {"vendor": "acme"}
 
 
 def test_options_type_override_beats_yaml_sber_type(env) -> None:
@@ -531,14 +697,49 @@ def test_persisted_redefinitions_win_over_in_memory(env) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_duplicate_exposed_ids_deduplicated(env) -> None:
+def test_duplicate_exposed_ids_built_once(env) -> None:
+    """A duplicated exposed id must not build the entity twice.
+
+    Asserting only on ``result.entities`` would be a tautology (a dict
+    dedupes keys by itself), so this counts the actual construction work —
+    the real cost the ``dict.fromkeys`` pass exists to avoid.  The factory
+    is wrapped, not stubbed: real Sber entities are still produced.
+    """
     _add_light(env, "light.a")
     entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.a", "light.a", "light.a"]})
 
-    result = SberEntityLoader(env.hass, entry).load()
+    with patch(
+        "custom_components.sber_mqtt_bridge.entity_registry.create_sber_entity",
+        wraps=entity_registry_module.create_sber_entity,
+    ) as factory:
+        result = SberEntityLoader(env.hass, entry).load()
 
+    assert factory.call_count == 1
     assert result.enabled_entity_ids == ["light.a"]
-    assert list(result.entities) == ["light.a"]
+    assert result.entities["light.a"].is_filled_by_state is True
+
+
+def test_redefinitions_of_a_broken_entity_survive_the_load(env) -> None:
+    """Deliberate policy: a failed load must NOT erase user redefinitions.
+
+    Pruning against successfully loaded entities would destroy the user's
+    room/name assignment the first time a lamp reports a degenerate CCT
+    range — the prune therefore runs against the *exposed* option list.
+    """
+    _add_light(env, "light.broken", attrs=_DEGENERATE_CCT_ATTRS)
+    _add_light(env, "light.ok")
+    entry = env.make_entry({CONF_EXPOSED_ENTITIES: ["light.broken", "light.ok"]})
+    existing = {
+        "light.broken": {"room": "Спальня", "name": "Ночник"},
+        "light.removed": {"room": "Чулан"},
+    }
+
+    result = SberEntityLoader(env.hass, entry).load(existing_redefinitions=existing)
+
+    assert "light.broken" not in result.entities
+    assert result.redefinitions["light.broken"] == {"room": "Спальня", "name": "Ночник"}
+    # Entities dropped from the exposed list are still pruned.
+    assert "light.removed" not in result.redefinitions
 
 
 def test_repeat_load_returns_fresh_equivalent_result(env) -> None:

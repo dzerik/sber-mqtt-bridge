@@ -35,6 +35,13 @@ class SberToolbar extends LitElement {
 
   static get styles() {
     return css`
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
       :host {
         display: flex;
         align-items: center;
@@ -310,6 +317,8 @@ class SberToolbar extends LitElement {
       <input
         type="file"
         accept=".json"
+        aria-hidden="true"
+        tabindex="-1"
         style="display:none"
         @change=${this._onImportFile}
       />

@@ -7,6 +7,23 @@
 
 import { LitElement, html, css } from "../lit-base.js";
 
+/**
+ * Resolve the element that really has focus, descending into shadow roots.
+ *
+ * ``document.activeElement`` only reports the outermost custom element, so a
+ * naive capture would restore focus to the panel host instead of the button
+ * the user actually activated.
+ *
+ * @returns {Element|null} Deepest focused element.
+ */
+function deepActiveElement() {
+  let el = document.activeElement;
+  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
+    el = el.shadowRoot.activeElement;
+  }
+  return el;
+}
+
 class SberDetailDialog extends LitElement {
   static get properties() {
     return {
@@ -16,6 +33,7 @@ class SberDetailDialog extends LitElement {
       _loading: { type: Boolean },
       _error: { type: String },
       _saveStatus: { type: String },
+      _saveError: { type: String },
     };
   }
 
@@ -66,6 +84,14 @@ class SberDetailDialog extends LitElement {
         border: none;
         color: var(--primary-text-color);
         padding: 4px 8px;
+      }
+      .close-btn:focus-visible,
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      .dialog:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
       }
       .body {
         padding: 16px 20px;
@@ -278,13 +304,17 @@ class SberDetailDialog extends LitElement {
     this._loading = false;
     this._error = "";
     this._saveStatus = "";
+    this._saveError = "";
   }
 
   async show(entityId) {
     if (!this.hass) return;
+    this._returnFocusTo = deepActiveElement();
     this.open = true;
     this._loading = true;
     this._error = "";
+    this._saveStatus = "";
+    this._saveError = "";
     this._data = null;
     try {
       this._data = await this.hass.callWS({
@@ -300,12 +330,43 @@ class SberDetailDialog extends LitElement {
 
   hide() {
     this.open = false;
+    /* Return focus to the device-name link that opened us (WCAG 2.4.3). */
+    const target = this._returnFocusTo;
+    this._returnFocusTo = null;
+    if (target && typeof target.focus === "function") target.focus();
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    /* Modal keyboard contract: Escape closes. */
+    this._escHandler = (e) => {
+      if (this.open && e.key === "Escape") {
+        e.stopPropagation();
+        this.hide();
+      }
+    };
+    document.addEventListener("keydown", this._escHandler);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._escHandler) {
+      document.removeEventListener("keydown", this._escHandler);
+      this._escHandler = null;
+    }
   }
 
   render() {
     if (!this.open) return html``;
     return html`
-      <div class="dialog" @click=${(e) => e.stopPropagation()}>
+      <div
+        class="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detail-dialog-title"
+        tabindex="-1"
+        @click=${(e) => e.stopPropagation()}
+      >
         ${this._loading
           ? html`<div class="loading">Loading...</div>`
           : this._error
@@ -319,6 +380,8 @@ class SberDetailDialog extends LitElement {
     if (changed.has("open") && this.open) {
       // Close on backdrop click
       this.addEventListener("click", this._onBackdropClick);
+      const dialog = this.shadowRoot.querySelector(".dialog");
+      if (dialog) dialog.focus();
     }
   }
 
@@ -330,8 +393,8 @@ class SberDetailDialog extends LitElement {
 
     return html`
       <div class="header">
-        <h2>${d.name || d.entity_id}</h2>
-        <button class="close-btn" @click=${() => this.hide()}>\u2715</button>
+        <h2 id="detail-dialog-title">${d.name || d.entity_id}</h2>
+        <button class="close-btn" aria-label="Close details" @click=${() => this.hide()}>\u2715</button>
       </div>
       <div class="body">
         ${this._renderEditForm(d)}
@@ -490,15 +553,15 @@ class SberDetailDialog extends LitElement {
       <div class="section">
         <div class="section-title">Sber Override</div>
         <div class="edit-form">
-          <label class="edit-label">Name</label>
+          <label class="edit-label" for="edit-name">Name</label>
           <input class="edit-input" type="text" id="edit-name"
             .value=${r.name || d.name || ""}
             placeholder=${d.name || d.entity_id} />
-          <label class="edit-label">Room</label>
+          <label class="edit-label" for="edit-room">Room</label>
           <input class="edit-input" type="text" id="edit-room"
             .value=${r.room || d.room || ""}
             placeholder=${d.room || "Room name"} />
-          <label class="edit-label">Home</label>
+          <label class="edit-label" for="edit-home">Home</label>
           <input class="edit-input" type="text" id="edit-home"
             .value=${r.home || ""}
             placeholder="Home name" />
@@ -506,7 +569,7 @@ class SberDetailDialog extends LitElement {
             <button class="edit-save" @click=${this._onSave}>
               \u{1F4BE} Save & Re-publish
             </button>
-            ${this._saveStatus ? html`<span class="save-status ${this._saveStatus}">${this._saveStatus === "ok" ? "\u2713 Saved" : "\u2717 Error"}</span>` : ""}
+            ${this._saveStatus ? html`<span class="save-status ${this._saveStatus}" title=${this._saveError || ""}>${this._saveStatus === "ok" ? "\u2713 Saved" : `\u2717 ${this._saveError || "Error"}`}</span>` : ""}
           </div>
         </div>
       </div>
@@ -528,10 +591,15 @@ class SberDetailDialog extends LitElement {
       });
       this._saveStatus = "ok";
       this.requestUpdate();
-      // Re-fetch detail after short delay
-      setTimeout(() => this.show(this._data.entity_id), 1500);
+      // Re-fetch detail after a short delay — but only if the user has not
+      // closed the dialog meanwhile, otherwise show() would re-open it.
+      const entityId = this._data.entity_id;
+      setTimeout(() => {
+        if (this.open) this.show(entityId);
+      }, 1500);
     } catch (e) {
       this._saveStatus = "error";
+      this._saveError = e.message || String(e);
       this.requestUpdate();
     }
   }

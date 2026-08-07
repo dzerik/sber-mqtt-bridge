@@ -32,15 +32,27 @@ export function slugify(text) {
 }
 
 /**
+ * Salut-friendly name pattern: 3-33 characters, Cyrillic letters,
+ * digits, spaces and hyphens.
+ *
+ * MUST stay byte-for-byte equivalent to ``_SALUT_NAME`` in
+ * ``custom_components/sber_mqtt_bridge/name_utils.py`` (the Python side
+ * is the source of truth).  ``tests/hacs/test_www_frontend.py``
+ * fails the build when the two diverge.
+ */
+export const SALUT_NAME_RE = /^[\u0430-\u044F\u0451\u0410-\u042F\u04010-9 \-]{3,33}$/;
+
+/**
  * Validate a device name for the Salut voice assistant.
  *
- * Rules: 3-33 characters, only Cyrillic letters, digits and spaces.
+ * Rules: 3-33 characters, only Cyrillic letters, digits, spaces and
+ * hyphens (Sber's own docs show names like "\u0421\u043C\u0430\u0440\u0442-\u0442\u0435\u043B\u0435\u0432\u0438\u0437\u043E\u0440").
  *
  * @param {string} name - Candidate device name.
  * @returns {boolean} True if the name is valid.
  */
 export function isValidSalutName(name) {
-  return /^[\u0430-\u044F\u0451\u0410-\u042F\u04010-9 ]{3,33}$/.test(name);
+  return typeof name === "string" && SALUT_NAME_RE.test(name);
 }
 
 /**

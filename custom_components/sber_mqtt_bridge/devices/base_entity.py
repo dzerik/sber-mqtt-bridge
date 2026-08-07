@@ -235,9 +235,18 @@ def _collect_declared_roles() -> tuple[LinkableRole, ...]:
     Auto-collection makes ``ALL_LINKABLE_ROLES`` a derived value: any new
     ``ROLE_*`` constant defined in this module is registered automatically.
 
+    Scope caveat (enforced by
+    ``test_link_roles_registry.TestRegistryConstruction``): the scan
+    reads ``globals()`` at call time, so it only sees constants bound
+    **above** the :data:`ALL_LINKABLE_ROLES` assignment, and it picks up
+    *every* module-level :class:`LinkableRole` — there is no "private
+    role" escape hatch.  Declare new roles in the block above together
+    with the existing ``ROLE_*`` constants.
+
     Returns:
         Tuple of unique :class:`LinkableRole` instances in declaration
-        order, de-duplicated by role name.
+        order, de-duplicated by role name (aliases bound to the same
+        role name collapse into their first binding).
     """
     seen: set[str] = set()
     collected: list[LinkableRole] = []
@@ -251,20 +260,29 @@ def _collect_declared_roles() -> tuple[LinkableRole, ...]:
 ALL_LINKABLE_ROLES: tuple[LinkableRole, ...] = _collect_declared_roles()
 """Global registry of all known linkable roles.
 
-Derived automatically from every ``ROLE_*`` constant declared in this
-module — device classes must compose their ``LINKABLE_ROLES`` from these
-constants so the wizard (``resolve_link_role``) and per-class matching
-(``LINKABLE_ROLES``) can never diverge again.
+Derived automatically from every ``LinkableRole`` constant declared
+above in this module.  Device classes are expected to compose their
+``LINKABLE_ROLES`` from these constants; as long as they do, the wizard
+path (``resolve_link_role``) and per-class matching (``LINKABLE_ROLES``)
+stay in sync.  Nothing in this module *enforces* that composition — a
+class that builds its own ``LinkableRole`` inline still drifts, which is
+why ``test_link_roles_registry`` walks every class in
+``CATEGORY_DOMAIN_MAP`` and fails on roles unknown to this registry.
 """
 
 
 def resolve_link_role_for(accepted_roles: Iterable[LinkableRole], domain: str, device_class: str) -> str:
     """Resolve the link role of an HA entity against a specific role set.
 
-    Single source of truth for link-role matching: both the global
-    :func:`resolve_link_role` and any per-class validation (matching an
-    entity against a primary's ``LINKABLE_ROLES``) should go through this
-    function instead of re-implementing the loop.
+    Shared helper for link-role matching, used by the global
+    :func:`resolve_link_role` and available to per-class validation
+    (matching an entity against a primary's ``LINKABLE_ROLES``) instead
+    of re-implementing the loop.  Not yet a hard single source of truth:
+    ``websocket_api/links.py::ws_auto_link_all`` still runs its own
+    ``LinkableRole.matches`` loop.  That is safe only because
+    ``ALL_LINKABLE_ROLES`` contains no two roles matching the same
+    ``(domain, device_class)`` pair — an invariant locked by
+    ``test_link_roles_registry.test_registry_has_no_ambiguous_matches``.
 
     Args:
         accepted_roles: Roles to match against (e.g. a device class's

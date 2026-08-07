@@ -607,7 +607,8 @@ class TestPrimaryDeviceClassCoverage:
     """Complete coverage of the primary-fill routing table.
 
     ``TestPrimaryFill`` already covers five of the eight device_classes
-    routed by ``_DEVICE_CLASS_ROUTING``.  Close the gap so a future
+    routed by ``_MEASUREMENT_ROUTING`` (the merged role + device_class
+    routing table, formerly ``_DEVICE_CLASS_ROUTING``).  Close the gap so a future
     refactor cannot silently drop ``humidity`` / ``temperature`` /
     ``volatile_organic_compounds_parts`` without a failing test.
     """

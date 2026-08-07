@@ -18,6 +18,9 @@
 
 import { LitElement, html, css } from "../lit-base.js";
 
+/** Hard cap on the live message buffer shared with sber-devtools. */
+const MAX_MESSAGES = 500;
+
 const TOPIC_SUFFIXES = [
   "commands",
   "status_request",
@@ -62,8 +65,14 @@ class SberReplay extends LitElement {
     this._busy = false;
     this._status = "";
     this._statusKind = "";
-    this._hassReady = false;
     this._unsub = null;
+    this._subscribing = false;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    /* Re-subscribe on re-attach (HA navigation reuses the instance). */
+    if (this.hass) this._subscribe();
   }
 
   disconnectedCallback() {
@@ -72,27 +81,35 @@ class SberReplay extends LitElement {
   }
 
   updated(changedProps) {
-    if (changedProps.has("hass") && this.hass && !this._hassReady) {
-      this._hassReady = true;
-      this._subscribe();
-    }
+    if (changedProps.has("hass") && this.hass) this._subscribe();
   }
 
   async _subscribe() {
-    if (this._unsub) return;
+    if (this._unsub || this._subscribing) return;
+    this._subscribing = true;
     try {
-      this._unsub = await this.hass.connection.subscribeMessage(
+      const unsub = await this.hass.connection.subscribeMessage(
         (event) => {
           if (event.snapshot) {
-            this._messages = event.snapshot;
+            this._messages = event.snapshot.slice(-MAX_MESSAGES);
           } else if (event.message) {
-            this._messages = [...this._messages, event.message];
+            const appended = [...this._messages, event.message];
+            this._messages =
+              appended.length > MAX_MESSAGES ? appended.slice(-MAX_MESSAGES) : appended;
           }
         },
         { type: "sber_mqtt_bridge/subscribe_messages" }
       );
+      if (!this.isConnected) {
+        /* Detached mid-round-trip — drop instead of leaking. */
+        unsub();
+        return;
+      }
+      this._unsub = unsub;
     } catch (e) {
       this._setStatus(`Subscribe failed: ${e.message || e}`, "error");
+    } finally {
+      this._subscribing = false;
     }
   }
 
@@ -187,7 +204,7 @@ class SberReplay extends LitElement {
           <h3>Manual inject</h3>
           <div class="form-row">
             <label>Topic suffix</label>
-            <select .value=${this._topic} @change=${(e) => { this._topic = e.target.value; }}>
+            <select aria-label="Topic suffix" .value=${this._topic} @change=${(e) => { this._topic = e.target.value; }}>
               ${TOPIC_SUFFIXES.map((s) => html`<option value="${s}">${s}</option>`)}
             </select>
           </div>
@@ -254,6 +271,13 @@ class SberReplay extends LitElement {
 
   static get styles() {
     return css`
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
       .section {
         background: var(--card-background-color);
         border-radius: 8px;

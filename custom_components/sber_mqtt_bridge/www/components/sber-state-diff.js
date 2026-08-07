@@ -14,6 +14,10 @@
 
 import { LitElement, html, css } from "../lit-base.js";
 
+/** Hard cap on the live diff buffer (live appends are unbounded on the
+ * wire — the backend ring buffer only trims the initial snapshot). */
+const MAX_DIFFS = 500;
+
 class SberStateDiff extends LitElement {
   static get properties() {
     return {
@@ -27,8 +31,14 @@ class SberStateDiff extends LitElement {
     super();
     this._diffs = [];
     this._error = "";
-    this._hassReady = false;
     this._unsub = null;
+    this._subscribing = false;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    /* Re-subscribe on re-attach (HA navigation reuses the instance). */
+    if (this.hass) this._subscribe();
   }
 
   disconnectedCallback() {
@@ -37,29 +47,37 @@ class SberStateDiff extends LitElement {
   }
 
   updated(changedProps) {
-    if (changedProps.has("hass") && this.hass && !this._hassReady) {
-      this._hassReady = true;
-      this._subscribe();
-    }
+    if (changedProps.has("hass") && this.hass) this._subscribe();
   }
 
   async _subscribe() {
-    if (this._unsub) return;
+    if (this._unsub || this._subscribing) return;
+    this._subscribing = true;
     try {
-      this._unsub = await this.hass.connection.subscribeMessage(
+      const unsub = await this.hass.connection.subscribeMessage(
         (event) => {
           if (event.snapshot) {
-            this._diffs = event.snapshot;
+            this._diffs = event.snapshot.slice(-MAX_DIFFS);
           } else if (event.diff) {
-            // Ring-buffer behaviour on the backend caps size — on the UI
-            // side we mirror the append and trust the backend to trim.
-            this._diffs = [...this._diffs, event.diff];
+            // The backend ring buffer only bounds the *snapshot*; live
+            // appends are unbounded, so cap them here too.
+            const appended = [...this._diffs, event.diff];
+            this._diffs =
+              appended.length > MAX_DIFFS ? appended.slice(-MAX_DIFFS) : appended;
           }
         },
         { type: "sber_mqtt_bridge/subscribe_state_diffs" }
       );
+      if (!this.isConnected) {
+        /* Detached mid-round-trip — drop instead of leaking. */
+        unsub();
+        return;
+      }
+      this._unsub = unsub;
     } catch (e) {
       this._error = e.message || String(e);
+    } finally {
+      this._subscribing = false;
     }
   }
 
@@ -183,6 +201,13 @@ class SberStateDiff extends LitElement {
 
   static get styles() {
     return css`
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
       .section {
         background: var(--card-background-color);
         border-radius: 8px;

@@ -31,6 +31,9 @@ await Promise.all([
 
 import { LitElement, html, css } from "./lit-base.js";
 
+/** Tab labels, index-aligned with the ``_tab`` state value. */
+const TABS = ["Devices", "Status", "DevTools", "Settings"];
+
 /* ---------- main panel ---------- */
 
 class SberMqttPanel extends LitElement {
@@ -311,6 +314,34 @@ class SberMqttPanel extends LitElement {
     }
   }
 
+  /* ---------- tabs (a11y) ---------- */
+
+  /** Select a tab and move DOM focus onto it (roving tabindex). */
+  _selectTab(index) {
+    this._tab = index;
+    this.updateComplete.then(() => {
+      const tab = this.shadowRoot.querySelector(`#sber-tab-${index}`);
+      if (tab) tab.focus();
+    });
+  }
+
+  /**
+   * WAI-ARIA tablist keyboard support: arrows move between tabs,
+   * Home/End jump to the edges, Enter/Space activate.
+   */
+  _onTabKeydown(e, index) {
+    const last = TABS.length - 1;
+    let next = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = index === last ? 0 : index + 1;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = index === 0 ? last : index - 1;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = last;
+    else if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") next = index;
+    else return;
+    e.preventDefault();
+    this._selectTab(next);
+  }
+
   _showToast(message, type) {
     const toast = this.shadowRoot.querySelector("sber-toast");
     if (toast) toast.show(message, type);
@@ -370,6 +401,12 @@ class SberMqttPanel extends LitElement {
       .tab.active {
         color: var(--primary-color);
         border-bottom-color: var(--primary-color);
+      }
+
+      .tab:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: -2px;
+        border-radius: 4px;
       }
 
       .toolbar-wrapper {
@@ -461,25 +498,35 @@ class SberMqttPanel extends LitElement {
         ></sber-toolbar>
       </div>
 
-      <div class="tabs">
-        <div class="tab ${this._tab === 0 ? "active" : ""}" @click=${() => this._tab = 0}>
-          Devices
-        </div>
-        <div class="tab ${this._tab === 1 ? "active" : ""}" @click=${() => this._tab = 1}>
-          Status
-        </div>
-        <div class="tab ${this._tab === 2 ? "active" : ""}" @click=${() => this._tab = 2}>
-          DevTools
-        </div>
-        <div class="tab ${this._tab === 3 ? "active" : ""}" @click=${() => this._tab = 3}>
-          Settings
-        </div>
+      <div class="tabs" role="tablist" aria-label="Sber MQTT Bridge sections">
+        ${TABS.map(
+          (label, i) => html`
+            <div
+              class="tab ${this._tab === i ? "active" : ""}"
+              role="tab"
+              id="sber-tab-${i}"
+              aria-controls="sber-tabpanel"
+              aria-selected=${this._tab === i ? "true" : "false"}
+              tabindex=${this._tab === i ? "0" : "-1"}
+              @click=${() => this._selectTab(i)}
+              @keydown=${(e) => this._onTabKeydown(e, i)}
+            >
+              ${label}
+            </div>
+          `
+        )}
       </div>
 
-      ${this._tab === 0 ? this._renderDevices()
-        : this._tab === 1 ? this._renderStatus()
-        : this._tab === 2 ? this._renderDevtools()
-        : this._renderSettings()}
+      <div
+        id="sber-tabpanel"
+        role="tabpanel"
+        aria-labelledby="sber-tab-${this._tab}"
+      >
+        ${this._tab === 0 ? this._renderDevices()
+          : this._tab === 1 ? this._renderStatus()
+          : this._tab === 2 ? this._renderDevtools()
+          : this._renderSettings()}
+      </div>
 
       <sber-wizard
         .hass=${this.hass}

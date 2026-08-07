@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .devices.base_entity import BaseEntity
 from .devices.climate import ClimateEntity
@@ -47,6 +47,9 @@ from .devices.vacuum_cleaner import VacuumCleanerEntity
 from .devices.valve import ValveEntity
 from .devices.water_leak_sensor import WaterLeakSensorEntity
 from .devices.window_blind import WindowBlindEntity
+
+if TYPE_CHECKING:
+    from homeassistant.helpers import entity_registry as er
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -338,6 +341,14 @@ Computed as the union of :attr:`CategorySpec.domains` across
 :data:`CATEGORY_DOMAIN_MAP` — adding a category with a new domain
 automatically makes that domain selectable in the Options Flow
 fallback paths (manual select, by-domain, by-label, add-all).
+
+The two presentation-level tables that must follow this list —
+``config_flow.DOMAIN_PRIORITY`` (device deduplication) and
+``config_flow.DOMAIN_LABELS`` (human-readable captions) — cannot be
+derived from it (priority is a cross-domain "richness" judgement, labels
+are prose), so their completeness is machine-checked instead by
+``tests/hacs/test_config_flow_options.py``.  A new domain therefore
+fails the suite until both tables are extended.
 """
 
 
@@ -400,6 +411,26 @@ CATEGORY_UI_META: dict[str, CategoryUiMeta] = {
 
 Keys must be a subset of :data:`CATEGORY_DOMAIN_MAP`.  See the consistency
 test ``test_category_domain_map.py::test_ui_meta_is_subset_of_domain_map``.
+"""
+
+
+UI_OVERRIDABLE_CATEGORIES: list[str] = sorted(
+    cat for cat in CATEGORY_DOMAIN_MAP if (meta := CATEGORY_UI_META.get(cat)) is None or meta.user_selectable
+)
+"""Subset of :data:`OVERRIDABLE_CATEGORIES` offered in user-facing pickers.
+
+:data:`OVERRIDABLE_CATEGORIES` stays the **validation** vocabulary — every
+key of :data:`CATEGORY_DOMAIN_MAP` is a legal override value, and the
+WebSocket schemas must keep accepting all of them (the wizard itself
+stores e.g. ``sensor_humidity``).  This list drops the categories flagged
+``user_selectable=False`` in :data:`CATEGORY_UI_META`, i.e. the ones the
+bridge resolves on its own from ``device_class``, so the Options Flow
+dropdown does not offer meaningless picks.
+
+Consumers must still union in the entity's *current* override before
+building a selector — otherwise a value set through the WebSocket API
+would sit outside the offered options and ``vol.In`` would reject the
+unchanged form on submit.
 """
 
 
@@ -512,3 +543,57 @@ def create_sber_entity(
         dc,
     )
     return entity
+
+
+def build_probe_entity_data(entry: er.RegistryEntry) -> dict[str, Any]:
+    """Build the ``entity_data`` dict for a throw-away (probe) Sber entity.
+
+    Several call sites only need a Sber entity in order to *inspect* it —
+    to read its resolved ``category``, its ``LINKABLE_ROLES`` or its
+    feature list — and never publish it.  They used to hand-roll this dict
+    with slightly different key sets, so a newly required field could be
+    forgotten in one copy.  This is the single builder for that shape.
+
+    The result is intentionally a subset of the full registry payload
+    assembled by :meth:`SberEntityLoader._load_entities` (no ``area_id``
+    resolution, no ``icon`` / ``entity_category``) — probes never leave
+    the process.
+
+    Args:
+        entry: HA entity-registry entry to describe.
+
+    Returns:
+        Dict accepted by every :attr:`CategorySpec.cls` constructor.
+    """
+    return {
+        "entity_id": entry.entity_id,
+        "original_device_class": entry.original_device_class or "",
+        "device_id": entry.device_id,
+        "name": entry.name or entry.original_name or entry.entity_id,
+        "original_name": entry.original_name,
+        "platform": entry.platform,
+        "unique_id": entry.unique_id,
+        "disabled_by": entry.disabled_by,
+        "hidden_by": entry.hidden_by,
+    }
+
+
+def build_probe_entity(
+    entry: er.RegistryEntry,
+    sber_category: str | None = None,
+) -> BaseEntity | None:
+    """Create a throw-away Sber entity from an HA registry entry.
+
+    Thin wrapper over :func:`build_probe_entity_data` +
+    :func:`create_sber_entity` for the inspect-only call sites (Options
+    Flow preview / type-override step, wizard link suggestions).
+
+    Args:
+        entry: HA entity-registry entry to promote.
+        sber_category: Optional explicit category override; when ``None``
+            the category is auto-detected from domain/device_class.
+
+    Returns:
+        The probe entity, or ``None`` when no Sber category matches.
+    """
+    return create_sber_entity(entry.entity_id, build_probe_entity_data(entry), sber_category)

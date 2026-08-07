@@ -35,34 +35,12 @@ from .base_entity import (
     BaseEntity,
 )
 from .battery_signal_mixin import BatteryAndSignalLinkMixin
+from .utils.temperature import detect_temp_unit, to_celsius
 
 _LOGGER = logging.getLogger(__name__)
 
 SENSOR_AIR_CATEGORY = "sensor_air"
 """Sber device category for the air-quality sensor entity."""
-
-
-def _fahrenheit_to_celsius(value: float) -> float:
-    """Convert Fahrenheit to Celsius.
-
-    Sber's ``temperature`` feature is always transmitted as
-    ``°C × 10`` on the wire (see
-    https://developers.sber.ru/docs/ru/smarthome/c2c/temperature —
-    "The 'integer_value' should be set to the temperature multiplied
-    by 10 (e.g., 220 for 22 degrees Celsius)"). ``temp_unit_view`` is
-    a display-only hint on the device screen and does NOT reinterpret
-    the numeric value. HA sensors that report Fahrenheit therefore need
-    an explicit °F→°C conversion before scaling, otherwise a value like
-    ``72°F`` becomes ``720`` on the wire and Sber decodes it as
-    ``72.0°C`` (a ~50°C misread).
-
-    Args:
-        value: Fahrenheit temperature.
-
-    Returns:
-        Celsius temperature.
-    """
-    return (value - 32.0) * 5.0 / 9.0
 
 
 # Map: measurement key -> (internal field, parser). One routing table for
@@ -241,14 +219,15 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
             return False
         field, parser = routing
         value = _parse_state(ha_state.get("state"), parser)
-        # Track temperature unit for temp_unit_view emission + Fahrenheit conversion.
+        # Track temperature unit for temp_unit_view emission + Fahrenheit
+        # conversion.  Keyed on the destination FIELD, not on ``key``, so a
+        # future device_class alias routed to ``_temperature`` gets the same
+        # treatment.  Rule shared with SensorTempEntity via devices/utils.
         if field == "_temperature":
-            attrs = ha_state.get("attributes") or {}
-            unit = attrs.get("unit_of_measurement", "")
-            self._temp_unit = "f" if unit == "°F" else "c"
-            if value is not None and self._temp_unit == "f":
+            self._temp_unit = detect_temp_unit(ha_state.get("attributes"))
+            if value is not None:
                 # Sber wire spec is °C × 10; convert before storing.
-                value = _fahrenheit_to_celsius(float(value))
+                value = to_celsius(float(value), self._temp_unit)
         setattr(self, field, value)
         return True
 

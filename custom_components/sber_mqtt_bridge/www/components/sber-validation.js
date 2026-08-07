@@ -19,6 +19,10 @@
 
 import { LitElement, html, css } from "../lit-base.js";
 
+/** Hard cap on the live issue timeline (live batches are unbounded —
+ * the backend ring buffer only trims the initial snapshot). */
+const MAX_ISSUES = 500;
+
 class SberValidation extends LitElement {
   static get properties() {
     return {
@@ -36,8 +40,14 @@ class SberValidation extends LitElement {
     this._recent = [];
     this._tab = "by_entity";
     this._error = "";
-    this._hassReady = false;
     this._unsub = null;
+    this._subscribing = false;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    /* Re-subscribe on re-attach (HA navigation reuses the instance). */
+    if (this.hass) this._subscribe();
   }
 
   disconnectedCallback() {
@@ -46,20 +56,18 @@ class SberValidation extends LitElement {
   }
 
   updated(changedProps) {
-    if (changedProps.has("hass") && this.hass && !this._hassReady) {
-      this._hassReady = true;
-      this._subscribe();
-    }
+    if (changedProps.has("hass") && this.hass) this._subscribe();
   }
 
   async _subscribe() {
-    if (this._unsub) return;
+    if (this._unsub || this._subscribing) return;
+    this._subscribing = true;
     try {
-      this._unsub = await this.hass.connection.subscribeMessage(
+      const unsub = await this.hass.connection.subscribeMessage(
         (event) => {
           if (event.snapshot) {
             this._byEntity = event.snapshot.by_entity || {};
-            this._recent = event.snapshot.recent || [];
+            this._recent = (event.snapshot.recent || []).slice(-MAX_ISSUES);
           } else if (event.issues) {
             // Live batch — append to timeline and re-group by entity.
             const updated = { ...this._byEntity };
@@ -74,13 +82,23 @@ class SberValidation extends LitElement {
               (updated[issue.entity_id] ||= []).push(issue);
             }
             this._byEntity = updated;
-            this._recent = [...this._recent, ...event.issues];
+            const appended = [...this._recent, ...event.issues];
+            this._recent =
+              appended.length > MAX_ISSUES ? appended.slice(-MAX_ISSUES) : appended;
           }
         },
         { type: "sber_mqtt_bridge/subscribe_validation_issues" }
       );
+      if (!this.isConnected) {
+        /* Detached mid-round-trip — drop instead of leaking. */
+        unsub();
+        return;
+      }
+      this._unsub = unsub;
     } catch (e) {
       this._error = e.message || String(e);
+    } finally {
+      this._subscribing = false;
     }
   }
 
@@ -142,12 +160,16 @@ class SberValidation extends LitElement {
           <span class="hint">Every outbound publish is checked against the auto-generated Sber spec.</span>
         </div>
         ${this._error ? html`<div class="error-text">${this._error}</div>` : ""}
-        <div class="tabs">
+        <div class="tabs" role="tablist" aria-label="Validation views">
           <button class="tab ${this._tab === "by_entity" ? "active" : ""}"
+            role="tab"
+            aria-selected=${this._tab === "by_entity" ? "true" : "false"}
             @click=${() => { this._tab = "by_entity"; }}>
             By entity
           </button>
           <button class="tab ${this._tab === "timeline" ? "active" : ""}"
+            role="tab"
+            aria-selected=${this._tab === "timeline" ? "true" : "false"}
             @click=${() => { this._tab = "timeline"; }}>
             Timeline
           </button>
@@ -235,6 +257,13 @@ class SberValidation extends LitElement {
 
   static get styles() {
     return css`
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
       .section {
         background: var(--card-background-color);
         border-radius: 8px;

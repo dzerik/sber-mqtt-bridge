@@ -9,6 +9,10 @@
 
 import { LitElement, html, css } from "../lit-base.js";
 
+/** Hard cap on the live MQTT message buffer (the backend ring buffer is
+ * configurable and the live feed appends indefinitely otherwise). */
+const MAX_MESSAGES = 500;
+
 class SberDevtools extends LitElement {
   static get properties() {
     return {
@@ -42,7 +46,6 @@ class SberDevtools extends LitElement {
     this._configError = "";
     this._statesError = "";
     this._logError = "";
-    this._hassReady = false;
     this._configOpen = false;
     this._statesOpen = false;
     this._configEditable = "";
@@ -50,10 +53,15 @@ class SberDevtools extends LitElement {
     this._sendingConfig = false;
     this._sendingStates = false;
     this._msgUnsub = null;
+    this._subscribing = false;
   }
 
   connectedCallback() {
     super.connectedCallback();
+    /* Re-subscribe on re-attach: HA navigation away from the panel and
+     * back reuses the same element instance, and disconnectedCallback
+     * has torn the previous subscription down. */
+    if (this.hass) this._subscribeMessages();
   }
 
   disconnectedCallback() {
@@ -62,27 +70,36 @@ class SberDevtools extends LitElement {
   }
 
   updated(changedProps) {
-    if (changedProps.has("hass") && this.hass && !this._hassReady) {
-      this._hassReady = true;
-      this._subscribeMessages();
-    }
+    if (changedProps.has("hass") && this.hass) this._subscribeMessages();
   }
 
   async _subscribeMessages() {
-    if (this._msgUnsub) return;
+    if (this._msgUnsub || this._subscribing) return;
+    this._subscribing = true;
     try {
-      this._msgUnsub = await this.hass.connection.subscribeMessage(
+      const unsub = await this.hass.connection.subscribeMessage(
         (event) => {
           if (event.snapshot) {
-            this._messages = event.snapshot;
+            this._messages = event.snapshot.slice(-MAX_MESSAGES);
           } else if (event.message) {
-            this._messages = [...this._messages, event.message];
+            const appended = [...this._messages, event.message];
+            this._messages =
+              appended.length > MAX_MESSAGES ? appended.slice(-MAX_MESSAGES) : appended;
           }
         },
         { type: "sber_mqtt_bridge/subscribe_messages" }
       );
+      if (!this.isConnected) {
+        /* Detached while the subscribe round-trip was in flight — drop it
+         * immediately, otherwise it leaks past disconnectedCallback. */
+        unsub();
+        return;
+      }
+      this._msgUnsub = unsub;
     } catch (e) {
       this._logError = e.message || String(e);
+    } finally {
+      this._subscribing = false;
     }
   }
 
@@ -273,6 +290,13 @@ class SberDevtools extends LitElement {
         font-weight: 500;
       }
 
+      .section-title:focus-visible,
+      .btn:focus-visible,
+      button:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
       .section-title {
         display: flex;
         align-items: center;
@@ -507,11 +531,26 @@ class SberDevtools extends LitElement {
     `;
   }
 
+  /** Activate a ``role="button"`` collapse header from the keyboard. */
+  _onKeyActivate(e, handler) {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    e.preventDefault();
+    handler();
+  }
+
   _renderConfigSection() {
     return html`
       <div class="section">
         <div class="section-header">
-          <div class="section-title" @click=${() => { this._configOpen = !this._configOpen; }}>
+          <div
+            class="section-title"
+            role="button"
+            tabindex="0"
+            aria-expanded=${this._configOpen ? "true" : "false"}
+            aria-label="Toggle Raw Config Payload"
+            @click=${() => { this._configOpen = !this._configOpen; }}
+            @keydown=${(e) => this._onKeyActivate(e, () => { this._configOpen = !this._configOpen; })}
+          >
             <span class="collapse-icon ${this._configOpen ? "open" : ""}">&#9654;</span>
             <h2>Raw Config Payload</h2>
           </div>
@@ -552,7 +591,15 @@ class SberDevtools extends LitElement {
     return html`
       <div class="section">
         <div class="section-header">
-          <div class="section-title" @click=${() => { this._statesOpen = !this._statesOpen; }}>
+          <div
+            class="section-title"
+            role="button"
+            tabindex="0"
+            aria-expanded=${this._statesOpen ? "true" : "false"}
+            aria-label="Toggle Raw State Payload"
+            @click=${() => { this._statesOpen = !this._statesOpen; }}
+            @keydown=${(e) => this._onKeyActivate(e, () => { this._statesOpen = !this._statesOpen; })}
+          >
             <span class="collapse-icon ${this._statesOpen ? "open" : ""}">&#9654;</span>
             <h2>Raw State Payload</h2>
           </div>
