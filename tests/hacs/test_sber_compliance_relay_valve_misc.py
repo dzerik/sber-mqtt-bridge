@@ -158,12 +158,14 @@ class TestRelayCompliance:
         assert "voltage" in features
         assert "current" in features
 
-    def test_features_include_child_lock_when_available(self):
-        """Relay must expose child_lock when HA provides it."""
+    def test_features_exclude_child_lock_off_spec(self):
+        """Relay must NOT expose child_lock — the Sber relay spec has no
+        such feature (only socket/kettle/vacuum_cleaner do); advertising
+        it risks silent device rejection (issue #44 audit)."""
         entity = RelayEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(child_lock=True))
         features = entity.get_final_features_list()
-        assert "child_lock" in features
+        assert "child_lock" not in features
 
     def test_features_exclude_energy_when_not_available(self):
         """Relay must NOT expose power/voltage/current when HA has no attributes."""
@@ -212,14 +214,12 @@ class TestRelayCompliance:
         current = _find_state(states, "current")
         assert current["value"]["integer_value"] == "1"
 
-    def test_current_state_child_lock_bool(self):
-        """child_lock must be BOOL type when present."""
+    def test_current_state_excludes_child_lock_off_spec(self):
+        """child_lock must not be published for relay (off-spec)."""
         entity = RelayEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(child_lock=True))
         states = entity.to_sber_current_state()["switch.relay1"]["states"]
-        _assert_bool_value_is_bool(states, "child_lock")
-        child_lock = _find_state(states, "child_lock")
-        assert child_lock["value"]["bool_value"] is True
+        assert _find_state(states, "child_lock") is None
 
     def test_unavailable_sets_offline(self):
         """HA 'unavailable' state must set online=False."""

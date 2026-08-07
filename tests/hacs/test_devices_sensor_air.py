@@ -5,8 +5,15 @@ from __future__ import annotations
 import pytest
 
 from custom_components.sber_mqtt_bridge.devices.base_entity import (
-    ROLE_CO2, ROLE_HCHO, ROLE_HUMIDITY, ROLE_PM1, ROLE_PM10, ROLE_PM25,
-    ROLE_TEMPERATURE, ROLE_TVOC, LinkableRole,
+    ROLE_CO2,
+    ROLE_HCHO,
+    ROLE_HUMIDITY,
+    ROLE_PM1,
+    ROLE_PM10,
+    ROLE_PM25,
+    ROLE_TEMPERATURE,
+    ROLE_TVOC,
+    LinkableRole,
 )
 from custom_components.sber_mqtt_bridge.devices.sensor_air import (
     SENSOR_AIR_CATEGORY,
@@ -86,9 +93,17 @@ class TestSensorAirBasics:
         # The eight sensor_air conditional measurements + standard sensor
         # links (battery, battery_low, signal_strength).
         assert {
-            "co2", "pm1", "pm25", "pm10", "tvoc", "hcho",
-            "temperature", "humidity",
-            "battery", "battery_low", "signal_strength",
+            "co2",
+            "pm1",
+            "pm25",
+            "pm10",
+            "tvoc",
+            "hcho",
+            "temperature",
+            "humidity",
+            "battery",
+            "battery_low",
+            "signal_strength",
         }.issubset(role_names)
 
 
@@ -100,15 +115,13 @@ class TestPrimaryFill:
         "device_class,expected_field,input_state,expected_value",
         [
             ("carbon_dioxide", "_co2", "450", 450),
-            ("pm25", "_pm25", "12.4", 12),   # INT truncation ok
+            ("pm25", "_pm25", "12.4", 12),  # INT truncation ok
             ("pm10", "_pm10", "22", 22),
             ("pm1", "_pm1", "4", 4),
             ("volatile_organic_compounds", "_tvoc", "0.35", pytest.approx(0.35)),
         ],
     )
-    def test_primary_state_routes_to_matching_field(
-        self, device_class, expected_field, input_state, expected_value
-    ):
+    def test_primary_state_routes_to_matching_field(self, device_class, expected_field, input_state, expected_value):
         e = SensorAirEntity(ENTITY_DATA)
         e.fill_by_ha_state(_state(input_state, device_class))
         assert getattr(e, expected_field) == expected_value
@@ -122,8 +135,7 @@ class TestPrimaryFill:
         e = SensorAirEntity(ENTITY_DATA)
         e.fill_by_ha_state(_state("42", "power"))
         # None of the measurement fields populated.
-        for f in ("_co2", "_pm1", "_pm25", "_pm10", "_tvoc", "_hcho",
-                  "_temperature", "_humidity"):
+        for f in ("_co2", "_pm1", "_pm25", "_pm10", "_tvoc", "_hcho", "_temperature", "_humidity"):
             assert getattr(e, f) is None
 
 
@@ -162,10 +174,19 @@ class TestToSberCurrentState:
         keys = {s["key"] for s in states}
         assert "online" in keys
         # No measurement features when all fields are None.
-        assert not (keys & {
-            "co2", "pm1_0", "pm2_5", "pm10", "tvoc_float", "hcho_float",
-            "temperature", "humidity",
-        })
+        assert not (
+            keys
+            & {
+                "co2",
+                "pm1_0",
+                "pm2_5",
+                "pm10",
+                "tvoc_float",
+                "hcho_float",
+                "temperature",
+                "humidity",
+            }
+        )
 
     def test_only_populated_measurements_emitted(self):
         e = SensorAirEntity(ENTITY_DATA)
@@ -184,10 +205,7 @@ class TestToSberCurrentState:
         e = SensorAirEntity(ENTITY_DATA)
         e.is_filled_by_state = True
         e._temperature = 22.5
-        temp_entry = next(
-            s for s in e.to_sber_current_state()[e.entity_id]["states"]
-            if s["key"] == "temperature"
-        )
+        temp_entry = next(s for s in e.to_sber_current_state()[e.entity_id]["states"] if s["key"] == "temperature")
         assert temp_entry["value"]["integer_value"] == "225"
 
     def test_float_measurement_uses_float_value(self):
@@ -195,10 +213,7 @@ class TestToSberCurrentState:
         e = SensorAirEntity(ENTITY_DATA)
         e.is_filled_by_state = True
         e._tvoc = 0.35
-        tvoc_entry = next(
-            s for s in e.to_sber_current_state()[e.entity_id]["states"]
-            if s["key"] == "tvoc_float"
-        )
+        tvoc_entry = next(s for s in e.to_sber_current_state()[e.entity_id]["states"] if s["key"] == "tvoc_float")
         assert tvoc_entry["value"]["type"] == "FLOAT"
         assert tvoc_entry["value"]["float_value"] == pytest.approx(0.35)
 
@@ -254,10 +269,12 @@ class TestTempUnitView:
     def test_temp_unit_from_fill_by_ha_state_celsius(self):
         """fill_by_ha_state with primary temperature and no unit defaults to Celsius."""
         e = SensorAirEntity(ENTITY_DATA)
-        e.fill_by_ha_state({
-            "state": "22.5",
-            "attributes": {"device_class": "temperature"},
-        })
+        e.fill_by_ha_state(
+            {
+                "state": "22.5",
+                "attributes": {"device_class": "temperature"},
+            }
+        )
         assert e._temperature == pytest.approx(22.5)
         assert e._temp_unit == "c"
 
@@ -269,23 +286,28 @@ class TestTempUnitView:
         emission produces the correct integer.  ``72°F ≈ 22.22°C``.
         """
         e = SensorAirEntity(ENTITY_DATA)
-        e.fill_by_ha_state({
-            "state": "72",
-            "attributes": {
-                "device_class": "temperature",
-                "unit_of_measurement": "°F",
-            },
-        })
+        e.fill_by_ha_state(
+            {
+                "state": "72",
+                "attributes": {
+                    "device_class": "temperature",
+                    "unit_of_measurement": "°F",
+                },
+            }
+        )
         assert e._temperature == pytest.approx((72 - 32) * 5 / 9)
         assert e._temp_unit == "f"
 
     def test_temp_unit_from_update_linked_data_celsius(self):
         """update_linked_data with temperature role and no unit defaults to Celsius."""
         e = SensorAirEntity(ENTITY_DATA)
-        e.update_linked_data("temperature", {
-            "state": "21.0",
-            "attributes": {"device_class": "temperature"},
-        })
+        e.update_linked_data(
+            "temperature",
+            {
+                "state": "21.0",
+                "attributes": {"device_class": "temperature"},
+            },
+        )
         assert e._temperature == pytest.approx(21.0)
         assert e._temp_unit == "c"
 
@@ -296,13 +318,16 @@ class TestTempUnitView:
         Fahrenheit-to-Celsius conversion is applied before storage.
         """
         e = SensorAirEntity(ENTITY_DATA)
-        e.update_linked_data("temperature", {
-            "state": "68",
-            "attributes": {
-                "device_class": "temperature",
-                "unit_of_measurement": "°F",
+        e.update_linked_data(
+            "temperature",
+            {
+                "state": "68",
+                "attributes": {
+                    "device_class": "temperature",
+                    "unit_of_measurement": "°F",
+                },
             },
-        })
+        )
         assert e._temperature == pytest.approx(20.0)
         assert e._temp_unit == "f"
 
@@ -327,9 +352,7 @@ class TestTempUnitView:
         e._temperature = 22.5
         e._temp_unit = "c"
         states = e.to_sber_current_state()[e.entity_id]["states"]
-        temp_unit_entry = next(
-            (s for s in states if s["key"] == "temp_unit_view"), None
-        )
+        temp_unit_entry = next((s for s in states if s["key"] == "temp_unit_view"), None)
         assert temp_unit_entry is not None
         assert temp_unit_entry["value"]["enum_value"] == "c"
 
@@ -339,9 +362,7 @@ class TestTempUnitView:
         e.is_filled_by_state = True
         # _temperature is None by default
         states = e.to_sber_current_state()[e.entity_id]["states"]
-        temp_unit_entry = next(
-            (s for s in states if s["key"] == "temp_unit_view"), None
-        )
+        temp_unit_entry = next((s for s in states if s["key"] == "temp_unit_view"), None)
         assert temp_unit_entry is None
 
     def test_temp_unit_view_fahrenheit_emitted(self):
@@ -351,9 +372,7 @@ class TestTempUnitView:
         e._temperature = 72.0
         e._temp_unit = "f"
         states = e.to_sber_current_state()[e.entity_id]["states"]
-        temp_unit_entry = next(
-            (s for s in states if s["key"] == "temp_unit_view"), None
-        )
+        temp_unit_entry = next((s for s in states if s["key"] == "temp_unit_view"), None)
         assert temp_unit_entry is not None
         assert temp_unit_entry["value"]["enum_value"] == "f"
 
@@ -375,8 +394,7 @@ class TestFahrenheitConversionOnWire:
     def _emit_temperature(self, entity: SensorAirEntity) -> int:
         entity.is_filled_by_state = True
         temp_entry = next(
-            s for s in entity.to_sber_current_state()[entity.entity_id]["states"]
-            if s["key"] == "temperature"
+            s for s in entity.to_sber_current_state()[entity.entity_id]["states"] if s["key"] == "temperature"
         )
         # Wire type is INTEGER; integer_value is serialised as str.
         return int(temp_entry["value"]["integer_value"])
@@ -384,13 +402,15 @@ class TestFahrenheitConversionOnWire:
     def test_primary_fahrenheit_wire_value_is_celsius_times_ten(self):
         """72°F primary fill → wire = 222 (22.2°C × 10, rounded)."""
         e = SensorAirEntity(ENTITY_DATA)
-        e.fill_by_ha_state({
-            "state": "72",
-            "attributes": {
-                "device_class": "temperature",
-                "unit_of_measurement": "°F",
-            },
-        })
+        e.fill_by_ha_state(
+            {
+                "state": "72",
+                "attributes": {
+                    "device_class": "temperature",
+                    "unit_of_measurement": "°F",
+                },
+            }
+        )
         wire = self._emit_temperature(e)
         # 72°F = 22.222…°C  → round(22.222… × 10) = 222
         assert wire == 222, (
@@ -401,10 +421,13 @@ class TestFahrenheitConversionOnWire:
     def test_linked_fahrenheit_wire_value_is_celsius_times_ten(self):
         """68°F via linked companion → wire = 200 (20.0°C × 10)."""
         e = SensorAirEntity(ENTITY_DATA)
-        e.update_linked_data("temperature", {
-            "state": "68",
-            "attributes": {"unit_of_measurement": "°F"},
-        })
+        e.update_linked_data(
+            "temperature",
+            {
+                "state": "68",
+                "attributes": {"unit_of_measurement": "°F"},
+            },
+        )
         wire = self._emit_temperature(e)
         # 68°F = exactly 20.0°C → 200
         assert wire == 200, (
@@ -415,23 +438,27 @@ class TestFahrenheitConversionOnWire:
     def test_celsius_pass_through_unchanged(self):
         """Celsius input already matches the wire spec — no conversion."""
         e = SensorAirEntity(ENTITY_DATA)
-        e.fill_by_ha_state({
-            "state": "21.5",
-            "attributes": {
-                "device_class": "temperature",
-                "unit_of_measurement": "°C",
-            },
-        })
+        e.fill_by_ha_state(
+            {
+                "state": "21.5",
+                "attributes": {
+                    "device_class": "temperature",
+                    "unit_of_measurement": "°C",
+                },
+            }
+        )
         wire = self._emit_temperature(e)
         assert wire == 215
 
     def test_missing_unit_defaults_to_celsius(self):
         """No ``unit_of_measurement`` attribute → assume Celsius (HA default)."""
         e = SensorAirEntity(ENTITY_DATA)
-        e.fill_by_ha_state({
-            "state": "20",
-            "attributes": {"device_class": "temperature"},
-        })
+        e.fill_by_ha_state(
+            {
+                "state": "20",
+                "attributes": {"device_class": "temperature"},
+            }
+        )
         wire = self._emit_temperature(e)
         assert wire == 200
         assert e._temp_unit == "c"
@@ -439,13 +466,15 @@ class TestFahrenheitConversionOnWire:
     def test_negative_fahrenheit_converts_below_zero_celsius(self):
         """-4°F = -20°C ; wire = -200.  Guards against sign errors."""
         e = SensorAirEntity(ENTITY_DATA)
-        e.fill_by_ha_state({
-            "state": "-4",
-            "attributes": {
-                "device_class": "temperature",
-                "unit_of_measurement": "°F",
-            },
-        })
+        e.fill_by_ha_state(
+            {
+                "state": "-4",
+                "attributes": {
+                    "device_class": "temperature",
+                    "unit_of_measurement": "°F",
+                },
+            }
+        )
         wire = self._emit_temperature(e)
         assert wire == -200
 
@@ -454,13 +483,15 @@ class TestFahrenheitConversionOnWire:
         the device screen still shows Fahrenheit."""
         e = SensorAirEntity(ENTITY_DATA)
         e.is_filled_by_state = True
-        e.fill_by_ha_state({
-            "state": "68",
-            "attributes": {
-                "device_class": "temperature",
-                "unit_of_measurement": "°F",
-            },
-        })
+        e.fill_by_ha_state(
+            {
+                "state": "68",
+                "attributes": {
+                    "device_class": "temperature",
+                    "unit_of_measurement": "°F",
+                },
+            }
+        )
         states = e.to_sber_current_state()[e.entity_id]["states"]
         temp_unit_entry = next(s for s in states if s["key"] == "temp_unit_view")
         assert temp_unit_entry["value"]["enum_value"] == "f"
@@ -499,11 +530,14 @@ class TestWireRangeSafety:
         entry = _entry(e.to_sber_current_state()[e.entity_id]["states"], "co2")
         assert int(entry["value"]["integer_value"]) == 5000
 
-    @pytest.mark.parametrize("field,key", [
-        ("_pm1", "pm1_0"),
-        ("_pm25", "pm2_5"),
-        ("_pm10", "pm10"),
-    ])
+    @pytest.mark.parametrize(
+        "field,key",
+        [
+            ("_pm1", "pm1_0"),
+            ("_pm25", "pm2_5"),
+            ("_pm10", "pm10"),
+        ],
+    )
     def test_negative_pm_clamped_to_zero(self, field, key):
         e = SensorAirEntity(ENTITY_DATA)
         e.is_filled_by_state = True
@@ -511,11 +545,14 @@ class TestWireRangeSafety:
         entry = _entry(e.to_sber_current_state()[e.entity_id]["states"], key)
         assert int(entry["value"]["integer_value"]) == 0
 
-    @pytest.mark.parametrize("field,key", [
-        ("_pm1", "pm1_0"),
-        ("_pm25", "pm2_5"),
-        ("_pm10", "pm10"),
-    ])
+    @pytest.mark.parametrize(
+        "field,key",
+        [
+            ("_pm1", "pm1_0"),
+            ("_pm25", "pm2_5"),
+            ("_pm10", "pm10"),
+        ],
+    )
     def test_extreme_pm_clamped_to_upper_bound(self, field, key):
         e = SensorAirEntity(ENTITY_DATA)
         e.is_filled_by_state = True
@@ -583,13 +620,15 @@ class TestPrimaryDeviceClassCoverage:
 
     def test_temperature_device_class_routes_to_temperature_field(self):
         e = SensorAirEntity(ENTITY_DATA)
-        e.fill_by_ha_state({
-            "state": "21.5",
-            "attributes": {
-                "device_class": "temperature",
-                "unit_of_measurement": "°C",
-            },
-        })
+        e.fill_by_ha_state(
+            {
+                "state": "21.5",
+                "attributes": {
+                    "device_class": "temperature",
+                    "unit_of_measurement": "°C",
+                },
+            }
+        )
         assert e._temperature == pytest.approx(21.5)
         assert e._humidity is None
 
@@ -606,21 +645,42 @@ class TestPrimaryDeviceClassCoverage:
 class TestAdversarialStates:
     """Malformed HA states must not crash or promote NaN/Inf onto the wire."""
 
-    @pytest.mark.parametrize("bad_state", [
-        "unknown", "unavailable", None, "", "NaN", "inf", "-inf", "abc",
-        # Empty-attribute variants:
-    ])
+    @pytest.mark.parametrize(
+        "bad_state",
+        [
+            "unknown",
+            "unavailable",
+            None,
+            "",
+            "NaN",
+            "inf",
+            "-inf",
+            "abc",
+            # Empty-attribute variants:
+        ],
+    )
     def test_bad_primary_state_leaves_field_none(self, bad_state):
         e = SensorAirEntity(ENTITY_DATA)
-        e.fill_by_ha_state({
-            "state": bad_state,
-            "attributes": {"device_class": "carbon_dioxide"},
-        })
+        e.fill_by_ha_state(
+            {
+                "state": bad_state,
+                "attributes": {"device_class": "carbon_dioxide"},
+            }
+        )
         assert e._co2 is None
 
-    @pytest.mark.parametrize("bad_state", [
-        "unknown", "unavailable", None, "", "NaN", "inf", "abc",
-    ])
+    @pytest.mark.parametrize(
+        "bad_state",
+        [
+            "unknown",
+            "unavailable",
+            None,
+            "",
+            "NaN",
+            "inf",
+            "abc",
+        ],
+    )
     def test_bad_linked_state_leaves_field_none(self, bad_state):
         e = SensorAirEntity(ENTITY_DATA)
         e.update_linked_data("co2", {"state": bad_state, "attributes": {}})
@@ -630,10 +690,12 @@ class TestAdversarialStates:
         """A NaN reading must not reach the wire — it would produce
         ``round(nan * 10)`` which raises ValueError."""
         e = SensorAirEntity(ENTITY_DATA)
-        e.fill_by_ha_state({
-            "state": "NaN",
-            "attributes": {"device_class": "temperature"},
-        })
+        e.fill_by_ha_state(
+            {
+                "state": "NaN",
+                "attributes": {"device_class": "temperature"},
+            }
+        )
         assert e._temperature is None
         states = e.to_sber_current_state()[e.entity_id]["states"]
         assert _entry(states, "temperature") is None
@@ -661,15 +723,19 @@ class TestPopulatedToUnavailable:
 
     def test_primary_temperature_clears_when_sensor_becomes_unknown(self):
         e = SensorAirEntity(ENTITY_DATA)
-        e.fill_by_ha_state({
-            "state": "20.0",
-            "attributes": {"device_class": "temperature"},
-        })
+        e.fill_by_ha_state(
+            {
+                "state": "20.0",
+                "attributes": {"device_class": "temperature"},
+            }
+        )
         assert e._temperature == pytest.approx(20.0)
-        e.fill_by_ha_state({
-            "state": "unknown",
-            "attributes": {"device_class": "temperature"},
-        })
+        e.fill_by_ha_state(
+            {
+                "state": "unknown",
+                "attributes": {"device_class": "temperature"},
+            }
+        )
         assert e._temperature is None
 
     def test_cleared_field_not_advertised_in_features(self):
@@ -727,8 +793,7 @@ class TestCrossRoleIsolation:
     def test_unknown_role_touches_nothing(self):
         e = SensorAirEntity(ENTITY_DATA)
         e.update_linked_data("mystery_metric", _state("42", "anything"))
-        for f in ("_co2", "_pm1", "_pm25", "_pm10",
-                  "_tvoc", "_hcho", "_temperature", "_humidity"):
+        for f in ("_co2", "_pm1", "_pm25", "_pm10", "_tvoc", "_hcho", "_temperature", "_humidity"):
             assert getattr(e, f) is None
 
 
@@ -739,16 +804,22 @@ class TestFactoryIntegration:
     routes the entity there.
     """
 
-    @pytest.mark.parametrize("device_class", [
-        "carbon_dioxide", "pm1", "pm25", "pm10", "volatile_organic_compounds",
-    ])
+    @pytest.mark.parametrize(
+        "device_class",
+        [
+            "carbon_dioxide",
+            "pm1",
+            "pm25",
+            "pm10",
+            "volatile_organic_compounds",
+        ],
+    )
     def test_auto_detection_picks_sensor_air(self, device_class):
         from custom_components.sber_mqtt_bridge.sber_entity_map import create_sber_entity
+
         entity = create_sber_entity(
             "sensor.air_quality",
-            {"entity_id": "sensor.air_quality",
-             "original_device_class": device_class,
-             "name": "Air Quality"},
+            {"entity_id": "sensor.air_quality", "original_device_class": device_class, "name": "Air Quality"},
         )
         assert entity is not None
         assert isinstance(entity, SensorAirEntity)
@@ -760,6 +831,7 @@ class TestFactoryIntegration:
         entity — otherwise a user with a bare custom sensor can't
         promote it via the wizard."""
         from custom_components.sber_mqtt_bridge.sber_entity_map import create_sber_entity
+
         entity = create_sber_entity(
             "sensor.custom_air",
             {"entity_id": "sensor.custom_air", "name": "Custom Air"},
@@ -773,11 +845,10 @@ class TestFactoryIntegration:
         installation would be mis-categorised after this integration.
         """
         from custom_components.sber_mqtt_bridge.sber_entity_map import create_sber_entity
+
         entity = create_sber_entity(
             "sensor.living_temp",
-            {"entity_id": "sensor.living_temp",
-             "original_device_class": "temperature",
-             "name": "Living Temp"},
+            {"entity_id": "sensor.living_temp", "original_device_class": "temperature", "name": "Living Temp"},
         )
         assert entity is not None
         assert not isinstance(entity, SensorAirEntity)

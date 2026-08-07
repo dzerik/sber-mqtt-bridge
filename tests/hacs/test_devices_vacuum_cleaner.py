@@ -2,6 +2,7 @@
 
 import unittest
 
+from custom_components.sber_mqtt_bridge.devices.base_entity import ROLE_BATTERY
 from custom_components.sber_mqtt_bridge.devices.vacuum_cleaner import VacuumCleanerEntity
 
 ENTITY_DATA = {"entity_id": "vacuum.roborock", "name": "Roborock S7"}
@@ -175,3 +176,79 @@ class TestVacuumAllowedValues(unittest.TestCase):
         self.assertNotIn("vacuum_cleaner_status", allowed)  # read-only, not in allowed_values
         self.assertIn("vacuum_cleaner_program", allowed)
         self.assertEqual(allowed["vacuum_cleaner_program"]["enum_values"]["values"], ["quiet", "standard", "turbo"])
+
+
+class TestVacuumBatteryLink(unittest.TestCase):
+    """Test battery via linked sensor entity (HA vacuum battery_level is deprecated)."""
+
+    def test_linkable_roles_include_battery(self):
+        self.assertIn(ROLE_BATTERY, VacuumCleanerEntity.LINKABLE_ROLES)
+
+    def test_legacy_battery_attr_still_works(self):
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(battery_level=42))
+        self.assertEqual(entity._battery_level, 42)
+        self.assertIn("battery_percentage", entity.get_final_features_list())
+
+    def test_linked_battery_sensor_sets_level(self):
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("cleaning"))
+        entity.update_linked_data("battery", {"state": "77"})
+        self.assertEqual(entity._battery_level, 77)
+
+    def test_linked_battery_gives_feature(self):
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("cleaning"))
+        entity.update_linked_data("battery", {"state": "55"})
+        features = entity.get_final_features_list()
+        self.assertIn("battery_percentage", features)
+
+    def test_linked_battery_in_sber_state(self):
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("cleaning"))
+        entity.update_linked_data("battery", {"state": "88.0"})
+        states = entity.to_sber_current_state()["vacuum.roborock"]["states"]
+        battery = next(s for s in states if s["key"] == "battery_percentage")
+        self.assertEqual(battery["value"]["integer_value"], "88")
+
+    def test_linked_battery_survives_primary_refresh(self):
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.update_linked_data("battery", {"state": "60"})
+        entity.fill_by_ha_state(_make_ha_state("cleaning"))
+        self.assertEqual(entity._battery_level, 60)
+        self.assertIn("battery_percentage", entity.get_final_features_list())
+
+    def test_legacy_attr_overwrites_when_present(self):
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.update_linked_data("battery", {"state": "60"})
+        entity.fill_by_ha_state(_make_ha_state("cleaning", battery_level=30))
+        self.assertEqual(entity._battery_level, 30)
+
+    def test_linked_battery_unavailable_ignored(self):
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.update_linked_data("battery", {"state": "50"})
+        entity.update_linked_data("battery", {"state": "unavailable"})
+        self.assertEqual(entity._battery_level, 50)
+
+    def test_linked_battery_unknown_ignored(self):
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.update_linked_data("battery", {"state": "unknown"})
+        self.assertIsNone(entity._battery_level)
+
+    def test_linked_battery_invalid_ignored(self):
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.update_linked_data("battery", {"state": "not-a-number"})
+        self.assertIsNone(entity._battery_level)
+
+    def test_unrelated_role_ignored(self):
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.update_linked_data("humidity", {"state": "45"})
+        self.assertIsNone(entity._battery_level)
+
+    def test_no_battery_no_feature(self):
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("cleaning"))
+        features = entity.get_final_features_list()
+        self.assertNotIn("battery_percentage", features)
+        states = entity.to_sber_current_state()["vacuum.roborock"]["states"]
+        self.assertNotIn("battery_percentage", [s["key"] for s in states])

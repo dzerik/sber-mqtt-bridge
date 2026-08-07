@@ -3,6 +3,7 @@
 import unittest
 
 from custom_components.sber_mqtt_bridge.devices.curtain import CurtainEntity
+from custom_components.sber_mqtt_bridge.devices.window_blind import WindowBlindEntity
 
 ENTITY_DATA = {"entity_id": "cover.curtain", "name": "Curtain"}
 
@@ -209,10 +210,26 @@ class TestCurtainProcessCmd(unittest.TestCase):
 
 
 class TestCurtainLightTransmission(unittest.TestCase):
-    """Test light_transmission_percentage feature in CurtainEntity."""
+    """Tilt feature is window_blind-only per the Sber category spec (issue #44 audit)."""
 
-    def test_tilt_feature_present(self):
-        """Cover with current_tilt_position must include light_transmission_percentage."""
+    def _blind(self, tilt):
+        entity = WindowBlindEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "cover.curtain",
+                "state": "open",
+                "attributes": {"current_position": 50, "current_tilt_position": tilt},
+            }
+        )
+        return entity
+
+    def test_tilt_feature_present_on_window_blind(self):
+        """window_blind with current_tilt_position includes light_transmission_percentage."""
+        features = self._blind(80).get_final_features_list()
+        self.assertIn("light_transmission_percentage", features)
+
+    def test_tilt_feature_absent_on_curtain_category(self):
+        """The curtain category spec has no light_transmission_percentage — tilt is not advertised."""
         entity = CurtainEntity(ENTITY_DATA)
         entity.fill_by_ha_state(
             {
@@ -221,51 +238,41 @@ class TestCurtainLightTransmission(unittest.TestCase):
                 "attributes": {"current_position": 50, "current_tilt_position": 80},
             }
         )
-        features = entity.get_final_features_list()
-        self.assertIn("light_transmission_percentage", features)
+        self.assertNotIn("light_transmission_percentage", entity.get_final_features_list())
+        states = entity.to_sber_current_state()["cover.curtain"]["states"]
+        self.assertNotIn("light_transmission_percentage", [s["key"] for s in states])
 
     def test_tilt_feature_absent(self):
-        """Cover without tilt must not include light_transmission_percentage."""
-        entity = CurtainEntity(ENTITY_DATA)
+        """window_blind without tilt must not include light_transmission_percentage."""
+        entity = WindowBlindEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
         features = entity.get_final_features_list()
         self.assertNotIn("light_transmission_percentage", features)
 
     def test_tilt_value_in_state(self):
         """Tilt value=80 must produce light_transmission_percentage=80 in Sber state."""
-        entity = CurtainEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(
-            {
-                "entity_id": "cover.curtain",
-                "state": "open",
-                "attributes": {"current_position": 50, "current_tilt_position": 80},
-            }
-        )
-        result = entity.to_sber_current_state()
+        result = self._blind(80).to_sber_current_state()
         states = result["cover.curtain"]["states"]
         ltp = next(s for s in states if s["key"] == "light_transmission_percentage")
         self.assertEqual(ltp["value"]["integer_value"], "80")
 
     def test_tilt_zero_value(self):
         """Tilt=0 must still be reported (not treated as falsy)."""
-        entity = CurtainEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(
-            {
-                "entity_id": "cover.curtain",
-                "state": "open",
-                "attributes": {"current_position": 50, "current_tilt_position": 0},
-            }
-        )
-        features = entity.get_final_features_list()
-        self.assertIn("light_transmission_percentage", features)
-        result = entity.to_sber_current_state()
-        states = result["cover.curtain"]["states"]
+        entity = self._blind(0)
+        self.assertIn("light_transmission_percentage", entity.get_final_features_list())
+        states = entity.to_sber_current_state()["cover.curtain"]["states"]
         ltp = next(s for s in states if s["key"] == "light_transmission_percentage")
         self.assertEqual(ltp["value"]["integer_value"], "0")
 
+    def test_tilt_allowed_values_present(self):
+        """Advertised tilt feature carries its integer limits (no dead slider)."""
+        allowed = self._blind(80).create_allowed_values_list()
+        self.assertIn("light_transmission_percentage", allowed)
+        self.assertEqual(allowed["light_transmission_percentage"]["integer_values"]["max"], "100")
+
     def test_tilt_not_in_state_when_absent(self):
         """Without tilt, light_transmission_percentage must not appear in state."""
-        entity = CurtainEntity(ENTITY_DATA)
+        entity = WindowBlindEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
         result = entity.to_sber_current_state()
         states = result["cover.curtain"]["states"]
@@ -376,8 +383,12 @@ class TestCurtainOpenRate(unittest.TestCase):
         keys = [s["key"] for s in states]
         self.assertNotIn("open_rate", keys)
 
-    def test_open_rate_not_in_allowed_values(self):
-        """open_rate is read-only — must NOT be in allowed_values."""
+    def test_open_rate_allowed_values_reference(self):
+        """open_rate carries the Sber reference enum values (issue #44 audit).
+
+        An ENUM feature without enum_values renders a dead control —
+        the curtain reference example declares ["auto", "low", "high"].
+        """
         entity = CurtainEntity(ENTITY_DATA)
         entity.fill_by_ha_state(
             {
@@ -388,10 +399,8 @@ class TestCurtainOpenRate(unittest.TestCase):
         )
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
-        self.assertNotIn(
-            "open_rate",
-            allowed,
-        )
+        self.assertIn("open_rate", allowed)
+        self.assertEqual(allowed["open_rate"]["enum_values"]["values"], ["auto", "low", "high"])
 
     def test_open_rate_no_allowed_values_when_absent(self):
         """open_rate must not appear in allowed values when absent."""

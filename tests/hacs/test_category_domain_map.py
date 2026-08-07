@@ -193,21 +193,22 @@ class TestSensorAirRoutingDetails:
     scenario where sensor_air would compete with another category.
     """
 
-    @pytest.mark.parametrize("device_class,expected_first", [
-        ("carbon_dioxide", "sensor_air"),
-        ("pm1", "sensor_air"),
-        ("pm25", "sensor_air"),
-        ("pm10", "sensor_air"),
-        ("volatile_organic_compounds", "sensor_air"),
-    ])
+    @pytest.mark.parametrize(
+        "device_class,expected_first",
+        [
+            ("carbon_dioxide", "sensor_air"),
+            ("pm1", "sensor_air"),
+            ("pm25", "sensor_air"),
+            ("pm10", "sensor_air"),
+            ("volatile_organic_compounds", "sensor_air"),
+        ],
+    )
     def test_each_air_device_class_routes_to_sensor_air(self, device_class, expected_first):
         """Each of the five HA air-quality device_classes must resolve to
         sensor_air first, not accidentally to sensor_temp / sensor_humidity."""
         cats = categories_for_domain("sensor", device_class)
         assert cats
-        assert cats[0] == expected_first, (
-            f"sensor+{device_class} routed to {cats[0]!r}, expected {expected_first!r}"
-        )
+        assert cats[0] == expected_first, f"sensor+{device_class} routed to {cats[0]!r}, expected {expected_first!r}"
 
     def test_hcho_ha_device_class_is_not_a_sensor_domain_match(self):
         """``volatile_organic_compounds_parts`` (HCHO) is only routed via
@@ -263,7 +264,7 @@ class TestCategorySpecFallbackSemantics:
             fallback_when_no_device_class=True,
         )
         assert spec.matches("switch", "outlet")  # allowed
-        assert spec.matches("switch", None)       # fallback fires
+        assert spec.matches("switch", None)  # fallback fires
         assert not spec.matches("switch", "bogus")  # wrong dc still rejected
 
     def test_fallback_ignored_when_domain_wrong(self):
@@ -282,12 +283,14 @@ class TestCategorySpecFallbackSemantics:
         the fallback flag is redundant — matches() must not crash
         or behave differently."""
         spec_with_flag = CategorySpec(
-            cls=_Stub, domains=("light",),
+            cls=_Stub,
+            domains=("light",),
             device_classes=None,
             fallback_when_no_device_class=True,
         )
         spec_without = CategorySpec(
-            cls=_Stub, domains=("light",),
+            cls=_Stub,
+            domains=("light",),
             device_classes=None,
             fallback_when_no_device_class=False,
         )

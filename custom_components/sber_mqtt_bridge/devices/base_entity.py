@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -17,6 +18,8 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 
 from ..sber_constants import SERVICE_CALL_TYPE, SERVICE_TURN_OFF, SERVICE_TURN_ON
 from ..sber_models import normalize_sber_value
+
+_LOGGER = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 #  Typed command result types for process_cmd return values
@@ -613,10 +616,29 @@ class BaseEntity(ABC):
         raw_model_id = device.get("model_id", "") if self.linked_device else ""
         model_id = f"{raw_model_id}_{self.category}" if raw_model_id else f"Mdl_{self.category}"
 
+        features = self.get_final_features_list()
+
+        # Reconcile allowed_values with the FINAL features list (issue #44
+        # audit): a feature dropped via ``sber_features_remove`` must not
+        # leave an orphaned allowed_values key — the pydantic validator
+        # rejects such descriptors and the whole device silently disappears
+        # from the Sber config payload.
+        allowed = {k: v for k, v in self.create_allowed_values_list().items() if k in set(features)}
+
+        # Diagnostics for the reverse mismatch: a user-added INTEGER/ENUM
+        # feature without limits renders a dead control in the Sber app.
+        for extra in self.extra_features:
+            if extra in features and extra not in allowed:
+                _LOGGER.warning(
+                    "Entity %s: user-added feature '%s' has no allowed_values — "
+                    "Sber may render a non-working control for it",
+                    self.entity_id,
+                    extra,
+                )
+
         # Instance-specific allowed_values (e.g. TV source_list) must produce
         # a unique model_id — Sber cloud stores one model per id, so devices
         # sharing an id with different allowed_values get silently rejected.
-        allowed = self.create_allowed_values_list()
         if allowed and self._has_instance_allowed_values():
             digest = hashlib.md5(str(sorted(allowed.items())).encode(), usedforsecurity=False).hexdigest()[:8]
             model_id = f"{model_id}_{digest}"
@@ -627,7 +649,7 @@ class BaseEntity(ABC):
             "model": device.get("model") or "Unknown",
             "description": display_name,
             "category": self.category,
-            "features": self.get_final_features_list(),
+            "features": features,
         }
         if allowed:
             descriptor["allowed_values"] = allowed

@@ -660,10 +660,10 @@ class TestClimateConfigJson:
         ).to_sber_state()["model"]["features"]
         assert "hvac_night_mode" in features
 
-    def test_features_child_lock(self):
-        """child_lock included when available."""
+    def test_features_child_lock_off_spec(self):
+        """child_lock is off-spec for hvac_* categories (issue #44 audit)."""
         features = self._make_climate(child_lock=True).to_sber_state()["model"]["features"]
-        assert "child_lock" in features
+        assert "child_lock" not in features
 
     def test_features_humidity_set(self):
         """hvac_humidity_set included when target_humidity available."""
@@ -812,14 +812,11 @@ class TestClimateStateJson:
         assert fp is not None
         assert fp["value"]["enum_value"] == expected_sber
 
-    def test_child_lock_bool_type(self):
-        """child_lock must be a BOOL value."""
+    def test_child_lock_not_published_off_spec(self):
+        """child_lock must not be published for climate (issue #44 audit)."""
         entity = self._make_climate(child_lock=True)
         states = _get_states_list(entity)
-        cl = _find_state_by_key(states, "child_lock")
-        assert cl is not None
-        assert cl["value"]["type"] == "BOOL"
-        assert cl["value"]["bool_value"] is True
+        assert _find_state_by_key(states, "child_lock") is None
 
     def test_offline_when_unavailable(self):
         """online must be False when entity is unavailable."""
@@ -969,10 +966,10 @@ class TestHumidifierConfigJson:
         ).to_sber_state()["model"]["features"]
         assert "hvac_night_mode" in features
 
-    def test_features_child_lock(self):
-        """child_lock included when available."""
+    def test_features_child_lock_off_spec(self):
+        """child_lock is off-spec for hvac_humidifier (issue #44 audit)."""
         features = self._make_humidifier(child_lock=False).to_sber_state()["model"]["features"]
-        assert "child_lock" in features
+        assert "child_lock" not in features
 
     def test_features_water_percentage(self):
         """hvac_water_percentage included when water_level available."""
@@ -1138,14 +1135,11 @@ class TestHumidifierStateJson:
         assert wl["value"]["type"] == "BOOL"
         assert wl["value"]["bool_value"] is True
 
-    def test_child_lock_bool(self):
-        """child_lock must be BOOL."""
+    def test_child_lock_not_published_off_spec(self):
+        """child_lock must not be published for humidifier (issue #44 audit)."""
         entity = self._make_humidifier(child_lock=True)
         states = _get_states_list(entity)
-        cl = _find_state_by_key(states, "child_lock")
-        assert cl is not None
-        assert cl["value"]["type"] == "BOOL"
-        assert cl["value"]["bool_value"] is True
+        assert _find_state_by_key(states, "child_lock") is None
 
     def test_offline_when_unavailable(self):
         """online must be False when entity is unavailable."""

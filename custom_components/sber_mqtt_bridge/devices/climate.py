@@ -161,6 +161,16 @@ class ClimateEntity(BaseEntity):
             parser=_finite_float_parser,
         ),
         AttrSpec(
+            field="_target_temp_high",
+            attr_keys=("target_temp_high",),
+            parser=_finite_float_parser,
+        ),
+        AttrSpec(
+            field="_target_temp_low",
+            attr_keys=("target_temp_low",),
+            parser=_finite_float_parser,
+        ),
+        AttrSpec(
             field="fan_modes",
             converter=lambda attrs: attrs.get("fan_modes") or [],
             default=[],
@@ -168,6 +178,11 @@ class ClimateEntity(BaseEntity):
         AttrSpec(
             field="swing_modes",
             converter=lambda attrs: attrs.get("swing_modes") or [],
+            default=[],
+        ),
+        AttrSpec(
+            field="swing_horizontal_modes",
+            converter=lambda attrs: attrs.get("swing_horizontal_modes") or [],
             default=[],
         ),
         AttrSpec(
@@ -184,6 +199,10 @@ class ClimateEntity(BaseEntity):
             attr_keys=("swing_mode",),
         ),
         AttrSpec(
+            field="swing_horizontal_mode",
+            attr_keys=("swing_horizontal_mode",),
+        ),
+        AttrSpec(
             field="min_temp",
             attr_keys=("min_temp",),
             parser=_safe_float_parser,
@@ -197,7 +216,9 @@ class ClimateEntity(BaseEntity):
         ),
         AttrSpec(
             field="_target_humidity",
-            attr_keys=("target_humidity",),
+            # HA climate publishes target humidity as "humidity" (ATTR_HUMIDITY);
+            # "target_humidity" is kept as a legacy fallback key.
+            attr_keys=("humidity", "target_humidity"),
             parser=_safe_int_parser,
         ),
         AttrSpec(
@@ -245,12 +266,17 @@ class ClimateEntity(BaseEntity):
         self.target_temperature = None
         self.fan_modes = []
         self.swing_modes = []
+        self.swing_horizontal_modes = []
         self.hvac_modes = []
         self.fan_mode = None
         self.swing_mode = None
+        self.swing_horizontal_mode = None
         self.hvac_mode = None
         self.min_temp = min_temp
         self.max_temp = max_temp
+        self._target_temp_high: float | None = None
+        self._target_temp_low: float | None = None
+        self._target_is_range: bool = False
         self._target_humidity: int | None = None
         self._preset_mode: str | None = None
         self._preset_modes: list[str] = []
@@ -267,12 +293,21 @@ class ClimateEntity(BaseEntity):
         Args:
             ha_state: HA state dict with 'state' and 'attributes' keys.
                 Attributes may include current_temperature, temperature,
-                fan_modes, swing_modes, hvac_modes, target_humidity,
-                preset_mode, preset_modes, etc.
+                target_temp_high/target_temp_low (heat_cool range),
+                fan_modes, swing_modes, swing_horizontal_modes,
+                hvac_modes, humidity, preset_mode, preset_modes, etc.
         """
         super().fill_by_ha_state(ha_state)
         attrs = ha_state.get("attributes", {})
         self._apply_attr_specs(attrs)
+
+        # heat_cool thermostats publish temperature=None plus a
+        # target_temp_high/target_temp_low range.  Sber has no range
+        # feature, so expose the range midpoint as hvac_temp_set.
+        self._target_is_range = False
+        if self.target_temperature is None and self._target_temp_high is not None and self._target_temp_low is not None:
+            self.target_temperature = (self._target_temp_high + self._target_temp_low) / 2
+            self._target_is_range = True
 
         # Derive on/off state and hvac_mode from top-level state string
         self.current_state = ha_state.get("state", "off") != "off"
@@ -288,21 +323,82 @@ class ClimateEntity(BaseEntity):
             List of Sber feature strings supported by this entity.
         """
         features = [*super()._create_features_list(), "on_off", "temperature", "hvac_temp_set"]
-        if self._supports_swing and self.swing_modes:
+        if self._supports_swing and (self._mapped_swing_values() or self._uses_horizontal_swing):
             features.append("hvac_air_flow_direction")
-        if self._supports_fan and self.fan_modes:
+        if self._supports_fan and self._mapped_fan_values():
             features.append("hvac_air_flow_power")
-        if self._supports_work_mode and self.hvac_modes:
+        if self._supports_work_mode and self._mapped_work_modes():
             features.append("hvac_work_mode")
-        if self._supports_thermostat_mode and self.hvac_modes:
+        if self._supports_thermostat_mode and self._mapped_thermostat_modes():
             features.append("hvac_thermostat_mode")
         if self._target_humidity is not None:
             features.append("hvac_humidity_set")
-        if self._has_night_mode:
+        if self._has_night_mode and self.category in self._NIGHT_MODE_CATEGORIES:
             features.append("hvac_night_mode")
-        if self._child_lock is not None:
-            features.append("child_lock")
         return features
+
+    _NIGHT_MODE_CATEGORIES = frozenset({"hvac_ac"})
+    """Sber climate categories whose spec includes ``hvac_night_mode``."""
+
+    def _has_instance_allowed_values(self) -> bool:
+        """Climate limits vary per device (min/max temp, mode lists).
+
+        ``hvac_temp_set`` min/max/step and the fan/swing/mode enum values
+        come from HA attributes — devices sharing a model_id with
+        different allowed_values get silently rejected by Sber cloud
+        (issue #44 audit).
+        """
+        return True
+
+    def _mapped_fan_values(self) -> list[str]:
+        """Return Sber enum values for fan modes with a known mapping.
+
+        Unmapped HA fan modes are dropped — device-specific HA strings
+        must not leak into Sber enum_values (issue #44 audit).
+        """
+        return list(dict.fromkeys(HA_TO_SBER_FAN_MODE[m] for m in self.fan_modes or [] if m in HA_TO_SBER_FAN_MODE))
+
+    def _mapped_swing_values(self) -> list[str]:
+        """Return Sber enum values for vertical swing modes with a known mapping."""
+        return list(dict.fromkeys(HA_TO_SBER_SWING[m] for m in self.swing_modes or [] if m in HA_TO_SBER_SWING))
+
+    def _mapped_work_modes(self) -> list[str]:
+        """Return Sber enum values for hvac modes mappable to hvac_work_mode."""
+        return list(dict.fromkeys(HA_TO_SBER_WORK_MODE[m] for m in self.hvac_modes or [] if m in HA_TO_SBER_WORK_MODE))
+
+    def _mapped_thermostat_modes(self) -> list[str]:
+        """Return Sber enum values for hvac modes mappable to hvac_thermostat_mode."""
+        return list(
+            dict.fromkeys(
+                HA_TO_SBER_THERMOSTAT_MODE[m] for m in self.hvac_modes or [] if m in HA_TO_SBER_THERMOSTAT_MODE
+            )
+        )
+
+    def _mapped_horizontal_swing_values(self) -> list[str]:
+        """Return Sber enum values for horizontal swing modes with a known mapping.
+
+        Unlike vertical ``swing_modes`` (which pass unmapped values through),
+        horizontal modes without a Sber mapping are dropped — Sber enum values
+        must not be invented from device-specific HA strings like ``"on"``.
+
+        Returns:
+            De-duplicated list of mapped Sber air flow direction values.
+        """
+        return list(dict.fromkeys(HA_TO_SBER_SWING[m] for m in self.swing_horizontal_modes if m in HA_TO_SBER_SWING))
+
+    @property
+    def _uses_horizontal_swing(self) -> bool:
+        """Check if horizontal swing is used as the air flow direction source.
+
+        Horizontal-only devices (HA 2024.12+) publish ``swing_horizontal_modes``
+        without ``swing_modes``.  The fallback is active only when no vertical
+        swing modes exist and at least one horizontal mode maps to a Sber value.
+
+        Returns:
+            True when hvac_air_flow_direction should be driven by
+            ``swing_horizontal_mode`` / ``set_swing_horizontal_mode``.
+        """
+        return not self.swing_modes and bool(self._mapped_horizontal_swing_values())
 
     @property
     def _has_night_mode(self) -> bool:
@@ -320,29 +416,32 @@ class ClimateEntity(BaseEntity):
             Dict mapping feature key to its allowed values descriptor.
         """
         allowed: dict[str, dict] = {}
-        if self._supports_fan and self.fan_modes:
-            sber_fans = [HA_TO_SBER_FAN_MODE.get(m, m) for m in self.fan_modes]
+        sber_fans = self._mapped_fan_values()
+        if self._supports_fan and sber_fans:
             allowed["hvac_air_flow_power"] = {
                 "type": "ENUM",
-                "enum_values": {"values": list(dict.fromkeys(sber_fans))},
+                "enum_values": {"values": sber_fans},
             }
-        if self._supports_swing and self.swing_modes:
-            sber_swings = [HA_TO_SBER_SWING.get(m, m) for m in self.swing_modes]
+        sber_swings = self._mapped_swing_values()
+        if self._supports_swing and sber_swings:
             allowed["hvac_air_flow_direction"] = {
                 "type": "ENUM",
-                "enum_values": {"values": list(dict.fromkeys(sber_swings))},
+                "enum_values": {"values": sber_swings},
             }
-        if self._supports_work_mode and self.hvac_modes:
-            sber_modes = [HA_TO_SBER_WORK_MODE[m] for m in self.hvac_modes if m in HA_TO_SBER_WORK_MODE]
-            if sber_modes:
-                allowed["hvac_work_mode"] = {"type": "ENUM", "enum_values": {"values": list(dict.fromkeys(sber_modes))}}
-        if self._supports_thermostat_mode and self.hvac_modes:
-            sber_modes = [HA_TO_SBER_THERMOSTAT_MODE[m] for m in self.hvac_modes if m in HA_TO_SBER_THERMOSTAT_MODE]
-            if sber_modes:
-                allowed["hvac_thermostat_mode"] = {
-                    "type": "ENUM",
-                    "enum_values": {"values": list(dict.fromkeys(sber_modes))},
-                }
+        elif self._supports_swing and self._uses_horizontal_swing:
+            allowed["hvac_air_flow_direction"] = {
+                "type": "ENUM",
+                "enum_values": {"values": self._mapped_horizontal_swing_values()},
+            }
+        sber_work = self._mapped_work_modes()
+        if self._supports_work_mode and sber_work:
+            allowed["hvac_work_mode"] = {"type": "ENUM", "enum_values": {"values": sber_work}}
+        sber_thermo = self._mapped_thermostat_modes()
+        if self._supports_thermostat_mode and sber_thermo:
+            allowed["hvac_thermostat_mode"] = {
+                "type": "ENUM",
+                "enum_values": {"values": sber_thermo},
+            }
         allowed["hvac_temp_set"] = {
             "type": "INTEGER",
             "integer_values": {
@@ -393,19 +492,37 @@ class ClimateEntity(BaseEntity):
         """Build hvac_air_flow_power state entry, mapping HA presets to Sber turbo/quiet."""
         if not (self._supports_fan and self.fan_mode):
             return []
-        fan_value = HA_TO_SBER_FAN_MODE.get(self.fan_mode, self.fan_mode)
+        fan_value = HA_TO_SBER_FAN_MODE.get(self.fan_mode)
         if self._preset_mode == "boost":
             fan_value = "turbo"
         elif self._preset_mode == "sleep" and "quiet" not in (self.fan_modes or []):
             fan_value = "quiet"
+        if fan_value is None:
+            # Unmapped device-specific fan mode — never leak raw HA strings
+            # into a Sber enum state (issue #44 audit).
+            return []
         return [make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(fan_value))]
 
     def _state_swing(self) -> list:
-        """Build hvac_air_flow_direction state entry (if swing supported)."""
-        if not (self._supports_swing and self.swing_mode):
+        """Build hvac_air_flow_direction state entry (if swing supported).
+
+        Vertical ``swing_mode`` takes precedence; horizontal-only devices
+        fall back to ``swing_horizontal_mode`` (only when it maps to a
+        known Sber value).
+        """
+        if not self._supports_swing:
             return []
-        sber_swing = HA_TO_SBER_SWING.get(self.swing_mode, self.swing_mode)
-        return [make_state(SberFeature.HVAC_AIR_FLOW_DIRECTION, make_enum_value(sber_swing))]
+        if self.swing_modes and self.swing_mode:
+            sber_swing = HA_TO_SBER_SWING.get(self.swing_mode)
+            if sber_swing is None:
+                # Unmapped swing mode — do not leak raw HA strings (issue #44 audit).
+                return []
+            return [make_state(SberFeature.HVAC_AIR_FLOW_DIRECTION, make_enum_value(sber_swing))]
+        if self._uses_horizontal_swing and self.swing_horizontal_mode:
+            sber_swing = HA_TO_SBER_SWING.get(self.swing_horizontal_mode)
+            if sber_swing:
+                return [make_state(SberFeature.HVAC_AIR_FLOW_DIRECTION, make_enum_value(sber_swing))]
+        return []
 
     def _state_work_mode_with_presets(self) -> list:
         """Build hvac_work_mode state entry, mapping HA presets (boost/sleep/eco) to Sber turbo/quiet."""
@@ -435,11 +552,11 @@ class ClimateEntity(BaseEntity):
         out: list = []
         if self._target_humidity is not None:
             out.append(make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(self._target_humidity)))
-        if self._has_night_mode:
+        if self._has_night_mode and self.category in self._NIGHT_MODE_CATEGORIES:
             is_night = self._preset_mode in ("sleep", "night")
             out.append(make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(is_night)))
-        if self._child_lock is not None:
-            out.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
+        # child_lock is NOT published: the Sber spec has no child_lock for any
+        # hvac_* category (only socket/kettle/vacuum_cleaner) — issue #44 audit.
         return out
 
     @property
@@ -463,9 +580,36 @@ class ClimateEntity(BaseEntity):
         return [self._build_on_off_service_call(self.entity_id, "climate", on)]
 
     def _cmd_temp_set(self, value: dict) -> list[dict]:
+        """Handle ``hvac_temp_set``: single target or heat_cool range shift.
+
+        For heat_cool thermostats (target derived from a
+        ``target_temp_high``/``target_temp_low`` range) the range is shifted
+        so its midpoint lands on the requested temperature while its width
+        is preserved.  Otherwise a plain ``temperature`` is sent.
+
+        Args:
+            value: Sber command value dict with ``integer_value``.
+
+        Returns:
+            Single ``set_temperature`` service call, or empty list on bad input.
+        """
         temp = _safe_float_parser(value.get("integer_value"))
         if temp is None:
             return []
+        if self._target_is_range and self._target_temp_high is not None and self._target_temp_low is not None:
+            midpoint = (self._target_temp_high + self._target_temp_low) / 2
+            delta = temp - midpoint
+            return [
+                self._build_service_call(
+                    "climate",
+                    "set_temperature",
+                    self.entity_id,
+                    {
+                        "target_temp_high": self._target_temp_high + delta,
+                        "target_temp_low": self._target_temp_low + delta,
+                    },
+                )
+            ]
         return [self._build_service_call("climate", "set_temperature", self.entity_id, {"temperature": temp})]
 
     def _cmd_air_flow_power(self, value: dict) -> list[dict]:
@@ -497,11 +641,33 @@ class ClimateEntity(BaseEntity):
         return None
 
     def _cmd_air_flow_direction(self, value: dict) -> list[dict]:
+        """Handle ``hvac_air_flow_direction``: vertical swing first, horizontal fallback.
+
+        Args:
+            value: Sber command value dict with ``enum_value``.
+
+        Returns:
+            Single ``set_swing_mode`` / ``set_swing_horizontal_mode`` service
+            call, or empty list when the mode is unknown or unsupported.
+        """
         sber_swing = value.get("enum_value")
         if not sber_swing:
             return []
         ha_swing = SBER_TO_HA_SWING.get(sber_swing)
-        if not ha_swing or (self.swing_modes and ha_swing not in self.swing_modes):
+        if not ha_swing:
+            return []
+        if self._uses_horizontal_swing:
+            if ha_swing not in self.swing_horizontal_modes:
+                return []
+            return [
+                self._build_service_call(
+                    "climate",
+                    "set_swing_horizontal_mode",
+                    self.entity_id,
+                    {"swing_horizontal_mode": ha_swing},
+                )
+            ]
+        if self.swing_modes and ha_swing not in self.swing_modes:
             return []
         return [self._build_service_call("climate", "set_swing_mode", self.entity_id, {"swing_mode": ha_swing})]
 

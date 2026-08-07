@@ -11,7 +11,7 @@ from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_state
-from .base_entity import AttrSpec, BaseEntity, CommandResult
+from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_int_parser
 from .fan_speed_mixin import (
     _SBER_SPEED_TO_PERCENTAGE,
     SBER_SPEED_VALUES,
@@ -23,6 +23,14 @@ _LOGGER = logging.getLogger(__name__)
 
 HVAC_FAN_CATEGORY = "hvac_fan"
 """Sber device category for fan entities."""
+
+_FAN_FEATURE_SET_SPEED = 1
+"""HA fan platform ``FanEntityFeature.SET_SPEED`` bit.
+
+Mirrors ``homeassistant.components.fan.FanEntityFeature.SET_SPEED``
+(verified against HA 2026.4) without importing the fan component into
+this dependency-free device module.
+"""
 
 __all__ = [
     "HVAC_FAN_CATEGORY",
@@ -44,8 +52,9 @@ class HvacFanEntity(FanSpeedMixin, BaseEntity):
     ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
         AttrSpec(
             field="preset_modes",
-            converter=lambda attrs: attrs.get("preset_modes") or [],
+            converter=lambda attrs: (attrs.get("preset_modes") or []) if "preset_modes" in attrs else None,
             default=[],
+            preserve_on_missing=True,
         ),
         AttrSpec(
             field="preset_mode",
@@ -54,6 +63,19 @@ class HvacFanEntity(FanSpeedMixin, BaseEntity):
         AttrSpec(
             field="percentage",
             attr_keys=("percentage",),
+        ),
+        AttrSpec(
+            field="supported_features",
+            attr_keys=("supported_features",),
+            parser=_safe_int_parser,
+            default=0,
+            preserve_on_missing=True,
+        ),
+        AttrSpec(
+            field="_has_percentage_attr",
+            converter=lambda attrs: True if "percentage" in attrs or "percentage_step" in attrs else None,
+            default=False,
+            preserve_on_missing=True,
         ),
     )
 
@@ -68,6 +90,8 @@ class HvacFanEntity(FanSpeedMixin, BaseEntity):
         self.preset_mode: str | None = None
         self.preset_modes: list[str] = []
         self.percentage: int | None = None
+        self.supported_features: int = 0
+        self._has_percentage_attr: bool = False
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update fan attributes.
@@ -82,8 +106,26 @@ class HvacFanEntity(FanSpeedMixin, BaseEntity):
 
     @property
     def _supports_speed(self) -> bool:
-        """Check if this fan has speed control (preset_modes or percentage)."""
-        return bool(self.preset_modes) or self.percentage is not None
+        """Check if this fan has speed control as a *capability*.
+
+        Deliberately based on capabilities, not on the current value of
+        ``percentage``: a fan that is turned off reports ``percentage: None``
+        while still supporting speed control, and gating on the value made
+        the ``hvac_air_flow_power`` feature disappear from the published
+        device config on every off state. Capability sources (checked in
+        order of reliability):
+
+        * ``supported_features`` bitmask contains ``SET_SPEED`` (primary,
+          matches HA fan platform semantics);
+        * non-empty ``preset_modes`` list (preset-only fans);
+        * sticky presence of a ``percentage``/``percentage_step`` attribute
+          key -- HA only exposes these keys when SET_SPEED is supported,
+          covering entities that omit ``supported_features``.
+
+        The latter two are latched / preserved across state updates so the
+        feature list stays stable when the entity goes unavailable.
+        """
+        return bool(self.supported_features & _FAN_FEATURE_SET_SPEED or self.preset_modes or self._has_percentage_attr)
 
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list for fan capabilities.
@@ -120,6 +162,13 @@ class HvacFanEntity(FanSpeedMixin, BaseEntity):
     def to_sber_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with fan attributes.
 
+        The speed state is reported only when the current speed is actually
+        known (``preset_mode`` or ``percentage`` available). A speed-capable
+        fan that is off with ``percentage: None`` keeps the feature in its
+        config but simply omits the speed state instead of fabricating one.
+        Legacy exception: preset-capable fans (non-empty ``preset_modes``)
+        with an unknown mode keep the historical ``auto`` fallback.
+
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
@@ -127,8 +176,10 @@ class HvacFanEntity(FanSpeedMixin, BaseEntity):
             make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
             make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
-        if self._supports_speed:
-            speed = self._get_sber_speed() or "auto"
+        speed = self._get_sber_speed() if self._supports_speed else None
+        if speed is None and self.preset_modes:
+            speed = "auto"
+        if speed:
             states.append(make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(speed)))
         return {self.entity_id: {"states": states}}
 

@@ -167,8 +167,9 @@ class TestObligatoryFeatures:
         """open_percentage/open_set became ✔︎* conditional for four cover
         categories; only online + open_state remain strict."""
         for cat in ("curtain", "gate", "valve", "window_blind"):
-            assert CATEGORY_OBLIGATORY_FEATURES[cat] == frozenset({"online", "open_state"}), \
+            assert CATEGORY_OBLIGATORY_FEATURES[cat] == frozenset({"online", "open_state"}), (
                 f"{cat}: unexpected obligatory set — snapshot may need re-scraping"
+            )
 
 
 class TestMissingObligatoryFeaturesBehaviour:
@@ -201,9 +202,7 @@ class TestMissingObligatoryFeaturesBehaviour:
     def test_extra_features_do_not_affect_result(self):
         """Emitting extra unrelated features doesn't hide a missing
         obligatory one — the check is set-difference-based."""
-        missing = missing_obligatory_features(
-            "light", {"online", "child_lock", "sensor_sensitive"}
-        )
+        missing = missing_obligatory_features("light", {"online", "child_lock", "sensor_sensitive"})
         assert missing == {"on_off"}
 
     def test_sensor_temp_override_actually_relaxes_missing(self):
@@ -288,23 +287,25 @@ class TestSensorAirGeneratedTables:
     downstream integration failures.
     """
 
-    EXPECTED_REFERENCE = frozenset({
-        "online",
-        # ✔︎* conditional measurements (eight)
-        "co2",
-        "pm1_0",
-        "pm2_5",
-        "pm10",
-        "tvoc_float",
-        "hcho_float",
-        "temperature",
-        "humidity",
-        # Display + telemetry
-        "temp_unit_view",
-        "battery_percentage",
-        "battery_low_power",
-        "signal_strength",
-    })
+    EXPECTED_REFERENCE = frozenset(
+        {
+            "online",
+            # ✔︎* conditional measurements (eight)
+            "co2",
+            "pm1_0",
+            "pm2_5",
+            "pm10",
+            "tvoc_float",
+            "hcho_float",
+            "temperature",
+            "humidity",
+            # Display + telemetry
+            "temp_unit_view",
+            "battery_percentage",
+            "battery_low_power",
+            "signal_strength",
+        }
+    )
 
     def test_sensor_air_registered_in_reference(self):
         assert "sensor_air" in CATEGORY_REFERENCE_FEATURES
@@ -323,20 +324,23 @@ class TestSensorAirGeneratedTables:
         2026-05 spec.  Only ``online`` is strict-mandatory."""
         assert CATEGORY_OBLIGATORY_FEATURES["sensor_air"] == frozenset({"online"})
 
-    @pytest.mark.parametrize("feature,expected_type", [
-        ("online", "BOOL"),
-        ("co2", "INTEGER"),
-        ("pm1_0", "INTEGER"),
-        ("pm2_5", "INTEGER"),
-        ("pm10", "INTEGER"),
-        ("humidity", "INTEGER"),
-        ("temperature", "INTEGER"),
-        ("tvoc_float", "FLOAT"),
-        ("hcho_float", "FLOAT"),
-        ("temp_unit_view", "ENUM"),
-        ("battery_percentage", "INTEGER"),
-        ("battery_low_power", "BOOL"),
-    ])
+    @pytest.mark.parametrize(
+        "feature,expected_type",
+        [
+            ("online", "BOOL"),
+            ("co2", "INTEGER"),
+            ("pm1_0", "INTEGER"),
+            ("pm2_5", "INTEGER"),
+            ("pm10", "INTEGER"),
+            ("humidity", "INTEGER"),
+            ("temperature", "INTEGER"),
+            ("tvoc_float", "FLOAT"),
+            ("hcho_float", "FLOAT"),
+            ("temp_unit_view", "ENUM"),
+            ("battery_percentage", "INTEGER"),
+            ("battery_low_power", "BOOL"),
+        ],
+    )
     def test_sensor_air_feature_type_correct(self, feature, expected_type):
         """Type mismatches are the exact class of bug the Feature-Type
         validator was created for — e.g., emitting ``co2`` as BOOL would
@@ -351,8 +355,7 @@ class TestSensorAirGeneratedTables:
         in the reference — otherwise emit-time state entries would be
         classified as ``unknown_features_for_category`` and rejected.
         """
-        measurements = {"co2", "pm1_0", "pm2_5", "pm10",
-                        "tvoc_float", "hcho_float", "temperature", "humidity"}
+        measurements = {"co2", "pm1_0", "pm2_5", "pm10", "tvoc_float", "hcho_float", "temperature", "humidity"}
         assert measurements.issubset(CATEGORY_REFERENCE_FEATURES["sensor_air"])
 
     def test_sensor_air_battery_signal_in_reference(self):
@@ -369,8 +372,7 @@ class TestSensorAirGeneratedTables:
         """Guard against a scraper bug where features from adjacent
         categories (e.g. ``on_off`` from switch, ``pir`` from sensor_pir)
         leak into sensor_air's reference set."""
-        forbidden = {"on_off", "pir", "gas_leak_state",
-                     "doorcontact_state", "hvac_temp_set", "light_brightness"}
+        forbidden = {"on_off", "pir", "gas_leak_state", "doorcontact_state", "hvac_temp_set", "light_brightness"}
         overlap = CATEGORY_REFERENCE_FEATURES["sensor_air"] & forbidden
         assert not overlap, f"Leaked features in sensor_air reference: {overlap}"
 

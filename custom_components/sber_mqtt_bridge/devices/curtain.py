@@ -151,11 +151,21 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
             return []
         return [self._build_service_call("cover", service, self.entity_id)]
 
+    _TILT_CATEGORIES = frozenset({"window_blind"})
+    """Sber categories whose spec includes ``light_transmission_percentage``."""
+
+    _BATTERY_CATEGORIES = frozenset({"curtain", "window_blind"})
+    """Sber categories whose spec includes battery features (gate has none)."""
+
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list for curtain capabilities.
 
         Includes open_percentage, open_set, open_state, and optionally
-        signal_strength features.
+        signal_strength features.  Battery and tilt features are gated by
+        category: the Sber spec has no battery features for ``gate`` and
+        declares ``light_transmission_percentage`` only for
+        ``window_blind`` (issue #44 audit — off-spec features risk silent
+        device rejection).
 
         Returns:
             List of Sber feature strings supported by this entity.
@@ -166,27 +176,46 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
             "open_set",
             "open_state",
         ]
-        self._append_battery_signal_features(features)
+        if self.category in self._BATTERY_CATEGORIES:
+            self._append_battery_signal_features(features)
+        elif self._signal_strength_raw is not None:
+            features.append("signal_strength")
         if self._open_rate is not None:
             features.append("open_rate")
-        if self._tilt_position is not None:
+        if self._tilt_position is not None and self.category in self._TILT_CATEGORIES:
             features.append("light_transmission_percentage")
         return features
 
     def create_allowed_values_list(self) -> dict[str, dict]:
-        """Return allowed values for open_set, open_percentage, and open_rate features."""
-        allowed: dict[str, dict] = {
-            "open_set": {
+        """Return allowed values for the controllable cover features.
+
+        Built from the final features list so user overrides
+        (``sber_features_add`` / ``sber_features_remove``) stay in sync
+        with the advertised limits.  ``open_rate`` values follow the
+        Sber curtain reference example.
+        """
+        features = set(self.get_final_features_list())
+        allowed: dict[str, dict] = {}
+        if "open_set" in features:
+            allowed["open_set"] = {
                 "type": "ENUM",
                 "enum_values": {"values": ["open", "close", "stop"]},
-            },
-            "open_percentage": {
+            }
+        if "open_percentage" in features:
+            allowed["open_percentage"] = {
                 "type": "INTEGER",
                 "integer_values": {"min": "0", "max": "100", "step": "1"},
-            },
-        }
-        # open_rate is read-only (HA cover has no set_speed service)
-        # light_transmission_percentage maps to tilt — handled via open_percentage
+            }
+        if "open_rate" in features:
+            allowed["open_rate"] = {
+                "type": "ENUM",
+                "enum_values": {"values": ["auto", "low", "high"]},
+            }
+        if "light_transmission_percentage" in features:
+            allowed["light_transmission_percentage"] = {
+                "type": "INTEGER",
+                "integer_values": {"min": "0", "max": "100", "step": "1"},
+            }
         return allowed
 
     def to_sber_current_state(self) -> dict[str, dict]:
@@ -224,10 +253,13 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
                 open_state = "close"
         states.append(make_state(SberFeature.OPEN_STATE, make_enum_value(open_state)))
 
-        self._append_battery_signal_states(states)
+        if self.category in self._BATTERY_CATEGORIES:
+            self._append_battery_signal_states(states)
+        elif self._signal_strength_raw is not None:
+            self._append_signal_strength_state(states)
         if self._open_rate is not None:
             states.append(make_state(SberFeature.OPEN_RATE, make_enum_value(self._open_rate)))
-        if self._tilt_position is not None:
+        if self._tilt_position is not None and self.category in self._TILT_CATEGORIES:
             states.append(
                 make_state(SberFeature.LIGHT_TRANSMISSION_PERCENTAGE, make_integer_value(self._tilt_position))
             )

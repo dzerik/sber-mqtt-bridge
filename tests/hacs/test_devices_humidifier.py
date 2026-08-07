@@ -97,9 +97,11 @@ class TestHumidifierCreateAllowedValues(unittest.TestCase):
         av = entity.create_allowed_values_list()
         self.assertIn("hvac_air_flow_power", av)
         self.assertEqual(av["hvac_air_flow_power"]["type"], "ENUM")
+        # normal/eco/boost map to Sber-standard values (issue #44 audit:
+        # raw HA mode names must not leak into Sber enum_values).
         self.assertEqual(
             av["hvac_air_flow_power"]["enum_values"]["values"],
-            ["normal", "eco", "turbo"],
+            ["medium", "quiet", "turbo"],
         )
 
     def test_without_modes(self):
@@ -140,7 +142,8 @@ class TestHumidifierToSberCurrentState(unittest.TestCase):
         self.assertEqual(hum_set["value"]["integer_value"], "50")  # target humidity
 
         mode = next(s for s in states if s["key"] == "hvac_air_flow_power")
-        self.assertEqual(mode["value"]["enum_value"], "normal")
+        # HA "normal" maps to Sber-standard "medium" (issue #44 audit).
+        self.assertEqual(mode["value"]["enum_value"], "medium")
 
     def test_off_state(self):
         entity = HumidifierEntity(ENTITY_DATA)
@@ -290,63 +293,96 @@ class TestHumidifierUpdateLinkedData(unittest.TestCase):
 
 
 class TestHumidifierChildLock(unittest.TestCase):
-    """Test child_lock feature in HumidifierEntity."""
+    """child_lock is off-spec for hvac_humidifier (issue #44 audit)."""
 
-    def test_child_lock_feature_present(self):
-        """Humidifier with child_lock=True must include child_lock in features."""
+    def test_child_lock_never_advertised(self):
+        """Even with the HA attribute present, child_lock is not a humidifier feature."""
         entity = HumidifierEntity(ENTITY_DATA)
         ha = _make_ha_state()
         ha["attributes"]["child_lock"] = True
         entity.fill_by_ha_state(ha)
-        features = entity.get_final_features_list()
-        self.assertIn("child_lock", features)
+        self.assertNotIn("child_lock", entity.get_final_features_list())
 
-    def test_child_lock_feature_present_when_false(self):
-        """Humidifier with child_lock=False must still include child_lock in features."""
-        entity = HumidifierEntity(ENTITY_DATA)
-        ha = _make_ha_state()
-        ha["attributes"]["child_lock"] = False
-        entity.fill_by_ha_state(ha)
-        features = entity.get_final_features_list()
-        self.assertIn("child_lock", features)
-
-    def test_child_lock_feature_absent(self):
-        """Humidifier without child_lock attribute must not include it."""
-        entity = HumidifierEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state())
-        features = entity.get_final_features_list()
-        self.assertNotIn("child_lock", features)
-
-    def test_child_lock_true_in_state(self):
-        """child_lock=True must produce child_lock=True in Sber state."""
+    def test_child_lock_never_in_state(self):
+        """child_lock must not appear in the published Sber state."""
         entity = HumidifierEntity(ENTITY_DATA)
         ha = _make_ha_state()
         ha["attributes"]["child_lock"] = True
         entity.fill_by_ha_state(ha)
-        result = entity.to_sber_current_state()
-        states = result["humidifier.room"]["states"]
-        cl = next(s for s in states if s["key"] == "child_lock")
-        self.assertTrue(cl["value"]["bool_value"])
+        states = entity.to_sber_current_state()["humidifier.room"]["states"]
+        self.assertNotIn("child_lock", [s["key"] for s in states])
 
-    def test_child_lock_false_in_state(self):
-        """child_lock=False must produce child_lock=False in Sber state."""
-        entity = HumidifierEntity(ENTITY_DATA)
-        ha = _make_ha_state()
-        ha["attributes"]["child_lock"] = False
-        entity.fill_by_ha_state(ha)
-        result = entity.to_sber_current_state()
-        states = result["humidifier.room"]["states"]
-        cl = next(s for s in states if s["key"] == "child_lock")
-        self.assertFalse(cl["value"]["bool_value"])
 
-    def test_child_lock_not_in_state_when_absent(self):
-        """Without child_lock attribute, it must not appear in Sber state."""
+class TestHumidifierNightMode(unittest.TestCase):
+    """Test night mode detection is case-insensitive (audit humidifier.py:185)."""
+
+    def test_night_feature_with_lowercase_modes(self):
+        """available_modes=['auto', 'sleep'] must expose hvac_night_mode."""
         entity = HumidifierEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state())
+        entity.fill_by_ha_state(_make_ha_state(available_modes=["auto", "sleep"]))
+        features = entity.get_final_features_list()
+        self.assertIn("hvac_night_mode", features)
+
+    def test_night_feature_with_capitalized_modes(self):
+        """available_modes=['Auto', 'Sleep'] must also expose hvac_night_mode."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(available_modes=["Auto", "Sleep"]))
+        features = entity.get_final_features_list()
+        self.assertIn("hvac_night_mode", features)
+
+    def test_night_feature_with_capitalized_night(self):
+        """available_modes=['Auto', 'Night'] must also expose hvac_night_mode."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(available_modes=["Auto", "Night"]))
+        features = entity.get_final_features_list()
+        self.assertIn("hvac_night_mode", features)
+
+    def test_night_feature_absent_without_sleep_or_night(self):
+        """Without sleep/night modes, hvac_night_mode must not be exposed."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(available_modes=["auto", "high"]))
+        features = entity.get_final_features_list()
+        self.assertNotIn("hvac_night_mode", features)
+
+    def test_night_state_true_for_capitalized_sleep_mode(self):
+        """mode='Sleep' must report hvac_night_mode=True in Sber state."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(available_modes=["Auto", "Sleep"], mode="Sleep"))
         result = entity.to_sber_current_state()
         states = result["humidifier.room"]["states"]
-        keys = [s["key"] for s in states]
-        self.assertNotIn("child_lock", keys)
+        night = next(s for s in states if s["key"] == "hvac_night_mode")
+        self.assertTrue(night["value"]["bool_value"])
+
+    def test_night_state_false_for_non_night_mode(self):
+        """mode='Auto' must report hvac_night_mode=False in Sber state."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(available_modes=["Auto", "Sleep"], mode="Auto"))
+        result = entity.to_sber_current_state()
+        states = result["humidifier.room"]["states"]
+        night = next(s for s in states if s["key"] == "hvac_night_mode")
+        self.assertFalse(night["value"]["bool_value"])
+
+    def test_cmd_night_mode_on_uses_ha_spelling(self):
+        """Night mode ON must call set_mode with the HA-native 'Sleep' spelling."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(available_modes=["Auto", "Sleep"], mode="Auto"))
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_night_mode", "value": {"type": "BOOL", "bool_value": True}}]}
+        )
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "set_mode")
+        self.assertEqual(url["service_data"]["mode"], "Sleep")
+
+    def test_cmd_night_mode_off_picks_non_night_mode(self):
+        """Night mode OFF must switch to the first non-night mode ('Auto')."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(available_modes=["Sleep", "Auto"], mode="Sleep"))
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_night_mode", "value": {"type": "BOOL", "bool_value": False}}]}
+        )
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "set_mode")
+        self.assertEqual(url["service_data"]["mode"], "Auto")
 
 
 class TestHumidifierProcessStateChange(unittest.TestCase):
@@ -369,47 +405,59 @@ class TestWaterPercentageTelemetry(unittest.TestCase):
 
     def test_water_level_attribute_parsed(self):
         """water_level attribute should be parsed into _water_percentage."""
-        entity = HumidifierEntity({
-            "entity_id": "humidifier.living_room",
-            "name": "Living room",
-            "original_name": "Living room",
-            "area_id": "living_room",
-        })
-        entity.fill_by_ha_state({
-            "entity_id": "humidifier.living_room",
-            "state": "on",
-            "attributes": {"water_level": 75},
-        })
+        entity = HumidifierEntity(
+            {
+                "entity_id": "humidifier.living_room",
+                "name": "Living room",
+                "original_name": "Living room",
+                "area_id": "living_room",
+            }
+        )
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "humidifier.living_room",
+                "state": "on",
+                "attributes": {"water_level": 75},
+            }
+        )
         self.assertEqual(entity._water_percentage, 75)
 
     def test_water_level_clamped_to_0_100(self):
         """water_level values > 100 should be clamped to 100."""
-        entity = HumidifierEntity({
-            "entity_id": "humidifier.living_room",
-            "name": "Living room",
-            "original_name": "Living room",
-            "area_id": "living_room",
-        })
-        entity.fill_by_ha_state({
-            "entity_id": "humidifier.living_room",
-            "state": "on",
-            "attributes": {"water_level": 150},
-        })
+        entity = HumidifierEntity(
+            {
+                "entity_id": "humidifier.living_room",
+                "name": "Living room",
+                "original_name": "Living room",
+                "area_id": "living_room",
+            }
+        )
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "humidifier.living_room",
+                "state": "on",
+                "attributes": {"water_level": 150},
+            }
+        )
         self.assertEqual(entity._water_percentage, 100)
 
     def test_water_level_emitted_in_current_state(self):
         """hvac_water_percentage should be emitted in to_sber_current_state."""
-        entity = HumidifierEntity({
-            "entity_id": "humidifier.living_room",
-            "name": "Living room",
-            "original_name": "Living room",
-            "area_id": "living_room",
-        })
-        entity.fill_by_ha_state({
-            "entity_id": "humidifier.living_room",
-            "state": "on",
-            "attributes": {"water_level": 42},
-        })
+        entity = HumidifierEntity(
+            {
+                "entity_id": "humidifier.living_room",
+                "name": "Living room",
+                "original_name": "Living room",
+                "area_id": "living_room",
+            }
+        )
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "humidifier.living_room",
+                "state": "on",
+                "attributes": {"water_level": 42},
+            }
+        )
         result = entity.to_sber_current_state()
         states = result["humidifier.living_room"]["states"]
         keys_and_values = {s["key"]: s["value"] for s in states}
@@ -418,17 +466,21 @@ class TestWaterPercentageTelemetry(unittest.TestCase):
 
     def test_no_water_level_omits_feature(self):
         """Without water_level attribute, hvac_water_percentage should be omitted."""
-        entity = HumidifierEntity({
-            "entity_id": "humidifier.living_room",
-            "name": "Living room",
-            "original_name": "Living room",
-            "area_id": "living_room",
-        })
-        entity.fill_by_ha_state({
-            "entity_id": "humidifier.living_room",
-            "state": "on",
-            "attributes": {},
-        })
+        entity = HumidifierEntity(
+            {
+                "entity_id": "humidifier.living_room",
+                "name": "Living room",
+                "original_name": "Living room",
+                "area_id": "living_room",
+            }
+        )
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "humidifier.living_room",
+                "state": "on",
+                "attributes": {},
+            }
+        )
         result = entity.to_sber_current_state()
         states = result["humidifier.living_room"]["states"]
         keys = {s["key"] for s in states}
@@ -437,19 +489,23 @@ class TestWaterPercentageTelemetry(unittest.TestCase):
     # --- Additional gap-closing coverage (audit Subject 2) -----------
 
     def _entity(self):
-        return HumidifierEntity({
-            "entity_id": "humidifier.living_room",
-            "name": "Living room",
-            "original_name": "Living room",
-            "area_id": "living_room",
-        })
+        return HumidifierEntity(
+            {
+                "entity_id": "humidifier.living_room",
+                "name": "Living room",
+                "original_name": "Living room",
+                "area_id": "living_room",
+            }
+        )
 
     def _fill_water(self, entity, water_level, state="on"):
-        entity.fill_by_ha_state({
-            "entity_id": "humidifier.living_room",
-            "state": state,
-            "attributes": {"water_level": water_level},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "humidifier.living_room",
+                "state": state,
+                "attributes": {"water_level": water_level},
+            }
+        )
 
     def test_water_level_negative_clamped_to_zero(self):
         """Negative water_level readings must clamp to 0, not passthrough.
@@ -520,11 +576,13 @@ class TestWaterPercentageTelemetry(unittest.TestCase):
         """Without water_level attribute, hvac_water_percentage must NOT
         be in the features list (contract: features declared == states emitted)."""
         entity = self._entity()
-        entity.fill_by_ha_state({
-            "entity_id": "humidifier.living_room",
-            "state": "on",
-            "attributes": {},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "humidifier.living_room",
+                "state": "on",
+                "attributes": {},
+            }
+        )
         features = entity.get_final_features_list()
         self.assertNotIn("hvac_water_percentage", features)
 
@@ -553,11 +611,13 @@ class TestWaterPercentageTelemetry(unittest.TestCase):
         self._fill_water(entity, 60)
         self.assertEqual(entity._water_percentage, 60)
         # Next update — no water_level in attributes
-        entity.fill_by_ha_state({
-            "entity_id": "humidifier.living_room",
-            "state": "on",
-            "attributes": {"humidity": 45},
-        })
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "humidifier.living_room",
+                "state": "on",
+                "attributes": {"humidity": 45},
+            }
+        )
         self.assertIsNone(entity._water_percentage)
         result = entity.to_sber_current_state()
         keys = {s["key"] for s in result["humidifier.living_room"]["states"]}

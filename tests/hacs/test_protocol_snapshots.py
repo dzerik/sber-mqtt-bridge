@@ -42,6 +42,7 @@ def _pin_version_for_snapshots(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(sber_protocol, "build_hub_device", _frozen)
 
+
 RELAY_ENTITY_DATA = {
     "entity_id": "switch.lamp",
     "name": "Lamp",

@@ -349,11 +349,12 @@ class TestChildLock(unittest.TestCase):
         cl = next(s for s in states if s["key"] == "child_lock")
         self.assertFalse(cl["value"]["bool_value"])
 
-    def test_child_lock_on_relay(self):
+    def test_child_lock_not_on_relay(self):
+        """child_lock is off-spec for relay (socket/kettle/vacuum only) — issue #44 audit."""
         entity = RelayEntity(RELAY_DATA)
         entity.fill_by_ha_state(_switch_state("switch.relay", child_lock=True))
         features = entity.get_final_features_list()
-        self.assertIn("child_lock", features)
+        self.assertNotIn("child_lock", features)
 
 
 # === Task 7: hvac_humidity_set for climate ===

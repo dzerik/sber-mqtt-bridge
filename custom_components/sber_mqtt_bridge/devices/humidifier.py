@@ -22,14 +22,22 @@ HA_TO_SBER_HUMIDIFIER_MODE: dict[str, str] = {
     "low": "low",
     "mid": "medium",
     "medium": "medium",
+    "normal": "medium",
+    "comfort": "medium",
     "high": "high",
     "silent": "quiet",
     "sleep": "quiet",
     "night": "quiet",
+    "eco": "quiet",
     "strong": "turbo",
     "boost": "turbo",
 }
-"""Map HA humidifier modes to Sber-standard enum values (case-insensitive lookup)."""
+"""Map HA humidifier modes to Sber-standard enum values (case-insensitive lookup).
+
+Sber ``hvac_air_flow_power`` accepts only auto/low/medium/high/turbo/quiet —
+standard HA modes (``MODE_NORMAL``, ``MODE_ECO``, ``MODE_COMFORT``) map to the
+semantically closest value; unmapped device-specific modes are dropped
+(issue #44 audit — raw HA strings must not leak into Sber enums)."""
 
 
 def _min_humidity_parser(value: object) -> int:
@@ -163,7 +171,7 @@ class HumidifierEntity(BaseEntity):
             List of Sber feature strings supported by this entity.
         """
         features = [*super()._create_features_list(), "on_off", "humidity", "hvac_humidity_set"]
-        if self.available_modes:
+        if self._mapped_air_flow_values():
             features.append("hvac_air_flow_power")
         if self._has_night_mode:
             features.append("hvac_night_mode")
@@ -171,8 +179,8 @@ class HumidifierEntity(BaseEntity):
             features.append("hvac_water_percentage")
         if self._water_low_level is not None:
             features.append("hvac_water_low_level")
-        if self._child_lock is not None:
-            features.append("child_lock")
+        # child_lock is NOT advertised: the Sber hvac_humidifier spec has no
+        # child_lock feature (only socket/kettle/vacuum_cleaner) — issue #44 audit.
         return features
 
     @property
@@ -180,9 +188,35 @@ class HumidifierEntity(BaseEntity):
         """Check if the entity supports night/sleep mode.
 
         Returns:
-            True if available_modes contains 'sleep' or 'night'.
+            True if available_modes contains 'sleep' or 'night'
+            (case-insensitive).
         """
-        return any(m in self.available_modes for m in ("sleep", "night"))
+        return any(m.lower() in ("sleep", "night") for m in self.available_modes)
+
+    def _has_instance_allowed_values(self) -> bool:
+        """Humidifier limits vary per device (min/max humidity, mode list).
+
+        Devices sharing a model_id with different allowed_values get
+        silently rejected by Sber cloud (issue #44 audit).
+        """
+        return True
+
+    def _mapped_air_flow_values(self) -> list[str]:
+        """Return Sber enum values for available_modes with a known mapping.
+
+        Unmapped HA modes are dropped — device-specific strings must not
+        leak into Sber enum_values (issue #44 audit).
+
+        Returns:
+            De-duplicated list of mapped Sber air flow power values.
+        """
+        return list(
+            dict.fromkeys(
+                HA_TO_SBER_HUMIDIFIER_MODE[m.lower()]
+                for m in self.available_modes or []
+                if m.lower() in HA_TO_SBER_HUMIDIFIER_MODE
+            )
+        )
 
     def create_allowed_values_list(self) -> dict[str, dict]:
         """Build allowed values map for enum-based and integer-based features.
@@ -191,12 +225,11 @@ class HumidifierEntity(BaseEntity):
             Dict mapping feature key to its allowed values descriptor.
         """
         allowed: dict[str, dict] = {}
-        if self.available_modes:
-            sber_modes = [HA_TO_SBER_HUMIDIFIER_MODE.get(m.lower(), m.lower()) for m in self.available_modes]
-            # Deduplicate while preserving order
+        sber_modes = self._mapped_air_flow_values()
+        if sber_modes:
             allowed["hvac_air_flow_power"] = {
                 "type": "ENUM",
-                "enum_values": {"values": list(dict.fromkeys(sber_modes))},
+                "enum_values": {"values": sber_modes},
             }
         allowed["hvac_humidity_set"] = {
             "type": "INTEGER",
@@ -228,17 +261,18 @@ class HumidifierEntity(BaseEntity):
         if self.target_humidity is not None:
             states.append(make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(round(self.target_humidity))))
         if self.mode:
-            sber_mode = HA_TO_SBER_HUMIDIFIER_MODE.get(self.mode.lower(), self.mode.lower())
-            states.append(make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(sber_mode)))
+            sber_mode = HA_TO_SBER_HUMIDIFIER_MODE.get(self.mode.lower())
+            if sber_mode is not None:
+                states.append(make_state(SberFeature.HVAC_AIR_FLOW_POWER, make_enum_value(sber_mode)))
         if self._has_night_mode:
-            is_night = self.mode in ("sleep", "night")
+            is_night = self.mode is not None and self.mode.lower() in ("sleep", "night")
             states.append(make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(is_night)))
         if self._water_percentage is not None:
             states.append(make_state(SberFeature.HVAC_WATER_PERCENTAGE, make_integer_value(self._water_percentage)))
         if self._water_low_level is not None:
             states.append(make_state(SberFeature.HVAC_WATER_LOW_LEVEL, make_bool_value(self._water_low_level)))
-        if self._child_lock is not None:
-            states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
+        # child_lock state intentionally not published (off-spec for
+        # hvac_humidifier — issue #44 audit).
         return {self.entity_id: {"states": states}}
 
     @property
@@ -280,9 +314,10 @@ class HumidifierEntity(BaseEntity):
     def _cmd_night_mode(self, value: dict) -> list[dict]:
         night_on = value.get("bool_value", False)
         if night_on:
-            mode = "sleep" if "sleep" in self.available_modes else "night"
+            night_modes = [m for m in self.available_modes if m.lower() in ("sleep", "night")]
+            mode = night_modes[0] if night_modes else "night"
             return [self._build_service_call("humidifier", "set_mode", self.entity_id, {"mode": mode})]
-        normal_modes = [m for m in self.available_modes if m not in ("sleep", "night")]
+        normal_modes = [m for m in self.available_modes if m.lower() not in ("sleep", "night")]
         if not normal_modes:
             return []
         return [self._build_service_call("humidifier", "set_mode", self.entity_id, {"mode": normal_modes[0]})]

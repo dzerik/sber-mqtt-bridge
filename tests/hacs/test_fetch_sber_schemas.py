@@ -59,9 +59,7 @@ class TestBuildUsedInCategories:
 
     def test_single_category_single_feature(self, scraper):
         """One category with one feature → feature maps to that category."""
-        result = scraper.build_used_in_categories(
-            {"light": {"all_features": ["on_off"]}}
-        )
+        result = scraper.build_used_in_categories({"light": {"all_features": ["on_off"]}})
         assert result == {"on_off": ["light"]}
 
     def test_feature_shared_by_multiple_categories(self, scraper):
@@ -138,6 +136,5 @@ class TestScraperExports:
             "keep the invariant that it stays gone."
         )
         assert not hasattr(scraper, "_CATEGORY_MARKER"), (
-            "_CATEGORY_MARKER only made sense with _parse_categories_from_text; "
-            "must not come back as dead code."
+            "_CATEGORY_MARKER only made sense with _parse_categories_from_text; must not come back as dead code."
         )

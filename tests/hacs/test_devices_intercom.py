@@ -57,10 +57,8 @@ class TestIntercomFillState(unittest.TestCase):
 
     def test_reads_call_attrs(self):
         entity = IntercomEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("on", incoming_call=True, unlock=True))
+        entity.fill_by_ha_state(_make_ha_state("on", incoming_call=True))
         self.assertTrue(entity._incoming_call)
-        self.assertTrue(entity._unlock)
-        self.assertFalse(entity._reject_call)
 
 
 class TestIntercomToSberCurrentState(unittest.TestCase):
@@ -75,8 +73,17 @@ class TestIntercomToSberCurrentState(unittest.TestCase):
         self.assertTrue(on_off["value"]["bool_value"])
         call = next(s for s in states if s["key"] == "incoming_call")
         self.assertTrue(call["value"]["bool_value"])
-        unlock = next(s for s in states if s["key"] == "unlock")
-        self.assertFalse(unlock["value"]["bool_value"])
+
+    def test_command_only_features_have_no_state(self):
+        """reject_call / unlock are command-only ENUM functions per the Sber
+        spec («не хранит состояние устройства») — publishing them as BOOL
+        states contradicted their declared type (issue #44 audit)."""
+        entity = IntercomEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", incoming_call=True))
+        states = entity.to_sber_current_state()["switch.intercom"]["states"]
+        keys = [s["key"] for s in states]
+        self.assertNotIn("reject_call", keys)
+        self.assertNotIn("unlock", keys)
 
     def test_unavailable_offline(self):
         entity = IntercomEntity(ENTITY_DATA)
@@ -117,4 +124,35 @@ class TestIntercomProcessCmd(unittest.TestCase):
     def test_cmd_empty_states(self):
         entity = self._make_entity()
         result = entity.process_cmd({"states": []})
+        self.assertEqual(result, [])
+
+    def test_cmd_unlock_on_switch_turns_on(self):
+        """unlock ENUM command on a switch-backed intercom maps to turn_on."""
+        entity = self._make_entity()
+        result = entity.process_cmd({"states": [{"key": "unlock", "value": {"type": "ENUM", "enum_value": "unlock"}}]})
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "turn_on")
+        self.assertEqual(result[0]["url"]["domain"], "switch")
+
+    def test_cmd_unlock_on_lock_uses_lock_unlock(self):
+        """unlock ENUM command on a lock-backed intercom maps to lock.unlock."""
+        entity = IntercomEntity({"entity_id": "lock.intercom", "name": "Intercom Lock"})
+        entity.fill_by_ha_state({"entity_id": "lock.intercom", "state": "locked", "attributes": {}})
+        result = entity.process_cmd({"states": [{"key": "unlock", "value": {"type": "ENUM", "enum_value": "unlock"}}]})
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "unlock")
+        self.assertEqual(result[0]["url"]["domain"], "lock")
+
+    def test_cmd_reject_call_acknowledged(self):
+        """reject_call has no HA mapping — acknowledged via update_state."""
+        entity = self._make_entity()
+        result = entity.process_cmd(
+            {"states": [{"key": "reject_call", "value": {"type": "ENUM", "enum_value": "reject"}}]}
+        )
+        self.assertEqual(result, [{"update_state": True}])
+
+    def test_cmd_unlock_wrong_type_ignored(self):
+        """unlock with a non-ENUM payload is ignored."""
+        entity = self._make_entity()
+        result = entity.process_cmd({"states": [{"key": "unlock", "value": {"type": "BOOL", "bool_value": True}}]})
         self.assertEqual(result, [])

@@ -895,21 +895,15 @@ class TestSensorAirCompliance:
         states = payload[self.ENTITY_ID]["states"]
         emitted = {s["key"] for s in states}
 
-        spec = json.loads(
-            Path("tests/hacs/__snapshots__/sber_full_spec.json").read_text()
-        )
+        spec = json.loads(Path("tests/hacs/__snapshots__/sber_full_spec.json").read_text())
         air = spec["categories"]["sensor_air"]
         all_features = set(air["all_features"])
         obligatory = set(air["obligatory"])
 
         # Every emitted key must be a known Sber feature for sensor_air
-        assert emitted <= all_features, (
-            f"SensorAirEntity emitted unknown features: {emitted - all_features}"
-        )
+        assert emitted <= all_features, f"SensorAirEntity emitted unknown features: {emitted - all_features}"
         # Strict obligatory ({online}) must be present
-        assert obligatory <= emitted, (
-            f"Missing strict-obligatory features: {obligatory - emitted}"
-        )
+        assert obligatory <= emitted, f"Missing strict-obligatory features: {obligatory - emitted}"
 
     def test_read_only_no_commands(self):
         """Air sensor must not process commands."""
@@ -973,11 +967,12 @@ class TestCurtainCompliance:
         features = entity.get_final_features_list()
         assert "open_rate" in features
 
-    def test_features_with_tilt(self):
-        """light_transmission_percentage feature when tilt position attr present."""
+    def test_features_without_tilt_off_spec(self):
+        """light_transmission_percentage is window_blind-only per the Sber
+        spec — the curtain category must not advertise it (issue #44 audit)."""
         entity = self._make_entity(current_tilt_position=50)
         features = entity.get_final_features_list()
-        assert "light_transmission_percentage" in features
+        assert "light_transmission_percentage" not in features
 
     def test_open_percentage_integer_value_is_string(self):
         """CRITICAL: open_percentage integer_value must be a string."""
@@ -1158,11 +1153,11 @@ class TestCurtainCompliance:
         _assert_config_has_required_fields(config)
         assert config["model"]["category"] == "curtain"
 
-    def test_tilt_position_integer_value_is_string(self):
-        """light_transmission_percentage integer_value must be string."""
+    def test_tilt_position_not_published_off_spec(self):
+        """curtain category must not publish light_transmission_percentage."""
         entity = self._make_entity(current_tilt_position=45)
         states = _get_states(entity, self.ENTITY_ID)
-        _assert_integer_value_is_string(states, "light_transmission_percentage")
+        assert _find_state(states, "light_transmission_percentage") is None
 
 
 # ---------------------------------------------------------------------------

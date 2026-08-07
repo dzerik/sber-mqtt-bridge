@@ -133,9 +133,18 @@ class LightEntity(BaseEntity):
         attrs = ha_state.get("attributes", {})
         self._apply_attr_specs(attrs)
 
-        # Update color_temp converter limits from entity-specific mireds range
-        self.max_mireds = attrs.get("max_mireds", 500)
-        self.min_mireds = attrs.get("min_mireds", 153)
+        # Update color_temp converter limits.  Modern HA (≥2026) publishes
+        # only kelvin attributes; mireds are a legacy fallback (issue #44
+        # audit — CCT state was silently unparsed on current HA).
+        min_kelvin = _safe_int_parser(attrs.get("min_color_temp_kelvin"))
+        max_kelvin = _safe_int_parser(attrs.get("max_color_temp_kelvin"))
+        if min_kelvin and max_kelvin:
+            # Kelvin and mireds are reciprocal: min_kelvin → max_mireds.
+            self.min_mireds = round(1_000_000 / max_kelvin)
+            self.max_mireds = round(1_000_000 / min_kelvin)
+        else:
+            self.max_mireds = attrs.get("max_mireds", 500)
+            self.min_mireds = attrs.get("min_mireds", 153)
         if self.max_mireds is not None and self.min_mireds is not None:
             self.color_temp_converter.set_ha_limits(self.min_mireds, self.max_mireds)
 
@@ -145,10 +154,13 @@ class LightEntity(BaseEntity):
         # Apply LinearConverter to raw brightness → Sber scale
         self.current_sber_brightness = self.brightness_converter.ha_to_sber(self._ha_brightness_raw)
 
-        # Apply LinearConverter to raw color_temp → Sber scale
-        ha_color_temp = attrs.get("color_temp")
-        if ha_color_temp is not None:
-            self.current_sber_color_temp = self.color_temp_converter.ha_to_sber(ha_color_temp)
+        # Apply LinearConverter to raw color_temp → Sber scale.  Prefer
+        # kelvin (authoritative in modern HA) over legacy mireds.
+        ha_kelvin = _safe_int_parser(attrs.get("color_temp_kelvin"))
+        if ha_kelvin:
+            self.current_sber_color_temp = self.color_temp_converter.ha_to_sber(round(1_000_000 / ha_kelvin))
+        elif attrs.get("color_temp") is not None:
+            self.current_sber_color_temp = self.color_temp_converter.ha_to_sber(attrs["color_temp"])
         else:
             self.current_sber_color_temp = None
 

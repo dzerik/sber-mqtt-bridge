@@ -7,6 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.42.0] - 2026-08-07
+
+Результаты полного аудита кодовой базы по мотивам issue #44: 12
+подтверждённых дефектов того же класса в других модулях + 2 найденных
+попутно. Все проверены адверсариальной верификацией и покрыты тестами.
+
+### Fixed
+
+- **light: цветовая температура не читалась на современном HA.** HA ≥2026
+  публикует только kelvin-атрибуты (`color_temp_kelvin`,
+  `min/max_color_temp_kelvin`) — mireds-атрибуты удалены. Мост читал
+  только mireds: состояние CCT не парсилось, лимиты конвертера оставались
+  дефолтными. Теперь kelvin в приоритете, mireds — legacy-fallback.
+- **climate: термостаты в режиме heat_cool.** `target_temperature`
+  читался только из `temperature`; термостаты с диапазоном публикуют
+  `target_temp_high/low` и `temperature: None`. Состояние берёт середину
+  диапазона; команда `hvac_temp_set` сдвигает диапазон, сохраняя ширину.
+- **climate: целевая влажность.** AttrSpec читал несуществующий атрибут
+  `target_humidity`; реальный HA-атрибут — `humidity` (ATTR_HUMIDITY).
+- **climate: горизонтальный swing (HA 2024.12+).** Устройства только с
+  `swing_horizontal_modes` не получали `hvac_air_flow_direction`; теперь
+  поддержаны как fallback через `climate.set_swing_horizontal_mode`.
+- **hvac_fan: фича скорости пропадала у выключенного вентилятора.**
+  `_supports_speed` зависел от текущего значения `percentage`, а не от
+  capability (`FanEntityFeature.SET_SPEED`); фича и allowed_values теперь
+  стабильны между on/off/unavailable.
+- **vacuum: батарея через linked sensor.** Атрибут `battery_level`
+  deprecated в HA (удаление 2026.8), мигрированные интеграции публикуют
+  батарею отдельным сенсором — добавлена роль линковки `battery`
+  (legacy-атрибут остаётся fallback'ом).
+- **humidifier: ночной режим с регистрозависимым сравнением.** Режим
+  `"Sleep"`/`"Night"` не давал `hvac_night_mode` — сравнение приведено к
+  общему регистронезависимому стилю маппинга.
+- **Системно: allowed_values сверяются с финальным списком фич** (в
+  `BaseEntity._build_model_descriptor`, для всех классов).
+  `sber_features_remove` фичи с allowed_values оставлял «осиротевший»
+  ключ — валидатор отклонял дескриптор и **устройство целиком молча
+  выпадало** из конфигурации Sber. Обратный случай (`sber_features_add`
+  без лимитов) теперь логирует WARNING о неработающем контроле.
+- **climate: ENUM-фичи без enum_values.** `hvac_work_mode` /
+  `hvac_thermostat_mode` объявлялись при любых непустых `hvac_modes`,
+  даже когда ни один режим не мапится в Sber-значения (например, boiler
+  с `["off", "cool"]`) — фича и allowed_values теперь строятся из одного
+  условия (mapped-режимы).
+- **Немаппленные HA-режимы утекали в Sber enum.** `fan_modes` /
+  `swing_modes` (climate) и `available_modes` (humidifier) со
+  строками вида `"MyWeirdMode"` попадали в enum_values и состояния как
+  есть — не-Sber значения отфильтрованы из allowed_values и состояний.
+  Стандартные HA-режимы humidifier получили маппинг: `normal`/`comfort`
+  → `medium`, `eco` → `quiet`.
+- **intercom: reject_call/unlock публиковались как BOOL.** По спеке Sber
+  это command-only ENUM-функции («не хранит состояние») — их состояния
+  больше не публикуются; добавлены обработчики команд: `unlock` →
+  `lock.unlock` (для lock) / `turn_on` (для switch), `reject_call` —
+  подтверждение без действия.
+- **Фичи вне спеки категории** (риск молчаливого отклонения устройства):
+  `light_transmission_percentage` теперь только у `window_blind`
+  (не curtain/gate); battery-фичи убраны у `gate` (в спеке только
+  signal_strength); `child_lock` убран у `relay`, `climate` (все hvac_*)
+  и `humidifier` — по каталогу функций Sber он есть только у
+  socket/kettle/vacuum_cleaner; `hvac_night_mode` ограничен `hvac_ac`;
+  энергофичи (power/voltage/current) ограничены relay/socket.
+- **model_id коллизии для instance-specific allowed_values.** climate,
+  humidifier и vacuum имеют лимиты/списки режимов из HA-атрибутов —
+  устройства одной модели с разными allowed_values молча отклонялись
+  Sber cloud; теперь их model_id получает уникальный суффикс (как у TV
+  с source_list).
+
+### Added
+
+- **curtain/window_blind/gate: `open_rate` с эталонными enum_values**
+  `["auto", "low", "high"]` (раньше ENUM-фича объявлялась без значений —
+  «мёртвый» контрол) и `light_transmission_percentage` с лимитами
+  `0–100` у window_blind.
+
 ## [1.41.0] - 2026-08-07
 
 ### Fixed

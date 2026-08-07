@@ -158,6 +158,17 @@ class BatteryAndSignalLinkMixin:
             states.append(make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(battery_low)))
         elif self._battery_low is not None:
             states.append(make_state(SberFeature.BATTERY_LOW_POWER, make_bool_value(self._battery_low)))
+        self._append_signal_strength_state(states)
+
+    def _append_signal_strength_state(self, states: list) -> None:
+        """Extend ``states`` with the ``signal_strength`` entry alone.
+
+        For categories whose Sber spec has signal_strength but no battery
+        features (e.g. ``gate``) — battery states must not be emitted.
+
+        Args:
+            states: Mutable states list to extend in-place.
+        """
         if self._signal_strength_raw is not None:
             states.append(
                 make_state(

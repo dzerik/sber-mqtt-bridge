@@ -326,63 +326,196 @@ class TestClimateProcessCmd(unittest.TestCase):
 
 
 class TestClimateChildLock(unittest.TestCase):
-    """Test child_lock feature in ClimateEntity."""
+    """child_lock is off-spec for every hvac_* Sber category (issue #44 audit)."""
 
-    def test_child_lock_feature_present(self):
-        """Climate with child_lock=True must include child_lock in features."""
+    def test_child_lock_never_advertised(self):
+        """Even with the HA attribute present, child_lock is not a climate feature."""
         entity = ClimateEntity(ENTITY_DATA)
         ha = _make_ha_state()
         ha["attributes"]["child_lock"] = True
         entity.fill_by_ha_state(ha)
-        features = entity.get_final_features_list()
-        self.assertIn("child_lock", features)
+        self.assertNotIn("child_lock", entity.get_final_features_list())
 
-    def test_child_lock_feature_present_when_false(self):
-        """Climate with child_lock=False must still include child_lock in features."""
-        entity = ClimateEntity(ENTITY_DATA)
-        ha = _make_ha_state()
-        ha["attributes"]["child_lock"] = False
-        entity.fill_by_ha_state(ha)
-        features = entity.get_final_features_list()
-        self.assertIn("child_lock", features)
-
-    def test_child_lock_feature_absent(self):
-        """Climate without child_lock attribute must not include it."""
-        entity = ClimateEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state())
-        features = entity.get_final_features_list()
-        self.assertNotIn("child_lock", features)
-
-    def test_child_lock_true_in_state(self):
-        """child_lock=True must produce child_lock=True in Sber state."""
+    def test_child_lock_never_in_state(self):
+        """child_lock must not appear in the published Sber state."""
         entity = ClimateEntity(ENTITY_DATA)
         ha = _make_ha_state()
         ha["attributes"]["child_lock"] = True
         entity.fill_by_ha_state(ha)
-        result = entity.to_sber_current_state()
-        states = result["climate.ac"]["states"]
-        cl = next(s for s in states if s["key"] == "child_lock")
-        self.assertTrue(cl["value"]["bool_value"])
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
+        self.assertNotIn("child_lock", [s["key"] for s in states])
 
-    def test_child_lock_false_in_state(self):
-        """child_lock=False must produce child_lock=False in Sber state."""
+
+class TestClimateHeatCoolRange(unittest.TestCase):
+    """Test heat_cool thermostats publishing target_temp_high/low instead of temperature."""
+
+    def _range_state(self, low=20.0, high=24.0, temperature=None):
+        ha = _make_ha_state(state="heat_cool", temperature=temperature)
+        ha["attributes"]["target_temp_low"] = low
+        ha["attributes"]["target_temp_high"] = high
+        return ha
+
+    def test_target_temperature_from_range_midpoint(self):
+        """temperature=None with target_temp_high/low yields their midpoint."""
         entity = ClimateEntity(ENTITY_DATA)
-        ha = _make_ha_state()
-        ha["attributes"]["child_lock"] = False
-        entity.fill_by_ha_state(ha)
-        result = entity.to_sber_current_state()
-        states = result["climate.ac"]["states"]
-        cl = next(s for s in states if s["key"] == "child_lock")
-        self.assertFalse(cl["value"]["bool_value"])
+        entity.fill_by_ha_state(self._range_state(low=20.0, high=24.0))
+        self.assertEqual(entity.target_temperature, 22.0)
 
-    def test_child_lock_not_in_state_when_absent(self):
-        """Without child_lock attribute, it must not appear in Sber state."""
+    def test_state_hvac_temp_set_from_range(self):
+        """Sber hvac_temp_set state is built from the range midpoint."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._range_state(low=20.0, high=24.0))
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
+        temp_set = next(s for s in states if s["key"] == "hvac_temp_set")
+        self.assertEqual(temp_set["value"]["integer_value"], "22")
+
+    def test_explicit_temperature_takes_precedence(self):
+        """When both temperature and range are present, temperature wins."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._range_state(low=20.0, high=24.0, temperature=23.0))
+        self.assertEqual(entity.target_temperature, 23.0)
+
+    def test_cmd_temp_set_shifts_range(self):
+        """temp_set command in range mode shifts the range keeping its width."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._range_state(low=20.0, high=24.0))
+        result = entity.process_cmd({"states": [{"key": "hvac_temp_set", "value": {"integer_value": 25}}]})
+        self.assertEqual(len(result), 1)
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "set_temperature")
+        # midpoint 22 -> 25 => delta +3, width preserved (4 degrees)
+        self.assertEqual(url["service_data"]["target_temp_low"], 23.0)
+        self.assertEqual(url["service_data"]["target_temp_high"], 27.0)
+        self.assertNotIn("temperature", url["service_data"])
+
+    def test_cmd_temp_set_plain_when_temperature_present(self):
+        """With an explicit temperature attribute the plain command is used."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._range_state(low=20.0, high=24.0, temperature=23.0))
+        result = entity.process_cmd({"states": [{"key": "hvac_temp_set", "value": {"integer_value": 25}}]})
+        url = result[0]["url"]
+        self.assertEqual(url["service_data"], {"temperature": 25.0})
+
+    def test_cmd_temp_set_plain_without_range(self):
+        """Without target_temp_high/low the plain set_temperature is kept."""
         entity = ClimateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
-        result = entity.to_sber_current_state()
-        states = result["climate.ac"]["states"]
+        result = entity.process_cmd({"states": [{"key": "hvac_temp_set", "value": {"integer_value": 25}}]})
+        url = result[0]["url"]
+        self.assertEqual(url["service_data"], {"temperature": 25.0})
+
+
+class TestClimateHumiditySet(unittest.TestCase):
+    """Test hvac_humidity_set reads the real HA target humidity attribute."""
+
+    def test_target_humidity_from_humidity_attr(self):
+        """HA climate publishes target humidity as 'humidity' (ATTR_HUMIDITY)."""
+        entity = ClimateEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["humidity"] = 45
+        entity.fill_by_ha_state(ha)
+        features = entity.get_final_features_list()
+        self.assertIn("hvac_humidity_set", features)
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
+        hum = next(s for s in states if s["key"] == "hvac_humidity_set")
+        self.assertEqual(hum["value"]["integer_value"], "45")
+
+    def test_target_humidity_fallback_key(self):
+        """Legacy 'target_humidity' key is kept as a fallback."""
+        entity = ClimateEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["target_humidity"] = 50
+        entity.fill_by_ha_state(ha)
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
+        hum = next(s for s in states if s["key"] == "hvac_humidity_set")
+        self.assertEqual(hum["value"]["integer_value"], "50")
+
+    def test_no_humidity_feature_without_attrs(self):
+        """No humidity attributes -> no hvac_humidity_set feature."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state())
+        self.assertNotIn("hvac_humidity_set", entity.get_final_features_list())
+
+
+class TestClimateHorizontalSwing(unittest.TestCase):
+    """Test swing_horizontal_modes fallback (HA 2024.12+) for hvac_air_flow_direction."""
+
+    def _horizontal_state(self, modes=None, mode="horizontal"):
+        if modes is None:
+            modes = ["off", "horizontal", "swing"]
+        ha = _make_ha_state(swing_modes=[], swing_mode=None)
+        ha["attributes"]["swing_horizontal_modes"] = modes
+        ha["attributes"]["swing_horizontal_mode"] = mode
+        return ha
+
+    def test_feature_present_with_horizontal_only(self):
+        """Device with only horizontal swing gets hvac_air_flow_direction."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._horizontal_state())
+        self.assertIn("hvac_air_flow_direction", entity.get_final_features_list())
+
+    def test_allowed_values_only_mapped_modes(self):
+        """Allowed values include only modes with a known Sber mapping."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._horizontal_state(modes=["off", "on", "horizontal", "swing"]))
+        av = entity.create_allowed_values_list()
+        self.assertIn("hvac_air_flow_direction", av)
+        # "on" has no Sber mapping and must be filtered out
+        self.assertEqual(av["hvac_air_flow_direction"]["enum_values"]["values"], ["no", "horizontal", "swing"])
+
+    def test_state_from_horizontal_mode(self):
+        """Current horizontal mode maps into hvac_air_flow_direction state."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._horizontal_state(mode="horizontal"))
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
+        direction = next(s for s in states if s["key"] == "hvac_air_flow_direction")
+        self.assertEqual(direction["value"]["enum_value"], "horizontal")
+
+    def test_state_skips_unmapped_horizontal_mode(self):
+        """Unmapped current horizontal mode produces no direction state."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._horizontal_state(mode="on"))
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
         keys = [s["key"] for s in states]
-        self.assertNotIn("child_lock", keys)
+        self.assertNotIn("hvac_air_flow_direction", keys)
+
+    def test_cmd_goes_to_set_swing_horizontal_mode(self):
+        """Direction command routes to climate.set_swing_horizontal_mode."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._horizontal_state())
+        result = entity.process_cmd({"states": [{"key": "hvac_air_flow_direction", "value": {"enum_value": "swing"}}]})
+        self.assertEqual(len(result), 1)
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "set_swing_horizontal_mode")
+        self.assertEqual(url["service_data"]["swing_horizontal_mode"], "swing")
+
+    def test_cmd_rejects_mode_not_in_horizontal_list(self):
+        """Command for a mode absent from swing_horizontal_modes is rejected."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._horizontal_state(modes=["off", "horizontal"]))
+        result = entity.process_cmd({"states": [{"key": "hvac_air_flow_direction", "value": {"enum_value": "swing"}}]})
+        self.assertEqual(result, [])
+
+    def test_no_feature_when_nothing_mappable(self):
+        """Only unmappable horizontal modes -> feature is not added."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._horizontal_state(modes=["on", "wide"]))
+        self.assertNotIn("hvac_air_flow_direction", entity.get_final_features_list())
+        self.assertNotIn("hvac_air_flow_direction", entity.create_allowed_values_list())
+
+    def test_vertical_swing_takes_precedence(self):
+        """When swing_modes are present, the vertical path is used for commands."""
+        entity = ClimateEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["swing_horizontal_modes"] = ["off", "horizontal"]
+        ha["attributes"]["swing_horizontal_mode"] = "off"
+        entity.fill_by_ha_state(ha)
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_air_flow_direction", "value": {"enum_value": "vertical"}}]}
+        )
+        url = result[0]["url"]
+        self.assertEqual(url["service"], "set_swing_mode")
+        self.assertEqual(url["service_data"]["swing_mode"], "vertical")
 
 
 class TestClimateProcessStateChange(unittest.TestCase):

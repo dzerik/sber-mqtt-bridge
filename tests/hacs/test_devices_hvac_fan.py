@@ -43,6 +43,80 @@ class TestHvacFanCreate(unittest.TestCase):
         self.assertNotIn("hvac_air_flow_power", features)
 
 
+class TestHvacFanSpeedCapability(unittest.TestCase):
+    """Speed capability must be derived from capabilities, not current values.
+
+    Regression tests for the bug where a fan turned off (percentage=None)
+    lost the hvac_air_flow_power feature and was republished without it.
+    """
+
+    def test_off_fan_with_set_speed_keeps_feature(self):
+        """Off fan (percentage=None) with SET_SPEED bit keeps speed feature."""
+        entity = HvacFanEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("off", supported_features=1, percentage=None, percentage_step=25))
+        features = entity.get_final_features_list()
+        self.assertIn("hvac_air_flow_power", features)
+
+    def test_off_fan_with_set_speed_keeps_allowed_values(self):
+        """Off fan (percentage=None) with SET_SPEED bit keeps allowed_values."""
+        entity = HvacFanEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("off", supported_features=1, percentage=None))
+        allowed = entity.create_allowed_values_list()
+        self.assertIn("hvac_air_flow_power", allowed)
+
+    def test_supported_features_bitmask_alone_enables_feature(self):
+        """SET_SPEED bit is enough even without percentage attribute keys."""
+        entity = HvacFanEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("off", supported_features=49))  # SET_SPEED|TURN_OFF|TURN_ON
+        self.assertIn("hvac_air_flow_power", entity.get_final_features_list())
+
+    def test_percentage_key_presence_enables_feature(self):
+        """Presence of 'percentage' key (even None) marks the fan speed-capable."""
+        entity = HvacFanEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("off", percentage=None))
+        self.assertIn("hvac_air_flow_power", entity.get_final_features_list())
+
+    def test_no_set_speed_no_feature(self):
+        """Fan without SET_SPEED bit and without speed attributes has no speed feature."""
+        entity = HvacFanEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", supported_features=48))  # TURN_OFF|TURN_ON only
+        features = entity.get_final_features_list()
+        self.assertNotIn("hvac_air_flow_power", features)
+        self.assertNotIn("hvac_air_flow_power", entity.create_allowed_values_list())
+
+    def test_feature_stable_across_off_on_cycle(self):
+        """Feature list stays identical when fan goes on -> off -> on."""
+        entity = HvacFanEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", supported_features=1, percentage=50))
+        features_on = entity.get_final_features_list()
+        entity.fill_by_ha_state(_make_ha_state("off", supported_features=1, percentage=None))
+        features_off = entity.get_final_features_list()
+        self.assertEqual(features_on, features_off)
+        self.assertIn("hvac_air_flow_power", features_off)
+
+    def test_feature_stable_across_unavailable(self):
+        """Capability persists when the fan becomes unavailable (empty attrs)."""
+        entity = HvacFanEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", supported_features=1, percentage=50))
+        entity.fill_by_ha_state(_make_ha_state("unavailable"))
+        self.assertIn("hvac_air_flow_power", entity.get_final_features_list())
+
+    def test_off_fan_percentage_none_sends_no_speed_state(self):
+        """Speed-capable fan with unknown speed does not report a speed state."""
+        entity = HvacFanEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("off", supported_features=1, percentage=None))
+        states = entity.to_sber_current_state()["fan.living_room"]["states"]
+        self.assertNotIn("hvac_air_flow_power", [s["key"] for s in states])
+
+    def test_on_fan_percentage_still_reports_speed_state(self):
+        """Known percentage still produces a speed state as before."""
+        entity = HvacFanEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", supported_features=1, percentage=50))
+        states = entity.to_sber_current_state()["fan.living_room"]["states"]
+        speed = next(s for s in states if s["key"] == "hvac_air_flow_power")
+        self.assertEqual(speed["value"]["enum_value"], "medium")
+
+
 class TestHvacFanToSberCurrentState(unittest.TestCase):
     """Test to_sber_current_state."""
 

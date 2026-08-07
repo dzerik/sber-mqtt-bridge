@@ -1,18 +1,22 @@
 """Sber Vacuum Cleaner entity -- maps HA vacuum entities to Sber vacuum_cleaner category.
 
 Supports start/stop/pause/return_to_base commands, status reporting,
-cleaning program (fan speed), and battery level.
+cleaning program (fan speed), and battery level. Battery is sourced from
+the deprecated HA vacuum ``battery_level`` attribute (legacy fallback,
+removal planned in HA 2026.8) or from a linked battery sensor entity via
+the ``battery`` link role.
 """
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Callable
 from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
-from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_int_parser
+from .base_entity import ROLE_BATTERY, AttrSpec, BaseEntity, CommandResult, _safe_int_parser
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,7 +52,16 @@ class VacuumCleanerEntity(BaseEntity):
     - Start/stop/pause/return_to_base commands
     - Status reporting (cleaning, charging, docked, returning, error, paused)
     - Cleaning program (fan speed)
-    - Battery percentage
+    - Battery percentage (legacy ``battery_level`` attribute or linked
+      battery sensor via the ``battery`` link role)
+    """
+
+    LINKABLE_ROLES = (ROLE_BATTERY,)
+    """Linked companion roles: a battery sensor supplies ``battery_percentage``.
+
+    HA deprecated the vacuum ``battery_level`` attribute (removal in
+    2026.8); migrated integrations expose battery as a separate sensor
+    entity, which users link here.
     """
 
     ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
@@ -65,6 +78,7 @@ class VacuumCleanerEntity(BaseEntity):
             field="_battery_level",
             attr_keys=("battery_level",),
             parser=_safe_int_parser,
+            preserve_on_missing=True,
         ),
         AttrSpec(
             field="_cleaning_type",
@@ -97,6 +111,24 @@ class VacuumCleanerEntity(BaseEntity):
         ha_status = ha_state.get("state", "")
         self._status = _HA_STATE_TO_SBER_STATUS.get(ha_status, "standby")
 
+    def update_linked_data(self, role: str, ha_state: dict) -> None:
+        """Inject battery percentage from a linked battery sensor entity.
+
+        HA deprecated the vacuum ``battery_level`` attribute; migrated
+        integrations publish battery as a separate sensor entity. When
+        such a sensor is linked with the ``battery`` role, its state
+        feeds the Sber ``battery_percentage`` feature.
+
+        Args:
+            role: Link role name (only ``battery`` is handled).
+            ha_state: HA state dict with 'state' containing the reading.
+        """
+        if role == "battery":
+            state_val = ha_state.get("state")
+            if state_val not in (None, "unknown", "unavailable"):
+                with contextlib.suppress(TypeError, ValueError):
+                    self._battery_level = int(float(state_val))
+
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list for vacuum capabilities.
 
@@ -115,6 +147,14 @@ class VacuumCleanerEntity(BaseEntity):
         if self._battery_level is not None:
             features.append("battery_percentage")
         return features
+
+    def _has_instance_allowed_values(self) -> bool:
+        """Vacuum program list (fan_speed_list) varies per device.
+
+        Devices sharing a model_id with different allowed_values get
+        silently rejected by Sber cloud (issue #44 audit).
+        """
+        return bool(self._fan_speed_list)
 
     def create_allowed_values_list(self) -> dict[str, dict]:
         """Build allowed values map for vacuum features.

@@ -40,6 +40,16 @@ class OnOffEntity(BaseEntity):
     _ha_on_state: str = "on"
     """HA state string that corresponds to 'on' (override in subclass if needed)."""
 
+    _CHILD_LOCK_CATEGORIES = frozenset({"socket"})
+    """Sber categories whose spec includes ``child_lock``.
+
+    Per the Sber functions catalog, ``child_lock`` exists only for
+    ``socket`` / ``kettle`` / ``vacuum_cleaner`` — advertising it on
+    ``relay`` risks silent device rejection (issue #44 audit)."""
+
+    _ENERGY_CATEGORIES = frozenset({"relay", "socket"})
+    """Sber categories whose spec includes power / voltage / current."""
+
     ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
         AttrSpec(field="_power", attr_keys=("power",), parser=_safe_int_parser),
         AttrSpec(field="_voltage", attr_keys=("voltage",), parser=_safe_int_parser),
@@ -79,17 +89,22 @@ class OnOffEntity(BaseEntity):
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list including 'on_off' and optional features.
 
+        Energy and child_lock features are gated by category: the Sber
+        spec declares power/voltage/current only for relay/socket and
+        ``child_lock`` only for socket-like categories (issue #44 audit).
+
         Returns:
             List of Sber feature strings supported by this entity.
         """
         features = [*super()._create_features_list(), "on_off"]
-        if self._power is not None:
-            features.append("power")
-        if self._voltage is not None:
-            features.append("voltage")
-        if self._current is not None:
-            features.append("current")
-        if self._child_lock is not None:
+        if self.category in self._ENERGY_CATEGORIES:
+            if self._power is not None:
+                features.append("power")
+            if self._voltage is not None:
+                features.append("voltage")
+            if self._current is not None:
+                features.append("current")
+        if self._child_lock is not None and self.category in self._CHILD_LOCK_CATEGORIES:
             features.append("child_lock")
         return features
 
@@ -103,12 +118,13 @@ class OnOffEntity(BaseEntity):
             make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
             make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
         ]
-        if self._power is not None:
-            states.append(make_state(SberFeature.POWER, make_integer_value(self._power)))
-        if self._voltage is not None:
-            states.append(make_state(SberFeature.VOLTAGE, make_integer_value(self._voltage)))
-        if self._current is not None:
-            states.append(make_state(SberFeature.CURRENT, make_integer_value(self._current)))
-        if self._child_lock is not None:
+        if self.category in self._ENERGY_CATEGORIES:
+            if self._power is not None:
+                states.append(make_state(SberFeature.POWER, make_integer_value(self._power)))
+            if self._voltage is not None:
+                states.append(make_state(SberFeature.VOLTAGE, make_integer_value(self._voltage)))
+            if self._current is not None:
+                states.append(make_state(SberFeature.CURRENT, make_integer_value(self._current)))
+        if self._child_lock is not None and self.category in self._CHILD_LOCK_CATEGORIES:
             states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}

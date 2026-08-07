@@ -458,6 +458,82 @@ class TestLightAllowedValues(unittest.TestCase):
         self.assertIn("light_colour", av)
 
 
+class TestKelvinAttributes(unittest.TestCase):
+    """Modern HA publishes only *_kelvin color-temp attributes (no mireds).
+
+    HA ≥2026 dropped ``color_temp`` / ``min_mireds`` / ``max_mireds`` from
+    light state attributes — the bridge must read ``color_temp_kelvin`` /
+    ``min_color_temp_kelvin`` / ``max_color_temp_kelvin`` (audit of #44).
+    """
+
+    def _kelvin_state(self, kelvin=3000, min_kelvin=2000, max_kelvin=6500):
+        return {
+            "entity_id": "light.room",
+            "state": "on",
+            "attributes": {
+                "brightness": 200,
+                "color_temp_kelvin": kelvin,
+                "min_color_temp_kelvin": min_kelvin,
+                "max_color_temp_kelvin": max_kelvin,
+                "supported_color_modes": ["color_temp"],
+                "color_mode": "color_temp",
+            },
+        }
+
+    def test_kelvin_only_state_parses_color_temp(self):
+        """Without mireds attrs, color temp state is still parsed."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._kelvin_state())
+        self.assertIsNotNone(entity.current_sber_color_temp)
+
+    def test_kelvin_limits_update_converter(self):
+        """Kelvin limits are converted to mireds for the converter.
+
+        min_kelvin=2000 → max_mireds=500; max_kelvin=6500 → min_mireds≈154.
+        """
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._kelvin_state(min_kelvin=2000, max_kelvin=6500))
+        self.assertEqual(entity.color_temp_converter.ha_side_max, 500)
+        self.assertEqual(entity.color_temp_converter.ha_side_min, 154)
+
+    def test_kelvin_edges_map_to_sber_scale_edges(self):
+        """Coldest kelvin → sber 1000, warmest kelvin → sber 0 (reversed)."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(self._kelvin_state(kelvin=6500))
+        self.assertEqual(entity.current_sber_color_temp, 1000)
+        entity.fill_by_ha_state(self._kelvin_state(kelvin=2000))
+        self.assertEqual(entity.current_sber_color_temp, 0)
+
+    def test_mireds_fallback_still_works(self):
+        """Legacy HA with mireds-only attributes keeps working."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(color_temp=300, min_mireds=153, max_mireds=500))
+        self.assertIsNotNone(entity.current_sber_color_temp)
+        self.assertEqual(entity.color_temp_converter.ha_side_min, 153)
+        self.assertEqual(entity.color_temp_converter.ha_side_max, 500)
+
+    def test_kelvin_preferred_over_mireds(self):
+        """When both present, kelvin wins (mireds are stale in modern HA)."""
+        entity = LightEntity(ENTITY_DATA)
+        state = self._kelvin_state(kelvin=2000)
+        state["attributes"]["color_temp"] = 153  # contradicts kelvin: says coldest
+        entity.fill_by_ha_state(state)
+        # kelvin=2000 == warmest => sber 0, mireds value must be ignored
+        self.assertEqual(entity.current_sber_color_temp, 0)
+
+    def test_no_color_temp_attrs_leaves_none(self):
+        """Absent color-temp attributes yield None state (feature off)."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "light.room",
+                "state": "on",
+                "attributes": {"supported_color_modes": ["color_temp"], "brightness": 100},
+            }
+        )
+        self.assertIsNone(entity.current_sber_color_temp)
+
+
 class TestColorTempOnlyBrightness(unittest.TestCase):
     """CCT-only lamps support brightness in HA — feature list must include it (issue #44)."""
 
