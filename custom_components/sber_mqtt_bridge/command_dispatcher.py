@@ -74,6 +74,73 @@ class BridgeCommandContext(Protocol):
 
 _LOGGER = logging.getLogger(__name__)
 
+_MAX_REDEF_VALUE_LEN = 128
+"""Maximum accepted length for cloud-supplied redefinition values
+(device name / home / room). Longer values are rejected to keep
+persistent ConfigEntry options bounded."""
+
+_MAX_ENTITY_ID_LEN = 255
+"""Maximum accepted length for a cloud-supplied device_id key."""
+
+
+def _parse_json_dict(payload: bytes | str, kind: str) -> dict | None:
+    """Parse a JSON payload and require a dict at the top level.
+
+    Args:
+        payload: Raw MQTT payload.
+        kind: Short label for log messages (e.g. ``change_group``).
+
+    Returns:
+        The parsed dict, or ``None`` if the payload is malformed JSON
+        or its top-level value is not an object.
+    """
+    try:
+        data = json.loads(payload)
+    except (json.JSONDecodeError, TypeError, UnicodeDecodeError) as exc:
+        _LOGGER.debug(
+            "Malformed %s payload (json): %r — %s",
+            kind,
+            payload[:200] if isinstance(payload, (bytes, str)) else payload,
+            exc,
+        )
+        return None
+    if not isinstance(data, dict):
+        _LOGGER.debug("Malformed %s payload: expected object, got %s", kind, type(data).__name__)
+        return None
+    return data
+
+
+def _sanitize_redef_value(value: object) -> str | None:
+    """Validate one cloud-supplied redefinition value.
+
+    Args:
+        value: Raw value from the Sber payload (any JSON type).
+
+    Returns:
+        The stripped string if it is a non-empty ``str`` within
+        :data:`_MAX_REDEF_VALUE_LEN`, otherwise ``None``.
+    """
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if not value or len(value) > _MAX_REDEF_VALUE_LEN:
+        return None
+    return value
+
+
+def _state_keys(cmd_data: object) -> str:
+    """Return a comma-joined summary of state keys for logging.
+
+    Tolerates arbitrary malformed input: non-dict ``cmd_data``,
+    non-list ``states`` and non-dict state items are skipped.
+    """
+    if not isinstance(cmd_data, dict):
+        return "?"
+    states = cmd_data.get("states")
+    if not isinstance(states, list):
+        return "?"
+    return ", ".join(str(s.get("key", "?")) for s in states if isinstance(s, dict))
+
 
 class SberCommandDispatcher:
     """Interprets incoming Sber MQTT payloads and dispatches side effects.
@@ -87,12 +154,19 @@ class SberCommandDispatcher:
         """Initialize the dispatcher bound to a bridge context."""
         self._bridge = bridge
 
-    async def handle_command(self, payload: bytes) -> None:
+    async def handle_command(self, payload: bytes, context: Context | None = None) -> None:
         """Handle a command from Sber cloud → execute HA service.
 
         During the reconnect grace period, commands are rejected and
         current HA states are re-published so that Sber cloud accepts
         HA as the authoritative source of truth.
+
+        Args:
+            payload: Raw MQTT payload from ``down/commands``.
+            context: Optional HA context to attribute the resulting
+                service calls to (e.g. a user-scoped context for
+                WS-initiated replays). A fresh anonymous ``Context``
+                is created when omitted.
         """
         bridge = self._bridge
         data = parse_sber_command(payload)
@@ -104,7 +178,8 @@ class SberCommandDispatcher:
 
         _LOGGER.debug("Sber command for %d device(s): %s", len(devices), list(devices.keys()))
 
-        context = Context()
+        if context is None:
+            context = Context()
         self._open_command_trace(devices, context)
 
         update_state_ids: list[str] = []
@@ -112,7 +187,11 @@ class SberCommandDispatcher:
             if await self._process_one_entity(entity_id, cmd_data, context):
                 update_state_ids.append(entity_id)
 
-        commanded_ids = [eid for eid in devices if eid in bridge._entities]
+        # Only well-formed (dict) command payloads participate in the echo
+        # ack — a single type-confused entry must not break the ack for the
+        # rest of the batch.
+        valid_devices = {eid: cmd for eid, cmd in devices.items() if isinstance(cmd, dict)}
+        commanded_ids = [eid for eid in valid_devices if eid in bridge._entities]
 
         if update_state_ids:
             await bridge._publisher.publish_states(update_state_ids, force=True)
@@ -124,7 +203,7 @@ class SberCommandDispatcher:
         # HA WLED integration with WLED 16.0.0 — see GitHub issue #35 and
         # HA core issue #170435).
         if commanded_ids:
-            await bridge._publisher.publish_command_echo(devices)
+            await bridge._publisher.publish_command_echo(valid_devices)
 
         self._schedule_confirms(commanded_ids)
 
@@ -150,7 +229,7 @@ class SberCommandDispatcher:
             "Ignoring Sber command (awaiting Sber ack after reconnect, "
             "HA state is authoritative): %s [%s] — re-publishing states",
             entity_ids,
-            ", ".join(s.get("key", "?") for cmd in devices.values() for s in cmd.get("states", [])),
+            "; ".join(_state_keys(cmd) for cmd in devices.values()),
         )
         if entity_ids:
             await bridge._publisher.publish_states(entity_ids, force=True)
@@ -169,8 +248,16 @@ class SberCommandDispatcher:
         )
         bridge._devtools.sweep_traces()
 
-    async def _process_one_entity(self, entity_id: str, cmd_data: dict, context: Context) -> bool:
+    async def _process_one_entity(self, entity_id: str, cmd_data: object, context: Context) -> bool:
         """Run process_cmd for one entity and dispatch the resulting service calls.
+
+        A failure while processing one entity (malformed ``cmd_data``,
+        a bug in a device class, an unexpected service-call error) is
+        logged and contained here so that the remaining entities of a
+        multi-device command batch, the echo ack and the delayed
+        confirms are still processed.  ``cmd_data`` is deliberately
+        typed ``object``: the runtime guard below narrows it to
+        ``dict`` before it reaches any device class.
 
         Returns:
             True if at least one result requested a state update (no ``url``,
@@ -183,30 +270,41 @@ class SberCommandDispatcher:
         if entity is None:
             _LOGGER.warning("Sber command for unknown entity: %s", entity_id)
             return False
+        if not isinstance(cmd_data, dict):
+            _LOGGER.warning(
+                "Sber command for %s has invalid payload type %s — skipping",
+                entity_id,
+                type(cmd_data).__name__,
+            )
+            return False
 
-        _LOGGER.info(
-            "Sber → HA command: %s [%s]",
-            entity_id,
-            ", ".join(s.get("key", "?") for s in cmd_data.get("states", [])),
-        )
+        _LOGGER.info("Sber → HA command: %s [%s]", entity_id, _state_keys(cmd_data))
 
         needs_state_update = False
-        for result in entity.process_cmd(cmd_data):
-            cmd = result.get("url")
-            if cmd is None:
-                if result.get("update_state"):
-                    needs_state_update = True
-                continue
-            await self._call_ha_service(entity_id, cmd, context)
-            bridge._devtools.trace_collector.record(
-                context.id,
-                type_="ha_service_call",
-                entity_id=entity_id,
-                payload={
-                    "domain": cmd.get("domain"),
-                    "service": cmd.get("service"),
-                    "service_data": cmd.get("service_data"),
-                },
+        try:
+            for result in entity.process_cmd(cmd_data):
+                cmd = result.get("url")
+                if cmd is None:
+                    if result.get("update_state"):
+                        needs_state_update = True
+                    continue
+                await self._call_ha_service(entity_id, cmd, context)
+                bridge._devtools.trace_collector.record(
+                    context.id,
+                    type_="ha_service_call",
+                    entity_id=entity_id,
+                    payload={
+                        "domain": cmd.get("domain"),
+                        "service": cmd.get("service"),
+                        "service_data": cmd.get("service_data"),
+                    },
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            _LOGGER.exception(
+                "Failed to process Sber command for %s — continuing with the rest of the batch",
+                entity_id,
             )
         return needs_state_update
 
@@ -347,67 +445,93 @@ class SberCommandDispatcher:
                 raw,
             )
 
+    @staticmethod
+    def _extract_redef_target(data: dict, kind: str) -> str | None:
+        """Validate and return the ``device_id`` of a redefinition payload.
+
+        Args:
+            data: Parsed payload dict.
+            kind: Short label for log messages.
+
+        Returns:
+            The stripped entity_id string, or ``None`` if it is missing,
+            not a string, empty, or unreasonably long.
+        """
+        raw_id = data.get("device_id")
+        entity_id = raw_id.strip() if isinstance(raw_id, str) else None
+        if not entity_id or len(entity_id) > _MAX_ENTITY_ID_LEN:
+            _LOGGER.warning("Ignoring Sber %s with invalid device_id: %r", kind, raw_id)
+            return None
+        return entity_id
+
     async def handle_change_group(self, payload: bytes) -> None:
         """Handle device group/room change from Sber.
+
+        Values are validated (string type, length limit) and stored
+        through :meth:`RedefinitionsStore.async_update` so cloud input
+        goes through the same normalization as the WS API — invalid or
+        missing values clear the corresponding key instead of persisting
+        arbitrary payloads.
 
         Only stores the redefinition locally. Does NOT re-publish config
         to avoid an infinite loop: Sber sends change_group → we publish
         config → Sber sends change_group again → loop forever.
         """
         bridge = self._bridge
-        try:
-            data = json.loads(payload)
-        except json.JSONDecodeError as exc:
-            _LOGGER.debug(
-                "Malformed change_group_device_request payload (json): %r — %s",
-                payload[:200] if isinstance(payload, (bytes, str)) else payload,
-                exc,
-            )
+        data = _parse_json_dict(payload, "change_group_device_request")
+        if data is None:
             return
-        entity_id = data.get("device_id")
-        if not entity_id:
+        entity_id = self._extract_redef_target(data, "change_group")
+        if entity_id is None:
             return
-        existing = dict(bridge._redef_store.raw.get(entity_id, {}))
-        existing["home"] = data.get("home")
-        existing["room"] = data.get("room")
-        bridge._redef_store.raw[entity_id] = existing
-        bridge._redef_store.schedule_persist()
-        _LOGGER.info("Sber group change stored: %s → room=%s", entity_id, data.get("room"))
+        fields: dict[str, str | None] = {
+            "home": _sanitize_redef_value(data.get("home")),
+            "room": _sanitize_redef_value(data.get("room")),
+        }
+        if all(value is None for value in fields.values()) and entity_id not in bridge._redef_store.raw:
+            # Nothing usable to store and no existing record to clear —
+            # avoid creating empty {} entries (and persist churn) for
+            # arbitrary cloud-supplied ids.
+            _LOGGER.debug("Sber change_group for %s carries no usable values — ignored", entity_id)
+            return
+        await bridge._redef_store.async_update(entity_id, fields)
+        _LOGGER.info("Sber group change stored: %s → room=%s", entity_id, fields["room"])
 
     async def handle_rename_device(self, payload: bytes) -> None:
         """Handle device rename from Sber.
+
+        The new name is validated (string type, length limit) and stored
+        through :meth:`RedefinitionsStore.async_update`; payloads with a
+        non-string or oversized name are rejected without touching the
+        persistent store.
 
         Only stores the redefinition locally. Does NOT re-publish config
         to avoid potential loops.
         """
         bridge = self._bridge
-        try:
-            data = json.loads(payload)
-        except json.JSONDecodeError as exc:
-            _LOGGER.debug(
-                "Malformed rename_device_request payload (json): %r — %s",
-                payload[:200] if isinstance(payload, (bytes, str)) else payload,
-                exc,
-            )
+        data = _parse_json_dict(payload, "rename_device_request")
+        if data is None:
             return
-        entity_id = data.get("device_id")
-        new_name = data.get("new_name")
-        if entity_id and new_name:
-            redef = bridge._redef_store.raw.setdefault(entity_id, {})
-            redef["name"] = new_name
-            bridge._redef_store.schedule_persist()
-            _LOGGER.info("Sber rename stored: %s → %s", entity_id, new_name)
+        entity_id = self._extract_redef_target(data, "rename_device")
+        if entity_id is None:
+            return
+        new_name = _sanitize_redef_value(data.get("new_name"))
+        if new_name is None:
+            if data.get("new_name") is not None:
+                _LOGGER.warning(
+                    "Ignoring Sber rename for %s with invalid new_name: %.60r",
+                    entity_id,
+                    data.get("new_name"),
+                )
+            return
+        await bridge._redef_store.async_update(entity_id, {"name": new_name})
+        _LOGGER.info("Sber rename stored: %s → %s", entity_id, new_name)
 
     def handle_global_config(self, payload: bytes) -> None:
         """Handle global config from Sber (http_api_endpoint)."""
-        try:
-            data = json.loads(payload)
-            endpoint = data.get("http_api_endpoint", "")
-            if endpoint:
-                _LOGGER.info("Sber HTTP API endpoint: %s", endpoint)
-        except json.JSONDecodeError as exc:
-            _LOGGER.debug(
-                "Malformed global_config payload (json): %r — %s",
-                payload[:200] if isinstance(payload, (bytes, str)) else payload,
-                exc,
-            )
+        data = _parse_json_dict(payload, "global_config")
+        if data is None:
+            return
+        endpoint = data.get("http_api_endpoint", "")
+        if endpoint:
+            _LOGGER.info("Sber HTTP API endpoint: %s", endpoint)

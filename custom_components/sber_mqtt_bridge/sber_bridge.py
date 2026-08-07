@@ -10,7 +10,6 @@ Manages:
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 import time
 from collections.abc import Callable
@@ -62,21 +61,23 @@ from .trace_collector import TraceCollector
 
 _LOGGER = logging.getLogger(__name__)
 
-RECONNECT_INTERVAL_MIN = SETTINGS_DEFAULTS[CONF_RECONNECT_MIN]
-"""Default minimum seconds to wait before reconnecting after an MQTT connection loss."""
-
-RECONNECT_INTERVAL_MAX = SETTINGS_DEFAULTS[CONF_RECONNECT_MAX]
-"""Default maximum seconds to wait (5 minutes) with exponential backoff."""
-
-MAX_MQTT_PAYLOAD_SIZE = SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]
-"""Default maximum MQTT payload size in bytes (1 MB) to prevent DoS from oversized messages."""
-
 RECONNECT_GRACE_TIMEOUT = 30.0
 """Maximum seconds to wait for Sber acknowledgment after (re)connect.
 
 After a reconnect, the bridge publishes HA states and waits for Sber to
 acknowledge them (via status_request or config_request) before accepting
 commands.  This timeout is a fallback in case Sber never sends a request."""
+
+LOG_PAYLOAD_MAX_CHARS = 8192
+"""Maximum characters of a payload stored in the DevTools message log.
+
+Payloads may legally be up to ``max_payload_size`` (1 MB by default), but
+the DevTools ring buffer keeps ``message_log_size`` entries and pushes
+each one synchronously to every WebSocket subscriber.  Storing full
+payloads would bound memory at ``maxlen * max_payload_size`` (~50 MB with
+defaults); truncating each stored copy to this limit bounds it at a few
+hundred KB.  Only the DevTools copy is truncated — real MQTT traffic and
+command handling always see the full payload."""
 
 
 @dataclass
@@ -107,9 +108,6 @@ class BridgeStats:
     publish_errors: int = 0
     """Total failed publish attempts."""
 
-    last_message_time: float | None = None
-    """Timestamp of the last message received."""
-
     reconnect_count: int = 0
     """Total number of reconnections since startup."""
 
@@ -118,9 +116,6 @@ class BridgeStats:
 
     last_error_detail: str = ""
     """Human-readable detail of the last error message from Sber cloud."""
-
-    last_ack_time: float | None = None
-    """Timestamp (monotonic) of the last Sber acknowledgment received."""
 
     validation_failures: list[str] = field(default_factory=list)
     """Entity IDs that failed pydantic validation and were excluded from last config."""
@@ -174,10 +169,11 @@ class SberBridge:
         """Linked entity_id → (primary_entity_id, role)."""
         self._entity_loader = SberEntityLoader(hass, entry)
 
-        self._mqtt_client: aiomqtt.Client | None = None
+        # NOTE: connection state (_connected / _mqtt_client) is NOT stored
+        # here — MqttClientService is the single owner; the bridge exposes
+        # read/write forwarding properties below for compatibility.
         self._connection_task: asyncio.Task | None = None
         self._running = False
-        self._connected = False
 
         # Configurable operational settings loaded from ``config_entry.options``.
         # All defaults live in ``SETTINGS_DEFAULTS`` (const.py) — this avoids
@@ -290,8 +286,32 @@ class SberBridge:
 
     @property
     def is_connected(self) -> bool:
-        """Return True if connected to Sber MQTT."""
-        return self._connected
+        """Return True if connected to Sber MQTT (owned by MqttClientService)."""
+        return self._mqtt_service.is_connected
+
+    @property
+    def _connected(self) -> bool:
+        """Connection flag — single source of truth is :class:`MqttClientService`."""
+        return self._mqtt_service.is_connected
+
+    @_connected.setter
+    def _connected(self, value: bool) -> None:
+        """Backward-compat shim: forward writes to the owning service.
+
+        Kept so legacy tests that force ``bridge._connected = True/False``
+        keep working; production code should not need this setter.
+        """
+        self._mqtt_service._connected = value
+
+    @property
+    def _mqtt_client(self) -> aiomqtt.Client | None:
+        """Live MQTT client — single source of truth is :class:`MqttClientService`."""
+        return self._mqtt_service.client
+
+    @_mqtt_client.setter
+    def _mqtt_client(self, value: aiomqtt.Client | None) -> None:
+        """Backward-compat shim: forward writes to the owning service."""
+        self._mqtt_service._client = value
 
     @property
     def config_entry(self) -> ConfigEntry:
@@ -335,8 +355,12 @@ class SberBridge:
         return list(self._enabled_entity_ids)
 
     @property
-    def redefinitions(self) -> dict[str, str]:
-        """Return a copy of the entity redefinitions mapping."""
+    def redefinitions(self) -> dict[str, dict]:
+        """Return a copy of the entity redefinitions mapping.
+
+        Values are per-entity dicts with optional ``name`` / ``room`` /
+        ``home`` keys (see :class:`RedefinitionsStore`).
+        """
         return dict(self._redefinitions)
 
     @property
@@ -447,7 +471,6 @@ class SberBridge:
         """
         self._reconnect_min: int = int(options.get(CONF_RECONNECT_MIN, SETTINGS_DEFAULTS[CONF_RECONNECT_MIN]))
         self._reconnect_max: int = int(options.get(CONF_RECONNECT_MAX, SETTINGS_DEFAULTS[CONF_RECONNECT_MAX]))
-        self._reconnect_interval = self._reconnect_min
         self._debounce_delay: float = float(options.get(CONF_DEBOUNCE_DELAY, SETTINGS_DEFAULTS[CONF_DEBOUNCE_DELAY]))
         self._max_payload_size: int = int(options.get(CONF_MAX_MQTT_PAYLOAD, SETTINGS_DEFAULTS[CONF_MAX_MQTT_PAYLOAD]))
         self._message_log_size: int = int(options.get(CONF_MESSAGE_LOG_SIZE, SETTINGS_DEFAULTS[CONF_MESSAGE_LOG_SIZE]))
@@ -495,13 +518,15 @@ class SberBridge:
 
         Raises:
             RuntimeError: If not connected to MQTT broker.
+            aiomqtt.MqttError: Propagated on transport errors (counted in
+                ``publish_errors``).
         """
-        if not self._connected or self._mqtt_client is None:
-            msg = "Not connected to MQTT"
-            raise RuntimeError(msg)
-
         topic = f"{self._root_topic}/up/{target}"
-        await self._mqtt_client.publish(topic, payload)
+        try:
+            await self._mqtt_service.publish(topic, payload)
+        except aiomqtt.MqttError:
+            self._stats.publish_errors += 1
+            raise
         self._stats.messages_sent += 1
         self._log_message("out", topic, payload)
 
@@ -576,7 +601,23 @@ class SberBridge:
         return self._devtools.subscribe_messages(callback_fn)
 
     def _log_message(self, direction: str, topic: str, payload: str) -> None:
-        """Log an outbound message (delegates to hub)."""
+        """Log a message into the DevTools ring buffer (delegates to hub).
+
+        The stored copy is truncated to :data:`LOG_PAYLOAD_MAX_CHARS` so the
+        ring buffer and live WebSocket pushes stay memory-bounded regardless
+        of ``max_payload_size``.  A truncation marker with the original
+        length is appended so DevTools users can tell the copy is partial.
+
+        Args:
+            direction: ``"in"``, ``"out"`` or ``"replay"``.
+            topic: Full MQTT topic.
+            payload: Decoded payload text (truncated here if oversized).
+        """
+        if len(payload) > LOG_PAYLOAD_MAX_CHARS:
+            payload = (
+                payload[:LOG_PAYLOAD_MAX_CHARS]
+                + f"<truncated: showing {LOG_PAYLOAD_MAX_CHARS} of {len(payload)} chars>"
+            )
         self._devtools.log_message(direction, topic, payload)
 
     # ---------------------------------------------------------------------------
@@ -597,10 +638,6 @@ class SberBridge:
     def validation_collector(self) -> ValidationCollector:
         """Return the schema-validation collector (delegates to hub)."""
         return self._devtools.validation_collector
-
-    def _sweep_traces(self) -> None:
-        """Close idle traces (delegates to hub)."""
-        self._devtools.sweep_traces()
 
     def _trace_on_state_change(self, context_id: str | None, entity_id: str, state: dict) -> None:
         """Forwarder hook → append ``ha_state_changed`` to the correlation trace.
@@ -636,7 +673,10 @@ class SberBridge:
         self._ha_instance_id_prefix: str = full_uuid[:8]
         self._load_exposed_entities()
         self._subscribe_ha_events()
-        self._connection_task = asyncio.create_task(self._mqtt_connection_loop())
+        self._connection_task = self._create_safe_task(
+            self._mqtt_connection_loop(),
+            name="mqtt_connection_loop",
+        )
 
         # If HA is already running (e.g. integration reload), entities are
         # fully available — mark ready immediately.  Otherwise, wait for
@@ -650,7 +690,15 @@ class SberBridge:
             )
 
     async def async_stop(self) -> None:
-        """Stop the bridge: disconnect MQTT, unsubscribe from HA events."""
+        """Stop the bridge: disconnect MQTT, unsubscribe from HA events.
+
+        Idempotent — safe to call multiple times.  Cancels every timer and
+        background task the bridge owns (state forwarder debounce, lifecycle
+        listeners, ack-audit timer, delayed-confirm tasks, redefinitions
+        debounce timer, MQTT connection loop) so nothing outlives the entry
+        unload.  A pending redefinitions snapshot is flushed synchronously
+        before shutdown so user edits are not lost on reload.
+        """
         self._running = False
 
         # HA state-change listeners + debounced publish live in the forwarder
@@ -663,13 +711,34 @@ class SberBridge:
         # Cancel any pending ack-audit timer so it can't fire after shutdown
         self._ack_audit.cancel()
 
+        # Cancel delayed-confirm tasks so they don't touch hass after unload
+        for task in self._confirm_tasks.values():
+            task.cancel()
+        self._confirm_tasks.clear()
+
+        # Cancel the redefinitions debounce timer and flush a pending
+        # snapshot synchronously so a reload within the debounce window
+        # cannot lose (or later overwrite) user edits.
+        # TODO(Wave 5): move this into a public RedefinitionsStore.shutdown()
+        # — the store module is outside the W1D perimeter, so the bridge
+        # reaches into its privates as a documented stopgap.
+        timer = self._redef_store._timer
+        if timer is not None:
+            timer.cancel()
+            self._redef_store._timer = None
+        self._redef_store._flush()
+
         # Stop the MQTT service reconnect loop
         await self._mqtt_service.stop()
 
         if self._connection_task:
             self._connection_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
+            try:
                 await self._connection_task
+            except asyncio.CancelledError:
+                pass
+            except Exception:  # shutdown must not fail entry unload
+                _LOGGER.exception("MQTT connection task raised during shutdown")
             self._connection_task = None
 
         self._connected = False
@@ -755,29 +824,25 @@ class SberBridge:
     async def _mqtt_connection_loop(self) -> None:
         """Delegate the reconnect loop to :class:`MqttClientService`.
 
-        Kept as a named method on ``SberBridge`` for test compatibility
-        (some tests still reference ``bridge._mqtt_connection_loop``).
-        All transport logic lives in :mod:`.mqtt_client_service`.
+        All transport logic (including connection-state ownership) lives
+        in :mod:`.mqtt_client_service`; the bridge only resets its own
+        stats when the loop exits.
         """
         try:
             await self._mqtt_service.run()
         finally:
-            self._mqtt_client = None
-            self._connected = False
             self._stats.connected_since = None
 
     async def _handle_mqtt_connected(self, client: aiomqtt.Client) -> None:
         """MqttClientService hook: runs after each successful handshake.
 
-        Mirrors ``client`` into ``self._mqtt_client`` / ``self._connected``
-        for backwards compatibility with tests and legacy call sites, then
-        executes the Sber-specific handshake dance (initial publish,
-        subscribe, ack-guard, message consume).
+        The service already owns the connection state (``client`` /
+        ``connected`` flags); this hook only executes the Sber-specific
+        handshake dance (initial publish, subscribe, ack-guard).
 
         Args:
             client: Live ``aiomqtt.Client`` from the service.
         """
-        self._mqtt_client = client
         self._mark_connected()
         await self._wait_for_ha_ready()
         await self._perform_initial_publish()
@@ -793,16 +858,14 @@ class SberBridge:
     async def _handle_mqtt_disconnected(self, err: Exception, unexpected: bool) -> bool:
         """MqttClientService hook: runs after a transport error.
 
-        Clears cached transport state, defers to the existing
-        ``_handle_disconnect`` helper for logging / repair triggering.
+        Defers to the ``_handle_disconnect`` helper for state reset,
+        logging and repair triggering.
         """
-        self._mqtt_client = None
         return await self._handle_disconnect(err, unexpected=unexpected)
 
     def _mark_connected(self) -> None:
         """Flip connection-related state flags after a successful MQTT handshake."""
         self._connected = True
-        self._reconnect_interval = self._reconnect_min
         self._stats.connected_since = time.monotonic()
         _LOGGER.info(
             "Connected to Sber MQTT broker %s:%d (entities: %d)",
@@ -864,7 +927,13 @@ class SberBridge:
         triggers HA repair issue creation.  Kept on the bridge because
         it reads bridge state (``unacknowledged_entities``) and uses
         ``check_and_create_issues`` which needs the full bridge context.
+
+        No-op while disconnected: without a live link Sber physically
+        cannot acknowledge anything, so an audit would only produce
+        false positives.
         """
+        if not self._connected:
+            return
         unack = self.unacknowledged_entities
         if unack:
             _LOGGER.warning(
@@ -893,6 +962,11 @@ class SberBridge:
         """
         self._connected = False
         self._mqtt_client = None
+        # Cancel the pending silent-rejection audit: with the link down no
+        # ack can physically arrive, so letting the timer fire would create
+        # false "silent rejection" warnings / repair issues that mask the
+        # real (network) problem.  Reconnect re-arms it via publish_config.
+        self._ack_audit.cancel()
         self._stats.connected_since = None
         self._stats.reconnect_count += 1
         if not self._running:
@@ -919,16 +993,17 @@ class SberBridge:
 
         Uses a dispatch table (``_mqtt_dispatch``) keyed by topic suffix
         instead of an ``if/elif`` chain for extensibility (OCP).
+
+        The payload-size guard runs FIRST — before any decoding or DevTools
+        buffering — so an oversized remote payload is never decoded or held
+        in the ring buffers (memory-DoS protection).  A failure inside one
+        topic handler is isolated here and never propagates to the transport.
         """
         self._stats.messages_received += 1
-        self._stats.last_message_time = time.monotonic()
         _LOGGER.debug("MQTT <- %s (%d bytes)", topic, len(payload) if payload else 0)
 
-        # DevTools: log incoming message
-        decoded = payload.decode("utf-8", errors="replace") if isinstance(payload, bytes) else str(payload)[:500]
-        self._log_message("in", topic, decoded)
-
-        # Payload size guard (M2)
+        # Payload size guard (M2) — MUST run before decode / DevTools logging
+        # so a hostile 256 MB MQTT message costs no memory beyond the socket.
         if payload and len(payload) > self._max_payload_size:
             _LOGGER.warning(
                 "MQTT payload too large (%d bytes, max %d), dropping: %s",
@@ -936,7 +1011,16 @@ class SberBridge:
                 self._max_payload_size,
                 topic,
             )
+            self._log_message(
+                "in",
+                topic,
+                f"<dropped: payload of {len(payload)} bytes exceeds max_payload_size={self._max_payload_size}>",
+            )
             return
+
+        # DevTools: log incoming message
+        decoded = payload.decode("utf-8", errors="replace") if isinstance(payload, bytes) else str(payload)[:500]
+        self._log_message("in", topic, decoded)
 
         if topic == SBER_GLOBAL_CONFIG_TOPIC:
             self._handle_global_config(payload)
@@ -947,7 +1031,12 @@ class SberBridge:
         if handler is None:
             _LOGGER.debug("Unhandled MQTT topic suffix: %s", suffix)
             return
-        await handler(payload)
+        try:
+            await handler(payload)
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # per-handler isolation: one bad message must not break routing
+            _LOGGER.exception("Error handling MQTT message on topic %s", topic)
 
     @cached_property
     def _mqtt_dispatch(self) -> dict[str, Callable[[bytes], Any]]:

@@ -108,7 +108,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
                 "module_url": f"/sber_mqtt_bridge/panel/sber-panel.js?v={INTEGRATION_VERSION}",
             }
         },
-        require_admin=False,
+        # Every WebSocket command of this integration is admin-only
+        # (websocket_api/__init__.py wraps them in require_admin), so a
+        # non-admin would see a panel where every action fails.
+        require_admin=True,
     )
 
     return True

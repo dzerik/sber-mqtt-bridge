@@ -15,12 +15,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 import ssl
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import aiomqtt
+
+from .ssl_utils import create_ssl_context
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -49,8 +52,6 @@ class MqttServiceHooks:
             bridge to perform initial publish + subscription setup.
         on_disconnected: Invoked after an MQTT / network error; returns
             ``True`` to continue reconnect loop, ``False`` to stop.
-        get_connected_since: Stats hook — called when the connection is
-            established so callers can tag the timestamp.
     """
 
     on_message: Callable[[str, bytes], Awaitable[None]]
@@ -149,30 +150,37 @@ class MqttClientService:
         then blocks on the inbound message stream, delegating each message
         to ``hooks.on_message``.  On error, invokes ``hooks.on_disconnected``
         and applies exponential backoff before retrying.
+
+        The SSL context is rebuilt on every connection attempt so a runtime
+        ``verify_ssl`` change (:meth:`update_verify_ssl`) takes effect on
+        the next reconnect.  Any non-cancellation exception is treated as a
+        recoverable connection failure: the loop never dies silently.
         """
-        from .config_flow import create_ssl_context
-
         self._running = True
-        ssl_context = await self._hass.async_add_executor_job(create_ssl_context, self._credentials.verify_ssl)
-        while self._running:
-            try:
-                async with self._build_client(ssl_context) as client:
-                    self._client = client
-                    self._connected = True
-                    self._reconnect_interval = self._reconnect_min
-                    await self._hooks.on_connected(client)
-                    await self._consume_messages(client)
-            except aiomqtt.MqttError as err:
-                if not await self._after_error(err, unexpected=False):
+        try:
+            while self._running:
+                try:
+                    ssl_context = await self._hass.async_add_executor_job(
+                        create_ssl_context, self._credentials.verify_ssl
+                    )
+                    async with self._build_client(ssl_context) as client:
+                        self._client = client
+                        self._connected = True
+                        self._reconnect_interval = self._reconnect_min
+                        await self._hooks.on_connected(client)
+                        await self._consume_messages(client)
+                except aiomqtt.MqttError as err:
+                    if not await self._after_error(err, unexpected=False):
+                        break
+                except asyncio.CancelledError:
                     break
-            except asyncio.CancelledError:
-                break
-            except (OSError, ValueError, RuntimeError) as err:
-                if not await self._after_error(err, unexpected=True):
-                    break
-
-        self._client = None
-        self._connected = False
+                except Exception as err:  # last-resort barrier: reconnect loop must survive
+                    _LOGGER.exception("Unexpected error in MQTT connection loop")
+                    if not await self._after_error(err, unexpected=True):
+                        break
+        finally:
+            self._client = None
+            self._connected = False
 
     async def stop(self) -> None:
         """Request the reconnect loop to exit at the next opportunity."""
@@ -189,27 +197,56 @@ class MqttClientService:
         )
 
     async def _consume_messages(self, client: aiomqtt.Client) -> None:
-        """Forward every received message to ``hooks.on_message``."""
+        """Forward every received message to ``hooks.on_message``.
+
+        A failure while handling ONE message (malformed payload, a bug in
+        a device handler, ...) must never kill the transport: the error is
+        logged and the stream continues.  Cancellation always propagates.
+        """
         async for message in client.messages:
             if not self._running:
                 break
-            await self._hooks.on_message(str(message.topic), message.payload)
+            topic = str(message.topic)
+            try:
+                await self._hooks.on_message(topic, message.payload)
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # one bad message must not kill the transport
+                _LOGGER.exception(
+                    "Error handling MQTT message on topic %s — message skipped, transport continues",
+                    topic,
+                )
 
     async def _after_error(self, err: Exception, *, unexpected: bool) -> bool:
         """Handle a transport error and compute the next reconnect delay.
 
         Invokes the bridge hook for stats / repairs, then sleeps for
-        ``reconnect_interval`` and doubles it up to ``reconnect_max``.
+        ``reconnect_interval`` (with a random ±50% jitter to avoid
+        synchronized reconnect storms across installations) and doubles
+        the base interval up to ``reconnect_max``.
+
+        A failure inside the ``on_disconnected`` hook itself is contained:
+        it is logged and treated as "keep reconnecting", because this method
+        runs inside ``run()``'s ``except`` handlers where a raised exception
+        would otherwise terminate the whole reconnect loop.  Cancellation
+        always propagates.
 
         Returns:
             ``True`` when the loop should keep running, ``False`` to stop.
         """
         self._client = None
         self._connected = False
-        keep_running = await self._hooks.on_disconnected(err, unexpected)
+        try:
+            keep_running = await self._hooks.on_disconnected(err, unexpected)
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # hook bug must not kill the reconnect loop
+            _LOGGER.exception("Error in on_disconnected hook — continuing reconnect loop")
+            keep_running = True
         if not keep_running or not self._running:
             return False
-        await asyncio.sleep(self._reconnect_interval)
+        jitter = random.uniform(0.5, 1.5)  # noqa: S311 — not crypto, backoff desync only
+        await asyncio.sleep(self._reconnect_interval * jitter)
         self._reconnect_interval = min(self._reconnect_interval * 2, self._reconnect_max)
         return True
 
