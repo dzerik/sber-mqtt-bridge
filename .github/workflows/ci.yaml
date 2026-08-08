@@ -59,8 +59,14 @@ jobs:
       - name: Install dependencies
         # Tool pins live in .github/workflows/constraints.txt.
         run: |
-          uv pip install --constraint=.github/workflows/constraints.txt -e ".[dev]" 2>/dev/null \
-            || uv pip install --constraint=.github/workflows/constraints.txt -e .
+          # NOTE: the project itself is deliberately NOT installed. It is a
+          # HACS custom component, not a library: tests import
+          # `custom_components.sber_mqtt_bridge` straight from the checkout
+          # (pytest puts rootdir on sys.path), exactly as they do locally.
+          # An editable install registers an `__editable__…finder` path hook
+          # that raises FileNotFoundError while Home Assistant's integration
+          # loader scans sys.path — which broke every full-HA test as soon as
+          # the config_flow suite started running in CI.
           uv pip install --constraint=.github/workflows/constraints.txt \
             aiomqtt pytest pytest-asyncio pytest-cov pytest-xdist pytest-timeout \
             pytest-homeassistant-custom-component syrupy pydantic ruff
