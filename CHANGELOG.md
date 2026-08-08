@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.43.1] - 2026-08-08
+
+### Fixed
+
+- **Долгий старт Home Assistant.** MQTT-цикл подключения планировался
+  через `hass.async_create_task`, а такие задачи Home Assistant
+  отслеживает и дожидается в `async_block_till_done` — том самом
+  примитиве, который использует bootstrap. Цикл по определению
+  бесконечный, поэтому запуск HA простаивал до срабатывания таймаута
+  установки (`Setup timed out for bootstrap waiting on ...
+  _mqtt_connection_loop - moving forward`). Цикл переведён на
+  `hass.async_create_background_task`, который явно исключён из
+  `async_block_till_done` и отменяется при остановке HA. Регресс внесён
+  в v1.43.0 при исправлении «потерянных» исключений фоновых задач: до
+  него использовался `asyncio.create_task`, невидимый для HA. Добавлен
+  тест, воспроизводящий залипание через `async_block_till_done`.
+
 ## [1.43.0] - 2026-08-08
 
 Результат полного конкурентного code review (отчёт:

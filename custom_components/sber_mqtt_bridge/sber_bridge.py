@@ -519,22 +519,19 @@ class SberBridge:
         """Public wrapper for forcing a device config republish to Sber."""
         await self._publish_config()
 
-    def _create_safe_task(self, coro: Any, *, name: str | None = None) -> asyncio.Task:
-        """Create an asyncio task with error logging to prevent silent failures.
+    def _attach_error_logger(self, task: asyncio.Task, name: str | None) -> asyncio.Task:
+        """Log any unhandled exception of ``task`` instead of losing it.
 
-        Wraps ``hass.async_create_task`` with a done-callback that logs any
-        unhandled exception at WARNING level.  This prevents the class of bugs
-        where a fire-and-forget publish task silently drops a state update
-        (similar to issue #3).
+        Without this, a failing fire-and-forget task surfaces only as
+        asyncio's ``Task exception was never retrieved`` at GC time.
 
         Args:
-            coro: Coroutine to schedule.
-            name: Optional task name for log messages.
+            task: Task to observe.
+            name: Human-readable name used in the log message.
 
         Returns:
-            The created asyncio task; callers may store it for cancellation.
+            The same task, for call chaining.
         """
-        task = self._hass.async_create_task(coro, eager_start=True)
 
         def _done_cb(t: asyncio.Task) -> None:
             if t.cancelled():
@@ -550,6 +547,48 @@ class SberBridge:
 
         task.add_done_callback(_done_cb)
         return task
+
+    def _create_safe_task(self, coro: Any, *, name: str | None = None) -> asyncio.Task:
+        """Create a SHORT-LIVED tracked task with error logging.
+
+        Use for work that finishes on its own (debounced publish, delayed
+        confirm).  These are tracked by Home Assistant, so
+        ``async_block_till_done`` — and therefore tests and shutdown —
+        wait for them, which is what we want for short work.
+
+        Do NOT use for loops that run for the lifetime of the entry: a
+        tracked never-ending task blocks HA bootstrap until it times out.
+        Use :meth:`_create_daemon_task` instead.
+
+        Args:
+            coro: Coroutine to schedule.
+            name: Optional task name for log messages.
+
+        Returns:
+            The created asyncio task; callers may store it for cancellation.
+        """
+        return self._attach_error_logger(self._hass.async_create_task(coro, eager_start=True), name)
+
+    def _create_daemon_task(self, coro: Any, *, name: str) -> asyncio.Task:
+        """Create a LONG-RUNNING background task with error logging.
+
+        ``hass.async_create_background_task`` is explicitly excluded from
+        ``async_block_till_done`` and is cancelled on HA shutdown, so a
+        never-ending loop scheduled this way does not hold up startup.
+
+        This matters: the MQTT connection loop runs forever by design, and
+        scheduling it as a tracked task made HA's bootstrap wait on it until
+        the setup timeout fired ("Setup timed out for bootstrap waiting on
+        ... _mqtt_connection_loop - moving forward"), delaying every start.
+
+        Args:
+            coro: Coroutine to schedule.
+            name: Task name (required — it shows up in HA diagnostics).
+
+        Returns:
+            The created asyncio task; callers may store it for cancellation.
+        """
+        return self._attach_error_logger(self._hass.async_create_background_task(coro, name, eager_start=True), name)
 
     @property
     def message_log(self) -> list[dict[str, Any]]:
@@ -774,7 +813,9 @@ class SberBridge:
         self._ha_instance_id_prefix: str = full_uuid[:8]
         self._load_exposed_entities()
         self._subscribe_ha_events()
-        self._connection_task = self._create_safe_task(
+        # Daemon, not a tracked task: this loop never returns, so tracking it
+        # would make HA bootstrap wait on it until the setup timeout.
+        self._connection_task = self._create_daemon_task(
             self._mqtt_connection_loop(),
             name="mqtt_connection_loop",
         )
