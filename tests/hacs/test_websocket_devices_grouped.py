@@ -3,6 +3,17 @@
 Mocks the HA connection / config_entry / registries to isolate the
 business logic of ``ws_list_categories`` / ``ws_list_devices_for_category``
 / ``ws_add_ha_device``.
+
+Commands are entered through :func:`_ws_dispatch.dispatch`, which
+replays HA's own ``ActiveConnection.async_handle`` pipeline (voluptuous
+schema → ``require_admin`` → handler → ``async_response`` task).
+Reaching for ``handler.__wrapped__`` would strip the schema, so a
+wizard command that lost it would still pass every assertion below.
+The admin gate that ``dispatch`` installs is a *simulation* of the one
+``async_setup_websocket_api`` applies at registration; the real wiring
+is swept in ``test_websocket_authz.py::TestAdminGate``.  The same
+commands are additionally exercised over a real socket in
+``test_websocket_full_stack.py``.
 """
 
 from __future__ import annotations
@@ -10,12 +21,19 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import voluptuous as vol
+from _ws_dispatch import dispatch
+from homeassistant.exceptions import Unauthorized
 
+from custom_components.sber_mqtt_bridge.sber_entity_map import CATEGORY_DOMAIN_MAP
 from custom_components.sber_mqtt_bridge.websocket_api.devices_grouped import (
     ws_add_ha_device,
     ws_list_categories,
     ws_list_devices_for_category,
 )
+
+_MODULE = "custom_components.sber_mqtt_bridge.websocket_api.devices_grouped"
+
 
 # ---------------------------------------------------------------------------
 # Test fixtures — minimal HA + connection stubs
@@ -122,9 +140,9 @@ def mock_registries():
 
 
 class TestListCategories:
-    def test_returns_categories_and_groups(self, hass, connection):
+    async def test_returns_categories_and_groups(self, hass, connection):
         msg = {"id": 1, "type": "sber_mqtt_bridge/list_categories"}
-        ws_list_categories(hass, connection, msg)
+        await dispatch(ws_list_categories, hass, connection, msg)
         connection.send_result.assert_called_once()
         args = connection.send_result.call_args
         assert args[0][0] == 1
@@ -134,9 +152,9 @@ class TestListCategories:
         assert isinstance(payload["categories"], list)
         assert isinstance(payload["groups"], list)
 
-    def test_category_shape(self, hass, connection):
+    async def test_category_shape(self, hass, connection):
         msg = {"id": 2}
-        ws_list_categories(hass, connection, msg)
+        await dispatch(ws_list_categories, hass, connection, msg)
         payload = connection.send_result.call_args[0][1]
         first = payload["categories"][0]
         assert set(first.keys()) == {
@@ -149,9 +167,9 @@ class TestListCategories:
             "preferred_rank",
         }
 
-    def test_light_is_present_and_selectable(self, hass, connection):
+    async def test_light_is_present_and_selectable(self, hass, connection):
         msg = {"id": 3}
-        ws_list_categories(hass, connection, msg)
+        await dispatch(ws_list_categories, hass, connection, msg)
         payload = connection.send_result.call_args[0][1]
         ids = {c["id"] for c in payload["categories"]}
         assert "light" in ids
@@ -159,23 +177,23 @@ class TestListCategories:
         assert "sensor_temp" in ids
         assert "sensor_pir" in ids
 
-    def test_sensor_humidity_is_excluded(self, hass, connection):
+    async def test_sensor_humidity_is_excluded(self, hass, connection):
         """Non-user-selectable subcategories should not appear in Step 1 grid."""
         msg = {"id": 4}
-        ws_list_categories(hass, connection, msg)
+        await dispatch(ws_list_categories, hass, connection, msg)
         payload = connection.send_result.call_args[0][1]
         ids = {c["id"] for c in payload["categories"]}
         assert "sensor_humidity" not in ids
 
-    def test_groups_have_id_and_label(self, hass, connection):
+    async def test_groups_have_id_and_label(self, hass, connection):
         msg = {"id": 5}
-        ws_list_categories(hass, connection, msg)
+        await dispatch(ws_list_categories, hass, connection, msg)
         payload = connection.send_result.call_args[0][1]
         assert all(set(g.keys()) == {"id", "label"} for g in payload["groups"])
 
-    def test_categories_sorted_stable(self, hass, connection):
+    async def test_categories_sorted_stable(self, hass, connection):
         msg = {"id": 6}
-        ws_list_categories(hass, connection, msg)
+        await dispatch(ws_list_categories, hass, connection, msg)
         payload = connection.send_result.call_args[0][1]
         # Sorted primarily by group
         groups_in_order = [c["group"] for c in payload["categories"]]
@@ -196,8 +214,27 @@ class TestListCategories:
 
 class TestListDevicesForCategory:
     @pytest.mark.asyncio
-    async def test_unknown_category_returns_error(self, hass, connection, mock_get_config_entry, mock_registries):
+    async def test_unknown_category_rejected_by_schema(self, hass, connection, mock_get_config_entry, mock_registries):
+        """``vol.In(OVERRIDABLE_CATEGORIES)`` stops junk before the handler."""
         msg = {"id": 10, "category": "nonexistent_xyz"}
+        with pytest.raises(vol.Invalid):
+            await dispatch(ws_list_devices_for_category, hass, connection, msg)
+        connection.send_error.assert_not_called()
+        connection.send_result.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_unknown_category_guard_is_defensive_only(
+        self, hass, connection, mock_get_config_entry, mock_registries
+    ):
+        """The handler's own ``unknown_category`` branch is second-line defence.
+
+        Deliberately bypasses the schema (the only way to reach this
+        branch) to pin the behaviour should ``OVERRIDABLE_CATEGORIES``
+        ever drift away from :data:`CATEGORY_DOMAIN_MAP` — the wizard
+        must answer with an error code, not raise a ``KeyError``.
+        """
+        assert "nonexistent_xyz" not in CATEGORY_DOMAIN_MAP
+        msg = {"id": 10, "type": ws_list_devices_for_category._ws_command, "category": "nonexistent_xyz"}
         await ws_list_devices_for_category.__wrapped__(hass, connection, msg)
         connection.send_error.assert_called_once()
         assert connection.send_error.call_args[0][1] == "unknown_category"
@@ -205,7 +242,7 @@ class TestListDevicesForCategory:
     @pytest.mark.asyncio
     async def test_empty_registry_returns_empty_list(self, hass, connection, mock_get_config_entry, mock_registries):
         msg = {"id": 11, "category": "light"}
-        await ws_list_devices_for_category.__wrapped__(hass, connection, msg)
+        await dispatch(ws_list_devices_for_category, hass, connection, msg)
         connection.send_result.assert_called_once()
         payload = connection.send_result.call_args[0][1]
         assert payload["category"] == "light"
@@ -222,7 +259,7 @@ class TestListDevicesForCategory:
             "light.lamp": _make_entity("light.lamp", device_id="dev1"),
         }
         msg = {"id": 12, "category": "light"}
-        await ws_list_devices_for_category.__wrapped__(hass, connection, msg)
+        await dispatch(ws_list_devices_for_category, hass, connection, msg)
         payload = connection.send_result.call_args[0][1]
         assert payload["summary"]["total"] == 1
         assert len(payload["devices"]) == 1
@@ -243,7 +280,7 @@ class TestListDevicesForCategory:
             return_value=entry,
         ):
             msg = {"id": 13, "category": "light"}
-            await ws_list_devices_for_category.__wrapped__(hass, connection, msg)
+            await dispatch(ws_list_devices_for_category, hass, connection, msg)
         payload = connection.send_result.call_args[0][1]
         assert payload["summary"]["total"] == 1
         assert payload["summary"]["already_exposed"] == 1
@@ -268,19 +305,49 @@ class TestAddHaDevice:
                 "primary_entity_id": "light.lamp",
                 "category": "light",
             }
-            await ws_add_ha_device.__wrapped__(hass, connection, msg)
+            await dispatch(ws_add_ha_device, hass, connection, msg)
         connection.send_error.assert_called_once()
         assert connection.send_error.call_args[0][1] == "entry_not_found"
 
     @pytest.mark.asyncio
-    async def test_unknown_category(self, hass, connection):
+    async def test_unknown_category_rejected_by_schema(self, hass, connection):
+        """A category outside ``vol.In(OVERRIDABLE_CATEGORIES)`` never lands.
+
+        Without the schema this payload would be written straight into
+        ``entity_type_overrides`` and break entity loading on the next
+        reload — hence the "no update_entry" assertion.
+        """
         entry = _make_entry()
-        with patch(
-            "custom_components.sber_mqtt_bridge.websocket_api.devices_grouped.get_config_entry",
-            return_value=entry,
+        msg = {
+            "id": 21,
+            "device_id": "dev1",
+            "primary_entity_id": "light.lamp",
+            "category": "bogus_category",
+        }
+        with (
+            patch(f"{_MODULE}.get_config_entry", return_value=entry),
+            pytest.raises(vol.Invalid),
         ):
+            await dispatch(ws_add_ha_device, hass, connection, msg)
+        connection.send_error.assert_not_called()
+        connection.send_result.assert_not_called()
+        hass.config_entries.async_update_entry.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_unknown_category_guard_is_defensive_only(self, hass, connection):
+        """The handler's ``unknown_category`` branch backs up the schema.
+
+        Only reachable by bypassing validation, which is exactly what a
+        drift between ``OVERRIDABLE_CATEGORIES`` and
+        :data:`CATEGORY_DOMAIN_MAP` would create — the wizard must reply
+        with an error code instead of writing a bogus override.
+        """
+        assert "bogus_category" not in CATEGORY_DOMAIN_MAP
+        entry = _make_entry()
+        with patch(f"{_MODULE}.get_config_entry", return_value=entry):
             msg = {
                 "id": 21,
+                "type": ws_add_ha_device._ws_command,
                 "device_id": "dev1",
                 "primary_entity_id": "light.lamp",
                 "category": "bogus_category",
@@ -288,6 +355,97 @@ class TestAddHaDevice:
             await ws_add_ha_device.__wrapped__(hass, connection, msg)
         connection.send_error.assert_called_once()
         assert connection.send_error.call_args[0][1] == "unknown_category"
+        hass.config_entries.async_update_entry.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("msg", "reason"),
+        [
+            ({"id": 1, "primary_entity_id": "light.lamp", "category": "light"}, "device_id required"),
+            ({"id": 1, "device_id": "dev1", "category": "light"}, "primary_entity_id required"),
+            (
+                {"id": 1, "device_id": "dev1", "primary_entity_id": "lamp", "category": "light"},
+                "primary_entity_id must be domain.object_id",
+            ),
+            (
+                {
+                    "id": 1,
+                    "device_id": "dev1",
+                    "primary_entity_id": "light.lamp",
+                    "category": "light",
+                    "linked_entity_ids": ["not an entity id"],
+                },
+                "linked ids must be entity ids",
+            ),
+            (
+                {
+                    "id": 1,
+                    "device_id": "dev1",
+                    "primary_entity_id": "light.lamp",
+                    "category": "light",
+                    "name": 42,
+                },
+                "name must be a string",
+            ),
+            (
+                {
+                    "id": 1,
+                    "device_id": "dev1",
+                    "primary_entity_id": "light.lamp",
+                    "category": "light",
+                    "surprise": True,
+                },
+                "no undeclared keys",
+            ),
+        ],
+    )
+    async def test_schema_rejects_malformed_payloads(self, hass, connection, msg, reason):
+        """Everything the wizard persists is schema-checked first.
+
+        Each payload here would otherwise reach ``entry.options`` and
+        poison the next ``async_setup_entry``.
+        """
+        entry = _make_entry()
+        with (
+            patch(f"{_MODULE}.get_config_entry", return_value=entry),
+            pytest.raises(vol.Invalid),
+        ):
+            await dispatch(ws_add_ha_device, hass, connection, msg)
+
+        assert not connection.send_result.called, f"handler ran despite {reason}"
+        hass.config_entries.async_update_entry.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_add_ha_device_is_admin_only(self, hass, connection):
+        """A non-admin cannot expose HA devices to the Sber cloud.
+
+        Handler-side contract only: once ``require_admin`` raises, the
+        body must not run and the options must stay untouched.  The
+        guard is installed by :func:`_ws_dispatch.dispatch`, so this
+        test cannot notice ``async_setup_websocket_api`` forgetting it —
+        that is proven by the registration sweeps in
+        ``test_websocket_authz.py`` / ``test_websocket_full_stack.py``.
+        """
+        entry = _make_entry()
+        with (
+            patch(f"{_MODULE}.get_config_entry", return_value=entry),
+            pytest.raises(Unauthorized),
+        ):
+            await dispatch(
+                ws_add_ha_device,
+                hass,
+                connection,
+                {
+                    "id": 1,
+                    "device_id": "dev1",
+                    "primary_entity_id": "light.lamp",
+                    "category": "light",
+                },
+                is_admin=False,
+            )
+
+        hass.config_entries.async_update_entry.assert_not_called()
+        connection.send_result.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_primary_not_found(self, hass, connection):
@@ -307,7 +465,7 @@ class TestAddHaDevice:
                 "primary_entity_id": "light.missing",
                 "category": "light",
             }
-            await ws_add_ha_device.__wrapped__(hass, connection, msg)
+            await dispatch(ws_add_ha_device, hass, connection, msg)
         connection.send_error.assert_called_once()
         assert connection.send_error.call_args[0][1] == "primary_not_found"
 
@@ -330,7 +488,7 @@ class TestAddHaDevice:
                 "primary_entity_id": "light.lamp",
                 "category": "light",
             }
-            await ws_add_ha_device.__wrapped__(hass, connection, msg)
+            await dispatch(ws_add_ha_device, hass, connection, msg)
         connection.send_error.assert_called_once()
         assert connection.send_error.call_args[0][1] == "primary_device_mismatch"
 
@@ -354,7 +512,7 @@ class TestAddHaDevice:
                 "primary_entity_id": "light.lamp",
                 "category": "curtain",
             }
-            await ws_add_ha_device.__wrapped__(hass, connection, msg)
+            await dispatch(ws_add_ha_device, hass, connection, msg)
         connection.send_error.assert_called_once()
         assert connection.send_error.call_args[0][1] == "primary_category_mismatch"
 
@@ -387,7 +545,7 @@ class TestAddHaDevice:
                 "name": "Living Room Light",
                 "room": "Living Room",
             }
-            await ws_add_ha_device.__wrapped__(hass, connection, msg)
+            await dispatch(ws_add_ha_device, hass, connection, msg)
 
         connection.send_result.assert_called_once()
         payload = connection.send_result.call_args[0][1]
@@ -438,7 +596,7 @@ class TestAddHaDevice:
                 "category": "curtain",
                 "linked_entity_ids": ["sensor.curtain_battery"],
             }
-            await ws_add_ha_device.__wrapped__(hass, connection, msg)
+            await dispatch(ws_add_ha_device, hass, connection, msg)
 
         connection.send_result.assert_called_once()
         payload = connection.send_result.call_args[0][1]
@@ -482,7 +640,7 @@ class TestAddHaDevice:
                 "category": "curtain",
                 "linked_entity_ids": ["sensor.battery1", "sensor.battery2"],
             }
-            await ws_add_ha_device.__wrapped__(hass, connection, msg)
+            await dispatch(ws_add_ha_device, hass, connection, msg)
 
         connection.send_error.assert_called_once()
         assert connection.send_error.call_args[0][1] == "role_conflict"
@@ -518,7 +676,7 @@ class TestAddHaDevice:
                 "category": "relay",
                 "linked_entity_ids": ["sensor.battery"],
             }
-            await ws_add_ha_device.__wrapped__(hass, connection, msg)
+            await dispatch(ws_add_ha_device, hass, connection, msg)
         connection.send_error.assert_called_once()
         assert connection.send_error.call_args[0][1] == "linked_role_not_accepted"
 
@@ -545,7 +703,7 @@ class TestAddHaDevice:
                 "primary_entity_id": "light.lamp",
                 "category": "light",
             }
-            await ws_add_ha_device.__wrapped__(hass, connection, msg)
+            await dispatch(ws_add_ha_device, hass, connection, msg)
 
         options = hass.config_entries.async_update_entry.call_args[1]["options"]
         assert options["entity_type_overrides"]["light.lamp"] == "light"

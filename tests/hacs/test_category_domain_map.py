@@ -331,20 +331,36 @@ class TestRegistryConsistency:
     """Cross-check that registries stay in sync with each other."""
 
     def test_all_mapped_categories_are_constructible(self):
-        """Every category in CATEGORY_DOMAIN_MAP must carry a valid entity class.
+        """Every ``CategorySpec.cls`` must honour the ``cls(entity_data)`` contract.
 
-        The ``cls`` field is the constructor — if it's missing or isn't a
-        BaseEntity subclass, auto-detection or user-override will crash at
-        runtime when the wizard tries to build the entity.
+        This is a *behavioural* check rather than an ``issubclass`` check, so
+        it matches the declared ``Callable[[dict], BaseEntity]`` annotation
+        and — more importantly — catches the real trap: registering an
+        abstract base (``BaseEntity`` / ``OnOffEntity`` /
+        ``SimpleReadOnlySensor``).  Those take ``(category, entity_data)``,
+        so they would happily pass ``issubclass`` while producing an entity
+        whose ``category`` is the entity_data dict.
         """
         from custom_components.sber_mqtt_bridge.devices.base_entity import BaseEntity
 
-        invalid = [
-            cat
-            for cat, spec in CATEGORY_DOMAIN_MAP.items()
-            if not (isinstance(spec.cls, type) and issubclass(spec.cls, BaseEntity))
-        ]
-        assert not invalid, f"Categories with invalid cls: {invalid}"
+        # ``sensor_humidity`` is a registry-level pseudo-category: HA humidity
+        # sensors are transmitted inside the ``sensor_temp`` Sber category
+        # (see devices/humidity_sensor.py::HUMIDITY_SENSOR_CATEGORY).
+        wire_aliases = {"sensor_humidity": "sensor_temp"}
+
+        for category, spec in CATEGORY_DOMAIN_MAP.items():
+            entity_data = {
+                "entity_id": f"{spec.domains[0]}.probe",
+                "original_device_class": (spec.device_classes or ("",))[0],
+            }
+            entity = spec.cls(entity_data)
+            assert isinstance(entity, BaseEntity), f"{category}: cls did not return a BaseEntity"
+            assert entity.category == wire_aliases.get(category, category), (
+                f"{category}: constructed entity reports category {entity.category!r}"
+            )
+            assert entity.entity_id == entity_data["entity_id"], (
+                f"{category}: cls ignored the entity_data positional argument"
+            )
 
     def test_ui_meta_is_subset_of_domain_map(self):
         """Every CATEGORY_UI_META key must exist in CATEGORY_DOMAIN_MAP."""

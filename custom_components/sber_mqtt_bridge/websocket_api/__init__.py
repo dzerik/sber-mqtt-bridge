@@ -181,6 +181,15 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
 
     Idempotent — skips registration if already done for this HA instance.
 
+    Every command is registered behind :func:`websocket_api.require_admin`
+    at this single choke point (instead of per-handler decorators) so a
+    future command added to :data:`_COMMANDS` is admin-only by
+    construction.  The integration is administrative by nature: its
+    commands mutate the config entry, publish arbitrary payloads to the
+    Sber cloud broker, inject commands that bypass per-user entity
+    permissions, and expose the full MQTT traffic log — none of that may
+    be reachable by non-admin HA users.
+
     Args:
         hass: Home Assistant core instance.
     """
@@ -189,5 +198,5 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
         return
     hass.data[marker] = True
     for command in _COMMANDS:
-        websocket_api.async_register_command(hass, command)
-    _LOGGER.debug("Sber MQTT Bridge WebSocket API registered")
+        websocket_api.async_register_command(hass, websocket_api.require_admin(command))
+    _LOGGER.debug("Sber MQTT Bridge WebSocket API registered (admin-only)")

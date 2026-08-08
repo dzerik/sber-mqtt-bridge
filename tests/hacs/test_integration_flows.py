@@ -143,13 +143,19 @@ def _find_state_entry(states_list: list[dict], key: str) -> dict | None:
 
 
 async def _drain_tasks(hass):
-    """Wait for all created background tasks to complete."""
+    """Wait for all created background tasks to complete.
+
+    Timeouts and cancellations are tolerated (a delayed-confirm task may
+    still be sleeping when the flow under test is already finished), but any
+    other exception is re-raised: a background publish task that dies
+    silently is exactly the class of bug these flow tests exist to catch.
+    """
     for task in getattr(hass, "_created_tasks", []):
         if not task.done():
             try:
                 await asyncio.wait_for(task, timeout=5)
-            except (TimeoutError, asyncio.CancelledError, Exception):
-                pass
+            except (TimeoutError, asyncio.CancelledError):
+                continue
 
 
 def _mock_ha_state(state: str, attributes: dict | None = None):
@@ -1405,9 +1411,11 @@ class TestRedefinitionsFlows:
         hass = _make_hass()
         bridge = _make_bridge(hass, RelayEntity, "switch.lamp", "on")
 
-        bridge._redefinitions = {
-            "switch.lamp": {"name": "New Name", "room": "Bedroom"},
-        }
+        bridge._redef_store.replace(
+            {
+                "switch.lamp": {"name": "New Name", "room": "Bedroom"},
+            }
+        )
 
         await bridge._publish_config()
 
@@ -1432,30 +1440,6 @@ class TestRedefinitionsFlows:
 # ---------------------------------------------------------------------------
 
 
-def _make_entry_for_real_hass(options=None):
-    """Create a mock ConfigEntry suitable for use with a real hass instance."""
-    entry = MagicMock()
-    entry.data = {
-        CONF_SBER_LOGIN: "test",
-        CONF_SBER_PASSWORD: "pass",
-        CONF_SBER_BROKER: "broker.test",
-        CONF_SBER_PORT: 8883,
-    }
-    entry.options = options or {}
-    return entry
-
-
-def _extract_published_states(bridge) -> list[dict]:
-    """Return all published up/status payloads from the mqtt mock."""
-    results = []
-    for call in bridge._mqtt_service.publish.call_args_list:
-        args = call.args if call.args else call[0]
-        topic = str(args[0])
-        if "up/status" in topic:
-            results.append(json.loads(args[1]))
-    return results
-
-
 class TestRealHassFlows:
     """Integration tests using the real ``hass`` fixture.
 
@@ -1476,7 +1460,7 @@ class TestRealHassFlows:
         -> _schedule_debounced_publish -> (fire timers) -> _fire_debounced_publish
         -> _publish_states -> mqtt_client.publish.
         """
-        entry = _make_entry_for_real_hass()
+        entry = _make_entry()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
@@ -1510,7 +1494,7 @@ class TestRealHassFlows:
         await hass.async_block_till_done()
 
         # Assert: mqtt publish was called with on_off=true
-        payloads = _extract_published_states(bridge)
+        payloads = _get_published_payloads(bridge)
         assert len(payloads) >= 1, "Expected at least one MQTT publish"
 
         device_states = payloads[-1]["devices"]["switch.lamp"]["states"]
@@ -1528,7 +1512,7 @@ class TestRealHassFlows:
         Regression test for the RGB bug where color mode change was
         not detected because the state remained 'on'.
         """
-        entry = _make_entry_for_real_hass()
+        entry = _make_entry()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
@@ -1577,7 +1561,7 @@ class TestRealHassFlows:
         await hass.async_block_till_done()
 
         # Assert: publish contains light_mode=colour
-        payloads = _extract_published_states(bridge)
+        payloads = _get_published_payloads(bridge)
         assert len(payloads) >= 1, "Expected at least one MQTT publish"
 
         device_states = payloads[-1]["devices"]["light.test"]["states"]
@@ -1594,14 +1578,10 @@ class TestRealHassFlows:
     # 3. Debounce coalesces rapid changes
     # ------------------------------------------------------------------ #
 
-    async def test_real_hass_debounce_coalesces_rapid_changes(self, hass):
-        """Rapid state changes are coalesced by the debounce timer.
-
-        Three rapid on/off/on changes produce a single publish with the
-        final state (on_off=true).
-        """
-        entry = _make_entry_for_real_hass()
-        bridge = SberBridge(hass, entry)
+    @staticmethod
+    async def _make_relay_bridge(hass):
+        """Build a bridge exposing ``switch.lamp`` (initially off) on real hass."""
+        bridge = SberBridge(hass, _make_entry())
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
         bridge._connected = True
@@ -1620,31 +1600,60 @@ class TestRealHassFlows:
 
         hass.states.async_set("switch.lamp", "off")
         await hass.async_block_till_done()
-
         bridge._subscribe_ha_events()
+        return bridge
+
+    @staticmethod
+    def _on_off_values(payloads: list[dict]) -> list[bool]:
+        """Extract the ``on_off`` boolean of ``switch.lamp`` from each payload."""
+        values = []
+        for payload in payloads:
+            state_value = _find_state_value(payload["devices"]["switch.lamp"]["states"], "on_off")
+            assert state_value is not None, f"on_off missing from published payload: {payload}"
+            values.append(state_value["bool_value"])
+        return values
+
+    async def test_real_hass_debounce_coalesces_rapid_changes(self, hass):
+        """Rapid state changes are coalesced into exactly one publish.
+
+        Three rapid on/off/on changes must reach Sber as a *single*
+        up/status publish carrying the final state (on_off=true).  The
+        exact count is the point of this test: without coalescing the
+        bridge floods the Sber broker with one publish per HA event
+        (see the sibling test below for the un-coalesced baseline).
+        """
+        bridge = await self._make_relay_bridge(hass)
 
         # Act: rapid state changes without firing timers in between
-        hass.states.async_set("switch.lamp", "on")
-        await hass.async_block_till_done()
+        for state in ("on", "off", "on"):
+            hass.states.async_set("switch.lamp", state)
+            await hass.async_block_till_done()
 
-        hass.states.async_set("switch.lamp", "off")
-        await hass.async_block_till_done()
-
-        hass.states.async_set("switch.lamp", "on")
-        await hass.async_block_till_done()
+        assert _get_published_payloads(bridge) == [], "debounce must not publish before its timer fires"
 
         # Fire the coalesced debounce timer
         async_fire_time_changed(hass, fire_all=True)
         await hass.async_block_till_done()
 
-        # Assert: publish called, final state is on_off=true
-        payloads = _extract_published_states(bridge)
-        assert len(payloads) >= 1, "Expected at least one MQTT publish after debounce"
+        # Assert: exactly one publish, carrying the final state
+        assert self._on_off_values(_get_published_payloads(bridge)) == [True]
 
-        device_states = payloads[-1]["devices"]["switch.lamp"]["states"]
-        on_off_val = _find_state_value(device_states, "on_off")
-        assert on_off_val is not None
-        assert on_off_val["bool_value"] is True
+    async def test_real_hass_debounce_publishes_every_settled_change(self, hass):
+        """Baseline for the coalescing test: settled changes publish one-by-one.
+
+        When the debounce timer is allowed to elapse between changes, each
+        change gets its own publish — proving the ``== [True]`` assertion
+        above measures coalescing and not a swallowed publish path.
+        """
+        bridge = await self._make_relay_bridge(hass)
+
+        for state in ("on", "off", "on"):
+            hass.states.async_set("switch.lamp", state)
+            await hass.async_block_till_done()
+            async_fire_time_changed(hass, fire_all=True)
+            await hass.async_block_till_done()
+
+        assert self._on_off_values(_get_published_payloads(bridge)) == [True, False, True]
 
     # ------------------------------------------------------------------ #
     # 4. PIR sensor: no state on idle
@@ -1656,7 +1665,7 @@ class TestRealHassFlows:
         The Sber protocol requires event-based sensors to emit the
         detection key only while active and omit it entirely when idle.
         """
-        entry = _make_entry_for_real_hass()
+        entry = _make_entry()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
@@ -1685,7 +1694,7 @@ class TestRealHassFlows:
         async_fire_time_changed(hass, fire_all=True)
         await hass.async_block_till_done()
 
-        payloads = _extract_published_states(bridge)
+        payloads = _get_published_payloads(bridge)
         assert len(payloads) >= 1, "Expected publish on motion detected"
         device_states = payloads[-1]["devices"]["binary_sensor.pir"]["states"]
         pir_entry = _find_state_entry(device_states, "pir")
@@ -1700,7 +1709,7 @@ class TestRealHassFlows:
         async_fire_time_changed(hass, fire_all=True)
         await hass.async_block_till_done()
 
-        payloads = _extract_published_states(bridge)
+        payloads = _get_published_payloads(bridge)
         assert len(payloads) >= 1, "Expected publish on motion cleared"
         device_states = payloads[-1]["devices"]["binary_sensor.pir"]["states"]
         pir_entry = _find_state_entry(device_states, "pir")
@@ -1715,7 +1724,7 @@ class TestRealHassFlows:
 
         Sber protocol requires 'close' enum value, not HA's 'closed' state.
         """
-        entry = _make_entry_for_real_hass()
+        entry = _make_entry()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
@@ -1744,7 +1753,7 @@ class TestRealHassFlows:
         async_fire_time_changed(hass, fire_all=True)
         await hass.async_block_till_done()
 
-        payloads = _extract_published_states(bridge)
+        payloads = _get_published_payloads(bridge)
         assert len(payloads) >= 1, "Expected at least one MQTT publish"
 
         device_states = payloads[-1]["devices"]["cover.curtain"]["states"]
@@ -1766,7 +1775,7 @@ class TestRealHassFlows:
         a service call, HA updates its state, and the bridge publishes
         the confirmed state back to Sber.
         """
-        entry = _make_entry_for_real_hass()
+        entry = _make_entry()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
@@ -1829,7 +1838,7 @@ class TestRealHassFlows:
         assert len(turn_on_calls) >= 1, f"Expected turn_on service call, got: {service_calls}"
 
         # Assert: MQTT publish was called with on_off=true
-        payloads = _extract_published_states(bridge)
+        payloads = _get_published_payloads(bridge)
         assert len(payloads) >= 1, "Expected MQTT publish after state change"
 
         device_states = payloads[-1]["devices"]["switch.lamp"]["states"]
@@ -1848,7 +1857,7 @@ class TestRealHassFlows:
         to the primary entity and triggers a publish containing both
         temperature and humidity.
         """
-        entry = _make_entry_for_real_hass()
+        entry = _make_entry()
         bridge = SberBridge(hass, entry)
         bridge._mqtt_client = AsyncMock()
         bridge._mqtt_service.publish = AsyncMock()
@@ -1889,7 +1898,7 @@ class TestRealHassFlows:
         await hass.async_block_till_done()
 
         # Assert: publish includes both temperature and humidity
-        payloads = _extract_published_states(bridge)
+        payloads = _get_published_payloads(bridge)
         assert len(payloads) >= 1, "Expected MQTT publish after linked sensor update"
 
         device_states = payloads[-1]["devices"]["sensor.temp"]["states"]

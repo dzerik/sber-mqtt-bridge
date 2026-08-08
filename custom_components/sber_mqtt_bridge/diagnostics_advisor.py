@@ -72,10 +72,12 @@ def _verdict_for(severities: list[Severity]) -> Verdict:
 
 def _collect_summary(bridge: SberBridge, entity_id: str) -> dict[str, Any]:
     """Gather raw state about the entity for the UI to render as-is."""
-    entity = bridge._entities.get(entity_id)
-    enabled = entity_id in bridge._enabled_entity_ids
+    entity = bridge.entities.get(entity_id)
+    enabled = entity_id in bridge.enabled_entity_ids
+    # No public role-aware accessor yet (``linked_entity_ids`` drops the
+    # role) — the only remaining private read, kept deliberately narrow.
     linked_role = bridge._linked_reverse.get(entity_id)
-    acknowledged = entity_id in bridge._stats.acknowledged_entities
+    acknowledged = entity_id in bridge.stats["acknowledged_entities"]
 
     # Latest trace that touched this entity (may be active or closed).
     last_trace = None

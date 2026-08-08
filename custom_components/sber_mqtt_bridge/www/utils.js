@@ -1,7 +1,11 @@
 /**
  * Sber MQTT Bridge -- Shared utilities.
  *
- * Provides slugify (cyrillic-aware) and Salut name validation helpers.
+ * Provides slugify (cyrillic-aware), Salut name validation and the single
+ * clipboard helper used by every component.
+ *
+ * Dependency-free on purpose: ``tests/hacs/test_www_frontend.py`` executes
+ * this module in bare node to compare it against the Python source of truth.
  */
 
 /**
@@ -32,85 +36,86 @@ export function slugify(text) {
 }
 
 /**
+ * Salut-friendly name pattern: 3-33 characters, Cyrillic letters,
+ * digits, spaces and hyphens.
+ *
+ * MUST stay byte-for-byte equivalent to ``_SALUT_NAME`` in
+ * ``custom_components/sber_mqtt_bridge/name_utils.py`` (the Python side
+ * is the source of truth).  ``tests/hacs/test_www_frontend.py``
+ * fails the build when the two diverge.
+ */
+export const SALUT_NAME_RE = /^[\u0430-\u044F\u0451\u0410-\u042F\u04010-9 \-]{3,33}$/;
+
+/**
  * Validate a device name for the Salut voice assistant.
  *
- * Rules: 3-33 characters, only Cyrillic letters, digits and spaces.
+ * Rules: 3-33 characters, only Cyrillic letters, digits, spaces and
+ * hyphens (Sber's own docs show names like "\u0421\u043C\u0430\u0440\u0442-\u0442\u0435\u043B\u0435\u0432\u0438\u0437\u043E\u0440").
  *
  * @param {string} name - Candidate device name.
  * @returns {boolean} True if the name is valid.
  */
 export function isValidSalutName(name) {
-  return /^[\u0430-\u044F\u0451\u0410-\u042F\u04010-9 ]{3,33}$/.test(name);
+  return typeof name === "string" && SALUT_NAME_RE.test(name);
 }
 
 /**
- * Filter entities by text query (entity_id or friendly_name).
+ * Resolve the element that really has focus, descending into shadow roots.
  *
- * @param {Array} entities - List of entity objects with entity_id and friendly_name.
- * @param {string} query - Search query (case-insensitive).
- * @returns {Array} Filtered entities.
+ * ``document.activeElement`` only reports the outermost custom element, so a
+ * naive capture would restore focus to the panel host instead of the control
+ * the user actually activated (WCAG 2.4.3).
+ *
+ * @returns {Element|null} Deepest focused element.
  */
-export function filterEntities(entities, query) {
-  if (!query) return entities;
-  const q = query.toLowerCase();
-  return entities.filter(
-    (e) =>
-      (e.entity_id || "").toLowerCase().includes(q) ||
-      (e.friendly_name || "").toLowerCase().includes(q)
-  );
+export function deepActiveElement() {
+  let el = document.activeElement;
+  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
+    el = el.shadowRoot.activeElement;
+  }
+  return el;
 }
 
 /**
- * Shared CSS string for dialog components.
- * Use with: css`${DIALOG_STYLES_CSS}`
+ * Copy text to the clipboard, falling back to the legacy path.
+ *
+ * ``navigator.clipboard`` is undefined in insecure contexts (plain-HTTP
+ * Home Assistant installs are common) and rejects when the permission is
+ * denied, so both failure modes fall through to a hidden textarea.
+ *
+ * @param {string} text - Text to place on the clipboard.
+ * @returns {Promise<boolean>} True when the text was copied.
  */
-export const DIALOG_STYLES_CSS = `
-  .overlay {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.5); z-index: 999;
-    display: flex; align-items: center; justify-content: center;
+export async function copyText(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* Insecure context or permission denied — try the legacy path. */
   }
-  .dialog {
-    background: var(--card-background-color, #fff);
-    border-radius: var(--ha-card-border-radius, 12px);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-    display: flex; flex-direction: column; overflow: hidden;
+  return legacyCopy(text);
+}
+
+/**
+ * ``document.execCommand("copy")`` fallback for insecure contexts.
+ *
+ * @param {string} text - Text to place on the clipboard.
+ * @returns {boolean} True when the copy command succeeded.
+ */
+function legacyCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    document.body.removeChild(ta);
   }
-  .dialog-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px; border-bottom: 1px solid var(--divider-color, #e0e0e0);
-  }
-  .dialog-header h2 { margin: 0; font-size: 18px; font-weight: 500; }
-  .close-btn {
-    background: none; border: none; font-size: 20px; cursor: pointer;
-    color: var(--secondary-text-color); padding: 4px 8px; border-radius: 4px;
-  }
-  .close-btn:hover { background: var(--secondary-background-color, #eee); }
-  .dialog-footer {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 20px; border-top: 1px solid var(--divider-color, #e0e0e0);
-  }
-  .body { flex: 1; overflow-y: auto; padding: 16px 20px; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 8px 16px; border: none; border-radius: 8px;
-    font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s;
-  }
-  .btn-primary { background: var(--primary-color); color: #fff; }
-  .btn-primary:hover { opacity: 0.85; }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-secondary { background: var(--secondary-background-color, #eee); color: var(--primary-text-color); }
-  .btn-secondary:hover { opacity: 0.8; }
-  .btn-success { background: var(--success-color, #4caf50); color: #fff; }
-  .btn-success:hover { opacity: 0.85; }
-  .btn-danger { background: var(--error-color, #f44336); color: #fff; }
-  .btn-danger:hover { opacity: 0.85; }
-  .empty-state { text-align: center; padding: 32px; color: var(--secondary-text-color); font-size: 14px; }
-  .filter-input {
-    width: 100%; padding: 8px 12px; margin-bottom: 12px;
-    border: 1px solid var(--divider-color, #ccc); border-radius: 8px;
-    font-size: 13px; background: var(--card-background-color, #fff);
-    color: var(--primary-text-color); outline: none; box-sizing: border-box;
-  }
-  .filter-input:focus { border-color: var(--primary-color); }
-`;
+}

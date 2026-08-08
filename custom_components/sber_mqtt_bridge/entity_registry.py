@@ -101,6 +101,24 @@ class SberEntityLoader:
         and should atomically replace their previous state to avoid race
         conditions with concurrent readers.
 
+        Error-handling policy is deliberately asymmetric between the two
+        phases — do NOT "align" them:
+
+        * :meth:`_create_entities` — a broken entity is *dropped*.  A
+          half-initialised entity would either publish garbage or make
+          ``BaseEntity.to_sber_state`` raise later and abort the whole
+          config publish.
+        * :meth:`_apply_entity_links` — a broken *initial* linked state
+          keeps the link.  The link itself is user configuration; the
+          forwarder re-applies it on the next state change, so dropping
+          it would silently lose settings for a transient read failure.
+
+        Redefinitions are pruned against the *exposed* list (config
+        options), not against successfully loaded entities: an entity that
+        failed to load this pass (e.g. an unavailable light publishing a
+        degenerate CCT range) must keep its user-assigned room/name for
+        when it recovers.
+
         Args:
             existing_redefinitions: Current in-memory redefinitions; merged
                 with persisted options before pruning stale entries.
@@ -198,7 +216,26 @@ class SberEntityLoader:
                     "state": state.state,
                     "attributes": dict(state.attributes),
                 }
-                sber_entity.fill_by_ha_state(ha_state_dict)
+                try:
+                    sber_entity.fill_by_ha_state(ha_state_dict)
+                except (TypeError, ValueError, KeyError, AttributeError):
+                    # Per-entity isolation: one broken entity (e.g. a light
+                    # with a degenerate CCT range raising ValueError in
+                    # linear_converter) must not abort loading of all the
+                    # others and take down async_setup_entry with it.
+                    # The tuple is intentionally narrow: BaseException
+                    # (asyncio.CancelledError, KeyboardInterrupt) must
+                    # propagate instead of being swallowed here.
+                    # WARNING (not exception): a degenerate CCT range is a
+                    # user-level misconfiguration, not a bridge error — but
+                    # this line is the only trace of an entity vanishing
+                    # from the Sber payload, so it keeps the traceback.
+                    _LOGGER.warning(
+                        "Failed to fill initial state for %s — entity skipped",
+                        entity_id,
+                        exc_info=True,
+                    )
+                    new_entities.pop(entity_id, None)
 
         return new_entities
 
@@ -232,11 +269,29 @@ class SberEntityLoader:
         device_reg: dr.DeviceRegistry,
         area_reg: ar.AreaRegistry | None = None,
     ) -> None:
-        """Link device registry data to entity if it belongs to a device."""
+        """Link device registry data to entity if it belongs to a device.
+
+        When the device cannot be attached — it disappeared from the
+        device registry between the two reads, or its id does not match
+        the one cached on the entity registry entry — the entity is
+        *demoted to standalone* by clearing ``device_id``.
+
+        This is load-bearing, not cosmetic: ``BaseEntity.to_sber_state``
+        raises ``RuntimeError`` for ``device_id set + linked_device None``,
+        and ``build_devices_list_json`` does not catch ``RuntimeError``,
+        so leaving that contradictory state would abort the publication of
+        the *entire* device list — every device, not just the broken one.
+        """
         if entry.device_id is None:
             return
         device = device_reg.async_get(entry.device_id)
         if device is None:
+            _LOGGER.warning(
+                "Device %s of %s is missing from the device registry — exposing the entity to Sber as standalone",
+                entry.device_id,
+                sber_entity.entity_id,
+            )
+            sber_entity.device_id = None
             return
         device_area = area_reg.async_get_area(device.area_id) if area_reg and device.area_id else None
         device_data = {
@@ -254,7 +309,13 @@ class SberEntityLoader:
         try:
             sber_entity.link_device(device_data)
         except ValueError:
-            _LOGGER.warning("Device ID mismatch for %s", sber_entity.entity_id)
+            _LOGGER.warning(
+                "Device ID mismatch for %s (entity → %s, registry → %s) — exposing the entity to Sber as standalone",
+                sber_entity.entity_id,
+                sber_entity.device_id,
+                device.id,
+            )
+            sber_entity.device_id = None
 
     def _apply_entity_links(
         self, new_entities: dict[str, BaseEntity]
@@ -297,7 +358,20 @@ class SberEntityLoader:
                     "state": linked_state.state,
                     "attributes": dict(linked_state.attributes),
                 }
-                primary_entity.update_linked_data(role, ha_state_dict)
+                try:
+                    primary_entity.update_linked_data(role, ha_state_dict)
+                except (TypeError, ValueError, KeyError, AttributeError):
+                    # Keep the link registered even when the initial linked
+                    # state cannot be applied — the forwarder retries on the
+                    # next state change; dropping the link would silently
+                    # lose the user's configuration.  Narrow tuple on
+                    # purpose: BaseException must propagate (see load()).
+                    _LOGGER.exception(
+                        "Failed to apply initial linked state %s (role=%s) for %s",
+                        linked_id,
+                        role,
+                        primary_id,
+                    )
                 primary_entity.register_link(role, linked_id)
             if valid_roles:
                 new_links[primary_id] = valid_roles
@@ -313,6 +387,10 @@ class SberEntityLoader:
         linked_ids = set(new_reverse.keys())
         device_entities: dict[str, list[str]] = {}
         for eid, ent in new_entities.items():
+            # Defence in depth: :meth:`_apply_entity_links` already refuses
+            # to link an exposed primary, so this intersection is normally
+            # empty — keep the guard so a future relaxation of that rule
+            # cannot turn into a bogus duplicate warning.
             if eid in linked_ids:
                 continue
             did = getattr(ent, "device_id", None)

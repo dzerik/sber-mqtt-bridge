@@ -37,7 +37,7 @@ HA_TO_SBER_WORK_MODE: dict[str, str] = {
 
 'off' is excluded — use on_off.
 Sber also supports 'turbo' and 'quiet' work modes; these are mapped
-from HA preset_modes (boost→turbo, sleep→quiet) in to_sber_current_state.
+from HA preset_modes (boost→turbo, sleep→quiet) in _build_current_state.
 """
 
 SBER_TO_HA_WORK_MODE: dict[str, str] = {
@@ -340,16 +340,6 @@ class ClimateEntity(BaseEntity):
     _NIGHT_MODE_CATEGORIES = frozenset({"hvac_ac"})
     """Sber climate categories whose spec includes ``hvac_night_mode``."""
 
-    def _has_instance_allowed_values(self) -> bool:
-        """Climate limits vary per device (min/max temp, mode lists).
-
-        ``hvac_temp_set`` min/max/step and the fan/swing/mode enum values
-        come from HA attributes — devices sharing a model_id with
-        different allowed_values get silently rejected by Sber cloud
-        (issue #44 audit).
-        """
-        return True
-
     def _mapped_fan_values(self) -> list[str]:
         """Return Sber enum values for fan modes with a known mapping.
 
@@ -452,7 +442,7 @@ class ClimateEntity(BaseEntity):
         }
         return allowed
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with all climate attributes.
 
         Includes online, on_off, temperature, target temperature, fan mode,

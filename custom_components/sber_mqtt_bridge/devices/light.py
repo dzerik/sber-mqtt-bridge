@@ -80,14 +80,11 @@ class LightEntity(BaseEntity):
             field="hs_color",
             attr_keys=("hs_color",),
         ),
-        AttrSpec(
-            field="rgb_color",
-            attr_keys=("rgb_color",),
-        ),
-        AttrSpec(
-            field="xy_color",
-            attr_keys=("xy_color",),
-        ),
+        # NOTE: rgb_color / xy_color are intentionally NOT parsed — all
+        # colour logic (including LedStripEntity) works exclusively with
+        # hs_color, which HA always provides alongside rgb/xy for lights
+        # in a colour mode.  Parsing them was dead per-state-change work
+        # that falsely implied RGB/XY support.
     )
 
     def __init__(self, ha_entity_data: dict) -> None:
@@ -107,8 +104,6 @@ class LightEntity(BaseEntity):
         self.current_sber_color_temp: int | None = 0
         self.current_color_mode: str | None = None
         self.hs_color: list[float] | None = None
-        self.rgb_color: list[int] | None = None
-        self.xy_color: list[float] | None = None
 
         self.brightness_converter = LinearConverter()
         self.brightness_converter.set_ha_limits(0, 255)
@@ -241,7 +236,7 @@ class LightEntity(BaseEntity):
         """
         return self.current_color_mode in ("hs", "rgb", "rgbw", "rgbww", "xy")
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with all light attributes.
 
         Includes online, on_off, brightness, color/color_temp, and light_mode

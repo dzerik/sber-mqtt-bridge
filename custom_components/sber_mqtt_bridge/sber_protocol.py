@@ -16,7 +16,7 @@ from .sber_models import validate_config_payload, validate_device, validate_stat
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.42.0"
+VERSION = "1.43.0"
 """Protocol version string included in the hub device descriptor."""
 
 
@@ -250,22 +250,59 @@ def build_states_list_json(
     return json.dumps(states), valid
 
 
-def parse_sber_command(payload: bytes | str) -> dict[str, Any]:
-    """Parse Sber MQTT command payload.
+def _load_json_payload(payload: bytes | str) -> Any:
+    """Decode a raw MQTT payload as JSON, never raising.
 
-    Per spec (VR-032), ``devices`` must be a dict keyed by device_id.
+    Catches every realistic decoding failure for untrusted broker input:
+    invalid JSON / invalid UTF-8 (``ValueError`` covers both, including
+    ``JSONDecodeError`` and ``UnicodeDecodeError``), non-str/bytes input
+    (``TypeError``) and pathologically nested documents that blow the
+    parser stack (``RecursionError``).
 
     Args:
         payload: Raw MQTT payload (bytes or str).
 
     Returns:
-        Parsed dict with 'devices' key, or empty dict on parse error.
+        Parsed JSON value, or ``None`` on any decoding failure.
     """
     try:
-        data = json.loads(payload)
-    except (json.JSONDecodeError, TypeError):
+        return json.loads(payload)
+    except (ValueError, TypeError, RecursionError):
         _LOGGER.warning(
-            "Failed to parse Sber command payload: %s", payload[:200] if isinstance(payload, (str, bytes)) else payload
+            "Failed to parse Sber payload as JSON: %s",
+            payload[:200] if isinstance(payload, (str, bytes)) else payload,
+        )
+        return None
+
+
+def parse_sber_command(payload: bytes | str) -> dict[str, Any]:
+    """Parse and structurally validate a Sber MQTT command payload.
+
+    Per spec (VR-032), the top level must be an object and ``devices``
+    must be a dict keyed by device_id.  Untrusted input is sanitized so
+    downstream consumers can rely on the shape ``devices: dict[str, dict]``
+    with ``states: list[dict]`` in every device entry:
+
+    * non-object top level → empty result;
+    * non-dict ``devices`` → empty result;
+    * non-dict values inside ``devices`` are dropped;
+    * a non-list ``states`` is replaced with ``[]``;
+    * non-dict elements inside ``states`` are dropped.
+
+    Args:
+        payload: Raw MQTT payload (bytes or str).
+
+    Returns:
+        Parsed dict with a ``devices`` key mapping device_id to command
+        dicts, or ``{"devices": {}}`` on any parse / validation error.
+    """
+    data = _load_json_payload(payload)
+    if data is None:
+        return {"devices": {}}
+    if not isinstance(data, dict):
+        _LOGGER.warning(
+            "Invalid command payload: top level must be object, got %s",
+            type(data).__name__,
         )
         return {"devices": {}}
     devices = data.get("devices")
@@ -275,21 +312,69 @@ def parse_sber_command(payload: bytes | str) -> dict[str, Any]:
             type(devices).__name__,
         )
         return {"devices": {}}
+    data["devices"] = {
+        device_id: _sanitize_command_entry(device_id, cmd_data)
+        for device_id, cmd_data in devices.items()
+        if _is_valid_command_entry(device_id, cmd_data)
+    }
     return data
+
+
+def _is_valid_command_entry(device_id: str, cmd_data: Any) -> bool:
+    """Return True when a ``devices`` entry is a dict; warn and reject otherwise."""
+    if isinstance(cmd_data, dict):
+        return True
+    _LOGGER.warning(
+        "Invalid command payload for %s: entry must be dict, got %s — dropped",
+        device_id,
+        type(cmd_data).__name__,
+    )
+    return False
+
+
+def _sanitize_command_entry(device_id: str, cmd_data: dict[str, Any]) -> dict[str, Any]:
+    """Normalize ``states`` of one command entry to ``list[dict]``."""
+    states = cmd_data.get("states", [])
+    if not isinstance(states, list):
+        _LOGGER.warning(
+            "Invalid command payload for %s: 'states' must be list, got %s — replaced with []",
+            device_id,
+            type(states).__name__,
+        )
+        cmd_data["states"] = []
+        return cmd_data
+    valid_states = [item for item in states if isinstance(item, dict)]
+    if len(valid_states) != len(states):
+        _LOGGER.warning(
+            "Invalid command payload for %s: %d non-dict state item(s) dropped",
+            device_id,
+            len(states) - len(valid_states),
+        )
+        cmd_data["states"] = valid_states
+    return cmd_data
 
 
 def parse_sber_status_request(payload: bytes | str) -> list[str]:
     """Parse Sber status request payload.
 
-    Returns list of requested entity_ids (empty = all).
+    Non-string elements in the ``devices`` list are dropped so callers
+    can safely use the result for dict lookups / set membership.
+
+    Returns:
+        List of requested entity_ids (empty = all).
     """
-    try:
-        data = json.loads(payload).get("devices") or []
-    except (json.JSONDecodeError, AttributeError, TypeError):
+    data = _load_json_payload(payload)
+    if not isinstance(data, dict):
         return []
-    else:
-        if not isinstance(data, list):
-            return []
-        if len(data) == 1 and data[0] == "":
-            return []
-        return data
+    requested = data.get("devices")
+    if not isinstance(requested, list):
+        return []
+    entity_ids = [item for item in requested if isinstance(item, str)]
+    if len(entity_ids) != len(requested):
+        _LOGGER.warning(
+            "Invalid status request: %d non-string device id(s) dropped",
+            len(requested) - len(entity_ids),
+        )
+    if len(entity_ids) == 1 and entity_ids[0] == "":
+        return []
+    return entity_ids

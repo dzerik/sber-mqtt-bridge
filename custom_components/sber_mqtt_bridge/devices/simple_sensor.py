@@ -1,7 +1,7 @@
 """Base class for read-only Sber sensors with a single value feature.
 
 Provides shared implementations of ``process_cmd``,
-``_create_features_list``, and ``to_sber_current_state`` so that concrete
+``_create_features_list``, and ``_build_current_state`` so that concrete
 sensor subclasses only need to define how their value is extracted and
 formatted for the Sber protocol.
 
@@ -147,7 +147,7 @@ class SimpleReadOnlySensor(BatteryAndSignalLinkMixin, BaseEntity):
             features.append("sensor_sensitive")
         return features
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with online, value, battery, and signal keys.
 
         Returns:

@@ -95,11 +95,6 @@ class AckAudit:
 
     # Silent-rejection audit --------------------------------------------
 
-    @property
-    def audit_delay(self) -> float:
-        """Return the configured audit delay in seconds."""
-        return self._audit_delay
-
     def schedule_audit(self) -> None:
         """Schedule an audit run ``audit_delay`` seconds from now.
 

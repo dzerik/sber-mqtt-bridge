@@ -92,11 +92,24 @@ class TestLightFillByHaState(unittest.TestCase):
         entity.fill_by_ha_state(_make_ha_state(color_temp=None))
         self.assertIsNone(entity.current_sber_color_temp)
 
-    def test_fill_xy_color(self):
-        """xy_color attribute is stored."""
+    def test_rgb_xy_attrs_ignored_hs_drives_colour(self):
+        """rgb_color/xy_color HA attrs are ignored; colour comes from hs_color only."""
         entity = LightEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(xy_color=[0.4, 0.5]))
-        self.assertEqual(entity.xy_color, [0.4, 0.5])
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                color_mode="xy",
+                hs_color=[120, 50],
+                rgb_color=[10, 20, 30],
+                xy_color=[0.4, 0.5],
+            )
+        )
+        # No dead parsed fields left behind.
+        self.assertFalse(hasattr(entity, "rgb_color"))
+        self.assertFalse(hasattr(entity, "xy_color"))
+        # Colour state on the wire is derived from hs_color.
+        states = entity.to_sber_current_state()["light.room"]["states"]
+        colour = next(s for s in states if s["key"] == "light_colour")
+        self.assertEqual(colour["value"]["colour_value"]["h"], 120)
 
     def test_fill_updates_mireds_limits(self):
         """color_temp_converter limits are updated from mireds."""

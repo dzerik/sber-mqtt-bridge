@@ -8,10 +8,10 @@
  * No build step required.
  */
 
-// Cache-busting: extract version from own URL (?v=X.Y.Z) and propagate
-// to sub-component imports so browser fetches fresh copies on upgrade.
-const _v = new URL(import.meta.url).searchParams.get("v") || "";
-const _q = _v ? `?v=${_v}` : "";
+// Cache-busting: take our own query string (?v=X.Y.Z) and propagate it to
+// every import below, so the browser fetches fresh copies on upgrade.
+// lit-base.js forwards the same query to vendor/lit.js.
+const _q = new URL(import.meta.url).search;
 await Promise.all([
   import(`./components/sber-device-table.js${_q}`),
   import(`./components/sber-status-card.js${_q}`),
@@ -29,7 +29,22 @@ await Promise.all([
   import(`./components/sber-link-dialog.js${_q}`),
 ]);
 
-import { LitElement, html, css } from "./lit-base.js";
+const { LitElement, html, css } = await import(`./lit-base.js${_q}`);
+const { messageBus } = await import(`./message-bus.js${_q}`);
+
+/** Tab labels, index-aligned with the ``_tab`` state value. */
+const TABS = ["Devices", "Status", "DevTools", "Settings"];
+
+/* Mutating WS commands (add / remove / override / import) return as soon as
+ * the config entry is patched; the reload that rebuilds the exposed device
+ * set finishes a moment later.  Instead of sleeping a fixed 1.5s — too early
+ * on a slow box, needlessly slow on a fast one — the panel re-reads the
+ * device list until the expected change shows up. */
+
+/** Delay between two confirmation re-reads. */
+const POLL_INTERVAL_MS = 200;
+/** Give up waiting for the backend after this long and show what we have. */
+const POLL_TIMEOUT_MS = 8000;
 
 /* ---------- main panel ---------- */
 
@@ -119,6 +134,53 @@ class SberMqttPanel extends LitElement {
     }
   }
 
+  /**
+   * Re-read the device list until ``predicate`` accepts it.
+   *
+   * Callers must use the return value: a false means the change was never
+   * observed, so reporting unconditional success would be a lie.
+   *
+   * @param {Function} predicate - Called with the fresh device array;
+   *     return true once the mutation is visible.
+   * @param {object} [options] - ``{timeout, interval}`` overrides in ms.
+   * @returns {Promise<boolean>} False if the fetch failed, the element
+   *     detached or the timeout expired first.
+   */
+  async _refreshUntil(predicate, { timeout = POLL_TIMEOUT_MS, interval = POLL_INTERVAL_MS } = {}) {
+    const deadline = Date.now() + timeout;
+    for (;;) {
+      await this._fetchAll();
+      if (this._error) {
+        /* ``_fetchAll`` swallows its failure into ``_error``, so without
+         * this check a broken backend is indistinguishable from "the
+         * mutation has not landed yet" and we would hammer it for the
+         * whole timeout window. */
+        return false;
+      }
+      let satisfied = false;
+      try {
+        satisfied = Boolean(predicate(this._devices, this._devicesExtra));
+      } catch {
+        /* A malformed predicate must not strand the panel in a poll loop. */
+        return false;
+      }
+      if (satisfied) return true;
+      if (Date.now() >= deadline || !this.isConnected) return false;
+      await new Promise((r) => setTimeout(r, interval));
+    }
+  }
+
+  /**
+   * Banner shown when a mutation was accepted but never became visible.
+   *
+   * @param {string} what - Human-readable name of the mutation.
+   */
+  _reportUnconfirmed(what) {
+    if (!this._error) {
+      this._error = `${what} was accepted but the bridge did not confirm it — press Refresh.`;
+    }
+  }
+
   async _republish() {
     this._loading = true;
     try {
@@ -138,8 +200,9 @@ class SberMqttPanel extends LitElement {
         type: "sber_mqtt_bridge/remove_entities",
         entity_ids: entityIds,
       });
-      await new Promise((r) => setTimeout(r, 1500));
-      await this._fetchAll();
+      const removed = new Set(entityIds);
+      const ok = await this._refreshUntil((devices) => devices.every((d) => !removed.has(d.entity_id)));
+      if (!ok) this._reportUnconfirmed("Removal");
     } catch (e) {
       this._error = e.message || String(e);
     } finally {
@@ -149,14 +212,29 @@ class SberMqttPanel extends LitElement {
 
   async _setOverride(entityId, category) {
     this._loading = true;
+    const previousCategory = this._devices.find((d) => d.entity_id === entityId)?.sber_category;
     try {
       await this.hass.callWS({
         type: "sber_mqtt_bridge/set_override",
         entity_id: entityId,
         category: category,
       });
-      await new Promise((r) => setTimeout(r, 1500));
-      await this._fetchAll();
+      if (category === "auto") {
+        /* Dropping the override hands the choice back to the mapper, which
+         * may well land on the same category — there is nothing specific to
+         * wait for, so poll briefly and take whatever the backend reports.
+         * The boolean is deliberately ignored: "unchanged" is a legitimate
+         * outcome here, not a failure to confirm. */
+        await this._refreshUntil((devices) => {
+          const device = devices.find((d) => d.entity_id === entityId);
+          return device !== undefined && device.sber_category !== previousCategory;
+        }, { timeout: 2000 });
+      } else {
+        const ok = await this._refreshUntil(
+          (devices) => devices.find((d) => d.entity_id === entityId)?.sber_category === category
+        );
+        if (!ok) this._reportUnconfirmed(`Category ${category}`);
+      }
     } catch (e) {
       this._error = e.message || String(e);
     } finally {
@@ -168,13 +246,28 @@ class SberMqttPanel extends LitElement {
     this._loading = true;
     try {
       await this.hass.callWS({ type: "sber_mqtt_bridge/clear_all" });
-      await new Promise((r) => setTimeout(r, 1500));
-      await this._fetchAll();
+      const ok = await this._refreshUntil(
+        (devices, extra) => devices.length === 0 && (extra.total ?? 0) === 0
+      );
+      if (!ok) this._reportUnconfirmed("Clear all");
     } catch (e) {
       this._error = e.message || String(e);
     } finally {
       this._loading = false;
     }
+  }
+
+  /**
+   * Total number of role→entity links across all devices.
+   *
+   * @param {Array} devices - Device list from ``sber_mqtt_bridge/devices``.
+   * @returns {number} Link count.
+   */
+  _countLinks(devices) {
+    return (devices || []).reduce(
+      (sum, d) => sum + Object.keys(d.linked_entities || {}).length,
+      0
+    );
   }
 
   /* ---------- event handlers ---------- */
@@ -199,15 +292,21 @@ class SberMqttPanel extends LitElement {
 
   async _onToolbarAutoLink() {
     this._loading = true;
+    const linksBefore = this._countLinks(this._devices);
     try {
       const result = await this.hass.callWS({ type: "sber_mqtt_bridge/auto_link_all" });
-      await new Promise((r) => setTimeout(r, 1500));
-      await this._fetchAll();
-      if (result.linked_count > 0) {
-        this._showToast(`Auto-linked ${result.linked_count} sensor(s) to ${result.devices_affected} device(s)`, "success");
-      } else {
+      if (result.linked_count === 0) {
+        await this._fetchAll();
         this._showToast("No new links found — all devices already linked or no siblings", "info");
+        return;
       }
+      const ok = await this._refreshUntil((devices) => this._countLinks(devices) !== linksBefore);
+      this._showToast(
+        ok
+          ? `Auto-linked ${result.linked_count} sensor(s) to ${result.devices_affected} device(s)`
+          : `Auto-linked ${result.linked_count} sensor(s), but the bridge did not confirm it — press Refresh`,
+        ok ? "success" : "info"
+      );
     } catch (e) {
       this._showToast("Auto-link failed: " + (e.message || e), "error");
     } finally {
@@ -256,9 +355,21 @@ class SberMqttPanel extends LitElement {
         type: "sber_mqtt_bridge/import",
         config,
       });
-      await new Promise((r) => setTimeout(r, 1500));
-      await this._fetchAll();
-      this._showToast("Config imported successfully", "success");
+      const expected = config?.exposed_entities;
+      let confirmed = true;
+      if (Array.isArray(expected)) {
+        /* ``total`` counts the enabled ids, so it matches the imported list
+         * even for entities the bridge could not load. */
+        confirmed = await this._refreshUntil((_devices, extra) => extra.total === expected.length);
+      } else {
+        await this._fetchAll();
+      }
+      this._showToast(
+        confirmed
+          ? "Config imported successfully"
+          : "Config imported, but the bridge did not report the new devices — press Refresh",
+        confirmed ? "success" : "info"
+      );
     } catch (e) {
       this._showToast("Import failed: " + (e.message || e), "error");
     } finally {
@@ -271,10 +382,31 @@ class SberMqttPanel extends LitElement {
     if (dialog) dialog.show(e.detail.entityId);
   }
 
-  async _onLinksSaved() {
-    await new Promise((r) => setTimeout(r, 1500));
-    await this._fetchAll();
-    this._showToast("Entity links updated", "success");
+  async _onLinksSaved(e) {
+    const { entity_id: entityId, links } = e.detail || {};
+    let confirmed = true;
+    if (entityId && links) {
+      /* Compare the whole role→entity map: a plain count would accept the
+       * stale pre-save list whenever a link is swapped rather than added. */
+      confirmed = await this._refreshUntil((devices) => {
+        const device = devices.find((d) => d.entity_id === entityId);
+        if (!device) return false;
+        const current = device.linked_entities || {};
+        const roles = Object.keys(links);
+        return (
+          Object.keys(current).length === roles.length &&
+          roles.every((role) => current[role] === links[role])
+        );
+      });
+    } else {
+      await this._fetchAll();
+    }
+    this._showToast(
+      confirmed
+        ? "Entity links updated"
+        : "Links saved, but the bridge still reports the old ones — press Refresh",
+      confirmed ? "success" : "info"
+    );
   }
 
   async _onSyncEntity(e) {
@@ -289,26 +421,85 @@ class SberMqttPanel extends LitElement {
     }
   }
 
+  /**
+   * Report the outcome of an (possibly partial) wizard batch.
+   *
+   * The wizard sends one ``add_ha_device`` call per selected primary, so a
+   * batch can land partially.  ``detail.added_entity_ids`` lists what the
+   * backend accepted and ``detail.failed`` what it rejected and why — both
+   * are surfaced, and the table is polled until the accepted ones appear.
+   */
   async _onWizardComplete(e) {
-    /* Wizard itself has already called ``ws_add_ha_device`` atomically
-     * (once per selected primary entity).  We only refresh the device
-     * table and show a success toast that reflects single vs. batch add. */
     const d = e.detail || {};
+    const added = d.added_entity_ids || [];
+    const failed = d.failed || [];
     this._loading = true;
     try {
-      await new Promise((r) => setTimeout(r, 1500));
-      await this._fetchAll();
-      const addedCount = d.added_count || 1;
+      let confirmed = true;
+      if (added.length > 0) {
+        const wanted = new Set(added);
+        confirmed = await this._refreshUntil(
+          (devices) => devices.filter((x) => wanted.has(x.entity_id)).length === wanted.size,
+          { timeout: 5000 }
+        );
+      } else {
+        await this._fetchAll();
+      }
       const linkedSuffix = d.linked_count > 0 ? ` with ${d.linked_count} linked sensor(s)` : "";
-      const msg = addedCount > 1
-        ? `Added ${addedCount} devices${linkedSuffix}`
-        : `Device added${linkedSuffix}`;
-      this._showToast(msg, "success");
+      if (failed.length > 0) {
+        const names = failed.map((f) => `${f.entity_id} (${f.message})`).join("; ");
+        this._showToast(
+          added.length > 0
+            ? `Added ${added.length}, failed ${failed.length}: ${names}`
+            : `Add failed: ${names}`,
+          "error"
+        );
+      } else if (!confirmed) {
+        this._showToast(
+          `Added ${added.length}, but the bridge has not listed them yet — press Refresh`,
+          "info"
+        );
+      } else {
+        this._showToast(
+          added.length > 1
+            ? `Added ${added.length} devices${linkedSuffix}`
+            : `Device added${linkedSuffix}`,
+          "success"
+        );
+      }
     } catch (err) {
       this._showToast("Refresh after add failed: " + (err.message || err), "error");
     } finally {
       this._loading = false;
     }
+  }
+
+  /* ---------- tabs (a11y) ---------- */
+
+  /** Select a tab and move DOM focus onto it (roving tabindex). */
+  _selectTab(index) {
+    this._tab = index;
+    this.updateComplete.then(() => {
+      const tab = this.shadowRoot.querySelector(`#sber-tab-${index}`);
+      if (tab) tab.focus();
+    });
+  }
+
+  /**
+   * WAI-ARIA tablist keyboard support: arrows move between tabs,
+   * Home/End jump to the edges, Enter/Space activate.
+   */
+  _onTabKeydown(e, index) {
+    const last = TABS.length - 1;
+    let next = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = index === last ? 0 : index + 1;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = index === 0 ? last : index - 1;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = last;
+    else if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") next = index;
+    else return;
+    e.preventDefault();
+    this._selectTab(next);
   }
 
   _showToast(message, type) {
@@ -370,6 +561,12 @@ class SberMqttPanel extends LitElement {
       .tab.active {
         color: var(--primary-color);
         border-bottom-color: var(--primary-color);
+      }
+
+      .tab:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: -2px;
+        border-radius: 4px;
       }
 
       .toolbar-wrapper {
@@ -458,28 +655,39 @@ class SberMqttPanel extends LitElement {
           @toolbar-import=${this._onToolbarImport}
           @toolbar-clear-all=${this._onToolbarClearAll}
           @toolbar-auto-link=${this._onToolbarAutoLink}
+          @toolbar-toast=${(e) => this._showToast(e.detail.message, e.detail.type)}
         ></sber-toolbar>
       </div>
 
-      <div class="tabs">
-        <div class="tab ${this._tab === 0 ? "active" : ""}" @click=${() => this._tab = 0}>
-          Devices
-        </div>
-        <div class="tab ${this._tab === 1 ? "active" : ""}" @click=${() => this._tab = 1}>
-          Status
-        </div>
-        <div class="tab ${this._tab === 2 ? "active" : ""}" @click=${() => this._tab = 2}>
-          DevTools
-        </div>
-        <div class="tab ${this._tab === 3 ? "active" : ""}" @click=${() => this._tab = 3}>
-          Settings
-        </div>
+      <div class="tabs" role="tablist" aria-label="Sber MQTT Bridge sections">
+        ${TABS.map(
+          (label, i) => html`
+            <div
+              class="tab ${this._tab === i ? "active" : ""}"
+              role="tab"
+              id="sber-tab-${i}"
+              aria-controls="sber-tabpanel"
+              aria-selected=${this._tab === i ? "true" : "false"}
+              tabindex=${this._tab === i ? "0" : "-1"}
+              @click=${() => this._selectTab(i)}
+              @keydown=${(e) => this._onTabKeydown(e, i)}
+            >
+              ${label}
+            </div>
+          `
+        )}
       </div>
 
-      ${this._tab === 0 ? this._renderDevices()
-        : this._tab === 1 ? this._renderStatus()
-        : this._tab === 2 ? this._renderDevtools()
-        : this._renderSettings()}
+      <div
+        id="sber-tabpanel"
+        role="tabpanel"
+        aria-labelledby="sber-tab-${this._tab}"
+      >
+        ${this._tab === 0 ? this._renderDevices()
+          : this._tab === 1 ? this._renderStatus()
+          : this._tab === 2 ? this._renderDevtools()
+          : this._renderSettings()}
+      </div>
 
       <sber-wizard
         .hass=${this.hass}
@@ -537,11 +745,12 @@ class SberMqttPanel extends LitElement {
     return html`
       <sber-devtools
         .hass=${this.hass}
+        .bus=${messageBus}
         @devtools-toast=${(e) => this._showToast(e.detail.message, e.detail.type)}
       ></sber-devtools>
       <sber-traces .hass=${this.hass}></sber-traces>
       <sber-state-diff .hass=${this.hass}></sber-state-diff>
-      <sber-replay .hass=${this.hass}></sber-replay>
+      <sber-replay .hass=${this.hass} .bus=${messageBus}></sber-replay>
       <sber-validation .hass=${this.hass}></sber-validation>
       <sber-diagnose .hass=${this.hass}></sber-diagnose>
     `;

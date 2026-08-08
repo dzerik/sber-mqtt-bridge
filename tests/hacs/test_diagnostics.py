@@ -1,5 +1,6 @@
 """Tests for Sber MQTT Bridge diagnostics."""
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -49,8 +50,15 @@ async def test_diagnostics_redacts_password(hass: HomeAssistant) -> None:
     # Password must be redacted
     assert result["entry_data"][CONF_SBER_PASSWORD] == "**REDACTED**"
 
-    # Other data preserved
-    assert result["entry_data"][CONF_SBER_LOGIN] == "test_user"
+    # Login must be redacted too: it doubles as the MQTT username AND the
+    # root topic segment (sberdevices/v1/<login>/...), and diagnostics are
+    # routinely attached to public GitHub issues (review remediation).
+    assert result["entry_data"][CONF_SBER_LOGIN] == "**REDACTED**"
+    # Whole-report check, not just entry_data: any future branch that starts
+    # echoing the entry title, an MQTT topic or the raw credentials fails here.
+    assert "test_user" not in json.dumps(result, default=str)
+
+    # Non-secret data preserved
     assert result["entry_data"][CONF_SBER_BROKER] == "mqtt-partners.iot.sberdevices.ru"
 
     # Bridge info present

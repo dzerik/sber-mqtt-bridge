@@ -5,38 +5,19 @@
  * (delete, override category, sync one device).
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 
-const OVERRIDABLE_CATEGORIES = [
-  "auto",
-  "light",
-  "led_strip",
-  "relay",
-  "socket",
-  "curtain",
-  "window_blind",
-  "gate",
-  "hvac_ac",
-  "hvac_radiator",
-  "hvac_heater",
-  "hvac_boiler",
-  "hvac_underfloor_heating",
-  "hvac_fan",
-  "valve",
-  "hvac_humidifier",
-  "scenario_button",
-  "hvac_air_purifier",
-  "kettle",
-  "tv",
-  "vacuum_cleaner",
-  "intercom",
-];
 
 class SberEntityRow extends LitElement {
   static get properties() {
     return {
       device: { type: Object },
       selected: { type: Boolean, reflect: true },
+      categories: { type: Array },
     };
   }
 
@@ -44,6 +25,25 @@ class SberEntityRow extends LitElement {
     super();
     this.device = {};
     this.selected = false;
+    /** Sber category ids from ``sber_mqtt_bridge/list_categories``.
+     * Supplied by the parent table; never hard-coded here, otherwise it
+     * drifts from the backend ``OVERRIDABLE_CATEGORIES`` registry. */
+    this.categories = [];
+  }
+
+  /**
+   * Build the option list for the override <select>.
+   *
+   * ``auto`` first, then the server-provided registry.  The device's own
+   * category is appended when the registry does not advertise it (internal
+   * sub-categories such as ``sensor_humidity`` are not user-selectable but
+   * must still render as the current selection).
+   */
+  _categoryOptions() {
+    const current = this.device?.sber_category;
+    const options = ["auto", ...(this.categories || [])];
+    if (current && !options.includes(current)) options.push(current);
+    return options;
   }
 
   static get styles() {
@@ -103,6 +103,14 @@ class SberEntityRow extends LitElement {
       }
       .name-link:hover {
         text-decoration: underline;
+      }
+      .name-link:focus-visible,
+      .icon-btn:focus-visible,
+      select:focus-visible,
+      input[type="checkbox"]:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+        border-radius: 4px;
       }
       .actions-cell {
         display: flex;
@@ -281,6 +289,13 @@ class SberEntityRow extends LitElement {
     );
   }
 
+  /** Activate a ``role="button"`` element from the keyboard (Enter/Space). */
+  _onKeyActivate(e, handler) {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    e.preventDefault();
+    handler.call(this);
+  }
+
   _onShowDetail() {
     this.dispatchEvent(
       new CustomEvent("show-detail", {
@@ -321,12 +336,20 @@ class SberEntityRow extends LitElement {
       <td class="cell-check">
         <input
           type="checkbox"
+          aria-label="Select ${d.entity_id}"
           .checked=${this.selected}
           @change=${this._onCheckChange}
         />
       </td>
       <td class="cell-eid"><code>${d.entity_id}</code></td>
-      <td class="cell-name"><span class="name-link" @click=${this._onShowDetail}>${d.name || "\u2014"}</span>${d.linked_entities ? html` <span class="feature-tag" style="background:var(--info-color,#2196f3);color:#fff">\u{1F517} +${Object.keys(d.linked_entities).length}</span>` : ""}</td>
+      <td class="cell-name"><span
+          class="name-link"
+          role="button"
+          tabindex="0"
+          aria-label="Show details for ${d.name || d.entity_id}"
+          @click=${this._onShowDetail}
+          @keydown=${(e) => this._onKeyActivate(e, this._onShowDetail)}
+        >${d.name || "\u2014"}</span>${d.linked_entities ? html` <span class="feature-tag" style="background:var(--info-color,#2196f3);color:#fff">\u{1F517} +${Object.keys(d.linked_entities).length}</span>` : ""}</td>
       <td class="cell-cat"><code>${d.sber_category}</code></td>
       <td class="cell-feat">
         <div class="features">
@@ -344,8 +367,11 @@ class SberEntityRow extends LitElement {
       </td>
       <td class="cell-actions">
         <div class="actions-cell">
-          <select @change=${this._onOverrideChange}>
-            ${OVERRIDABLE_CATEGORIES.map(
+          <select
+            aria-label="Sber category override for ${d.entity_id}"
+            @change=${this._onOverrideChange}
+          >
+            ${this._categoryOptions().map(
               (cat) => html`
                 <option
                   value=${cat}
@@ -356,13 +382,13 @@ class SberEntityRow extends LitElement {
               `
             )}
           </select>
-          <button class="icon-btn" @click=${this._onLink} title="Link entities">
+          <button class="icon-btn" @click=${this._onLink} title="Link entities" aria-label="Link entities ${d.entity_id}">
             \u{1F517}
           </button>
-          <button class="icon-btn sync" @click=${this._onSync} title="Sync to Sber">
+          <button class="icon-btn sync" @click=${this._onSync} title="Sync to Sber" aria-label="Sync to Sber ${d.entity_id}">
             \u{1F504}
           </button>
-          <button class="icon-btn" @click=${this._onDelete} title="Remove entity">
+          <button class="icon-btn" @click=${this._onDelete} title="Remove entity" aria-label="Remove entity ${d.entity_id}">
             \u{1F5D1}
           </button>
         </div>

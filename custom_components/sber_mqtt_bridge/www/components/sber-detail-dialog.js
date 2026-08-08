@@ -5,7 +5,19 @@
  * device registry data, model config with features and allowed values.
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+await import(`./sber-json-block.js${_q}`);
+
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { deepActiveElement } = await import(`../utils.js${_q}`);
+
+/** Delay between two confirmation re-reads after a save. */
+const RELOAD_INTERVAL_MS = 200;
+/** Give up waiting for the saved overrides after this long. */
+const RELOAD_TIMEOUT_MS = 8000;
 
 class SberDetailDialog extends LitElement {
   static get properties() {
@@ -16,6 +28,7 @@ class SberDetailDialog extends LitElement {
       _loading: { type: Boolean },
       _error: { type: String },
       _saveStatus: { type: String },
+      _saveError: { type: String },
     };
   }
 
@@ -66,6 +79,14 @@ class SberDetailDialog extends LitElement {
         border: none;
         color: var(--primary-text-color);
         padding: 4px 8px;
+      }
+      .close-btn:focus-visible,
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      .dialog:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
       }
       .body {
         padding: 16px 20px;
@@ -162,18 +183,6 @@ class SberDetailDialog extends LitElement {
       .error {
         color: var(--error-color, #f44336);
         padding: 16px;
-      }
-      .json-block {
-        background: var(--code-editor-background-color, #1e1e1e);
-        border-radius: 8px;
-        padding: 10px;
-        font-family: monospace;
-        font-size: 12px;
-        overflow-x: auto;
-        max-height: 200px;
-        overflow-y: auto;
-        white-space: pre-wrap;
-        word-break: break-all;
       }
 
       .edit-form {
@@ -278,14 +287,53 @@ class SberDetailDialog extends LitElement {
     this._loading = false;
     this._error = "";
     this._saveStatus = "";
+    this._saveError = "";
   }
 
-  async show(entityId) {
-    if (!this.hass) return;
-    this.open = true;
+  /**
+   * Re-read the detail payload until the saved overrides come back.
+   *
+   * ``update_redefinitions`` returns before the entry reload has rebuilt
+   * the device, so a single re-fetch races it.  Polling replaces a fixed
+   * sleep: it is neither too early on a slow install nor needlessly slow
+   * on a fast one, and it stops the moment the user closes the dialog.
+   *
+   * @param {string} entityId - Entity being edited.
+   * @param {object} expected - ``{name, room, home}`` that were submitted.
+   * @returns {Promise<boolean>} False if the timeout expired first.
+   */
+  async _reloadUntilSaved(entityId, expected) {
+    const deadline = Date.now() + RELOAD_TIMEOUT_MS;
+    for (;;) {
+      await this._fetchDetail(entityId);
+      /* Identity first: a payload describing some *other* entity says
+       * nothing about this save, even when its redefinitions happen to
+       * carry the same name/room. */
+      if (this._data?.entity_id !== entityId) return false;
+      /* ``_fetchDetail`` swallows its failure into ``_error`` and leaves the
+       * previous payload in place — retrying a broken backend for the whole
+       * window would only stall the dialog. */
+      if (this._error) return false;
+      const saved = this._data?.redefinitions || {};
+      const applied = ["name", "room", "home"].every(
+        (key) => (saved[key] || "") === (expected[key] || "")
+      );
+      if (applied) return true;
+      /* The dialog was closed — stop polling. */
+      if (!this.open || !this.isConnected) return false;
+      if (Date.now() >= deadline) return false;
+      await new Promise((r) => setTimeout(r, RELOAD_INTERVAL_MS));
+    }
+  }
+
+  /**
+   * Fetch the detail payload for ``entityId`` into ``_data``.
+   *
+   * @param {string} entityId - Entity to describe.
+   */
+  async _fetchDetail(entityId) {
     this._loading = true;
     this._error = "";
-    this._data = null;
     try {
       this._data = await this.hass.callWS({
         type: "sber_mqtt_bridge/device_detail",
@@ -298,14 +346,57 @@ class SberDetailDialog extends LitElement {
     }
   }
 
+  async show(entityId) {
+    if (!this.hass) return;
+    this._returnFocusTo = deepActiveElement();
+    this.open = true;
+    this._loading = true;
+    this._error = "";
+    this._saveStatus = "";
+    this._saveError = "";
+    this._data = null;
+    await this._fetchDetail(entityId);
+  }
+
   hide() {
     this.open = false;
+    /* Return focus to the device-name link that opened us (WCAG 2.4.3). */
+    const target = this._returnFocusTo;
+    this._returnFocusTo = null;
+    if (target && typeof target.focus === "function") target.focus();
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    /* Modal keyboard contract: Escape closes. */
+    this._escHandler = (e) => {
+      if (this.open && e.key === "Escape") {
+        e.stopPropagation();
+        this.hide();
+      }
+    };
+    document.addEventListener("keydown", this._escHandler);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._escHandler) {
+      document.removeEventListener("keydown", this._escHandler);
+      this._escHandler = null;
+    }
   }
 
   render() {
     if (!this.open) return html``;
     return html`
-      <div class="dialog" @click=${(e) => e.stopPropagation()}>
+      <div
+        class="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detail-dialog-title"
+        tabindex="-1"
+        @click=${(e) => e.stopPropagation()}
+      >
         ${this._loading
           ? html`<div class="loading">Loading...</div>`
           : this._error
@@ -319,6 +410,8 @@ class SberDetailDialog extends LitElement {
     if (changed.has("open") && this.open) {
       // Close on backdrop click
       this.addEventListener("click", this._onBackdropClick);
+      const dialog = this.shadowRoot.querySelector(".dialog");
+      if (dialog) dialog.focus();
     }
   }
 
@@ -330,8 +423,8 @@ class SberDetailDialog extends LitElement {
 
     return html`
       <div class="header">
-        <h2>${d.name || d.entity_id}</h2>
-        <button class="close-btn" @click=${() => this.hide()}>\u2715</button>
+        <h2 id="detail-dialog-title">${d.name || d.entity_id}</h2>
+        <button class="close-btn" aria-label="Close details" @click=${() => this.hide()}>\u2715</button>
       </div>
       <div class="body">
         ${this._renderEditForm(d)}
@@ -429,13 +522,13 @@ class SberDetailDialog extends LitElement {
         ${Object.keys(av).length ? html`
           <div style="margin-top:8px">
             <div class="section-title" style="margin-bottom:4px">Allowed Values</div>
-            <div class="json-block">${JSON.stringify(av, null, 2)}</div>
+            <sber-json-block label="Allowed Values" .value=${av}></sber-json-block>
           </div>
         ` : ""}
         ${Object.keys(deps).length ? html`
           <div style="margin-top:8px">
             <div class="section-title" style="margin-bottom:4px">Dependencies</div>
-            <div class="json-block">${JSON.stringify(deps, null, 2)}</div>
+            <sber-json-block label="Dependencies" .value=${deps}></sber-json-block>
           </div>
         ` : ""}
       </div>
@@ -490,15 +583,15 @@ class SberDetailDialog extends LitElement {
       <div class="section">
         <div class="section-title">Sber Override</div>
         <div class="edit-form">
-          <label class="edit-label">Name</label>
+          <label class="edit-label" for="edit-name">Name</label>
           <input class="edit-input" type="text" id="edit-name"
             .value=${r.name || d.name || ""}
             placeholder=${d.name || d.entity_id} />
-          <label class="edit-label">Room</label>
+          <label class="edit-label" for="edit-room">Room</label>
           <input class="edit-input" type="text" id="edit-room"
             .value=${r.room || d.room || ""}
             placeholder=${d.room || "Room name"} />
-          <label class="edit-label">Home</label>
+          <label class="edit-label" for="edit-home">Home</label>
           <input class="edit-input" type="text" id="edit-home"
             .value=${r.home || ""}
             placeholder="Home name" />
@@ -506,7 +599,7 @@ class SberDetailDialog extends LitElement {
             <button class="edit-save" @click=${this._onSave}>
               \u{1F4BE} Save & Re-publish
             </button>
-            ${this._saveStatus ? html`<span class="save-status ${this._saveStatus}">${this._saveStatus === "ok" ? "\u2713 Saved" : "\u2717 Error"}</span>` : ""}
+            ${this._saveStatus ? html`<span class="save-status ${this._saveStatus}" title=${this._saveError || ""}>${this._saveStatus === "ok" ? "\u2713 Saved" : `\u2717 ${this._saveError || "Error"}`}</span>` : ""}
           </div>
         </div>
       </div>
@@ -528,10 +621,10 @@ class SberDetailDialog extends LitElement {
       });
       this._saveStatus = "ok";
       this.requestUpdate();
-      // Re-fetch detail after short delay
-      setTimeout(() => this.show(this._data.entity_id), 1500);
+      await this._reloadUntilSaved(this._data.entity_id, { name, room, home });
     } catch (e) {
       this._saveStatus = "error";
+      this._saveError = e.message || String(e);
       this.requestUpdate();
     }
   }

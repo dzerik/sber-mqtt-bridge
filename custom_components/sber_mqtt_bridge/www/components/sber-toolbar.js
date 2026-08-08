@@ -5,12 +5,20 @@
  * and a live connection status indicator.
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { buttonStyles } = await import(`../shared-styles.js${_q}`);
+const { deepActiveElement } = await import(`../utils.js${_q}`);
 
 class SberToolbar extends LitElement {
   static get properties() {
     return {
       connected: { type: Boolean },
+      /** Destructive action awaiting confirmation, "" when none. */
+      _confirming: { type: String },
       phase: { type: String },
       totalDevices: { type: Number },
       acknowledgedCount: { type: Number },
@@ -31,59 +39,60 @@ class SberToolbar extends LitElement {
     this.healthScore = "healthy";
     this.healthIssues = [];
     this._bulkOpen = false;
+    this._confirming = "";
   }
 
   static get styles() {
-    return css`
+    return [buttonStyles, css`
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
       :host {
         display: flex;
         align-items: center;
         gap: 8px;
         flex-wrap: wrap;
       }
-      .btn {
-        display: inline-flex;
+      /* In-panel replacement for window.confirm() */
+      .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 16px;
-        border: none;
-        border-radius: 8px;
-        font-size: 13px;
+        justify-content: center;
+      }
+      .confirm {
+        background: var(--card-background-color, #fff);
+        border-radius: var(--ha-card-border-radius, 12px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        padding: 20px;
+        width: 92%;
+        max-width: 420px;
+      }
+      .confirm h2 {
+        margin: 0 0 8px;
+        font-size: 18px;
         font-weight: 500;
-        cursor: pointer;
-        transition: background 0.15s;
-      }
-      .btn-primary {
-        background: var(--primary-color);
-        color: #fff;
-      }
-      .btn-primary:hover {
-        opacity: 0.85;
-      }
-      .btn-primary:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      .btn-secondary {
-        background: var(--secondary-background-color, #eee);
         color: var(--primary-text-color);
       }
-      .btn-secondary:hover {
-        opacity: 0.8;
+      .confirm p {
+        margin: 0 0 16px;
+        font-size: 13px;
+        color: var(--secondary-text-color);
       }
-      .btn-success {
-        background: var(--success-color, #4caf50);
-        color: #fff;
-      }
-      .btn-success:hover {
-        opacity: 0.85;
-      }
-      .btn-danger {
-        background: var(--error-color, #f44336);
-        color: #fff;
-      }
-      .btn-danger:hover {
-        opacity: 0.85;
+      .confirm-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
       }
       .spacer {
         flex: 1;
@@ -203,7 +212,7 @@ class SberToolbar extends LitElement {
           font-size: 12px;
         }
       }
-    `;
+    `];
   }
 
   _dispatch(eventName) {
@@ -225,11 +234,102 @@ class SberToolbar extends LitElement {
     this._dispatch("toolbar-auto-link");
   }
 
+  /**
+   * Ask for confirmation in-panel.
+   *
+   * Native ``confirm()`` is blocking, unstyled, suppressible by the
+   * browser ("prevent this page from creating additional dialogs") and
+   * unreachable for the panel's own focus management — so destructive
+   * actions get a real modal instead.
+   */
   _onClearAll() {
     this._closeBulk();
-    if (confirm("Remove ALL exposed entities? This cannot be undone.")) {
-      this._dispatch("toolbar-clear-all");
+    /* Remember the control that opened the modal so focus can go back
+     * there when it closes (WCAG 2.4.3), exactly like the wizard and the
+     * link dialog do. */
+    this._returnFocusTo = deepActiveElement();
+    this._confirming = "clear-all";
+  }
+
+  /** Close the modal and hand focus back to whatever opened it. */
+  _closeConfirm() {
+    this._confirming = "";
+    const target = this._returnFocusTo;
+    this._returnFocusTo = null;
+    if (target && typeof target.focus === "function") target.focus();
+  }
+
+  _cancelConfirm() {
+    this._closeConfirm();
+  }
+
+  _acceptConfirm() {
+    this._closeConfirm();
+    this._dispatch("toolbar-clear-all");
+  }
+
+  /**
+   * Keep Tab inside the modal.
+   *
+   * Without a trap the next Tab lands on the page behind the overlay,
+   * where clicks are blocked — the user ends up driving an element they
+   * cannot see the focus ring of.
+   *
+   * @param {KeyboardEvent} e - Keydown on the modal container.
+   */
+  _onConfirmKeydown(e) {
+    if (e.key !== "Tab") return;
+    const focusable = [...this.shadowRoot.querySelectorAll(".confirm button")];
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = deepActiveElement();
+    if (e.shiftKey && (active === first || !focusable.includes(active))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
     }
+  }
+
+  /**
+   * Surface a message through the panel's toast instead of ``alert()``.
+   *
+   * @param {string} message - Text to show.
+   * @param {string} type - Toast kind ("error", "success", "info").
+   */
+  _toast(message, type) {
+    this.dispatchEvent(
+      new CustomEvent("toolbar-toast", {
+        detail: { message, type },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  _renderConfirm() {
+    if (this._confirming !== "clear-all") return "";
+    return html`
+      <div class="overlay" @click=${(e) => { if (e.target === e.currentTarget) this._cancelConfirm(); }}>
+        <div
+          class="confirm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="toolbar-confirm-title"
+          tabindex="-1"
+          @keydown=${this._onConfirmKeydown}
+        >
+          <h2 id="toolbar-confirm-title">Remove ALL exposed entities?</h2>
+          <p>Every device disappears from Sber. This cannot be undone.</p>
+          <div class="confirm-actions">
+            <button class="btn btn-secondary" @click=${this._cancelConfirm}>Cancel</button>
+            <button class="btn btn-danger" @click=${this._acceptConfirm}>Clear all</button>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   _triggerImport() {
@@ -251,7 +351,7 @@ class SberToolbar extends LitElement {
           })
         );
       } catch {
-        alert("Invalid JSON file");
+        this._toast("Import failed: file is not valid JSON", "error");
       }
     };
     reader.readAsText(file);
@@ -310,6 +410,8 @@ class SberToolbar extends LitElement {
       <input
         type="file"
         accept=".json"
+        aria-hidden="true"
+        tabindex="-1"
         style="display:none"
         @change=${this._onImportFile}
       />
@@ -331,6 +433,8 @@ class SberToolbar extends LitElement {
           ${this.healthScore === "unhealthy" ? "\u26A0\uFE0F" : "\u26A0"} ${this.healthScore}
         </span>
       ` : ""}
+
+      ${this._renderConfirm()}
     `;
   }
 
@@ -353,12 +457,33 @@ class SberToolbar extends LitElement {
       }
     };
     document.addEventListener("click", this._outsideClickHandler);
+    /* Modal keyboard contract for the confirm dialog: Escape cancels. */
+    this._escHandler = (e) => {
+      if (this._confirming && e.key === "Escape") {
+        e.stopPropagation();
+        this._cancelConfirm();
+      }
+    };
+    document.addEventListener("keydown", this._escHandler);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     if (this._outsideClickHandler) {
       document.removeEventListener("click", this._outsideClickHandler);
+      this._outsideClickHandler = null;
+    }
+    if (this._escHandler) {
+      document.removeEventListener("keydown", this._escHandler);
+      this._escHandler = null;
+    }
+  }
+
+  updated(changedProps) {
+    if (changedProps.has("_confirming") && this._confirming) {
+      /* Move focus into the modal so Escape/Tab work and screen readers
+       * announce it (WCAG 2.4.3). */
+      this.shadowRoot.querySelector(".confirm")?.focus();
     }
   }
 }

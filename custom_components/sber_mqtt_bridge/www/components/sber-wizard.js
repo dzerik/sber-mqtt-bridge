@@ -6,16 +6,24 @@
  *         the chosen category.  Each card is expanded in place with
  *         native linked sensors (preselected) and cross-device
  *         compatible sensors (opt-in).
- * Step 3: Enter name + room, submit atomically via ``add_ha_device``.
+ * Step 3: Enter name + room, submit one ``add_ha_device`` call per
+ *         selected primary entity.
  *
- * Fires ``wizard-complete`` with the primary entity id for the parent panel.
+ * Multi-add is a batch of independent calls, not a transaction: the
+ * wizard remembers which primaries the backend already accepted, reports
+ * the per-entity outcome and retries only the ones that failed, so a
+ * second click can never register the same entity twice.
+ *
+ * Fires ``wizard-complete`` with ``added``/``failed`` entity id lists.
  */
 
-const _v = new URL(import.meta.url).searchParams.get("v") || "";
-const { slugify, isValidSalutName } = await import(`../utils.js${_v ? `?v=${_v}` : ""}`);
-
-import { LitElement, html, css } from "../lit-base.js";
-
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { slugify, isValidSalutName, deepActiveElement } = await import(`../utils.js${_q}`);
+const { dialogStyles, buttonStyles, filterInputStyles } = await import(`../shared-styles.js${_q}`);
 
 class SberWizard extends LitElement {
   static get properties() {
@@ -35,6 +43,10 @@ class SberWizard extends LitElement {
        * Multi-select case (e.g. power strip with 5 sockets) keeps an
        * independent {name, slug, room} for each selected primary. */
       _perPrimary: { type: Object },
+      /** Primaries the backend already accepted in this session. */
+      _added: { type: Object },
+      /** Per-entity failures from the last submit: [{entity_id, message}]. */
+      _failed: { type: Array },
       _loading: { type: Boolean },
       _error: { type: String },
     };
@@ -57,18 +69,50 @@ class SberWizard extends LitElement {
     this._selectedPrimaries = [];
     this._enabledLinks = new Set();
     this._perPrimary = {};
+    this._added = new Set();
+    this._failed = [];
+    this._linksAttached = false;
     this._loading = false;
     this._error = "";
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    /* Modal keyboard contract: Escape closes.  Bound on the element so it
+     * survives shadow-DOM boundaries but never leaks past detach. */
+    this._escHandler = (e) => {
+      if (this.open && e.key === "Escape") {
+        e.stopPropagation();
+        this.hide();
+      }
+    };
+    document.addEventListener("keydown", this._escHandler);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._escHandler) {
+      document.removeEventListener("keydown", this._escHandler);
+      this._escHandler = null;
+    }
+  }
+
   async show() {
     this._reset();
+    this._returnFocusTo = deepActiveElement();
     this.open = true;
+    await this.updateComplete;
+    const dialog = this.shadowRoot.querySelector(".dialog");
+    if (dialog) dialog.focus();
     await this._loadCategories();
   }
 
   hide() {
     this.open = false;
+    /* Return focus to whatever opened the wizard (WCAG 2.4.3). */
+    const target = this._returnFocusTo;
+    this._returnFocusTo = null;
+    if (target && typeof target.focus === "function") target.focus();
   }
 
   /* ---------- data helpers ---------- */
@@ -157,19 +201,59 @@ class SberWizard extends LitElement {
     this._perPrimary = next;
   }
 
+  /**
+   * Advisory (never blocking) verdict on a device name.
+   *
+   * Mirrors ``name_utils.warn_if_suspicious_name`` on the backend, which
+   * only *logs*: Sber accepts Latin names, and the wizard must not refuse
+   * to submit something the bridge would happily publish.
+   *
+   * @param {string} name - Candidate name.
+   * @returns {{level: string, text: string}} ``level`` is "", "info" or "warn".
+   */
+  _nameAdvice(name) {
+    const value = name || "";
+    if (!value) {
+      return { level: "warn", text: "Empty name — Sber may reject the device" };
+    }
+    if (value.length > 63) {
+      return { level: "warn", text: `${value.length} chars (>63) — Sber may truncate or reject` };
+    }
+    if (!isValidSalutName(value)) {
+      return {
+        level: "info",
+        text: "Not Salut-friendly (3-33 Cyrillic letters, digits, spaces, hyphens) — the device still works, but voice control by this exact name may not",
+      };
+    }
+    return { level: "", text: "" };
+  }
+
+  /** Primaries still waiting to be sent (already-added ones are skipped). */
+  get _pendingPrimaries() {
+    return this._selectedPrimaries.filter((eid) => !this._added.has(eid));
+  }
+
+  /**
+   * Submit the batch, one ``add_ha_device`` call per pending primary.
+   *
+   * Each call is independent, so a mid-batch failure leaves the earlier
+   * entities registered.  Those are recorded in ``_added`` and skipped on
+   * retry — clicking the button again re-sends only what failed.
+   */
   async _finish() {
     const device = this._devices.find((d) => d.device_id === this._selectedDeviceId);
     if (!device) return;
-    /* Validate all per-primary names before sending anything. */
-    for (const eid of this._selectedPrimaries) {
-      const form = this._perPrimary[eid];
-      if (!form || !isValidSalutName(form.name)) {
-        this._error = `Invalid name for ${eid}`;
-        return;
-      }
+    const pending = this._pendingPrimaries;
+    if (pending.length === 0) {
+      /* Everything already went through and the submit that accepted it
+       * has already emitted ``wizard-complete`` — closing must not fire a
+       * second event, or the panel re-polls and toasts the same batch
+       * twice.  Nothing left to send, so just close. */
+      this.hide();
+      return;
     }
 
-    /* Linked sensors only attach to the FIRST primary in the multi-add
+    /* Linked sensors only attach to the FIRST accepted primary of the
      * batch — they describe the parent device once, not N times.  The
      * battery / signal sensor under a 5-socket strip is naturally one
      * shared role and Sber rejects duplicate-linked entries anyway. */
@@ -177,44 +261,72 @@ class SberWizard extends LitElement {
 
     this._loading = true;
     this._error = "";
-    const results = [];
-    let linkedAttached = false;
-    try {
-      for (const primaryId of this._selectedPrimaries) {
-        const form = this._perPrimary[primaryId];
-        const linksForThis = linkedAttached ? [] : linkedEntityIds;
-        const res = await this.hass.callWS({
+    this._failed = [];
+    const added = [];
+    const failed = [];
+    for (const primaryId of pending) {
+      const form = this._perPrimary[primaryId] || { name: "", room: "" };
+      try {
+        await this.hass.callWS({
           type: "sber_mqtt_bridge/add_ha_device",
           device_id: device.device_id,
           primary_entity_id: primaryId,
           category: this._selectedCategory,
-          linked_entity_ids: linksForThis,
+          linked_entity_ids: this._linksAttached ? [] : linkedEntityIds,
           name: form.name,
           room: form.room,
         });
-        results.push(res);
-        linkedAttached = true;
+        this._linksAttached = true;
+        added.push(primaryId);
+      } catch (err) {
+        failed.push({ entity_id: primaryId, message: err.message || String(err) });
       }
-      this.dispatchEvent(
-        new CustomEvent("wizard-complete", {
-          detail: {
-            device_id: device.device_id,
-            primary_entity_ids: [...this._selectedPrimaries],
-            primary_entity_id: this._selectedPrimaries[0],
-            category: this._selectedCategory,
-            added_count: results.length,
-            linked_count: linkedEntityIds.length,
-          },
-          bubbles: true,
-          composed: true,
-        })
-      );
-      this.hide();
-    } catch (err) {
-      this._error = "Add failed: " + (err.message || err);
-    } finally {
-      this._loading = false;
     }
+    /* Reassign instead of mutating: ``_added`` is a reactive property, and
+     * Lit compares by reference — an in-place ``.add()`` leaves the badge,
+     * the "(N already added)" summary and the retry label frozen. */
+    this._added = new Set([...this._added, ...added]);
+    this._loading = false;
+    this._failed = failed;
+    this._emitComplete(device, added, failed);
+    if (failed.length === 0) {
+      this.hide();
+      return;
+    }
+    this._error =
+      added.length > 0
+        ? `Added ${added.length} of ${pending.length}. Retry sends only the ${failed.length} that failed.`
+        : `Nothing was added — ${failed.length} device(s) failed.`;
+  }
+
+  /**
+   * Tell the panel what actually happened, including partial batches.
+   *
+   * @param {object} device - Selected HA device descriptor.
+   * @param {string[]} added - Entity ids accepted by this submit.
+   * @param {Array} failed - ``[{entity_id, message}]`` for this submit.
+   */
+  _emitComplete(device, added, failed) {
+    this.dispatchEvent(
+      new CustomEvent("wizard-complete", {
+        detail: {
+          device_id: device.device_id,
+          category: this._selectedCategory,
+          /* Everything registered during this wizard session, not just
+           * the last submit — the panel polls until all of it shows up. */
+          added_entity_ids: [...this._added],
+          added_now: [...added],
+          failed: failed.map((f) => ({ ...f })),
+          added_count: this._added.size,
+          failed_count: failed.length,
+          primary_entity_ids: [...this._selectedPrimaries],
+          primary_entity_id: [...this._added][0] || this._selectedPrimaries[0],
+          linked_count: this._enabledLinks.size,
+        },
+        bubbles: true,
+        composed: true,
+      })
+    );
   }
 
   /* ---------- Step 2 interaction ---------- */
@@ -295,16 +407,29 @@ class SberWizard extends LitElement {
     };
   }
 
+  /** Activate a ``role="button"`` card from the keyboard (Enter/Space). */
+  _onKeyActivate(e, handler) {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    e.preventDefault();
+    handler();
+  }
+
   /* ---------- render ---------- */
 
   render() {
     if (!this.open) return html``;
     return html`
       <div class="overlay" @click=${(e) => { if (e.target === e.currentTarget) this.hide(); }}>
-        <div class="dialog">
+        <div
+          class="dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="wizard-title"
+          tabindex="-1"
+        >
           <div class="dialog-header">
-            <h2>Add Device</h2>
-            <button class="close-btn" @click=${this.hide}>\u2715</button>
+            <h2 id="wizard-title">Add Device</h2>
+            <button class="close-btn" aria-label="Close wizard" @click=${this.hide}>\u2715</button>
           </div>
           ${this._renderStepper()}
           <div class="body">
@@ -355,11 +480,16 @@ class SberWizard extends LitElement {
     return html`
       ${[...byGroup.values()].map((group) => group.items.length === 0 ? "" : html`
         <div class="group-label">${group.label}</div>
-        <div class="type-grid">
+        <div class="type-grid" role="radiogroup" aria-label="${group.label} categories">
           ${group.items.map((cat) => html`
             <div
               class="type-card ${this._selectedCategory === cat.id ? "selected" : ""}"
+              role="radio"
+              tabindex="0"
+              aria-checked=${this._selectedCategory === cat.id ? "true" : "false"}
+              aria-label=${cat.label}
               @click=${() => { this._selectedCategory = cat.id; }}
+              @keydown=${(e) => this._onKeyActivate(e, () => { this._selectedCategory = cat.id; })}
             >
               <span class="type-icon">${cat.icon}</span>
               <span class="type-label">${cat.label}</span>
@@ -404,7 +534,8 @@ class SberWizard extends LitElement {
         </div>
         <input
           class="filter-input"
-          type="text"
+          type="search"
+          aria-label="Search devices"
           placeholder="Search by name, manufacturer, model, area..."
           .value=${this._deviceFilter}
           @input=${(e) => { this._deviceFilter = e.target.value; }}
@@ -428,7 +559,13 @@ class SberWizard extends LitElement {
     return html`
       <div
         class="device-card ${isSelected ? "selected" : ""} ${isDisabled ? "disabled" : ""}"
+        role="button"
+        tabindex=${isDisabled ? "-1" : "0"}
+        aria-pressed=${isSelected ? "true" : "false"}
+        aria-disabled=${isDisabled ? "true" : "false"}
+        aria-label=${device.name}
         @click=${() => this._selectDevice(device)}
+        @keydown=${(e) => this._onKeyActivate(e, () => this._selectDevice(device))}
       >
         <div class="device-card-header">
           <div class="device-title">
@@ -542,7 +679,9 @@ class SberWizard extends LitElement {
         <div class="summary-line"><b>HA device:</b> ${device?.name || ""}</div>
         <div class="summary-line"><b>Sber category:</b> ${categoryLabel}</div>
         <div class="summary-line">
-          <b>Adding:</b> ${this._selectedPrimaries.length} ${this._selectedPrimaries.length === 1 ? "device" : "devices"}
+          <b>Adding:</b> ${this._pendingPrimaries.length} ${this._pendingPrimaries.length === 1 ? "device" : "devices"}${
+            this._added.size > 0 ? html` <span class="hint-inline">(${this._added.size} already added)</span>` : ""
+          }
         </div>
         <div class="summary-line"><b>Linked sensors:</b> ${linkedCount}${
           isMulti && linkedCount > 0
@@ -557,29 +696,42 @@ class SberWizard extends LitElement {
 
   _renderPrimaryForm(primaryId, isMulti) {
     const form = this._perPrimary[primaryId] || { name: "", slug: "", room: "" };
-    const nameValid = form.name.length === 0 || isValidSalutName(form.name);
+    /* Advisory only: the backend merely logs about non-Salut names, so the
+     * wizard must not refuse to submit one (see _nameAdvice). */
+    const advice = this._nameAdvice(form.name);
+    const isAdded = this._added.has(primaryId);
+    const failure = (this._failed || []).find((f) => f.entity_id === primaryId);
     return html`
       <div class="primary-form ${isMulti ? "compact" : ""}">
         ${isMulti
           ? html`<div class="primary-form-header"><code>${primaryId}</code></div>`
           : ""}
+        ${isAdded
+          ? html`<div class="outcome outcome-ok" role="status">✓ Already added — skipped on retry</div>`
+          : ""}
+        ${failure
+          ? html`<div class="outcome outcome-fail" role="status">✗ Failed: ${failure.message}</div>`
+          : ""}
         <div class="field">
           <label>${isMulti ? "Name" : "Device name (for Salut voice)"}</label>
           <input
             type="text"
-            class="${!nameValid ? "invalid" : ""}"
+            aria-label="Sber device name"
+            aria-describedby="name-advice-${primaryId}"
+            class="${advice.level === "warn" ? "warn" : ""}"
             placeholder="e.g. Лампа кухня"
+            ?disabled=${isAdded}
             .value=${form.name}
             @input=${(e) => this._onPrimaryNameInput(primaryId, e.target.value)}
           />
-          ${!nameValid
-            ? html`<div class="error-hint">3-33 chars, Cyrillic + digits + spaces only</div>`
-            : isMulti ? "" : html`<div class="hint">Will be spoken by Salut assistant</div>`}
+          <div class="hint hint-${advice.level}" id="name-advice-${primaryId}">
+            ${advice.text || (isMulti ? "" : "Will be spoken by Salut assistant")}
+          </div>
         </div>
 
         <div class="field">
           <label>Device ID</label>
-          <input type="text" .value=${form.slug} readonly />
+          <input type="text" aria-label="Sber device id" .value=${form.slug} readonly />
           ${isMulti ? "" : html`<div class="hint">Transliterated slug for the Sber protocol</div>`}
         </div>
 
@@ -587,6 +739,7 @@ class SberWizard extends LitElement {
           <label>Room (optional)</label>
           <input
             type="text"
+            aria-label="Room"
             placeholder="e.g. Кухня"
             .value=${form.room}
             @input=${(e) => this._onPrimaryRoomInput(primaryId, e.target.value)}
@@ -600,13 +753,17 @@ class SberWizard extends LitElement {
     const canNext =
       (this._step === 1 && this._selectedCategory) ||
       (this._step === 2 && this._selectedDeviceId && this._selectedPrimaries.length > 0);
-    const allNamesValid =
-      this._selectedPrimaries.length > 0 &&
-      this._selectedPrimaries.every((eid) => isValidSalutName(this._perPrimary[eid]?.name || ""));
-    const canFinish = this._step === 3 && allNamesValid && !this._loading;
-    const finishLabel = this._selectedPrimaries.length > 1
-      ? `Add ${this._selectedPrimaries.length} devices`
-      : "Add device";
+    /* Name quality is advisory (see _nameAdvice) — it never gates Finish,
+     * because the backend would publish the device regardless. */
+    const canFinish =
+      this._step === 3 && this._selectedPrimaries.length > 0 && !this._loading;
+    const pending = this._pendingPrimaries.length;
+    const finishLabel =
+      this._failed.length > 0
+        ? `Retry ${pending} failed`
+        : pending > 1
+          ? `Add ${pending} devices`
+          : "Add device";
 
     return html`
       <div class="dialog-footer">
@@ -630,34 +787,14 @@ class SberWizard extends LitElement {
 
   /* ---------- styles ---------- */
   static get styles() {
-    return css`
-      :host { display: none; }
-      :host([open]) { display: block; }
+    return [dialogStyles, buttonStyles, filterInputStyles, css`
+      .dialog { width: 94%; max-width: 820px; max-height: 88vh; }
 
-      .overlay {
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.5); z-index: 999;
-        display: flex; align-items: center; justify-content: center;
+      .type-card:focus-visible,
+      .device-card:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
       }
-      .dialog {
-        background: var(--card-background-color, #fff);
-        border-radius: var(--ha-card-border-radius, 12px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-        width: 94%; max-width: 820px; max-height: 88vh;
-        display: flex; flex-direction: column; overflow: hidden;
-      }
-
-      /* Header */
-      .dialog-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 16px 20px; border-bottom: 1px solid var(--divider-color, #e0e0e0);
-      }
-      .dialog-header h2 { margin: 0; font-size: 18px; font-weight: 500; }
-      .close-btn {
-        background: none; border: none; font-size: 20px; cursor: pointer;
-        color: var(--secondary-text-color); padding: 4px 8px; border-radius: 4px;
-      }
-      .close-btn:hover { background: var(--secondary-background-color, #eee); }
 
       /* Stepper */
       .stepper {
@@ -689,9 +826,6 @@ class SberWizard extends LitElement {
         margin: 0 4px;
       }
       .step-line.done { background: var(--success-color, #4caf50); }
-
-      /* Body */
-      .body { flex: 1; overflow-y: auto; padding: 16px 20px; }
 
       .error-banner {
         padding: 10px 14px; margin-bottom: 12px;
@@ -738,14 +872,6 @@ class SberWizard extends LitElement {
         color: var(--primary-text-color);
       }
       .step2-category-icon { font-size: 22px; }
-
-      .filter-input {
-        width: 100%; padding: 8px 12px;
-        border: 1px solid var(--divider-color, #ccc); border-radius: 8px;
-        font-size: 13px; background: var(--card-background-color, #fff);
-        color: var(--primary-text-color); outline: none; box-sizing: border-box;
-      }
-      .filter-input:focus { border-color: var(--primary-color); }
 
       .device-list { display: flex; flex-direction: column; gap: 10px; }
 
@@ -883,31 +1009,26 @@ class SberWizard extends LitElement {
         color: var(--primary-text-color); outline: none; box-sizing: border-box;
       }
       .field input:focus { border-color: var(--primary-color); }
-      .field input.invalid { border-color: var(--error-color, #f44336); }
+      .field input:disabled { opacity: 0.6; cursor: not-allowed; }
+      /* Advisory, not an error: the value is still submitted. */
+      .field input.warn { border-color: var(--warning-color, #ff9800); }
       .field .hint { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; }
-      .field .error-hint { font-size: 11px; color: var(--error-color, #f44336); margin-top: 2px; }
+      .field .hint-info { color: var(--secondary-text-color); }
+      .field .hint-warn { color: var(--warning-color, #ff9800); }
 
-      /* Footer */
-      .dialog-footer {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 12px 20px; border-top: 1px solid var(--divider-color, #e0e0e0);
+      .outcome {
+        font-size: 12px; padding: 4px 8px; border-radius: 4px; margin-bottom: 8px;
       }
-      .btn {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 8px 16px; border: none; border-radius: 8px;
-        font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s;
+      .outcome-ok {
+        background: color-mix(in srgb, var(--success-color, #4caf50) 12%, transparent);
+        color: var(--success-color, #4caf50);
       }
-      .btn-primary { background: var(--primary-color); color: #fff; }
-      .btn-primary:hover { opacity: 0.85; }
-      .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-      .btn-secondary { background: var(--secondary-background-color, #eee); color: var(--primary-text-color); }
-      .btn-secondary:hover { opacity: 0.8; }
-      .btn-success { background: var(--success-color, #4caf50); color: #fff; }
-      .btn-success:hover { opacity: 0.85; }
-      .btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
+      .outcome-fail {
+        background: color-mix(in srgb, var(--error-color, #f44336) 12%, transparent);
+        color: var(--error-color, #f44336);
+      }
 
-      .empty-state { text-align: center; padding: 32px; color: var(--secondary-text-color); font-size: 14px; }
-    `;
+    `];
   }
 }
 

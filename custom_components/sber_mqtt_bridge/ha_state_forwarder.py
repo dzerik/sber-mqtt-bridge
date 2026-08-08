@@ -5,16 +5,17 @@ of rapid updates, and the feature-change detection that triggers config
 republish.  Extracted from :class:`SberBridge` to isolate the HA-facing
 event loop from the MQTT transport (SRP).
 
-Usage::
+Usage (mirrors the wiring in ``SberBridge.__init__``)::
 
     forwarder = HaStateForwarder(
         hass=hass,
         debounce_delay=0.1,
-        get_entities=lambda: bridge.entities,
-        get_linked_reverse=lambda: bridge.linked_reverse_map,
-        on_publish_states=bridge.async_publish_entity_ids,
-        on_republish_config=bridge.async_republish_config,
+        get_entities=lambda: bridge._entities,
+        get_linked_reverse=lambda: bridge._linked_reverse,
+        on_publish_states=bridge._publish_states,
+        on_republish_config=bridge._publish_config,
         create_safe_task=bridge._create_safe_task,
+        on_trace_state_change=bridge._trace_on_state_change,
     )
     forwarder.subscribe([...])
     ...
@@ -35,6 +36,15 @@ if TYPE_CHECKING:
     from .devices.base_entity import BaseEntity
 
 _LOGGER = logging.getLogger(__name__)
+
+DEBOUNCE_MAX_WAIT_FACTOR = 5
+"""Upper bound on debounce coalescing, as a multiple of ``debounce_delay``.
+
+A continuously chattering entity re-arms the shared debounce timer on every
+event; without a max-wait the accumulated pending publishes of *all* other
+entities would be deferred indefinitely.  The flush is forced once the oldest
+pending entry has waited ``debounce_delay * DEBOUNCE_MAX_WAIT_FACTOR`` seconds.
+"""
 
 
 class HaStateForwarder:
@@ -95,6 +105,8 @@ class HaStateForwarder:
         self._unsub_listeners: list[Callable[[], None]] = []
         self._pending_publish_ids: set[str] = set()
         self._publish_timer: asyncio.TimerHandle | None = None
+        self._pending_since: float | None = None
+        """Loop time when the oldest still-pending publish was scheduled."""
 
     def set_debounce_delay(self, delay: float) -> None:
         """Update the debounce delay at runtime."""
@@ -106,10 +118,15 @@ class HaStateForwarder:
         Unsubscribes any previous listeners first, so subsequent calls
         are idempotent.
 
+        Pending debounced publishes are flushed first — dropping them on a
+        hot-reload resubscribe would leave Sber with stale states until the
+        next change or status_request.
+
         Args:
             entity_ids: Combined list of primary + linked entity IDs to
                 track.  Empty list is allowed and results in a no-op.
         """
+        self.flush_pending()
         self.unsubscribe_all()
         if not entity_ids:
             return
@@ -120,6 +137,16 @@ class HaStateForwarder:
         )
         self._unsub_listeners.append(unsub)
 
+    def flush_pending(self) -> None:
+        """Immediately publish any pending debounced state updates.
+
+        Cancels the armed debounce timer (if any) and fires the flush
+        synchronously.  No-op when nothing is pending.
+        """
+        if self._publish_timer is not None:
+            self._publish_timer.cancel()
+        self._fire_debounced_publish()
+
     def unsubscribe_all(self) -> None:
         """Unsubscribe from HA state-change events and cancel pending publish."""
         for unsub in self._unsub_listeners:
@@ -129,6 +156,7 @@ class HaStateForwarder:
             self._publish_timer.cancel()
             self._publish_timer = None
         self._pending_publish_ids.clear()
+        self._pending_since = None
 
     @callback
     def _on_ha_state_changed(self, event: Event) -> None:
@@ -167,9 +195,15 @@ class HaStateForwarder:
         primary_entity = entities.get(primary_id)
         if primary_entity is None:
             return
-        features_before = primary_entity.get_final_features_list()
-        primary_entity.update_linked_data(role, ha_state_dict)
-        features_after = primary_entity.get_final_features_list()
+        try:
+            features_before = primary_entity.get_final_features_list()
+            primary_entity.update_linked_data(role, ha_state_dict)
+            features_after = primary_entity.get_final_features_list()
+        except (TypeError, ValueError, KeyError, AttributeError):
+            # Same narrow guard as the primary path: a malformed linked-sensor
+            # attribute must not leak a traceback into the HA event bus.
+            _LOGGER.exception("Error processing linked state change %s → %s", entity_id, primary_id)
+            return
         _LOGGER.debug("Linked %s (%s) → primary %s", entity_id, role, primary_id)
         if features_before != features_after:
             _LOGGER.info(
@@ -212,16 +246,27 @@ class HaStateForwarder:
 
     @callback
     def _schedule_debounced_publish(self, entity_id: str) -> None:
-        """Accumulate an entity ID and schedule a debounced flush."""
+        """Accumulate an entity ID and schedule a debounced flush.
+
+        Each call re-arms the shared timer, but never beyond a max-wait
+        deadline anchored to the oldest pending entry — see
+        :data:`DEBOUNCE_MAX_WAIT_FACTOR`.
+        """
         self._pending_publish_ids.add(entity_id)
+        now = self._hass.loop.time()
+        if self._pending_since is None:
+            self._pending_since = now
         if self._publish_timer is not None:
             self._publish_timer.cancel()
-        self._publish_timer = self._hass.loop.call_later(self._debounce_delay, self._fire_debounced_publish)
+        deadline = self._pending_since + self._debounce_delay * DEBOUNCE_MAX_WAIT_FACTOR
+        delay = min(self._debounce_delay, max(0.0, deadline - now))
+        self._publish_timer = self._hass.loop.call_later(delay, self._fire_debounced_publish)
 
     @callback
     def _fire_debounced_publish(self) -> None:
         """Flush accumulated IDs into a single publish task."""
         self._publish_timer = None
+        self._pending_since = None
         ids = list(self._pending_publish_ids)
         self._pending_publish_ids.clear()
         if ids:

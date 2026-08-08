@@ -9,6 +9,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import config_validation as cv
 
 from ..const import (
     CONF_ENTITY_LINKS,
@@ -16,6 +17,7 @@ from ..const import (
     CONF_EXPOSED_ENTITIES,
 )
 from ._common import (  # noqa: F401 — get_bridge/get_config_entry re-exported for test patching
+    OVERRIDABLE_CATEGORIES,
     WS_ENTITY_ID,
     get_bridge,
     get_config_entry,
@@ -24,6 +26,28 @@ from ._common import (  # noqa: F401 — get_bridge/get_config_entry re-exported
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+IMPORT_CONFIG_SCHEMA = vol.Schema(
+    {
+        vol.Optional("exposed_entities"): [cv.entity_id],
+        vol.Optional("type_overrides"): vol.Schema({cv.entity_id: vol.In(OVERRIDABLE_CATEGORIES)}),
+        vol.Optional("redefinitions"): vol.Schema(
+            # strict ``str`` — cv.string would coerce numbers into strings
+            {cv.entity_id: vol.Schema({vol.Any("name", "room", "home"): str})}
+        ),
+        vol.Optional("entity_links"): vol.Schema({cv.entity_id: vol.Schema({cv.string: cv.entity_id})}),
+    },
+    extra=vol.ALLOW_EXTRA,  # tolerate "version" and future metadata keys
+)
+"""Structural schema for the ``import`` payload.
+
+Everything written to ``entry.options`` survives a full
+``async_setup_entry``; a malformed import (e.g. ``entity_links`` as a
+list, or string ``redefinitions`` values) would crash entity loading on
+every subsequent reload, leaving the integration dead and the panel —
+including a corrective re-import — unreachable.  Validate first, write
+never on error."""
 
 
 @websocket_api.websocket_command(
@@ -66,8 +90,19 @@ async def ws_import(
     msg: dict[str, Any],
     entry: Any,
 ) -> None:
-    """Import a device configuration from a JSON payload."""
-    config: dict[str, Any] = msg["config"]
+    """Import a device configuration from a JSON payload.
+
+    The payload structure is validated against
+    :data:`IMPORT_CONFIG_SCHEMA` *before* anything is persisted — on
+    error the handler replies ``invalid_config`` and leaves
+    ``entry.options`` untouched (no reload is triggered).
+    """
+    try:
+        config: dict[str, Any] = IMPORT_CONFIG_SCHEMA(msg["config"])
+    except vol.Invalid as err:
+        connection.send_error(msg["id"], "invalid_config", f"Invalid import payload: {err}")
+        return
+
     new_options = dict(entry.options)
 
     if "exposed_entities" in config:
@@ -75,6 +110,10 @@ async def ws_import(
     if "type_overrides" in config:
         new_options[CONF_ENTITY_TYPE_OVERRIDES] = config["type_overrides"]
     if "redefinitions" in config:
+        # TODO(v1.38.4): route through RedefinitionsStore once it exists
+        # (docs/superpowers/plans/2026-05-14-v1.38.4-redefinitions-store.md) —
+        # direct writes to the magic "redefinitions" options key can be
+        # overwritten by the store's debounced flush.
         new_options["redefinitions"] = config["redefinitions"]
     if "entity_links" in config:
         new_options[CONF_ENTITY_LINKS] = config["entity_links"]

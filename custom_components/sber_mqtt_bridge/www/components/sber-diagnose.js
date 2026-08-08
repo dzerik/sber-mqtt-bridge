@@ -12,7 +12,14 @@
  * entity.
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+await import(`./sber-json-block.js${_q}`);
+
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { copyText } = await import(`../utils.js${_q}`);
 
 const VERDICT_LABEL = {
   ok: "Clean",
@@ -65,7 +72,10 @@ class SberDiagnose extends LitElement {
   async _copyReport() {
     if (!this._report) return;
     try {
-      await navigator.clipboard.writeText(JSON.stringify(this._report, null, 2));
+      const ok = await copyText(JSON.stringify(this._report, null, 2));
+      /* Always reassign: leaving the previous failure on screen makes a
+       * later successful copy look broken. */
+      this._error = ok ? "" : "Copy failed — clipboard unavailable";
     } catch (e) {
       this._error = `Copy failed: ${e.message || e}`;
     }
@@ -83,6 +93,7 @@ class SberDiagnose extends LitElement {
         <div class="form-row">
           <input
             type="text"
+            aria-label="Entity ID to diagnose"
             placeholder="entity_id (e.g. light.kitchen)"
             .value=${this._entityId}
             @input=${(e) => { this._entityId = e.target.value; }}
@@ -123,11 +134,25 @@ class SberDiagnose extends LitElement {
           </div>
         `)}
       </div>
-      <div class="raw-toggle" @click=${() => { this._rawOpen = !this._rawOpen; }}>
+      <div
+        class="raw-toggle"
+        role="button"
+        tabindex="0"
+        aria-expanded=${this._rawOpen ? "true" : "false"}
+        aria-label="Toggle raw summary"
+        @click=${() => { this._rawOpen = !this._rawOpen; }}
+        @keydown=${(e) => {
+          if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+          e.preventDefault();
+          this._rawOpen = !this._rawOpen;
+        }}
+      >
         <span class="caret ${this._rawOpen ? "open" : ""}">&#9654;</span>
         Raw summary
       </div>
-      ${this._rawOpen ? html`<pre class="raw">${JSON.stringify(r.summary, null, 2)}</pre>` : ""}
+      ${this._rawOpen
+        ? html`<sber-json-block label="Raw summary" hide-copy .value=${r.summary}></sber-json-block>`
+        : ""}
     `;
   }
 
@@ -225,6 +250,12 @@ class SberDiagnose extends LitElement {
         border-radius: 3px;
         font-size: 0.85em;
       }
+      .raw-toggle:focus-visible,
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
       .raw-toggle {
         margin-top: 14px;
         color: var(--secondary-text-color);
@@ -234,15 +265,7 @@ class SberDiagnose extends LitElement {
       }
       .caret { display: inline-block; transition: transform 0.15s; margin-right: 4px; }
       .caret.open { transform: rotate(90deg); }
-      .raw {
-        background: var(--secondary-background-color);
-        padding: 10px;
-        border-radius: 4px;
-        font-family: monospace;
-        font-size: 0.8em;
-        overflow: auto;
-        max-height: 300px;
-      }
+      sber-json-block { margin-top: 6px; }
     `;
   }
 }

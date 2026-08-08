@@ -75,13 +75,13 @@ class HumiditySensorEntity(SimpleReadOnlySensor):
             features.append("temperature")
         return features
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with linked temperature.
 
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
-        result = super().to_sber_current_state()
+        result = super()._build_current_state()
         if self._linked_temperature is not None:
             result[self.entity_id]["states"].append(
                 make_state(SberFeature.TEMPERATURE, make_integer_value(int(self._linked_temperature * 10)))

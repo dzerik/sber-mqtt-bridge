@@ -5,7 +5,8 @@
  *
  *  1. Manual inject — textarea for the full payload + topic suffix
  *     selector (commands / status_request / config_request / ...).
- *  2. Replay from log — subscribes to the message log, shows the last
+ *  2. Replay from log — reads the shared message feed (``message-bus.js``,
+ *     one subscription for the whole panel), shows the last
  *     N incoming messages with a "Replay" button on each.  Click it
  *     and the bridge feeds that exact payload back into its own
  *     dispatcher as if Sber had re-sent it — no network round-trip,
@@ -16,7 +17,12 @@
  * never feed themselves in a loop.
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { messageBus } = await import(`../message-bus.js${_q}`);
 
 const TOPIC_SUFFIXES = [
   "commands",
@@ -45,6 +51,7 @@ class SberReplay extends LitElement {
   static get properties() {
     return {
       hass: { type: Object },
+      bus: { type: Object },
       _messages: { type: Array },
       _topic: { type: String },
       _payload: { type: String },
@@ -62,8 +69,15 @@ class SberReplay extends LitElement {
     this._busy = false;
     this._status = "";
     this._statusKind = "";
-    this._hassReady = false;
     this._unsub = null;
+    /** Shared live feed — one WS subscription for the whole panel. */
+    this.bus = messageBus;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    /* Re-subscribe on re-attach (HA navigation reuses the instance). */
+    if (this.hass) this._subscribe();
   }
 
   disconnectedCallback() {
@@ -72,28 +86,18 @@ class SberReplay extends LitElement {
   }
 
   updated(changedProps) {
-    if (changedProps.has("hass") && this.hass && !this._hassReady) {
-      this._hassReady = true;
-      this._subscribe();
-    }
+    if (changedProps.has("hass") && this.hass) this._subscribe();
   }
 
-  async _subscribe() {
-    if (this._unsub) return;
-    try {
-      this._unsub = await this.hass.connection.subscribeMessage(
-        (event) => {
-          if (event.snapshot) {
-            this._messages = event.snapshot;
-          } else if (event.message) {
-            this._messages = [...this._messages, event.message];
-          }
-        },
-        { type: "sber_mqtt_bridge/subscribe_messages" }
-      );
-    } catch (e) {
-      this._setStatus(`Subscribe failed: ${e.message || e}`, "error");
-    }
+  _subscribe() {
+    if (this._unsub || !this.bus || !this.hass) return;
+    this._unsub = this.bus.subscribe(
+      this.hass,
+      (messages) => {
+        this._messages = messages;
+      },
+      (e) => this._setStatus(`Subscribe failed: ${e.message || e}`, "error")
+    );
   }
 
   _unsubscribe() {
@@ -187,7 +191,7 @@ class SberReplay extends LitElement {
           <h3>Manual inject</h3>
           <div class="form-row">
             <label>Topic suffix</label>
-            <select .value=${this._topic} @change=${(e) => { this._topic = e.target.value; }}>
+            <select aria-label="Topic suffix" .value=${this._topic} @change=${(e) => { this._topic = e.target.value; }}>
               ${TOPIC_SUFFIXES.map((s) => html`<option value="${s}">${s}</option>`)}
             </select>
           </div>
@@ -254,6 +258,13 @@ class SberReplay extends LitElement {
 
   static get styles() {
     return css`
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
       .section {
         background: var(--card-background-color);
         border-radius: 8px;

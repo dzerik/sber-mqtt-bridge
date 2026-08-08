@@ -6,7 +6,13 @@
  * Fires "links-saved" event when links are updated.
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { deepActiveElement } = await import(`../utils.js${_q}`);
+const { dialogStyles, buttonStyles } = await import(`../shared-styles.js${_q}`);
 
 class SberLinkDialog extends LitElement {
   static get properties() {
@@ -41,15 +47,43 @@ class SberLinkDialog extends LitElement {
     this._error = "";
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    /* Modal keyboard contract: Escape closes. */
+    this._escHandler = (e) => {
+      if (this.open && e.key === "Escape") {
+        e.stopPropagation();
+        this.hide();
+      }
+    };
+    document.addEventListener("keydown", this._escHandler);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._escHandler) {
+      document.removeEventListener("keydown", this._escHandler);
+      this._escHandler = null;
+    }
+  }
+
   async show(entityId) {
     this._reset();
     this._entityId = entityId;
+    this._returnFocusTo = deepActiveElement();
     this.open = true;
+    await this.updateComplete;
+    const dialog = this.shadowRoot.querySelector(".dialog");
+    if (dialog) dialog.focus();
     await this._loadCandidates();
   }
 
   hide() {
     this.open = false;
+    /* Return focus to the row action that opened the dialog (WCAG 2.4.3). */
+    const target = this._returnFocusTo;
+    this._returnFocusTo = null;
+    if (target && typeof target.focus === "function") target.focus();
   }
 
   async _loadCandidates() {
@@ -80,11 +114,28 @@ class SberLinkDialog extends LitElement {
     }
   }
 
+  /**
+   * Toggle a link candidate, enforcing one entity per Sber role.
+   *
+   * ``_save`` maps candidates into ``{role: entity_id}``, so two
+   * selections claiming the same role would silently collapse to the
+   * last one.  Selecting a candidate therefore unselects the previous
+   * holder of its role — the same guard sber-wizard applies.
+   */
   _toggle(entityId) {
     const sel = { ...this._selected };
     if (sel[entityId]) {
       delete sel[entityId];
     } else {
+      const picked = this._candidates.find((c) => c.entity_id === entityId);
+      const role = picked?.suggested_role;
+      if (role) {
+        for (const other of this._candidates) {
+          if (other.entity_id !== entityId && other.suggested_role === role) {
+            delete sel[other.entity_id];
+          }
+        }
+      }
       sel[entityId] = true;
     }
     this._selected = sel;
@@ -126,6 +177,7 @@ class SberLinkDialog extends LitElement {
       <div class="candidate-row ${!c.compatible ? 'incompatible' : ''}">
         <input
           type="checkbox"
+          aria-label="Link ${c.friendly_name || c.entity_id}"
           .checked=${!!this._selected[c.entity_id]}
           ?disabled=${!c.compatible}
           @change=${() => this._toggle(c.entity_id)}
@@ -161,33 +213,8 @@ class SberLinkDialog extends LitElement {
   }
 
   static get styles() {
-    return css`
-      :host { display: none; }
-      :host([open]) { display: block; }
-
-      .overlay {
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.5); z-index: 999;
-        display: flex; align-items: center; justify-content: center;
-      }
-      .dialog {
-        background: var(--card-background-color, #fff);
-        border-radius: var(--ha-card-border-radius, 12px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-        width: 92%; max-width: 560px; max-height: 80vh;
-        display: flex; flex-direction: column; overflow: hidden;
-      }
-      .dialog-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 16px 20px; border-bottom: 1px solid var(--divider-color, #e0e0e0);
-      }
-      .dialog-header h2 { margin: 0; font-size: 18px; font-weight: 500; }
-      .close-btn {
-        background: none; border: none; font-size: 20px; cursor: pointer;
-        color: var(--secondary-text-color); padding: 4px 8px; border-radius: 4px;
-      }
-      .close-btn:hover { background: var(--secondary-background-color, #eee); }
-      .body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+    return [dialogStyles, buttonStyles, css`
+      .dialog { width: 92%; max-width: 560px; max-height: 80vh; }
       .info {
         font-size: 13px; color: var(--secondary-text-color); margin-bottom: 12px;
       }
@@ -221,19 +248,10 @@ class SberLinkDialog extends LitElement {
       }
       .error-text { color: var(--error-color, #f44336); }
       .empty { text-align: center; padding: 24px; color: var(--secondary-text-color); font-style: italic; }
-      .dialog-footer {
-        display: flex; align-items: center; justify-content: flex-end;
-        padding: 12px 20px; border-top: 1px solid var(--divider-color, #e0e0e0); gap: 8px;
-      }
-      .btn {
-        padding: 8px 16px; border: none; border-radius: 8px;
-        font-size: 13px; font-weight: 500; cursor: pointer;
-      }
-      .btn-primary { background: var(--primary-color); color: #fff; }
-      .btn-primary:hover { opacity: 0.85; }
-      .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-      .btn-secondary { background: var(--secondary-background-color, #eee); color: var(--primary-text-color); }
-    `;
+      /* Cancel + Save sit together on the right, unlike the wizard's
+       * Back/Next split, so the shared footer's spacing is overridden. */
+      .dialog-footer { justify-content: flex-end; }
+    `];
   }
 
   render() {
@@ -242,10 +260,16 @@ class SberLinkDialog extends LitElement {
 
     return html`
       <div class="overlay" @click=${(e) => { if (e.target === e.currentTarget) this.hide(); }}>
-        <div class="dialog">
+        <div
+          class="dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="link-dialog-title"
+          tabindex="-1"
+        >
           <div class="dialog-header">
-            <h2>Link Entities</h2>
-            <button class="close-btn" @click=${this.hide}>\u2715</button>
+            <h2 id="link-dialog-title">Link Entities</h2>
+            <button class="close-btn" aria-label="Close dialog" @click=${this.hide}>\u2715</button>
           </div>
 
           <div class="body">

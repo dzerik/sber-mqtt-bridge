@@ -9,7 +9,11 @@
  *   toast.show("Device added", "success");
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 
 class SberToast extends LitElement {
   static get properties() {
@@ -87,8 +91,15 @@ class SberToast extends LitElement {
   }
 
   render() {
+    /* role/aria-live make the toast audible to screen readers; errors are
+     * assertive so they interrupt, everything else is polite. */
     return html`
-      <div class="toast ${this._type} ${this._visible ? "visible" : ""}">
+      <div
+        class="toast ${this._type} ${this._visible ? "visible" : ""}"
+        role=${this._type === "error" ? "alert" : "status"}
+        aria-live=${this._type === "error" ? "assertive" : "polite"}
+        aria-atomic="true"
+      >
         ${this._message}
       </div>
     `;

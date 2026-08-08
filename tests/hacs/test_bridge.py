@@ -1,8 +1,8 @@
 """Tests for SberBridge core logic."""
 
+import asyncio
 import json
-import unittest
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
 from homeassistant.core import Context
@@ -29,25 +29,71 @@ def _make_entry(config=None, options=None):
     return entry
 
 
-class TestSberBridgeInit(unittest.TestCase):
+def _state_changed_event(entity_id: str, old: str, new: str, context: Context) -> MagicMock:
+    """Build a minimal HA ``state_changed`` event object.
+
+    Args:
+        entity_id: Entity whose state changed.
+        old: Previous HA state string.
+        new: New HA state string.
+        context: HA Context attached to the event (Sber-originated or not).
+
+    Returns:
+        A mock event exposing ``data`` / ``context`` like the real one.
+    """
+
+    def _state(value: str) -> MagicMock:
+        state = MagicMock()
+        state.entity_id = entity_id
+        state.state = value
+        state.attributes = {}
+        return state
+
+    event = MagicMock()
+    event.context = context
+    event.data = {"entity_id": entity_id, "old_state": _state(old), "new_state": _state(new)}
+    return event
+
+
+async def _flush_status_publishes(bridge) -> list[dict]:
+    """Flush the debounce timer and return every published ``up/status`` payload.
+
+    Waits for the fire-and-forget publish tasks the bridge creates, so the
+    assertion sees the real MQTT transport calls rather than an internal
+    collaborator.
+    """
+    bridge._state_forwarder.flush_pending()
+    results = await asyncio.wait_for(
+        asyncio.gather(*bridge._hass._created_tasks, return_exceptions=True),
+        timeout=5,
+    )
+    for result in results:
+        if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
+            raise result
+    return [
+        json.loads(call.args[1])
+        for call in bridge._mqtt_service.publish.call_args_list
+        if "up/status" in str(call.args[0])
+    ]
+
+
+class TestSberBridgeInit:
     """Test SberBridge initialization."""
 
     def test_init_sets_topics(self):
-        hass = MagicMock()
-        entry = _make_entry()
-        bridge = SberBridge(hass, entry)
+        bridge = SberBridge(MagicMock(), _make_entry())
 
-        self.assertEqual(bridge._root_topic, "sberdevices/v1/test")
-        self.assertEqual(bridge._down_topic, "sberdevices/v1/test/down")
-        self.assertFalse(bridge.is_connected)
+        # Topics are derived from the Sber login — a wrong root topic means
+        # publishing into another tenant's namespace.
+        assert bridge._root_topic == "sberdevices/v1/test"
+        assert bridge._down_topic == "sberdevices/v1/test/down"
+        assert bridge.is_connected is False
 
     def test_init_empty_entities(self):
-        hass = MagicMock()
-        entry = _make_entry()
-        bridge = SberBridge(hass, entry)
+        bridge = SberBridge(MagicMock(), _make_entry())
 
-        self.assertEqual(bridge._entities, {})
-        self.assertEqual(bridge._enabled_entity_ids, [])
+        assert bridge._entities == {}
+        assert bridge._enabled_entity_ids == []
 
 
 class TestSberBridgeMessageRouting:
@@ -68,13 +114,17 @@ class TestSberBridgeMessageRouting:
 
     @pytest.mark.asyncio
     async def test_route_commands(self, bridge):
-        await bridge._handle_mqtt_message("sberdevices/v1/test/down/commands", b'{"devices": {}}')
-        bridge._handle_sber_command.assert_called_once()
+        payload = b'{"devices": {}}'
+        await bridge._handle_mqtt_message("sberdevices/v1/test/down/commands", payload)
+        # The raw payload must be forwarded verbatim: handlers parse it themselves.
+        bridge._handle_sber_command.assert_called_once_with(payload)
+        bridge._handle_sber_status_request.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_route_status_request(self, bridge):
-        await bridge._handle_mqtt_message("sberdevices/v1/test/down/status_request", b'{"devices": []}')
-        bridge._handle_sber_status_request.assert_called_once()
+        payload = b'{"devices": []}'
+        await bridge._handle_mqtt_message("sberdevices/v1/test/down/status_request", payload)
+        bridge._handle_sber_status_request.assert_called_once_with(payload)
 
     @pytest.mark.asyncio
     async def test_route_config_request(self, bridge):
@@ -83,22 +133,37 @@ class TestSberBridgeMessageRouting:
 
     @pytest.mark.asyncio
     async def test_route_change_group(self, bridge):
-        await bridge._handle_mqtt_message(
-            "sberdevices/v1/test/down/change_group_device_request", b'{"device_id": "light.a"}'
-        )
-        bridge._handle_change_group.assert_called_once()
+        payload = b'{"device_id": "light.a"}'
+        await bridge._handle_mqtt_message("sberdevices/v1/test/down/change_group_device_request", payload)
+        bridge._handle_change_group.assert_called_once_with(payload)
 
     @pytest.mark.asyncio
     async def test_route_rename(self, bridge):
-        await bridge._handle_mqtt_message(
-            "sberdevices/v1/test/down/rename_device_request", b'{"device_id": "light.a", "new_name": "New"}'
-        )
-        bridge._handle_rename_device.assert_called_once()
+        payload = b'{"device_id": "light.a", "new_name": "New"}'
+        await bridge._handle_mqtt_message("sberdevices/v1/test/down/rename_device_request", payload)
+        bridge._handle_rename_device.assert_called_once_with(payload)
 
     @pytest.mark.asyncio
     async def test_route_global_config(self, bridge):
-        await bridge._handle_mqtt_message("sberdevices/v1/__config", b'{"http_api_endpoint": "https://test"}')
-        bridge._handle_global_config.assert_called_once()
+        payload = b'{"http_api_endpoint": "https://test"}'
+        await bridge._handle_mqtt_message("sberdevices/v1/__config", payload)
+        bridge._handle_global_config.assert_called_once_with(payload)
+
+    @pytest.mark.asyncio
+    async def test_unknown_topic_routes_nowhere(self, bridge):
+        # A topic we do not understand must be ignored, not fed to a handler
+        # that would misinterpret the payload.
+        await bridge._handle_mqtt_message("sberdevices/v1/test/down/unknown_suffix", b"{}")
+
+        for handler in (
+            bridge._handle_sber_command,
+            bridge._handle_sber_status_request,
+            bridge._handle_sber_config_request,
+            bridge._handle_change_group,
+            bridge._handle_rename_device,
+            bridge._handle_global_config,
+        ):
+            handler.assert_not_called()
 
 
 class TestSberBridgeCommandHandling:
@@ -109,9 +174,7 @@ class TestSberBridgeCommandHandling:
         hass = MagicMock()
         hass.services = MagicMock()
         hass.services.async_call = AsyncMock()
-        entry = _make_entry()
-        b = SberBridge(hass, entry)
-        return b
+        return SberBridge(hass, _make_entry())
 
     @pytest.mark.asyncio
     async def test_handle_command_turn_on(self, bridge):
@@ -260,24 +323,48 @@ class TestSberBridgeEchoFix:
     """
 
     @pytest.fixture
-    def bridge(self):
-        """Create a bridge with a relay entity in 'off' state."""
+    async def bridge(self):
+        """Create a bridge with a relay entity in 'off' state.
+
+        The mock hass is wired to the *real* event loop and really creates
+        tasks, so a state change can be followed all the way to an MQTT
+        publish instead of stopping at an internal collaborator.
+        """
         from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
 
         hass = MagicMock()
         hass.services = MagicMock()
         hass.services.async_call = AsyncMock()
+        hass.config.location_name = "My Home"
+
+        loop = asyncio.get_running_loop()
+        hass.loop = loop
+        created_tasks: list[asyncio.Task] = []
+
+        def _create_task(coro, **_kwargs):
+            task = loop.create_task(coro)
+            created_tasks.append(task)
+            return task
+
+        hass.async_create_task = MagicMock(side_effect=_create_task)
+        hass._created_tasks = created_tasks
+
         entry = _make_entry()
         b = SberBridge(hass, entry)
         b._mqtt_client = AsyncMock()
+        b._mqtt_service.publish = AsyncMock()
         b._connected = True
+        b._ack_audit.cancel()
 
         entity = RelayEntity({"entity_id": "switch.lamp", "name": "Lamp"})
         entity.fill_by_ha_state({"entity_id": "switch.lamp", "state": "off", "attributes": {}})
         b._entities["switch.lamp"] = entity
         b._enabled_entity_ids = ["switch.lamp"]
 
-        return b
+        yield b
+
+        b._ack_audit.cancel()
+        b._state_forwarder.unsubscribe_all()
 
     @pytest.mark.asyncio
     async def test_sber_command_state_change_is_published(self, bridge):
@@ -298,55 +385,33 @@ class TestSberBridgeEchoFix:
         sber_context = call_kwargs.kwargs.get("context") or call_kwargs[1].get("context")
         assert isinstance(sber_context, Context)
 
+        # The delayed-confirm re-publish is a separate mechanism (covered by
+        # TestBridgeFlowDelayedConfirm); cancel it so the count assertion
+        # below isolates the state-change → publish path.
+        for task in list(bridge._confirm_tasks.values()):
+            task.cancel()
+        bridge._mqtt_service.publish.reset_mock()
+
         # Act: simulate HA firing state_changed with the same context
-        new_state = MagicMock()
-        new_state.entity_id = "switch.lamp"
-        new_state.state = "on"
-        new_state.attributes = {}
+        bridge._state_forwarder._on_ha_state_changed(_state_changed_event("switch.lamp", "off", "on", sber_context))
+        payloads = await _flush_status_publishes(bridge)
 
-        old_state = MagicMock()
-        old_state.entity_id = "switch.lamp"
-        old_state.state = "off"
-        old_state.attributes = {}
+        # Assert: the confirmation really reached the MQTT transport
+        assert len(payloads) == 1, "Sber-originated state change must produce exactly one up/status publish"
+        states = payloads[0]["devices"]["switch.lamp"]["states"]
+        on_off = next((s["value"] for s in states if s["key"] == "on_off"), None)
+        assert on_off == {"type": "BOOL", "bool_value": True}, f"expected on_off=true confirmation, got {states}"
 
-        event = MagicMock()
-        event.context = sber_context
-        event.data = {
-            "entity_id": "switch.lamp",
-            "old_state": old_state,
-            "new_state": new_state,
-        }
-
-        with patch.object(bridge._state_forwarder, "_schedule_debounced_publish") as mock_publish:
-            bridge._on_ha_state_changed(event)
-
-            # Assert: publish is NOT suppressed
-            mock_publish.assert_called_once_with("switch.lamp")
-
-    def test_ha_originated_state_change_is_published(self, bridge):
+    @pytest.mark.asyncio
+    async def test_ha_originated_state_change_is_published(self, bridge):
         """State change from HA UI (random context) must be published."""
-        new_state = MagicMock()
-        new_state.entity_id = "switch.lamp"
-        new_state.state = "on"
-        new_state.attributes = {}
+        bridge._state_forwarder._on_ha_state_changed(_state_changed_event("switch.lamp", "off", "on", Context()))
+        payloads = await _flush_status_publishes(bridge)
 
-        old_state = MagicMock()
-        old_state.entity_id = "switch.lamp"
-        old_state.state = "off"
-        old_state.attributes = {}
-
-        event = MagicMock()
-        event.context = Context()  # random HA-originated context
-        event.data = {
-            "entity_id": "switch.lamp",
-            "old_state": old_state,
-            "new_state": new_state,
-        }
-
-        with patch.object(bridge._state_forwarder, "_schedule_debounced_publish") as mock_publish:
-            bridge._on_ha_state_changed(event)
-
-            mock_publish.assert_called_once_with("switch.lamp")
+        assert len(payloads) == 1
+        states = payloads[0]["devices"]["switch.lamp"]["states"]
+        on_off = next((s["value"] for s in states if s["key"] == "on_off"), None)
+        assert on_off == {"type": "BOOL", "bool_value": True}, f"expected on_off=true publish, got {states}"
 
     @pytest.mark.asyncio
     async def test_sber_command_creates_ha_context(self, bridge):

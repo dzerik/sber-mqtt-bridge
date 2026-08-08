@@ -10,7 +10,11 @@
  * publish → ack/rejection" chain in one place.
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 
 const STATUS_LABEL = {
   active: "Active",
@@ -44,8 +48,14 @@ class SberTraces extends LitElement {
     this._traces = [];
     this._expanded = {};
     this._error = "";
-    this._hassReady = false;
     this._unsub = null;
+    this._subscribing = false;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    /* Re-subscribe on re-attach (HA navigation reuses the instance). */
+    if (this.hass) this._subscribe();
   }
 
   disconnectedCallback() {
@@ -54,16 +64,14 @@ class SberTraces extends LitElement {
   }
 
   updated(changedProps) {
-    if (changedProps.has("hass") && this.hass && !this._hassReady) {
-      this._hassReady = true;
-      this._subscribe();
-    }
+    if (changedProps.has("hass") && this.hass) this._subscribe();
   }
 
   async _subscribe() {
-    if (this._unsub) return;
+    if (this._unsub || this._subscribing) return;
+    this._subscribing = true;
     try {
-      this._unsub = await this.hass.connection.subscribeMessage(
+      const unsub = await this.hass.connection.subscribeMessage(
         (event) => {
           if (event.snapshot) {
             this._traces = event.snapshot.slice(-MAX_TRACES);
@@ -73,8 +81,16 @@ class SberTraces extends LitElement {
         },
         { type: "sber_mqtt_bridge/subscribe_traces" }
       );
+      if (!this.isConnected) {
+        /* Detached mid-round-trip — drop instead of leaking. */
+        unsub();
+        return;
+      }
+      this._unsub = unsub;
     } catch (e) {
       this._error = e.message || String(e);
+    } finally {
+      this._subscribing = false;
     }
   }
 
@@ -204,7 +220,18 @@ class SberTraces extends LitElement {
     const open = !!this._expanded[expandKey];
     return html`
       <div class="trace trace-${trace.status}">
-        <div class="trace-header" @click=${() => this._toggle(expandKey)}>
+        <div
+          class="trace-header"
+          role="button"
+          tabindex="0"
+          aria-expanded=${open ? "true" : "false"}
+          @click=${() => this._toggle(expandKey)}
+          @keydown=${(e) => {
+            if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+            e.preventDefault();
+            this._toggle(expandKey);
+          }}
+        >
           <span class="caret ${open ? "open" : ""}">&#9654;</span>
           <span class="status-badge status-${trace.status}">${STATUS_LABEL[trace.status] || trace.status}</span>
           <span class="trigger">${trace.trigger}</span>
@@ -290,6 +317,11 @@ class SberTraces extends LitElement {
         font-size: 0.9em;
       }
       .trace-header:hover { background: var(--secondary-background-color); }
+      .trace-header:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: -2px;
+      }
       .caret { display: inline-block; transition: transform 0.15s; color: var(--secondary-text-color); }
       .caret.open { transform: rotate(90deg); }
       .status-badge {

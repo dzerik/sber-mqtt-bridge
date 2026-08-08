@@ -18,7 +18,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-from unittest.mock import AsyncMock, MagicMock
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+import voluptuous as vol
+from _ws_dispatch import dispatch
+from homeassistant.exceptions import Unauthorized
 
 from custom_components.sber_mqtt_bridge.const import (
     CONF_SBER_BROKER,
@@ -28,6 +34,10 @@ from custom_components.sber_mqtt_bridge.const import (
 )
 from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
 from custom_components.sber_mqtt_bridge.sber_bridge import SberBridge
+from custom_components.sber_mqtt_bridge.websocket_api.replay import (
+    ws_inject_sber_message,
+    ws_replay_message,
+)
 
 
 def _entry():
@@ -184,15 +194,9 @@ class TestErrorPaths:
 
 
 class TestWebSocketHandlers:
-    """Smoke-test the two WS wrappers (inject + replay)."""
+    """The two WS wrappers (inject + replay), schema and admin gate included."""
 
     async def test_inject_ws_returns_handled_true(self) -> None:
-        from unittest.mock import patch
-
-        from custom_components.sber_mqtt_bridge.websocket_api.replay import (
-            ws_inject_sber_message,
-        )
-
         hass = _hass()
         bridge = _relay_bridge(hass)
         connection = MagicMock()
@@ -202,7 +206,8 @@ class TestWebSocketHandlers:
             "custom_components.sber_mqtt_bridge.websocket_api.replay.get_bridge",
             return_value=bridge,
         ):
-            await ws_inject_sber_message.__wrapped__(
+            await dispatch(
+                ws_inject_sber_message,
                 hass,
                 connection,
                 {
@@ -218,12 +223,6 @@ class TestWebSocketHandlers:
         connection.send_error.assert_not_called()
 
     async def test_replay_ws_missing_bridge_sends_error(self) -> None:
-        from unittest.mock import patch
-
-        from custom_components.sber_mqtt_bridge.websocket_api.replay import (
-            ws_replay_message,
-        )
-
         hass = _hass()
         connection = MagicMock()
         connection.send_result = MagicMock()
@@ -232,7 +231,8 @@ class TestWebSocketHandlers:
             "custom_components.sber_mqtt_bridge.websocket_api.replay.get_bridge",
             return_value=None,
         ):
-            await ws_replay_message.__wrapped__(
+            await dispatch(
+                ws_replay_message,
                 hass,
                 connection,
                 {"id": 1, "topic": "commands", "payload": "{}"},
@@ -241,3 +241,106 @@ class TestWebSocketHandlers:
         # instead of a generic spinner timeout.
         err = connection.send_error.call_args
         assert err[0][1] == "bridge_not_found"
+
+    @pytest.mark.parametrize(
+        ("msg", "reason"),
+        [
+            ({"id": 1, "payload": "{}"}, "topic is required"),
+            ({"id": 1, "topic": "commands"}, "payload is required"),
+            ({"id": 1, "topic": "commands", "payload": {"devices": {}}}, "payload must be a string"),
+            (
+                {"id": 1, "topic": "commands", "payload": "{}", "mark_replay": "yes"},
+                "mark_replay must be a real bool",
+            ),
+            ({"id": 1, "topic": "commands", "payload": "{}", "retain": True}, "no undeclared keys"),
+        ],
+    )
+    async def test_inject_schema_rejects_malformed_payloads(self, msg: dict[str, Any], reason: str) -> None:
+        """Injection is a privileged debug tool — its input is schema-pinned.
+
+        Every payload here would otherwise reach ``async_inject_sber_message``
+        and either crash it or publish something the caller never asked for.
+        """
+        hass = _hass()
+        bridge = _relay_bridge(hass)
+        connection = MagicMock()
+        with (
+            patch(
+                "custom_components.sber_mqtt_bridge.websocket_api.replay.get_bridge",
+                return_value=bridge,
+            ),
+            pytest.raises(vol.Invalid),
+        ):
+            await dispatch(ws_inject_sber_message, hass, connection, msg)
+
+        assert bridge.message_log == [], f"handler ran despite {reason}"
+        hass.services.async_call.assert_not_called()
+
+    async def test_inject_is_admin_only(self) -> None:
+        """A non-admin cannot replay traffic into the dispatcher.
+
+        Handler-side contract: once ``require_admin`` raises, nothing is
+        dispatched and nothing is logged.  The guard is installed by
+        :func:`_ws_dispatch.dispatch`, so a production regression in
+        ``async_setup_websocket_api`` is caught by the registration
+        sweeps in ``test_websocket_authz.py::TestAdminGate`` and
+        ``test_websocket_full_stack.py``, not here.
+        """
+        hass = _hass()
+        bridge = _relay_bridge(hass)
+        connection = MagicMock()
+        with (
+            patch(
+                "custom_components.sber_mqtt_bridge.websocket_api.replay.get_bridge",
+                return_value=bridge,
+            ),
+            pytest.raises(Unauthorized),
+        ):
+            await dispatch(
+                ws_inject_sber_message,
+                hass,
+                connection,
+                {"id": 1, "topic": "commands", "payload": _cmd_payload()},
+                is_admin=False,
+            )
+
+        hass.services.async_call.assert_not_called()
+        assert bridge.message_log == []
+
+    @pytest.mark.parametrize(
+        "failure",
+        [ValueError("bad json"), RuntimeError("Not connected to MQTT"), TypeError("payload is not bytes")],
+    )
+    @pytest.mark.parametrize(
+        ("handler", "error_code"),
+        [
+            (ws_inject_sber_message, "inject_failed"),
+            (ws_replay_message, "replay_failed"),
+        ],
+    )
+    async def test_transport_failures_map_to_explicit_error_codes(
+        self, handler: Any, error_code: str, failure: Exception
+    ) -> None:
+        """A failing injection reports *why*, instead of hanging the panel.
+
+        Without the explicit ``except`` the exception would escape into
+        ``async_handle_exception`` and reach the UI as ``unknown_error``.
+        """
+        hass = _hass()
+        bridge = MagicMock()
+        bridge.async_inject_sber_message = AsyncMock(side_effect=failure)
+        connection = MagicMock()
+        with patch(
+            "custom_components.sber_mqtt_bridge.websocket_api.replay.get_bridge",
+            return_value=bridge,
+        ):
+            await dispatch(
+                handler,
+                hass,
+                connection,
+                {"id": 1, "topic": "commands", "payload": "{}"},
+            )
+
+        assert connection.send_error.call_args[0][1] == error_code
+        assert str(failure) in connection.send_error.call_args[0][2]
+        connection.send_result.assert_not_called()

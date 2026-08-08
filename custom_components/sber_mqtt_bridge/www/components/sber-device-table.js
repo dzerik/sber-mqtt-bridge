@@ -5,14 +5,19 @@
  * inline delete and category override controls.
  */
 
-const _v = new URL(import.meta.url).searchParams.get("v") || "";
-const _q = _v ? `?v=${_v}` : "";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
 await Promise.all([
   import(`./sber-entity-row.js${_q}`),
   import(`./sber-detail-dialog.js${_q}`),
 ]);
 
-import { LitElement, html, css } from "../lit-base.js";
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+
+/** How many times the static category registry is re-fetched after an error. */
+const MAX_CATEGORY_ATTEMPTS = 3;
 
 class SberDeviceTable extends LitElement {
   static get properties() {
@@ -24,6 +29,7 @@ class SberDeviceTable extends LitElement {
       _sortCol: { type: String },
       _sortAsc: { type: Boolean },
       _selected: { type: Object },
+      _categories: { type: Array },
     };
   }
 
@@ -35,6 +41,44 @@ class SberDeviceTable extends LitElement {
     this._sortCol = "entity_id";
     this._sortAsc = true;
     this._selected = new Set();
+    this._categories = [];
+    this._categoriesLoading = false;
+    this._categoryAttempts = 0;
+  }
+
+  updated(changedProps) {
+    if (changedProps.has("hass") && this.hass) this._loadCategories();
+  }
+
+  /**
+   * Fetch the Sber category registry once and hand it to every row.
+   *
+   * The override <select> used to carry a hand-maintained copy of the
+   * category list which silently drifted from the backend
+   * ``OVERRIDABLE_CATEGORIES``; the registry is now always the server's.
+   *
+   * ``updated()`` fires on every hass mutation, so a failed fetch is
+   * retried a bounded number of times instead of on every state change.
+   */
+  async _loadCategories() {
+    if (
+      this._categories.length > 0 ||
+      this._categoriesLoading ||
+      this._categoryAttempts >= MAX_CATEGORY_ATTEMPTS
+    ) {
+      return;
+    }
+    this._categoriesLoading = true;
+    this._categoryAttempts += 1;
+    try {
+      const result = await this.hass.callWS({ type: "sber_mqtt_bridge/list_categories" });
+      this._categories = (result.categories || []).map((c) => c.id);
+    } catch (e) {
+      /* Non-fatal: rows fall back to "auto" + their current category. */
+      this._categories = [];
+    } finally {
+      this._categoriesLoading = false;
+    }
   }
 
   static get styles() {
@@ -150,6 +194,18 @@ class SberDeviceTable extends LitElement {
       th:hover {
         color: var(--primary-color);
       }
+      th:focus-visible,
+      .filter-input:focus-visible,
+      input[type="checkbox"]:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: -2px;
+      }
+      th.not-sortable {
+        cursor: default;
+      }
+      th.not-sortable:hover {
+        color: var(--secondary-text-color);
+      }
       th .sort-arrow {
         font-size: 11px;
         margin-left: 4px;
@@ -231,6 +287,19 @@ class SberDeviceTable extends LitElement {
       this._sortAsc = true;
     }
     this.requestUpdate();
+  }
+
+  /** ``aria-sort`` value for a sortable column header. */
+  _ariaSort(col) {
+    if (this._sortCol !== col) return "none";
+    return this._sortAsc ? "ascending" : "descending";
+  }
+
+  /** Activate a sortable header from the keyboard (Enter/Space). */
+  _onSortKeydown(e, col) {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    e.preventDefault();
+    this._onSort(col);
   }
 
   _sortArrow(col) {
@@ -355,7 +424,8 @@ class SberDeviceTable extends LitElement {
         <div class="filter-bar">
           <input
             class="filter-input"
-            type="text"
+            type="search"
+            aria-label="Search devices"
             placeholder="Search devices..."
             .value=${this._filter}
             @input=${this._onFilterInput}
@@ -380,56 +450,98 @@ class SberDeviceTable extends LitElement {
                 <table>
                   <thead>
                     <tr>
-                      <th style="width:40px">
+                      <th class="not-sortable" style="width:40px">
                         <input
                           type="checkbox"
+                          aria-label="Select all devices"
                           .checked=${allSelected}
                           @change=${this._onSelectAll}
                         />
                       </th>
-                      <th @click=${() => this._onSort("entity_id")}>
+                      <th
+                        role="columnheader"
+                        tabindex="0"
+                        aria-sort=${this._ariaSort("entity_id")}
+                        title="Sort by Entity ID"
+                        @click=${() => this._onSort("entity_id")}
+                        @keydown=${(e) => this._onSortKeydown(e, "entity_id")}
+                      >
                         Entity ID
                         <span class="sort-arrow">${this._sortArrow("entity_id")}</span>
                       </th>
-                      <th @click=${() => this._onSort("name")}>
+                      <th
+                        role="columnheader"
+                        tabindex="0"
+                        aria-sort=${this._ariaSort("name")}
+                        title="Sort by Name"
+                        @click=${() => this._onSort("name")}
+                        @keydown=${(e) => this._onSortKeydown(e, "name")}
+                      >
                         Name
                         <span class="sort-arrow">${this._sortArrow("name")}</span>
                       </th>
-                      <th @click=${() => this._onSort("sber_category")}>
+                      <th
+                        role="columnheader"
+                        tabindex="0"
+                        aria-sort=${this._ariaSort("sber_category")}
+                        title="Sort by Category"
+                        @click=${() => this._onSort("sber_category")}
+                        @keydown=${(e) => this._onSortKeydown(e, "sber_category")}
+                      >
                         Category
                         <span class="sort-arrow">${this._sortArrow("sber_category")}</span>
                       </th>
-                      <th>Features</th>
-                      <th @click=${() => this._onSort("room")}>
+                      <th class="not-sortable">Features</th>
+                      <th
+                        role="columnheader"
+                        tabindex="0"
+                        aria-sort=${this._ariaSort("room")}
+                        title="Sort by Room"
+                        @click=${() => this._onSort("room")}
+                        @keydown=${(e) => this._onSortKeydown(e, "room")}
+                      >
                         Room
                         <span class="sort-arrow">${this._sortArrow("room")}</span>
                       </th>
-                      <th @click=${() => this._onSort("state")}>
+                      <th
+                        role="columnheader"
+                        tabindex="0"
+                        aria-sort=${this._ariaSort("state")}
+                        title="Sort by State"
+                        @click=${() => this._onSort("state")}
+                        @keydown=${(e) => this._onSortKeydown(e, "state")}
+                      >
                         State
                         <span class="sort-arrow">${this._sortArrow("state")}</span>
                       </th>
-                      <th @click=${() => this._onSort("is_online")}>
+                      <th
+                        role="columnheader"
+                        tabindex="0"
+                        aria-sort=${this._ariaSort("is_online")}
+                        title="Sort by Online"
+                        @click=${() => this._onSort("is_online")}
+                        @keydown=${(e) => this._onSortKeydown(e, "is_online")}
+                      >
                         Online
                         <span class="sort-arrow">${this._sortArrow("is_online")}</span>
                       </th>
-                      <th>Actions</th>
+                      <th class="not-sortable">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     ${filtered.map(
                       (d) => html`
-                        <tr class="${d.is_online ? "online" : "offline"}">
-                          <sber-entity-row
-                            .device=${d}
-                            .selected=${this._selected.has(d.entity_id)}
-                            @selection-changed=${this._onSelectionChanged}
-                            @delete-entity=${this._onDeleteEntity}
-                            @override-changed=${this._onOverrideChanged}
-                            @sync-entity=${this._onSyncEntity}
-                            @link-entity=${this._onLinkEntity}
-                            @show-detail=${this._onShowDetail}
-                          ></sber-entity-row>
-                        </tr>
+                        <sber-entity-row
+                          .device=${d}
+                          .categories=${this._categories}
+                          .selected=${this._selected.has(d.entity_id)}
+                          @selection-changed=${this._onSelectionChanged}
+                          @delete-entity=${this._onDeleteEntity}
+                          @override-changed=${this._onOverrideChanged}
+                          @sync-entity=${this._onSyncEntity}
+                          @link-entity=${this._onLinkEntity}
+                          @show-detail=${this._onShowDetail}
+                        ></sber-entity-row>
                       `
                     )}
                   </tbody>

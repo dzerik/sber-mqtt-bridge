@@ -10,6 +10,7 @@ from ..sber_constants import SberFeature
 from ..sber_models import make_enum_value, make_integer_value, make_state
 from .base_entity import ROLE_HUMIDITY, SENSOR_LINK_ROLES
 from .simple_sensor import SimpleReadOnlySensor
+from .utils.temperature import detect_temp_unit, to_celsius
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,11 +67,11 @@ class SensorTempEntity(SimpleReadOnlySensor):
         except (ValueError, TypeError):
             self.temperature = 0.0
         attrs = ha_state.get("attributes", {})
-        unit = attrs.get("unit_of_measurement", "")
-        self._temp_unit = "f" if unit == "°F" else "c"
-        if self._temp_unit == "f":
-            # Sber wire spec is °C × 10; convert Fahrenheit → Celsius.
-            self.temperature = (self.temperature - 32.0) * 5.0 / 9.0
+        # Unit detection + °F→°C share one implementation with
+        # SensorAirEntity (devices/utils/temperature.py) so the two
+        # categories that emit ``temperature`` cannot drift apart.
+        self._temp_unit = detect_temp_unit(attrs)
+        self.temperature = to_celsius(self.temperature, self._temp_unit)
         pressure = attrs.get("pressure")
         if pressure is not None:
             try:
@@ -108,13 +109,13 @@ class SensorTempEntity(SimpleReadOnlySensor):
             features.append("air_pressure")
         return features
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with linked humidity and air_pressure.
 
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
-        result = super().to_sber_current_state()
+        result = super()._build_current_state()
         result[self.entity_id]["states"].append(
             make_state(SberFeature.TEMP_UNIT_VIEW, make_enum_value(self._temp_unit))
         )

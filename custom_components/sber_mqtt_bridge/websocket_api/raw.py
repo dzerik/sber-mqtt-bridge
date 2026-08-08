@@ -6,6 +6,7 @@ import json
 import logging
 from typing import Any
 
+import aiomqtt
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
@@ -120,6 +121,17 @@ async def _send_raw(
         await bridge.async_publish_raw(msg["payload"], target)
     except RuntimeError as exc:
         connection.send_error(msg["id"], "not_connected", str(exc))
+        return
+    except aiomqtt.MqttError as exc:
+        # Connection dropped between the _connected check and publish —
+        # surface a specific error instead of a generic unknown_error and
+        # count it like every other failed publish (SberPublisher pattern).
+        # TODO(v1.38.x): replace this private-attribute poke with a public
+        # bridge.record_publish_error() once SberBridge grows a public
+        # hot-reload/metrics API (bridge.stats is a read-only snapshot).
+        bridge._stats.publish_errors += 1
+        _LOGGER.warning("Raw %s publish failed: %s", target, exc)
+        connection.send_error(msg["id"], "publish_failed", str(exc))
         return
 
     connection.send_result(msg["id"], {"success": True})

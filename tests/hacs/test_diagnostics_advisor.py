@@ -35,18 +35,19 @@ def _bridge(
 ) -> MagicMock:
     """Assemble a minimal MagicMock bridge exposing the fields the advisor reads."""
     bridge = MagicMock()
-    bridge._entities = {}
+    entities: dict = {}
     if known:
         entity = MagicMock()
         entity.category = category
         entity.is_filled_by_state = filled
         entity.get_final_features_list = MagicMock(return_value=features or ["on_off", "online"])
-        bridge._entities["x.y"] = entity
-    bridge._enabled_entity_ids = ["x.y"] if enabled else []
+        entities["x.y"] = entity
+    # Expose the bridge's PUBLIC contract — the advisor must keep working
+    # through it, not through private fields (review remediation).
+    bridge.entities = entities
+    bridge.enabled_entity_ids = ["x.y"] if enabled else []
+    bridge.stats = {"acknowledged_entities": {"x.y"} if acknowledged else set()}
     bridge._linked_reverse = {"x.y": linked_role} if linked_role else {}
-    stats = MagicMock()
-    stats.acknowledged_entities = {"x.y"} if acknowledged else set()
-    bridge._stats = stats
     bridge.trace_collector = TraceCollector()
     bridge.diff_collector = DiffCollector()
     bridge.validation_collector = ValidationCollector()

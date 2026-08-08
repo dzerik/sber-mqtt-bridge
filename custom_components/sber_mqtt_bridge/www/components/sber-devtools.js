@@ -4,15 +4,26 @@
  * Three collapsible sections:
  * 1. Raw Config Payload — JSON sent to up/config
  * 2. Raw State Payload — JSON sent to up/status
- * 3. MQTT Message Log — real-time ring buffer of last 50 messages
+ * 3. MQTT Message Log — real-time ring buffer, fed by the shared
+ *    ``message-bus.js`` subscription (also consumed by sber-replay)
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+await import(`./sber-json-block.js${_q}`);
+
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { messageBus } = await import(`../message-bus.js${_q}`);
+const { copyText } = await import(`../utils.js${_q}`);
+const { codeSurfaceStyles } = await import(`../shared-styles.js${_q}`);
 
 class SberDevtools extends LitElement {
   static get properties() {
     return {
       hass: { type: Object },
+      bus: { type: Object },
       _configPayload: { type: String },
       _statesPayload: { type: String },
       _messages: { type: Array },
@@ -42,7 +53,6 @@ class SberDevtools extends LitElement {
     this._configError = "";
     this._statesError = "";
     this._logError = "";
-    this._hassReady = false;
     this._configOpen = false;
     this._statesOpen = false;
     this._configEditable = "";
@@ -50,10 +60,16 @@ class SberDevtools extends LitElement {
     this._sendingConfig = false;
     this._sendingStates = false;
     this._msgUnsub = null;
+    /** Shared live feed — one WS subscription for the whole panel. */
+    this.bus = messageBus;
   }
 
   connectedCallback() {
     super.connectedCallback();
+    /* Re-subscribe on re-attach: HA navigation away from the panel and
+     * back reuses the same element instance, and disconnectedCallback
+     * has torn the previous subscription down. */
+    if (this.hass) this._subscribeMessages();
   }
 
   disconnectedCallback() {
@@ -62,28 +78,20 @@ class SberDevtools extends LitElement {
   }
 
   updated(changedProps) {
-    if (changedProps.has("hass") && this.hass && !this._hassReady) {
-      this._hassReady = true;
-      this._subscribeMessages();
-    }
+    if (changedProps.has("hass") && this.hass) this._subscribeMessages();
   }
 
-  async _subscribeMessages() {
-    if (this._msgUnsub) return;
-    try {
-      this._msgUnsub = await this.hass.connection.subscribeMessage(
-        (event) => {
-          if (event.snapshot) {
-            this._messages = event.snapshot;
-          } else if (event.message) {
-            this._messages = [...this._messages, event.message];
-          }
-        },
-        { type: "sber_mqtt_bridge/subscribe_messages" }
-      );
-    } catch (e) {
-      this._logError = e.message || String(e);
-    }
+  _subscribeMessages() {
+    if (this._msgUnsub || !this.bus || !this.hass) return;
+    this._msgUnsub = this.bus.subscribe(
+      this.hass,
+      (messages) => {
+        this._messages = messages;
+      },
+      (err) => {
+        this._logError = err.message || String(err);
+      }
+    );
   }
 
   _unsubscribeMessages() {
@@ -92,6 +100,7 @@ class SberDevtools extends LitElement {
       this._msgUnsub = null;
     }
   }
+
 
   /* ---------- data ---------- */
 
@@ -129,7 +138,9 @@ class SberDevtools extends LitElement {
     if (!this.hass) return;
     try {
       const result = await this.hass.callWS({ type: "sber_mqtt_bridge/message_log" });
-      this._messages = result.messages || [];
+      /* Publish through the bus so every consumer of the shared feed
+       * (Replay) sees the same buffer instead of drifting apart. */
+      this.bus.replace(result.messages || []);
       this._logError = "";
     } catch (e) {
       this._logError = e.message || String(e);
@@ -139,7 +150,7 @@ class SberDevtools extends LitElement {
   async _clearLog() {
     try {
       await this.hass.callWS({ type: "sber_mqtt_bridge/clear_message_log" });
-      this._messages = [];
+      this.bus.clear();
       this._logError = "";
     } catch (e) {
       this._logError = e.message || String(e);
@@ -180,31 +191,15 @@ class SberDevtools extends LitElement {
     }
   }
 
-  _copyToClipboard(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(
-        () => this._toast("Copied to clipboard", "success"),
-        () => this._fallbackCopy(text),
-      );
-    } else {
-      this._fallbackCopy(text);
-    }
-  }
-
-  _fallbackCopy(text) {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand("copy");
-      this._toast("Copied to clipboard", "success");
-    } catch {
-      this._toast("Copy failed", "error");
-    }
-    document.body.removeChild(ta);
+  /**
+   * Copy text and report the outcome through the panel toast.
+   *
+   * @param {string} text - Text to copy.
+   * @param {string} [label] - Success message.
+   */
+  async _copy(text, label = "Copied to clipboard") {
+    const ok = await copyText(text);
+    this._toast(ok ? label : "Copy failed", ok ? "success" : "error");
   }
 
   _toast(message, type) {
@@ -221,24 +216,6 @@ class SberDevtools extends LitElement {
       + "." + String(d.getMilliseconds()).padStart(3, "0");
   }
 
-  async _copyPayload(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-      this.dispatchEvent(new CustomEvent("devtools-toast", {
-        detail: { message: "Payload copied", type: "success" },
-        bubbles: true, composed: true,
-      }));
-    } catch {
-      // Fallback for non-HTTPS contexts
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-    }
-  }
-
   _truncate(str, maxLen = 120) {
     if (!str) return "";
     return str.length > maxLen ? str.substring(0, maxLen) + "..." : str;
@@ -247,7 +224,7 @@ class SberDevtools extends LitElement {
   /* ---------- styles ---------- */
 
   static get styles() {
-    return css`
+    return [codeSurfaceStyles, css`
       :host {
         display: block;
       }
@@ -273,6 +250,13 @@ class SberDevtools extends LitElement {
         font-weight: 500;
       }
 
+      .section-title:focus-visible,
+      .btn:focus-visible,
+      button:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
       .section-title {
         display: flex;
         align-items: center;
@@ -338,33 +322,15 @@ class SberDevtools extends LitElement {
         opacity: 0.85;
       }
 
-      .json-viewer {
-        background: #1e1e1e;
-        color: #d4d4d4;
-        border-radius: 8px;
-        padding: 12px;
-        overflow-x: auto;
-        max-height: 500px;
-        overflow-y: auto;
-        font-family: "Fira Code", "Consolas", "Monaco", monospace;
-        font-size: 12px;
-        line-height: 1.5;
-        white-space: pre-wrap;
-        word-break: break-all;
-      }
-
+      /* Composes .code-surface from shared-styles.js; only the editor's own
+       * box model lives here.  A textarea keeps a native scrollbar and the
+       * caret to prove there is more text, so bounding its height does not
+       * mislead the way a cropped read-only dump did (issue #44). */
       .json-editor {
         width: 100%;
         min-height: 120px;
         max-height: 300px;
-        background: #1e1e1e;
-        color: #d4d4d4;
         border: 1px solid var(--divider-color, #555);
-        border-radius: 8px;
-        padding: 12px;
-        font-family: "Fira Code", "Consolas", "Monaco", monospace;
-        font-size: 12px;
-        line-height: 1.5;
         resize: vertical;
         margin-top: 8px;
         box-sizing: border-box;
@@ -375,12 +341,6 @@ class SberDevtools extends LitElement {
         justify-content: flex-end;
         margin-top: 8px;
         gap: 8px;
-      }
-
-      .json-viewer:empty::before {
-        content: "Click the button above to load data...";
-        color: #666;
-        font-style: italic;
       }
 
       .collapsible-content {
@@ -494,7 +454,7 @@ class SberDevtools extends LitElement {
         overflow-y: auto;
         border-radius: 8px;
       }
-    `;
+    `];
   }
 
   /* ---------- render ---------- */
@@ -507,11 +467,26 @@ class SberDevtools extends LitElement {
     `;
   }
 
+  /** Activate a ``role="button"`` collapse header from the keyboard. */
+  _onKeyActivate(e, handler) {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    e.preventDefault();
+    handler();
+  }
+
   _renderConfigSection() {
     return html`
       <div class="section">
         <div class="section-header">
-          <div class="section-title" @click=${() => { this._configOpen = !this._configOpen; }}>
+          <div
+            class="section-title"
+            role="button"
+            tabindex="0"
+            aria-expanded=${this._configOpen ? "true" : "false"}
+            aria-label="Toggle Raw Config Payload"
+            @click=${() => { this._configOpen = !this._configOpen; }}
+            @keydown=${(e) => this._onKeyActivate(e, () => { this._configOpen = !this._configOpen; })}
+          >
             <span class="collapse-icon ${this._configOpen ? "open" : ""}">&#9654;</span>
             <h2>Raw Config Payload</h2>
           </div>
@@ -523,7 +498,7 @@ class SberDevtools extends LitElement {
             </button>
             ${this._configPayload ? html`
               <button class="btn-secondary"
-                @click=${() => this._copyToClipboard(this._configPayload)}>
+                @click=${() => this._copy(this._configPayload)}>
                 Copy
               </button>
             ` : ""}
@@ -531,8 +506,13 @@ class SberDevtools extends LitElement {
         </div>
         ${this._configError ? html`<div class="error-text">${this._configError}</div>` : ""}
         ${this._configOpen ? html`
-          <div class="json-viewer">${this._configPayload}</div>
-          <textarea class="json-editor"
+          <sber-json-block
+            label="Raw config payload"
+            hide-copy
+            placeholder="Click the button above to load data..."
+            .value=${this._configPayload}
+          ></sber-json-block>
+          <textarea class="json-editor code-surface"
             .value=${this._configEditable}
             @input=${(e) => { this._configEditable = e.target.value; }}
             placeholder="Edit JSON and click Send to publish to Sber..."></textarea>
@@ -552,7 +532,15 @@ class SberDevtools extends LitElement {
     return html`
       <div class="section">
         <div class="section-header">
-          <div class="section-title" @click=${() => { this._statesOpen = !this._statesOpen; }}>
+          <div
+            class="section-title"
+            role="button"
+            tabindex="0"
+            aria-expanded=${this._statesOpen ? "true" : "false"}
+            aria-label="Toggle Raw State Payload"
+            @click=${() => { this._statesOpen = !this._statesOpen; }}
+            @keydown=${(e) => this._onKeyActivate(e, () => { this._statesOpen = !this._statesOpen; })}
+          >
             <span class="collapse-icon ${this._statesOpen ? "open" : ""}">&#9654;</span>
             <h2>Raw State Payload</h2>
           </div>
@@ -564,7 +552,7 @@ class SberDevtools extends LitElement {
             </button>
             ${this._statesPayload ? html`
               <button class="btn-secondary"
-                @click=${() => this._copyToClipboard(this._statesPayload)}>
+                @click=${() => this._copy(this._statesPayload)}>
                 Copy
               </button>
             ` : ""}
@@ -572,8 +560,13 @@ class SberDevtools extends LitElement {
         </div>
         ${this._statesError ? html`<div class="error-text">${this._statesError}</div>` : ""}
         ${this._statesOpen ? html`
-          <div class="json-viewer">${this._statesPayload}</div>
-          <textarea class="json-editor"
+          <sber-json-block
+            label="Raw state payload"
+            hide-copy
+            placeholder="Click the button above to load data..."
+            .value=${this._statesPayload}
+          ></sber-json-block>
+          <textarea class="json-editor code-surface"
             .value=${this._statesEditable}
             @input=${(e) => { this._statesEditable = e.target.value; }}
             placeholder="Edit JSON and click Send to publish to Sber..."></textarea>
@@ -633,7 +626,7 @@ class SberDevtools extends LitElement {
                       <td class="topic-cell" title="${m.topic}">${m.topic}</td>
                       <td class="payload-cell" title="${m.payload}">
                         ${this._truncate(m.payload)}
-                        <button class="copy-btn" @click=${() => this._copyPayload(m.payload)} title="Copy payload">\u{1F4CB}</button>
+                        <button class="copy-btn" @click=${() => this._copy(m.payload, "Payload copied")} title="Copy payload">\u{1F4CB}</button>
                       </td>
                     </tr>
                   `)}

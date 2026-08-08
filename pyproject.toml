@@ -1,6 +1,6 @@
 [project]
 name = "sber-mqtt-bridge"
-version = "1.42.0"
+version = "1.43.0"
 description = "Sber Smart Home MQTT Bridge for Home Assistant"
 requires-python = ">=3.13"
 license = "MIT"
@@ -75,6 +75,10 @@ disallow_untyped_defs = true
 warn_return_any = true
 disable_error_code = ["import-not-found", "import-untyped"]
 
+# NOTE: this section is NOT the effective pytest config.  Every invocation
+# targets `tests/hacs/`, so pytest picks `tests/hacs/pytest.ini` as its
+# configfile and rootdir — settings here are ignored.  Keep real pytest
+# settings in tests/hacs/pytest.ini.
 [tool.pytest.ini_options]
 testpaths = ["tests/hacs"]
 asyncio_mode = "auto"
@@ -83,7 +87,11 @@ asyncio_mode = "auto"
 source = ["custom_components/sber_mqtt_bridge"]
 
 [tool.coverage.report]
-fail_under = 50
+# Actual coverage is 87.9% (2506 tests, incl. config_flow). The gate sits
+# just below that so a real regression fails CI, while normal fluctuation
+# does not.  CLAUDE.md documents 80% as the project minimum — never lower
+# this below it; raise it as coverage grows.
+fail_under = 85
 show_missing = true
 exclude_lines = [
     "pragma: no cover",

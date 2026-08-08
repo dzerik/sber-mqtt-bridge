@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import logging
 
+from ..sber_constants import SberValueType
+from .base_entity import CommandResult
+
 _LOGGER = logging.getLogger(__name__)
 
 SBER_SPEED_VALUES = ["auto", "high", "low", "medium", "quiet", "turbo"]
@@ -58,9 +61,15 @@ class FanSpeedMixin:
     * ``self.percentage: int | None``
     * ``self.entity_id: str``
     * ``self._build_service_call(domain, service, entity_id, data)`` from BaseEntity
+    * ``self._build_on_off_service_call(entity_id, domain, on)`` from BaseEntity
 
     The mixin does not define its own state — it only delegates between
     Sber speed enum values and HA fan platform calls.
+
+    Also provides the two Sber command handlers shared by every HA
+    ``fan``-backed category (``on_off`` / ``hvac_air_flow_power``).
+    Hosts still declare their own ``_cmd_handlers`` map — the mixin only
+    supplies the implementations so the two categories cannot drift.
     """
 
     def _get_sber_speed(self) -> str | None:
@@ -77,6 +86,35 @@ class FanSpeedMixin:
         if self.percentage is not None:
             return _percentage_to_sber_speed(self.percentage)
         return None
+
+    def _cmd_on_off(self, value: dict) -> list[CommandResult]:
+        """Handle ``on_off``: fan.turn_on / fan.turn_off.
+
+        Args:
+            value: Sber value dict from the command payload.
+
+        Returns:
+            List of HA service call dicts to execute (empty when the
+            payload is not a BOOL).
+        """
+        if value.get("type") != SberValueType.BOOL:
+            return []
+        on = value.get("bool_value", False)
+        return [self._build_on_off_service_call(self.entity_id, "fan", on)]
+
+    def _cmd_air_flow_power(self, value: dict) -> list[CommandResult]:
+        """Handle ``hvac_air_flow_power``: fan speed via preset_mode or percentage.
+
+        Args:
+            value: Sber value dict from the command payload.
+
+        Returns:
+            List of HA service call dicts to execute (empty when the
+            payload is not an ENUM).
+        """
+        if value.get("type") != SberValueType.ENUM:
+            return []
+        return self._cmd_fan_speed(value.get("enum_value"))
 
     def _cmd_fan_speed(self, speed: str | None) -> list[dict]:
         """Handle Sber fan speed ENUM → HA preset_mode or percentage."""

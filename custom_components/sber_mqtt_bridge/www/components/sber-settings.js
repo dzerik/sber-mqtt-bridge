@@ -5,7 +5,11 @@
  * Changes are saved to config_entry.options and applied to the running bridge.
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 
 /** Setting definitions with metadata for rendering. */
 const SETTING_DEFS = [
@@ -131,6 +135,13 @@ class SberSettings extends LitElement {
 
   static get styles() {
     return css`
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+      }
       :host { display: block; }
       .card {
         background: var(--ha-card-background, var(--card-background-color, #fff));
@@ -297,7 +308,8 @@ class SberSettings extends LitElement {
           <div class="field">
             <label>Auto-assign parent_id</label>
             <label class="toggle">
-              <input type="checkbox" .checked=${!!this._settings.hub_auto_parent_id}
+              <input type="checkbox" aria-label="Auto-assign parent_id"
+                .checked=${!!this._settings.hub_auto_parent_id}
                 @change=${(e) => this._onInput("hub_auto_parent_id", e.target.checked)}>
               <span class="slider"></span>
             </label>
@@ -334,7 +346,7 @@ class SberSettings extends LitElement {
         <div class="field">
           <label>${f.label}</label>
           <label class="toggle">
-            <input type="checkbox" .checked=${!!value}
+            <input type="checkbox" aria-label=${f.label} .checked=${!!value}
               @change=${(e) => this._onInput(f.key, e.target.checked)}>
             <span class="slider"></span>
           </label>
@@ -345,6 +357,7 @@ class SberSettings extends LitElement {
       <div class="field">
         <label>${f.label}</label>
         <input type="number"
+          aria-label=${f.label}
           .value=${value ?? ""}
           min=${f.min} max=${f.max} step=${f.step}
           @input=${(e) => this._onInput(f.key, Number(e.target.value))}>

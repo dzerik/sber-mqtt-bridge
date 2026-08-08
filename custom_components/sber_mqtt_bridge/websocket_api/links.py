@@ -14,6 +14,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 
 from ..const import CONF_ENTITY_LINKS, CONF_EXPOSED_ENTITIES
@@ -31,7 +32,9 @@ _LOGGER = logging.getLogger(__name__)
     {
         vol.Required("type"): "sber_mqtt_bridge/set_entity_links",
         vol.Required("entity_id"): WS_ENTITY_ID,
-        vol.Required("links"): dict,
+        # role -> linked entity_id; values are validated as entity ids so
+        # arbitrary strings / nested structures cannot poison entry.options.
+        vol.Required("links"): vol.Schema({cv.string: WS_ENTITY_ID}),
     }
 )
 @websocket_api.async_response

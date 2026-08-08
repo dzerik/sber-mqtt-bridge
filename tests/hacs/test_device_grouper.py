@@ -2,7 +2,7 @@
 
 Tests use MagicMock'ed HA registries (device_registry / entity_registry /
 area_registry) to isolate classification logic from the full HA runtime.
-The mock pattern matches the one used in ``test_p4_tasks.py`` — patches
+The mock pattern matches the one used in ``test_repairs_issues.py`` — patches
 target the ``entity_registry`` module where the grouper lives.
 """
 
@@ -409,6 +409,85 @@ class TestCrossDeviceLinks:
         assert comp.origin_device_name == "Orphan Battery"
         assert comp.preselected is False
 
+    def test_two_cross_device_candidates_for_same_role_both_offered(self, hass, mock_registries):
+        """Every device carrying the role must be offered, not just the first.
+
+        Guards the role index built once per ``list_for_category``: an
+        index that stores a single entry per role would silently hide the
+        second battery sensor from the wizard.
+        """
+        entity_reg, device_reg, _ = mock_registries
+        _set_devices(
+            device_reg,
+            [
+                _make_device("curt_dev", name="Curtain"),
+                _make_device("batt_dev_a", name="Battery A"),
+                _make_device("batt_dev_b", name="Battery B"),
+            ],
+        )
+        _set_entities(
+            entity_reg,
+            [
+                _make_entity("cover.curtain", device_id="curt_dev"),
+                _make_entity("sensor.b1", device_id="batt_dev_a", original_device_class="battery"),
+                _make_entity("sensor.b2", device_id="batt_dev_b", original_device_class="battery"),
+            ],
+        )
+        grouper = HaDeviceGrouper(hass)
+        group = grouper.list_for_category("curtain")[0]
+
+        assert [e.entity_id for e in group.linked_compatible] == ["sensor.b1", "sensor.b2"]
+        assert {e.link_role for e in group.linked_compatible} == {"battery"}
+        assert [e.origin_device_name for e in group.linked_compatible] == ["Battery A", "Battery B"]
+
+    def test_cross_device_candidate_from_disabled_device_is_hidden(self, hass, mock_registries):
+        """Sensors of a disabled device must never be proposed for linking."""
+        entity_reg, device_reg, _ = mock_registries
+        _set_devices(
+            device_reg,
+            [
+                _make_device("curt_dev", name="Curtain"),
+                _make_device("dead_dev", name="Dead", disabled_by="user"),
+            ],
+        )
+        _set_entities(
+            entity_reg,
+            [
+                _make_entity("cover.curtain", device_id="curt_dev"),
+                _make_entity("sensor.dead_battery", device_id="dead_dev", original_device_class="battery"),
+            ],
+        )
+        grouper = HaDeviceGrouper(hass)
+        group = grouper.list_for_category("curtain")[0]
+
+        assert group.linked_compatible == []
+
+    def test_own_device_entity_never_appears_as_cross_device(self, hass, mock_registries):
+        """An alternative primary of the same device is not a "compatible" link.
+
+        ``sensor.pm25`` matches the ``sensor_air`` category (so it is an
+        alternative primary and is excluded from the native sibling pass)
+        *and* resolves to the ``pm25`` link role accepted by
+        ``SensorAirEntity`` — exactly the shape that leaks into
+        ``linked_compatible`` when the own-device check is dropped.
+        """
+        entity_reg, device_reg, _ = mock_registries
+        _set_devices(device_reg, [_make_device("air_dev", name="Air Monitor")])
+        _set_entities(
+            entity_reg,
+            [
+                _make_entity("sensor.co2", device_id="air_dev", original_device_class="carbon_dioxide"),
+                _make_entity("sensor.pm25", device_id="air_dev", original_device_class="pm25"),
+            ],
+        )
+        grouper = HaDeviceGrouper(hass)
+        group = grouper.list_for_category("sensor_air")[0]
+
+        assert group.primary.entity_id == "sensor.co2"
+        assert [e.entity_id for e in group.primary_alternatives] == ["sensor.pm25"]
+        assert group.linked_compatible == []
+        assert all(not e.is_cross_device for e in group.linked_native)
+
     def test_cross_device_skipped_when_native_fills_role(self, hass, mock_registries):
         entity_reg, device_reg, _ = mock_registries
         _set_devices(
@@ -609,6 +688,35 @@ class TestPreviewForCategory:
         preview = grouper.preview_for_category("dev1", "light")
         assert preview is not None
         assert preview.primary.entity_id == "light.lamp"
+
+    def test_preview_includes_cross_device_links(self, hass, mock_registries):
+        """Single-device preview must offer the same cross-device links as the list."""
+        entity_reg, device_reg, _ = mock_registries
+        _set_devices(
+            device_reg,
+            [
+                _make_device("curt_dev", name="Curtain"),
+                _make_device("batt_dev", name="Battery Puck"),
+            ],
+        )
+        _set_entities(
+            entity_reg,
+            [
+                _make_entity("cover.curtain", device_id="curt_dev"),
+                _make_entity("sensor.b1", device_id="batt_dev", original_device_class="battery"),
+            ],
+        )
+        grouper = HaDeviceGrouper(hass)
+        preview = grouper.preview_for_category("curt_dev", "curtain")
+
+        assert preview is not None
+        assert [e.entity_id for e in preview.linked_compatible] == ["sensor.b1"]
+        assert preview.linked_compatible[0].is_cross_device is True
+        assert preview.linked_compatible[0].origin_device_id == "batt_dev"
+        # Parity with the list endpoint — the wizard must not change its
+        # offer when the UI re-fetches a single card.
+        listed = grouper.list_for_category("curtain")[0]
+        assert [e.entity_id for e in listed.linked_compatible] == [e.entity_id for e in preview.linked_compatible]
 
     def test_preview_unknown_device_returns_none(self, hass, mock_registries):
         _, device_reg, _ = mock_registries

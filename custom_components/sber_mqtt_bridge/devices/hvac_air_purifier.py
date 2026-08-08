@@ -10,7 +10,7 @@ import logging
 from collections.abc import Callable
 from typing import ClassVar
 
-from ..sber_constants import SberFeature, SberValueType
+from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_state
 from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_bool_parser
 from .fan_speed_mixin import SBER_SPEED_VALUES, FanSpeedMixin
@@ -146,7 +146,7 @@ class HvacAirPurifierEntity(FanSpeedMixin, BaseEntity):
             }
         }
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with air purifier attributes.
 
         Returns:
@@ -174,35 +174,13 @@ class HvacAirPurifierEntity(FanSpeedMixin, BaseEntity):
 
     @property
     def _cmd_handlers(self) -> dict[str, Callable[[dict], list[CommandResult]]]:
-        """Return dispatch map for air purifier commands."""
+        """Return dispatch map for air purifier commands.
+
+        Both handlers come from :class:`FanSpeedMixin` — they were
+        byte-identical copies of ``HvacFanEntity``'s versions before
+        (both categories drive the same HA ``fan`` platform).
+        """
         return {
             SberFeature.ON_OFF: self._cmd_on_off,
             SberFeature.HVAC_AIR_FLOW_POWER: self._cmd_air_flow_power,
         }
-
-    def _cmd_on_off(self, value: dict) -> list[CommandResult]:
-        """Handle ``on_off``: fan.turn_on / fan.turn_off.
-
-        Args:
-            value: Sber value dict from the command payload.
-
-        Returns:
-            List of HA service call dicts to execute.
-        """
-        if value.get("type") != SberValueType.BOOL:
-            return []
-        on = value.get("bool_value", False)
-        return [self._build_on_off_service_call(self.entity_id, "fan", on)]
-
-    def _cmd_air_flow_power(self, value: dict) -> list[CommandResult]:
-        """Handle ``hvac_air_flow_power``: fan speed via preset_mode or percentage.
-
-        Args:
-            value: Sber value dict from the command payload.
-
-        Returns:
-            List of HA service call dicts to execute.
-        """
-        if value.get("type") != SberValueType.ENUM:
-            return []
-        return self._cmd_fan_speed(value.get("enum_value"))

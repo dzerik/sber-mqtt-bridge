@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import ssl
 from typing import Any
 
 import voluptuous as vol
@@ -42,9 +41,14 @@ from .const import (
     DOMAIN,
     SBER_BROKER_DEFAULT,
     SBER_PORT_DEFAULT,
-    SUPPORTED_DOMAINS,
 )
-from .sber_entity_map import OVERRIDABLE_CATEGORIES, create_sber_entity
+from .sber_entity_map import (
+    SUPPORTED_DOMAINS,
+    UI_OVERRIDABLE_CATEGORIES,
+    build_probe_entity,
+    category_label,
+)
+from .ssl_utils import create_ssl_context as create_ssl_context
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,7 +62,11 @@ USER_DATA_SCHEMA = vol.Schema(
     }
 )
 
-# Human-readable domain labels for the domain selector
+# Human-readable domain labels for the domain selector.
+#
+# Must cover every entry of SUPPORTED_DOMAINS — prose cannot be derived
+# from the category registry, so completeness is enforced by
+# tests/hacs/test_config_flow_options.py instead of by construction.
 DOMAIN_LABELS: dict[str, str] = {
     "light": "Lights",
     "switch": "Switches",
@@ -66,6 +74,7 @@ DOMAIN_LABELS: dict[str, str] = {
     "climate": "Climate (HVAC, radiators)",
     "sensor": "Sensors (temperature, humidity)",
     "binary_sensor": "Binary sensors (motion, door, leak)",
+    "fan": "Fans (ventilation, air purifiers)",
     "humidifier": "Humidifiers",
     "valve": "Valves",
     "input_boolean": "Input booleans (scenario buttons)",
@@ -73,49 +82,17 @@ DOMAIN_LABELS: dict[str, str] = {
     "button": "Buttons",
     "media_player": "Media players (TV)",
     "vacuum": "Vacuums",
+    "water_heater": "Water heaters (boiler, kettle)",
+    "lock": "Locks (intercom)",
 }
 
-# Human-readable labels for Sber categories (used in type override selector)
-CATEGORY_LABELS: dict[str, str] = {
-    "light": "Light",
-    "relay": "Relay (switch)",
-    "socket": "Socket (outlet)",
-    "curtain": "Curtain",
-    "window_blind": "Window blind",
-    "gate": "Gate / Garage door",
-    "hvac_ac": "Air conditioner (HVAC)",
-    "hvac_radiator": "Radiator",
-    "valve": "Valve",
-    "hvac_humidifier": "Humidifier",
-    "scenario_button": "Scenario button",
-    "hvac_air_purifier": "Air purifier",
-    "kettle": "Kettle",
-    "tv": "TV / Media player",
-    "vacuum_cleaner": "Vacuum cleaner",
-    "intercom": "Intercom",
-}
-
-
-def create_ssl_context(verify: bool = True) -> ssl.SSLContext:
-    """Create an SSL context for Sber MQTT broker connection.
-
-    Args:
-        verify: If True, verify server certificate (recommended).
-                If False, skip verification (for brokers with custom/self-signed CA).
-
-    Returns:
-        Configured SSL context.
-    """
-    ssl_context = ssl.create_default_context()
-    if not verify:
-        _LOGGER.warning(
-            "SSL verification DISABLED for Sber broker — "
-            "connection is vulnerable to MITM attacks. "
-            "Only use this with a trusted private / self-signed broker."
-        )
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
-    return ssl_context
+# NOTE: category labels come from sber_entity_map.category_label()
+# (CATEGORY_UI_META) — the former hand-written CATEGORY_LABELS copy
+# drifted from the registry and was removed.
+#
+# NOTE: create_ssl_context is re-exported from ssl_utils (see import
+# above) for backward compatibility of ``config_flow.create_ssl_context``
+# imports; the implementation lives in ssl_utils only.
 
 
 async def _validate_sber_connection(
@@ -159,20 +136,37 @@ async def _validate_sber_connection(
         return None
 
 
-# Domain priority for deduplication: when multiple entities share one device_id,
-# keep the one with the richest Sber mapping (light > switch, cover > switch, etc.)
+# Domain priority for deduplication: when multiple entities share one
+# device_id, keep the one with the richest Sber mapping.
+#
+# Three bands, so the ordering survives future insertions:
+#   100..70 — purpose-built controllable devices (a dedicated Sber category)
+#    40..30 — generic on/off control (relay / scenario button)
+#    20..18 — read-only telemetry (never wins over anything controllable)
+#
+# It cannot be derived from ``CategorySpec.preferred_rank``: that rank only
+# breaks ties *inside* one domain (``hvac_radiator`` 3 vs ``hvac_ac`` 6) and
+# is not calibrated across domains — ``intercom`` is rank 30 like
+# ``sensor_temp``, yet a lock must beat a battery sensor.  Completeness
+# w.r.t. SUPPORTED_DOMAINS is enforced by
+# tests/hacs/test_config_flow_options.py.
 DOMAIN_PRIORITY: dict[str, int] = {
-    "light": 10,
-    "cover": 9,
-    "climate": 8,
-    "humidifier": 7,
-    "valve": 6,
-    "switch": 3,
-    "script": 2,
-    "button": 1,
-    "input_boolean": 1,
-    "sensor": 5,
-    "binary_sensor": 5,
+    "light": 100,
+    "cover": 95,
+    "climate": 90,
+    "water_heater": 85,
+    "humidifier": 80,
+    "vacuum": 78,
+    "media_player": 76,
+    "fan": 74,
+    "valve": 72,
+    "lock": 70,
+    "switch": 40,
+    "script": 32,
+    "button": 30,
+    "input_boolean": 30,
+    "binary_sensor": 20,
+    "sensor": 18,
 }
 
 
@@ -225,6 +219,30 @@ def _get_entities_by_domains(hass: HomeAssistant, domains: list[str]) -> list[st
 
     result = no_device + [eid for _, eid in device_best.values()]
     return sorted(result)
+
+
+def _category_options(current: str) -> list[SelectOptionDict]:
+    """Build the category dropdown options for one entity's override selector.
+
+    Offers ``auto`` plus every user-pickable category
+    (:data:`UI_OVERRIDABLE_CATEGORIES`).  The entity's ``current`` value is
+    unioned in even when it is not user-pickable: overrides set through the
+    WebSocket API / the wizard may legitimately hold an internal category
+    (e.g. ``sensor_humidity``), and a default outside the option list makes
+    ``SelectSelector`` reject the *unchanged* form on submit.
+
+    Args:
+        current: Currently stored override, or ``"auto"``.
+
+    Returns:
+        Ordered list of selector options, ``auto`` first.
+    """
+    categories = list(UI_OVERRIDABLE_CATEGORIES)
+    if current != "auto" and current not in categories:
+        categories.append(current)
+    options = [SelectOptionDict(value="auto", label="Auto (detect from domain)")]
+    options.extend(SelectOptionDict(value=cat, label=category_label(cat)) for cat in categories)
+    return options
 
 
 def _get_entities_by_labels(hass: HomeAssistant, labels: list[str]) -> list[str]:
@@ -338,6 +356,39 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
     and advanced entity selection for users who prefer it.
     """
 
+    def _async_save_options(self, **updates: Any) -> ConfigFlowResult:
+        """Create the options entry, preserving every unrelated options key.
+
+        ``async_create_entry`` replaces ``entry.options`` wholesale, so any
+        step that saves only the keys it edited would silently wipe the
+        user's type overrides, entity links and bridge settings.  All
+        options-flow steps must save through this helper.
+
+        Args:
+            **updates: Option keys to overwrite (e.g. ``exposed_entities``).
+
+        Returns:
+            The finished flow result.
+        """
+        return self.async_create_entry(data={**self.config_entry.options, **updates})
+
+    def _entity_category_label(self, entry: er.RegistryEntry, override: str | None) -> str:
+        """Return the human-readable Sber category label for a registry entry.
+
+        Shared by the summary and preview builders — constructs the probe
+        entity via :func:`build_probe_entity` and resolves the label from
+        the category registry.
+
+        Args:
+            entry: Entity registry entry of the exposed entity.
+            override: Optional user category override for this entity.
+
+        Returns:
+            Category label, or ``"unknown"`` when no category matches.
+        """
+        sber_entity = build_probe_entity(entry, override)
+        return category_label(sber_entity.category) if sber_entity else "unknown"
+
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Show panel link with fallback to advanced options."""
         if user_input is not None:
@@ -345,13 +396,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             if mode == "preview":
                 return await self.async_step_entity_preview()
             if mode == "advanced":
-                return self.async_show_menu(
-                    step_id="advanced_menu",
-                    menu_options=[
-                        "select_entities_menu",
-                        "type_overrides",
-                    ],
-                )
+                return await self.async_step_advanced_menu()
             # Default: just close (user goes to panel)
             return self.async_create_entry(data=self.config_entry.options)
 
@@ -386,6 +431,28 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             },
         )
 
+    async def async_step_advanced_menu(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Show the advanced (panel-less) entity management menu.
+
+        Must exist as a real step: ``async_show_menu`` results are validated
+        by ``FlowManager._raise_if_step_does_not_exist``, so returning a menu
+        whose ``step_id`` has no handler makes the whole branch raise
+        ``UnknownStep`` as soon as the user picks it.
+
+        Args:
+            user_input: Unused; menus are dispatched by ``next_step_id``.
+
+        Returns:
+            The menu flow result.
+        """
+        return self.async_show_menu(
+            step_id="advanced_menu",
+            menu_options=[
+                "select_entities_menu",
+                "type_overrides",
+            ],
+        )
+
     # ── Entity Type Preview ──
 
     def _build_entity_summary(self) -> str:
@@ -403,14 +470,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             if entry is None:
                 cat_counts["unknown"] = cat_counts.get("unknown", 0) + 1
                 continue
-            entity_data = {
-                "entity_id": entry.entity_id,
-                "original_device_class": entry.original_device_class or "",
-            }
-            override = overrides.get(entity_id)
-            sber_entity = create_sber_entity(entity_id, entity_data, override)
-            cat = sber_entity.category if sber_entity else "unknown"
-            cat_label = CATEGORY_LABELS.get(cat, cat)
+            cat_label = self._entity_category_label(entry, overrides.get(entity_id))
             cat_counts[cat_label] = cat_counts.get(cat_label, 0) + 1
 
         parts = [f"{label}: {count}" for label, count in sorted(cat_counts.items())]
@@ -431,14 +491,8 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             if entry is None:
                 by_category.setdefault("⚠️ Not found", []).append(entity_id)
                 continue
-            entity_data = {
-                "entity_id": entry.entity_id,
-                "original_device_class": entry.original_device_class or "",
-            }
             override = overrides.get(entity_id)
-            sber_entity = create_sber_entity(entity_id, entity_data, override)
-            cat = sber_entity.category if sber_entity else "unknown"
-            cat_label = CATEGORY_LABELS.get(cat, cat)
+            cat_label = self._entity_category_label(entry, override)
             name = entry.name or entry.original_name or entity_id
             display = f"{name} (`{entity_id}`)"
             if override:
@@ -475,21 +529,11 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             mode = user_input.get("selection_mode", "manual")
             if mode == "clear_all":
                 _LOGGER.info("Clearing all exposed entities")
-                return self.async_create_entry(
-                    data={
-                        CONF_EXPOSED_ENTITIES: [],
-                        CONF_ENTITY_TYPE_OVERRIDES: self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}),
-                    },
-                )
+                return self._async_save_options(**{CONF_EXPOSED_ENTITIES: []})
             if mode == "add_all":
                 all_ids = _get_entities_by_domains(self.hass, SUPPORTED_DOMAINS)
                 _LOGGER.info("Adding all %d supported entities", len(all_ids))
-                return self.async_create_entry(
-                    data={
-                        CONF_EXPOSED_ENTITIES: all_ids,
-                        CONF_ENTITY_TYPE_OVERRIDES: self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}),
-                    },
-                )
+                return self._async_save_options(**{CONF_EXPOSED_ENTITIES: all_ids})
             if mode == "by_domain":
                 return await self.async_step_select_domains()
             if mode == "by_label":
@@ -519,12 +563,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
     async def async_step_select_entities(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manual entity selection step."""
         if user_input is not None:
-            return self.async_create_entry(
-                data={
-                    **user_input,
-                    CONF_ENTITY_TYPE_OVERRIDES: self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}),
-                },
-            )
+            return self._async_save_options(**{CONF_EXPOSED_ENTITIES: user_input.get(CONF_EXPOSED_ENTITIES, [])})
 
         return self.async_show_form(
             step_id="select_entities",
@@ -560,12 +599,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                     selected_domains,
                     len(merged),
                 )
-                return self.async_create_entry(
-                    data={
-                        CONF_EXPOSED_ENTITIES: merged,
-                        CONF_ENTITY_TYPE_OVERRIDES: self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}),
-                    },
-                )
+                return self._async_save_options(**{CONF_EXPOSED_ENTITIES: merged})
             return self.async_create_entry(data=self.config_entry.options)
 
         # Build domain options with entity counts
@@ -616,12 +650,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                     selected_labels,
                     len(merged),
                 )
-                return self.async_create_entry(
-                    data={
-                        CONF_EXPOSED_ENTITIES: merged,
-                        CONF_ENTITY_TYPE_OVERRIDES: self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}),
-                    },
-                )
+                return self._async_save_options(**{CONF_EXPOSED_ENTITIES: merged})
             return self.async_create_entry(data=self.config_entry.options)
 
         # Collect all labels from supported entities
@@ -688,11 +717,11 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                     new_overrides[entity_id] = selected
 
             _LOGGER.info("Entity type overrides updated: %s", new_overrides)
-            return self.async_create_entry(
-                data={
+            return self._async_save_options(
+                **{
                     CONF_EXPOSED_ENTITIES: exposed,
                     CONF_ENTITY_TYPE_OVERRIDES: new_overrides,
-                },
+                }
             )
 
         if not exposed:
@@ -707,23 +736,13 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
         entity_reg = er.async_get(self.hass)
         schema_dict: dict = {}
 
-        # Build category options
-        category_options = [SelectOptionDict(value="auto", label="Auto (detect from domain)")]
-        for cat in OVERRIDABLE_CATEGORIES:
-            cat_label = CATEGORY_LABELS.get(cat, cat)
-            category_options.append(SelectOptionDict(value=cat, label=cat_label))
-
         for entity_id in exposed:
             entry = entity_reg.async_get(entity_id)
             if entry is None:
                 continue
 
             # Determine current auto-detected category and features
-            entity_data = {
-                "entity_id": entry.entity_id,
-                "original_device_class": entry.original_device_class or "",
-            }
-            auto_entity = create_sber_entity(entity_id, entity_data)
+            auto_entity = build_probe_entity(entry)
             auto_cat = auto_entity.category if auto_entity else "unknown"
             features_str = ""
             if auto_entity is not None:
@@ -742,7 +761,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                 )
             ] = SelectSelector(
                 SelectSelectorConfig(
-                    options=category_options,
+                    options=_category_options(current),
                     mode=SelectSelectorMode.DROPDOWN,
                 )
             )

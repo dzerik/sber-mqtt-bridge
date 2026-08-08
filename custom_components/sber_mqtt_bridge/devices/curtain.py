@@ -218,7 +218,7 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
             }
         return allowed
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with position, open state, and signal.
 
         Per Sber C2C specification, ``integer_value`` is serialized as a string.
