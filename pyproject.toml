@@ -75,6 +75,10 @@ disallow_untyped_defs = true
 warn_return_any = true
 disable_error_code = ["import-not-found", "import-untyped"]
 
+# NOTE: this section is NOT the effective pytest config.  Every invocation
+# targets `tests/hacs/`, so pytest picks `tests/hacs/pytest.ini` as its
+# configfile and rootdir — settings here are ignored.  Keep real pytest
+# settings in tests/hacs/pytest.ini.
 [tool.pytest.ini_options]
 testpaths = ["tests/hacs"]
 asyncio_mode = "auto"
