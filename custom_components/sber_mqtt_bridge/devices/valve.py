@@ -91,7 +91,7 @@ class ValveEntity(BatteryAndSignalLinkMixin, BaseEntity):
             },
         }
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with online, open_state, battery, and signal.
 
         Returns:

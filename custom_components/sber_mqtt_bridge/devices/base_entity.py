@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
@@ -20,6 +21,17 @@ from ..sber_constants import SERVICE_CALL_TYPE, SERVICE_TURN_OFF, SERVICE_TURN_O
 from ..sber_models import normalize_sber_value
 
 _LOGGER = logging.getLogger(__name__)
+
+ALWAYS_PUBLISHED_FEATURES: frozenset[str] = frozenset({"online"})
+"""Feature keys that bypass the declared-features publish filter.
+
+``online`` is obligatory for **every** Sber category (see
+``_generated/obligatory_features.py`` — it appears in every entry), and
+Sber drops a device whose publish lacks it.  Filtering it out because a
+buggy ``_create_features_list`` forgot to declare it, or because a user
+removed it via ``sber_features_remove``, would be strictly worse than
+publishing an undeclared key, so it is always let through.
+"""
 
 
 class NoSnapshot:
@@ -340,7 +352,8 @@ class BaseEntity(ABC):
     - fill_by_ha_state: Parse HA state into internal representation
     - _create_features_list: Return Sber feature names
     - to_sber_state: Build Sber device config JSON
-    - to_sber_current_state: Build Sber current state JSON
+    - _build_current_state: Build Sber current state JSON (the public
+      ``to_sber_current_state`` wraps it with the declared-features filter)
     - process_cmd: Handle Sber commands, return HA service calls
     - process_state_change: Handle HA state change events
     """
@@ -414,6 +427,7 @@ class BaseEntity(ABC):
         self.removed_features: list[str] = []
         self._previous_sber_state: dict | None = None
         self._linked_entities: dict[str, str] = {}
+        self._undeclared_keys_logged: set[str] = set()
 
         if entity_data:
             self.area_id = entity_data.get("area_id", "")
@@ -681,8 +695,36 @@ class BaseEntity(ABC):
     def _build_model_descriptor(self, device: DeviceData, display_name: str) -> dict:
         """Build the ``model`` block of a Sber device descriptor.
 
-        Appends category suffix to model_id to prevent Sber cloud from
-        overriding our category based on its own model database.
+        The emitted ``model.id`` is ``{ha_model_id}_{category}_{digest}``
+        (or ``Mdl_{category}_{digest}`` when HA knows no model_id), where
+        ``digest`` is :meth:`_capability_digest` over the final feature
+        list plus ``allowed_values``.
+
+        **Why the model identity includes the capability set.**  Sber
+        cloud stores exactly one model per ``model.id`` and merges the
+        interfaces of every device claiming that id.  A multi-channel
+        device (issue #44: a Zigbee chandelier exposing
+        ``light.*_main_light`` with ``color_temp`` and
+        ``light.*_second_light`` with ``onoff``) yields two HA entities
+        that share one HA ``model_id``, so the pre-1.44 scheme gave both
+        the same Sber model.  The dimmable channel's sliders then leaked
+        onto the on/off channel in the Sber app and its commands hung.
+        Keying the model on *capabilities* rather than on hardware alone
+        fixes that while preserving the point of a "model": two
+        identically-capable lamps still hash to the same digest and
+        therefore still share one cloud model, no matter which device
+        they belong to or in which order they were loaded.
+
+        **Known limitation.**  The feature list is derived from live HA
+        attributes, so an entity that is ``unavailable`` at config-publish
+        time (no attributes → no capabilities) registers a stripped-down
+        model and keeps it until the next config republish.  The advertised
+        ``features`` list already had that problem before the digest
+        existed; the digest only makes it visible in ``model.id``.  Config
+        republish is triggered on (re)connect, on HA start, on redefinition
+        changes and on a linked sensor's feature change
+        (``ha_state_forwarder``), but not on a feature change of the primary
+        entity itself — see the tests in ``TestModelIdStability``.
 
         Args:
             device: Device registry data dict (may be empty).
@@ -714,15 +756,8 @@ class BaseEntity(ABC):
                     extra,
                 )
 
-        # Instance-specific allowed_values (e.g. TV source_list) must produce
-        # a unique model_id — Sber cloud stores one model per id, so devices
-        # sharing an id with different allowed_values get silently rejected.
-        if allowed and self._has_instance_allowed_values():
-            digest = hashlib.md5(str(sorted(allowed.items())).encode(), usedforsecurity=False).hexdigest()[:8]
-            model_id = f"{model_id}_{digest}"
-
         descriptor: dict = {
-            "id": model_id,
+            "id": f"{model_id}_{self._capability_digest(features, allowed)}",
             "manufacturer": device.get("manufacturer") or "Unknown",
             "model": device.get("model") or "Unknown",
             "description": display_name,
@@ -736,24 +771,131 @@ class BaseEntity(ABC):
             descriptor["dependencies"] = deps
         return descriptor
 
-    def _has_instance_allowed_values(self) -> bool:
-        """Return True if allowed_values vary per entity instance.
+    @staticmethod
+    def _capability_digest(features: Iterable[str], allowed_values: dict[str, dict]) -> str:
+        """Return a short stable digest of a device's advertised capabilities.
 
-        Override in subclasses where allowed_values depend on runtime data
-        (e.g. TV source_list) rather than being static for the category.
-        When True, model_id gets an MD5 suffix to avoid Sber cloud
-        collisions between devices of the same model but different
-        allowed_values.
+        Two entities produce the same digest **iff** they advertise the
+        same feature set and the same ``allowed_values`` — that is the
+        definition of "same model" as far as the Sber cloud is
+        concerned.  See :meth:`_build_model_descriptor` for why model
+        identity is capability-based.
+
+        The digest is computed from a canonical JSON serialization
+        (``sort_keys=True`` plus an explicitly sorted feature list), so
+        it does not depend on feature declaration order, dict insertion
+        order, or entity load order.  ``hashlib`` is used rather than
+        :func:`hash` because the value goes on the wire and must survive
+        a Home Assistant restart (``PYTHONHASHSEED`` randomizes
+        :func:`hash` per process).  MD5 is used purely as a checksum,
+        hence ``usedforsecurity=False``.
+
+        Args:
+            features: Final feature names (order irrelevant).
+            allowed_values: ``allowed_values`` map already reconciled
+                with ``features``.
+
+        Returns:
+            8-character lowercase hex digest.
         """
-        return False
+        canonical = json.dumps(
+            {"features": sorted(set(features)), "allowed_values": allowed_values},
+            sort_keys=True,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        return hashlib.md5(canonical.encode("utf-8"), usedforsecurity=False).hexdigest()[:8]
 
     @abstractmethod
-    def to_sber_current_state(self) -> dict:
-        """Build Sber current state JSON for MQTT publish.
+    def _build_current_state(self) -> dict:
+        """Build the raw Sber current state JSON (subclass hook).
+
+        Internal extension point — **subclasses implement this** instead
+        of :meth:`to_sber_current_state`, which wraps it with the
+        declared-features filter.
 
         Returns:
             Dict with entity_id key mapping to {'states': [...]}.
         """
+
+    def to_sber_current_state(self) -> dict:
+        """Build the publish-ready Sber current state JSON.
+
+        Calls the subclass hook :meth:`_build_current_state` and then
+        drops every state whose key is not advertised in
+        :meth:`get_final_features_list` — see
+        :meth:`_filter_undeclared_states`.
+
+        Returns:
+            Dict with entity_id key mapping to {'states': [...]}.
+        """
+        return self._filter_undeclared_states(self._build_current_state())
+
+    def _filter_undeclared_states(self, payload: dict) -> dict:
+        """Drop states whose feature key this device does not advertise.
+
+        Sber's config publish declares a feature list; the state publish
+        must stay inside it.  Publishing an undeclared key makes the app
+        render a control the device never announced — issue #44: an
+        ``onoff``-only light channel published ``light_brightness`` (the
+        HA attribute is absent, so the converter floors it to the Sber
+        minimum ``100``, which is non-zero and passed the old guard) and
+        ``light_mode``, so the Sber app showed a colour lamp whose
+        sliders hung.  Enforcing the invariant here rather than in each
+        device class closes the whole class of leaks across all
+        categories at once, and keeps
+        :func:`~custom_components.sber_mqtt_bridge.schema_validator.validate_publish`
+        free of ``not_declared`` findings by construction.
+
+        Keys in :data:`ALWAYS_PUBLISHED_FEATURES` are never dropped.
+        Filtering uses the **final** feature list, so a feature the user
+        dropped via ``sber_features_remove`` stops being published too.
+
+        Dropped keys are logged at DEBUG once per key per entity
+        instance (``_undeclared_keys_logged``), because this runs on
+        every publish and would otherwise flood the log.
+
+        Args:
+            payload: Raw ``{entity_id: {"states": [...]}}`` mapping as
+                returned by :meth:`_build_current_state`.
+
+        Returns:
+            The same mapping with undeclared states removed.  Entries
+            that don't look like a states block are passed through
+            untouched.
+        """
+        declared = set(self.get_final_features_list()) | ALWAYS_PUBLISHED_FEATURES
+        for device_id, block in payload.items():
+            if not isinstance(block, dict) or not isinstance(block.get("states"), list):
+                continue
+            kept: list[dict] = []
+            for state in block["states"]:
+                key = state.get("key") if isinstance(state, dict) else None
+                if key is not None and key not in declared:
+                    self._log_undeclared(str(key), device_id)
+                    continue
+                kept.append(state)
+            block["states"] = kept
+        return payload
+
+    def _log_undeclared(self, key: str, device_id: str) -> None:
+        """Log a dropped undeclared state key once per entity instance.
+
+        Args:
+            key: The Sber feature key that was filtered out.
+            device_id: The Sber device id the state belonged to.
+        """
+        if key in self._undeclared_keys_logged:
+            return
+        self._undeclared_keys_logged.add(key)
+        _LOGGER.debug(
+            "Entity %s (device %s, category %s): dropping state '%s' — not in declared features %s",
+            self.entity_id,
+            device_id,
+            self.category,
+            key,
+            sorted(self.get_final_features_list()),
+        )
 
     def get_entity_domain(self) -> str:
         """Extract HA domain from entity_id.

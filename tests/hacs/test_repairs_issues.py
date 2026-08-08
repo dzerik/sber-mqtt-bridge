@@ -25,7 +25,7 @@ from custom_components.sber_mqtt_bridge.sber_bridge import SberBridge
 class _ConcreteEntity(BaseEntity):
     """Minimal concrete entity: BaseEntity is abstract."""
 
-    def to_sber_current_state(self) -> dict:
+    def _build_current_state(self) -> dict:
         """Return an empty Sber state payload (not exercised here)."""
         return {self.entity_id: {"states": []}}
 

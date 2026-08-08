@@ -258,7 +258,7 @@ class SensorAirEntity(BatteryAndSignalLinkMixin, BaseEntity):
         self._append_battery_signal_features(features)
         return features
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload.
 
         Emits ``online`` unconditionally + one state entry per populated

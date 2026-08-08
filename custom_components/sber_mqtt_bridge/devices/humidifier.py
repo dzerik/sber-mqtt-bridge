@@ -193,14 +193,6 @@ class HumidifierEntity(BaseEntity):
         """
         return any(m.lower() in ("sleep", "night") for m in self.available_modes)
 
-    def _has_instance_allowed_values(self) -> bool:
-        """Humidifier limits vary per device (min/max humidity, mode list).
-
-        Devices sharing a model_id with different allowed_values get
-        silently rejected by Sber cloud (issue #44 audit).
-        """
-        return True
-
     def _mapped_air_flow_values(self) -> list[str]:
         """Return Sber enum values for available_modes with a known mapping.
 
@@ -241,7 +233,7 @@ class HumidifierEntity(BaseEntity):
         }
         return allowed
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with humidifier attributes.
 
         Includes online, on_off, target humidity, work mode, and night mode

@@ -40,7 +40,7 @@ mypy custom_components/sber_mqtt_bridge/
 Наследуйтесь от `OnOffEntity`:
 
 - Переопределите `process_cmd` для маппинга команд Sber на вызовы HA-сервисов
-- Методы `fill_by_ha_state`, `_create_features_list`, `to_sber_current_state`, `process_state_change` уже реализованы
+- Методы `fill_by_ha_state`, `_create_features_list`, `_build_current_state`, `process_state_change` уже реализованы
 
 ### Датчики только для чтения (temperature, humidity, motion, door, leak)
 
@@ -48,13 +48,25 @@ mypy custom_components/sber_mqtt_bridge/
 
 - Установите атрибуты класса `_sber_value_key` и `_sber_value_type`
 - Реализуйте `_get_sber_value()` и `fill_by_ha_state()`
-- Методы `_create_features_list`, `to_sber_current_state`, `process_cmd`, `process_state_change` уже реализованы
+- Методы `_create_features_list`, `_build_current_state`, `process_cmd`, `process_state_change` уже реализованы
 
 ### Сложные устройства (climate, light, curtain)
 
 Наследуйтесь от `BaseEntity`:
 
-- Реализуйте все абстрактные методы: `to_sber_current_state`, `process_cmd`
+- Реализуйте все абстрактные методы: `_build_current_state`, `process_cmd`
+
+### Контракт публикации состояния (ВАЖНО)
+
+Хук для сборки состояния — `_build_current_state()`, а **не** `to_sber_current_state()`.
+
+`BaseEntity.to_sber_current_state()` — конкретный метод-обёртка: он вызывает
+`_build_current_state()` и отбрасывает каждое состояние, ключ которого не заявлен
+в `get_final_features_list()` (`BaseEntity._filter_undeclared_states`, issue #44 —
+публикация незаявленной фичи заставляет приложение Sber рисовать неработающий
+контрол). **Никогда не переопределяйте `to_sber_current_state()` в подклассе** —
+это молча отключит фильтр для всего класса устройств. Инвариант закреплён тестом
+`tests/hacs/test_issue44_followup.py::TestSubclassContract`.
 
 ### Использование типизированных констант
 

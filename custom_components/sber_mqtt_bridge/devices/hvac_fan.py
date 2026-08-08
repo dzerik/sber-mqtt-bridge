@@ -159,7 +159,7 @@ class HvacFanEntity(FanSpeedMixin, BaseEntity):
             }
         }
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with fan attributes.
 
         The speed state is reported only when the current speed is actually

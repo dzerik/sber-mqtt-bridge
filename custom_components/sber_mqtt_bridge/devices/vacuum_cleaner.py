@@ -148,14 +148,6 @@ class VacuumCleanerEntity(BaseEntity):
             features.append("battery_percentage")
         return features
 
-    def _has_instance_allowed_values(self) -> bool:
-        """Vacuum program list (fan_speed_list) varies per device.
-
-        Devices sharing a model_id with different allowed_values get
-        silently rejected by Sber cloud (issue #44 audit).
-        """
-        return bool(self._fan_speed_list)
-
     def create_allowed_values_list(self) -> dict[str, dict]:
         """Build allowed values map for vacuum features.
 
@@ -178,7 +170,7 @@ class VacuumCleanerEntity(BaseEntity):
         # for features that have no HA service handler.
         return allowed
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with vacuum attributes.
 
         Returns:

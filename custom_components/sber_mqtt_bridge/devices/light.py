@@ -236,7 +236,7 @@ class LightEntity(BaseEntity):
         """
         return self.current_color_mode in ("hs", "rgb", "rgbw", "rgbww", "xy")
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with all light attributes.
 
         Includes online, on_off, brightness, color/color_temp, and light_mode

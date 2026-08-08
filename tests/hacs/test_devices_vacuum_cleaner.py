@@ -77,7 +77,14 @@ class TestVacuumToSberCurrentState(unittest.TestCase):
 
     def test_cleaning_with_battery(self):
         entity = VacuumCleanerEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("cleaning", battery_level=70, fan_speed="turbo"))
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                "cleaning",
+                battery_level=70,
+                fan_speed="turbo",
+                fan_speed_list=["quiet", "standard", "turbo"],
+            )
+        )
         result = entity.to_sber_current_state()
         states = result["vacuum.roborock"]["states"]
         status = next(s for s in states if s["key"] == "vacuum_cleaner_status")
@@ -86,6 +93,18 @@ class TestVacuumToSberCurrentState(unittest.TestCase):
         self.assertEqual(battery["value"]["integer_value"], "70")
         program = next(s for s in states if s["key"] == "vacuum_cleaner_program")
         self.assertEqual(program["value"]["enum_value"], "turbo")
+
+    def test_program_not_published_without_fan_speed_list(self):
+        """Without ``fan_speed_list`` the ``vacuum_cleaner_program`` feature is undeclared.
+
+        Publishing the current fan speed anyway sent an ENUM value with
+        no declared ``allowed_values`` (issue #44 follow-up).
+        """
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("cleaning", fan_speed="turbo"))
+        self.assertNotIn("vacuum_cleaner_program", entity.get_final_features_list())
+        states = entity.to_sber_current_state()["vacuum.roborock"]["states"]
+        self.assertNotIn("vacuum_cleaner_program", [s["key"] for s in states])
 
     def test_no_on_off_in_state(self):
         entity = VacuumCleanerEntity(ENTITY_DATA)

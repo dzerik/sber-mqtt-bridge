@@ -16,6 +16,8 @@
  * forwards it to vendor/lit.js).  Static imports would drop the query and
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
+await import(`./sber-json-block.js${_q}`);
+
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { copyText } = await import(`../utils.js${_q}`);
 
@@ -148,7 +150,9 @@ class SberDiagnose extends LitElement {
         <span class="caret ${this._rawOpen ? "open" : ""}">&#9654;</span>
         Raw summary
       </div>
-      ${this._rawOpen ? html`<pre class="raw">${JSON.stringify(r.summary, null, 2)}</pre>` : ""}
+      ${this._rawOpen
+        ? html`<sber-json-block label="Raw summary" hide-copy .value=${r.summary}></sber-json-block>`
+        : ""}
     `;
   }
 
@@ -261,15 +265,7 @@ class SberDiagnose extends LitElement {
       }
       .caret { display: inline-block; transition: transform 0.15s; margin-right: 4px; }
       .caret.open { transform: rotate(90deg); }
-      .raw {
-        background: var(--secondary-background-color);
-        padding: 10px;
-        border-radius: 4px;
-        font-family: monospace;
-        font-size: 0.8em;
-        overflow: auto;
-        max-height: 300px;
-      }
+      sber-json-block { margin-top: 6px; }
     `;
   }
 }

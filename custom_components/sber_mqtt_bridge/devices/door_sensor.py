@@ -58,13 +58,13 @@ class DoorSensorEntity(TamperAlarmMuteMixin, SimpleReadOnlySensor):
         self._append_tamper_alarm_mute_features(features)
         return features
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with tamper_alarm when available.
 
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
-        result = super().to_sber_current_state()
+        result = super()._build_current_state()
         self._append_tamper_alarm_mute_states(result[self.entity_id]["states"])
         return result
 

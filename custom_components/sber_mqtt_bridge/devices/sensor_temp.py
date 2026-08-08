@@ -109,13 +109,13 @@ class SensorTempEntity(SimpleReadOnlySensor):
             features.append("air_pressure")
         return features
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with linked humidity and air_pressure.
 
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
-        result = super().to_sber_current_state()
+        result = super()._build_current_state()
         result[self.entity_id]["states"].append(
             make_state(SberFeature.TEMP_UNIT_VIEW, make_enum_value(self._temp_unit))
         )

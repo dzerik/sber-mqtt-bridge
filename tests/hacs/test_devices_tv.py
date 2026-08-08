@@ -83,7 +83,15 @@ class TestTvToSberCurrentState(unittest.TestCase):
 
     def test_on_with_volume(self):
         entity = TvEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("playing", volume_level=0.3, is_volume_muted=False, source="HDMI 1"))
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                "playing",
+                volume_level=0.3,
+                is_volume_muted=False,
+                source="HDMI 1",
+                source_list=["HDMI 1", "TV"],
+            )
+        )
         result = entity.to_sber_current_state()
         states = result["media_player.tv"]["states"]
         on_off = next(s for s in states if s["key"] == "on_off")
@@ -94,6 +102,19 @@ class TestTvToSberCurrentState(unittest.TestCase):
         self.assertFalse(mute["value"]["bool_value"])
         source = next(s for s in states if s["key"] == "source")
         self.assertEqual(source["value"]["enum_value"], "HDMI 1")
+
+    def test_source_not_published_without_source_list(self):
+        """Without ``source_list`` the ``source`` feature is not declared.
+
+        Publishing it anyway produced a ``not_declared`` finding and an
+        ENUM value outside any declared ``allowed_values`` (issue #44
+        follow-up); the base-class filter now drops it.
+        """
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("playing", source="HDMI 1"))
+        self.assertNotIn("source", entity.get_final_features_list())
+        states = entity.to_sber_current_state()["media_player.tv"]["states"]
+        self.assertNotIn("source", [s["key"] for s in states])
 
     def test_off_state(self):
         entity = TvEntity(ENTITY_DATA)

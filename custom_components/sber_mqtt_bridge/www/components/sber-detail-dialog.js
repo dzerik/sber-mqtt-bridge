@@ -9,6 +9,8 @@
  * forwards it to vendor/lit.js).  Static imports would drop the query and
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
+await import(`./sber-json-block.js${_q}`);
+
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { deepActiveElement } = await import(`../utils.js${_q}`);
 
@@ -181,18 +183,6 @@ class SberDetailDialog extends LitElement {
       .error {
         color: var(--error-color, #f44336);
         padding: 16px;
-      }
-      .json-block {
-        background: var(--code-editor-background-color, #1e1e1e);
-        border-radius: 8px;
-        padding: 10px;
-        font-family: monospace;
-        font-size: 12px;
-        overflow-x: auto;
-        max-height: 200px;
-        overflow-y: auto;
-        white-space: pre-wrap;
-        word-break: break-all;
       }
 
       .edit-form {
@@ -532,13 +522,13 @@ class SberDetailDialog extends LitElement {
         ${Object.keys(av).length ? html`
           <div style="margin-top:8px">
             <div class="section-title" style="margin-bottom:4px">Allowed Values</div>
-            <div class="json-block">${JSON.stringify(av, null, 2)}</div>
+            <sber-json-block label="Allowed Values" .value=${av}></sber-json-block>
           </div>
         ` : ""}
         ${Object.keys(deps).length ? html`
           <div style="margin-top:8px">
             <div class="section-title" style="margin-bottom:4px">Dependencies</div>
-            <div class="json-block">${JSON.stringify(deps, null, 2)}</div>
+            <sber-json-block label="Dependencies" .value=${deps}></sber-json-block>
           </div>
         ` : ""}
       </div>

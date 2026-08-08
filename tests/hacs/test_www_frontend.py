@@ -38,6 +38,7 @@ from pathlib import Path
 
 import pytest
 
+from custom_components.sber_mqtt_bridge.devices.light import LightEntity
 from custom_components.sber_mqtt_bridge.name_utils import (
     _SALUT_NAME,
     is_salut_friendly_name,
@@ -522,6 +523,7 @@ class TestModulesParse:
 # Every element the panel must have registered by the time it is loaded.
 EXPECTED_ELEMENTS = {
     "sber-detail-dialog",
+    "sber-json-block",
     "sber-device-table",
     "sber-devtools",
     "sber-diagnose",
@@ -555,7 +557,18 @@ globalThis.DocumentFragment = class {};
 globalThis.ShadowRoot = class {};
 globalThis.CSSStyleSheet = class { replaceSync() {} };
 globalThis.customElements = {
-  define: (name) => { (globalThis.__defined ||= []).push(name); },
+  /* The browser reads observedAttributes while defining, which makes lit
+   * finalize the class and evaluate its static styles.  Do the same, or a
+   * broken css`` template only shows up in the user's console. */
+  define: (name, ctor) => {
+    (globalThis.__defined ||= []).push(name);
+    try {
+      void ctor.observedAttributes;
+      void ctor.elementStyles;
+    } catch (e) {
+      (globalThis.__defineErrors ||= []).push(`${name}: ${e && e.message}`);
+    }
+  },
   get: () => undefined,
 };
 globalThis.document = {
@@ -593,10 +606,15 @@ class TestModuleGraphLinks:
             'try { await import(entry + "?v=1.2.3"); }\n'
             "catch (e) { out.failures.push(String(e && e.message)); }\n"
             "out.defined = (globalThis.__defined || []).sort();\n"
+            "out.defineErrors = globalThis.__defineErrors || [];\n"
             "console.log(JSON.stringify(out));\n"
         )
         out = _run_node(tmp_path, driver)
         assert out["failures"] == [], f"the panel's import graph does not link: {out['failures']}"
+        assert out["defineErrors"] == [], (
+            "an element throws while the browser finalizes it — a stylesheet or "
+            f"static property that only parses, never runs: {out['defineErrors']}"
+        )
         assert set(out["defined"]) == EXPECTED_ELEMENTS, (
             f"registered {sorted(set(out['defined']) ^ EXPECTED_ELEMENTS)} unexpectedly"
         )
@@ -2105,3 +2123,608 @@ class TestErrorBannersAreCleared:
         )
         assert "boom" in out["afterThrow"]
         assert out["withoutReport"] == out["afterThrow"], "no report means no copy and no state change"
+
+
+# --------------------------------------------------------------------------- #
+# Payload dumps: clipped explicitly and reversibly, never cropped by CSS
+# --------------------------------------------------------------------------- #
+
+# ``max-height`` + ``overflow-y: auto`` on a read-only payload dump is invisible
+# on mobile (no persistent scrollbar): issue #44 was filed as "the integration
+# emits JSON without closing braces" against a payload that was complete.
+# A ``<textarea>`` is exempt — it carries a caret and a native scrollbar, so a
+# bounded height reads as "keep typing", not as "the document ends here".
+_CLIP_EXEMPT = {("components/sber-devtools.js", ".json-editor")}
+_PAYLOAD_SELECTOR = re.compile(r"json|payload|\bcode\b|\braw\b|\bpre\b", re.IGNORECASE)
+_CSS_RULE = re.compile(r"([.#a-zA-Z][^{};]*?)\s*\{([^{}]*)\}", re.DOTALL)
+# ``<div class="...">${JSON.stringify(x, null, 2)}</div>`` — a hand-rolled dump.
+_INLINE_JSON_DUMP = re.compile(r">\$\{[^}]*JSON\.stringify\([^)]*null,\s*2\)")
+# What makes an element a payload dump regardless of what its class is called:
+# it *is* a code surface, or it wraps one.
+_PAYLOAD_MARKUP = re.compile(r"code-surface|sber-json-block|JSON\.stringify|<pre\b|<code\b")
+# ... or the rule itself styles text like a dump.
+_PAYLOAD_DECLARATION = re.compile(r"white-space:\s*pre|font-family:[^;]*monospace")
+# How far past the opening tag we still consider "inside" the element.  Long
+# enough to reach the payload it wraps, short enough not to swallow siblings.
+_ELEMENT_WINDOW = 400
+
+# Every payload dump the panel shows: how many blocks each view renders and how
+# many of them suppress the block's own copy button.
+JSON_BLOCK_CONSUMERS = [
+    # Allowed values + dependencies; the dialog has no copy control of its own.
+    ("components/sber-detail-dialog.js", 2, 0),
+    # Raw summary; the header already offers "Copy report" for the whole report.
+    ("components/sber-diagnose.js", 1, 1),
+    # Raw config + raw state; each section header has its own Copy button.
+    ("components/sber-devtools.js", 2, 2),
+]
+
+# Same table without the copy-control column, for the tests that ignore it.
+JSON_BLOCK_COUNTS = [(path, count) for path, count, _ in JSON_BLOCK_CONSUMERS]
+
+
+def _clipping_rules(src: str) -> list[tuple[str, str]]:
+    """Return ``(selector, body)`` for every CSS rule that bounds its height."""
+    return [
+        (" ".join(selector.split()), body)
+        for selector, body in _CSS_RULE.findall(_strip_comments(src))
+        if "max-height" in body
+    ]
+
+
+def _json_block_tags(src: str) -> list[str]:
+    """Return the opening ``<sber-json-block ...>`` tag of every payload block."""
+    return re.findall(r"<sber-json-block\b[^>]*>", src)
+
+
+def _elements_carrying_class(src: str, class_name: str) -> list[tuple[str, str]]:
+    """Return ``(tag, window)`` for every template element using ``class_name``.
+
+    ``window`` is the source right after the opening tag, i.e. what the element
+    renders — enough to tell a wrapper around a payload from an unrelated box.
+    """
+    found: list[tuple[str, str]] = []
+    for match in re.finditer(r"<([a-zA-Z][\w-]*)\b[^>]*?class=\"([^\"]*)\"", src):
+        classes = re.split(r"[\s$}{]+", match.group(2))
+        if class_name in classes:
+            found.append((match.group(1), src[match.start() : match.end() + _ELEMENT_WINDOW]))
+    return found
+
+
+def _cropped_payload_selectors(path: str) -> list[str]:
+    """Return selectors in ``path`` that bound the height of a payload dump.
+
+    A dump is recognised three ways, so renaming the class is not a way out:
+
+    * the selector reads like one (``.json-viewer``, ``.raw``, ...),
+    * the rule styles its content as code (``white-space: pre``, monospace),
+    * the class is applied to — or wraps — a code surface in the template.
+    """
+    src = _read(path)
+    offenders: list[str] = []
+    for selector, body in _clipping_rules(src):
+        if (path, selector) in _CLIP_EXEMPT:
+            continue
+        looks_like_a_dump = bool(_PAYLOAD_SELECTOR.search(selector) or _PAYLOAD_DECLARATION.search(body))
+        if not looks_like_a_dump:
+            for class_name in re.findall(r"\.([\w-]+)", selector):
+                for tag, window in _elements_carrying_class(src, class_name):
+                    # A textarea keeps a caret and a native scrollbar.
+                    if tag != "textarea" and (tag in {"pre", "code"} or _PAYLOAD_MARKUP.search(window)):
+                        looks_like_a_dump = True
+                        break
+        if looks_like_a_dump:
+            offenders.append(selector)
+    return offenders
+
+
+def _real_allowed_values() -> dict:
+    """Build the ``allowed_values`` block of issue #44's chandelier.
+
+    Taken from the shipped device class rather than hand-written, so the
+    fixture cannot drift away from what the dialog actually receives.
+    """
+    entity = LightEntity({"entity_id": "light.svet_v_zale_main_light", "name": "Свет в зале"})
+    entity.fill_by_ha_state(
+        {
+            "state": "on",
+            "attributes": {
+                "brightness": 180,
+                "color_temp_kelvin": 3000,
+                "min_color_temp_kelvin": 2000,
+                "max_color_temp_kelvin": 6535,
+                "supported_color_modes": ["color_temp", "hs"],
+                "color_mode": "color_temp",
+                "hs_color": [30, 80],
+            },
+        }
+    )
+    return entity.create_allowed_values_list()
+
+
+_JSON_BLOCK_METHODS = [
+    "text",
+    "lineCount",
+    "isTruncatable",
+    "hiddenLineCount",
+    "visibleText",
+    "_toggle",
+    "_copy",
+    "_setCopyState",
+    "disconnectedCallback",
+    "render",
+]
+
+
+def _json_block_harness() -> str:
+    """Fake ``sber-json-block`` carrying the shipped collapse/copy methods.
+
+    ``setTimeout``/``clearTimeout``/``copyText`` are shadowed at module scope so
+    the driver can inspect pending timers and clipboard writes without waiting.
+    ``html`` is shadowed by a tag function that flattens the template into a
+    string, so the shipped ``render()`` can be asserted on directly instead of
+    through a paraphrase of its markup.
+    """
+    src = _read("components/sber-json-block.js")
+    collapsed = re.search(r"^const COLLAPSED_LINES = (\d+);", src, re.MULTILINE)
+    assert collapsed, "COLLAPSED_LINES must stay a module-level constant"
+    feedback = re.search(r"^const COPY_FEEDBACK_MS = (\d+);", src, re.MULTILINE)
+    assert feedback, "COPY_FEEDBACK_MS must stay a module-level constant"
+    return (
+        f"const COLLAPSED_LINES = {collapsed.group(1)};\n"
+        f"const COPY_FEEDBACK_MS = {feedback.group(1)};\n"
+        "let timers = [];\n"
+        "let nextTimer = 1;\n"
+        "const setTimeout = (fn, ms) => { const id = nextTimer++; timers.push({ id, fn, ms }); return id; };\n"
+        "const clearTimeout = (id) => { timers = timers.filter((t) => t.id !== id); };\n"
+        "let copyOk = true;\n"
+        "const copied = [];\n"
+        "const copyText = async (text) => { copied.push(text); return copyOk; };\n"
+        "let superCalls = 0;\n"
+        "const SUPER = { disconnectedCallback() { superCalls += 1; } };\n"
+        # Flatten nested templates; event handlers become a marker.
+        "const fmt = (v) => {\n"
+        "  if (Array.isArray(v)) return v.map(fmt).join('');\n"
+        "  if (typeof v === 'function') return '[handler]';\n"
+        "  if (v === null || v === undefined || v === false) return '';\n"
+        "  return String(v);\n"
+        "};\n"
+        "const html = (strings, ...values) =>\n"
+        "  strings.raw.reduce((acc, s, i) => acc + s + (i < values.length ? fmt(values[i]) : ''), '');\n"
+        "function makeBlock(value, opts = {}) {\n"
+        "  const block = {\n"
+        "    value,\n"
+        "    label: 'label' in opts ? opts.label : 'Allowed Values',\n"
+        "    placeholder: 'placeholder' in opts ? opts.placeholder : '',\n"
+        "    hideCopy: opts.hideCopy === true,\n"
+        "    _expanded: false,\n"
+        '    _copyState: "",\n'
+        "    _copyTimer: null,\n"
+        f"    {_methods_as_object_body(src, _JSON_BLOCK_METHODS)}\n"
+        "  };\n"
+        "  /* super.disconnectedCallback() resolves through the prototype. */\n"
+        "  Object.setPrototypeOf(block, SUPER);\n"
+        "  return block;\n"
+        "}\n"
+    )
+
+
+def _collapsed_lines() -> int:
+    """The shipped collapse threshold."""
+    match = re.search(r"^const COLLAPSED_LINES = (\d+);", _read("components/sber-json-block.js"), re.MULTILINE)
+    assert match
+    return int(match.group(1))
+
+
+class TestPayloadDumpsAreNotSilentlyCropped:
+    """Issue #44: a cropped payload was read as malformed JSON."""
+
+    @pytest.mark.parametrize("path", sorted(_relative_js_modules()))
+    def test_no_payload_dump_is_cropped_by_css(self, path):
+        """``max-height`` on a JSON/raw container hides content with no affordance.
+
+        Detection is not by class name alone: ``.viewer { max-height: 500px }``
+        around a payload is the same bug under a name the word list misses.
+        """
+        offenders = _cropped_payload_selectors(path)
+        assert not offenders, (
+            f"{path}: {offenders} bound a payload dump with max-height — mobile "
+            "browsers draw no scrollbar, so the JSON looks truncated and invalid; "
+            "render it through <sber-json-block> instead"
+        )
+
+    def test_the_shared_block_slices_content_instead_of_cropping_it(self):
+        """The collapsed view must really contain less text, not merely show less."""
+        src = _strip_comments(_read("components/sber-json-block.js"))
+        assert "max-height" not in src, (
+            "a CSS crop reintroduces the invisible-scrollbar bug — collapse by "
+            "slicing the text so the hidden part is provably absent"
+        )
+        assert "COLLAPSED_LINES" in src
+
+    @pytest.mark.parametrize("path", sorted(_relative_js_modules()))
+    def test_no_component_pretty_prints_json_into_its_own_template(self, path):
+        """One collapsible block; a private dump would skip the disclosure UI."""
+        offenders = _INLINE_JSON_DUMP.findall(_read(path))
+        assert not offenders, (
+            f"{path}: {offenders} dumps pretty-printed JSON straight into the "
+            "template — use <sber-json-block .value=${...}>"
+        )
+
+    @pytest.mark.parametrize(("path", "count"), JSON_BLOCK_COUNTS)
+    def test_payload_views_render_the_shared_block(self, path, count):
+        src = _read(path)
+        assert src.count("<sber-json-block") == count, f"{path}: expected {count} payload block(s)"
+        assert "./sber-json-block.js${_q}" in src, (
+            f"{path}: renders <sber-json-block> without importing it — the tag "
+            "never upgrades and the payload disappears"
+        )
+
+    @pytest.mark.parametrize(("path", "count", "hide_copy"), JSON_BLOCK_CONSUMERS)
+    def test_copy_buttons_are_not_duplicated_on_a_payload(self, path, count, hide_copy):
+        """``hide-copy`` exactly where the view already offers a copy control.
+
+        Two "Copy" buttons next to one payload copy different things — the
+        section's own button takes the whole report/payload, the block's takes
+        the JSON.  A bug report then arrives with the wrong text attached,
+        which is how issue #44 stayed ambiguous for so long.
+        """
+        tags = _json_block_tags(_read(path))
+        assert len(tags) == count
+        suppressed = [tag for tag in tags if re.search(r"\bhide-copy\b", tag)]
+        assert len(suppressed) == hide_copy, (
+            f"{path}: {len(suppressed)} of {count} payload block(s) hide their copy "
+            f"button, expected {hide_copy} — a view either owns the copy control or "
+            "delegates it to the block, never both"
+        )
+        if hide_copy:
+            assert re.search(r">\s*Copy", _read(path)), (
+                f"{path}: suppresses the block's copy button without offering one itself"
+            )
+
+    def test_devtools_payload_blocks_explain_an_empty_state(self):
+        """The old ``:empty::before`` hint must survive as a placeholder."""
+        tags = _json_block_tags(_read("components/sber-devtools.js"))
+        placeholders = [re.search(r'placeholder="([^"]*)"', tag) for tag in tags]
+        assert all(placeholders), (
+            "a DevTools payload block starts empty — without a placeholder the "
+            "user sees a blank box instead of 'Click the button above to load data'"
+        )
+        assert all("load data" in match.group(1) for match in placeholders if match)
+
+    def test_devtools_composes_the_shared_code_surface(self):
+        """The editor's monospace look now lives only in ``codeSurfaceStyles``."""
+        src = _read("components/sber-devtools.js")
+        assert re.search(r"return \[\s*codeSurfaceStyles\s*,", src), (
+            "DevTools stopped composing codeSurfaceStyles — the editor loses its "
+            "background, monospace font and padding in one silent step"
+        )
+        editors = re.findall(r'<textarea class="([^"]*)"', src)
+        assert editors, "the raw config/state editors must stay <textarea>s"
+        for classes in editors:
+            assert "code-surface" in classes.split(), (
+                f'<textarea class="{classes}"> dropped .code-surface — nothing else styles it now'
+            )
+        editor_rule = next(
+            (body for selector, body in _clipping_rules(src) if selector == ".json-editor"),
+            None,
+        )
+        assert editor_rule is not None
+        for duplicated in ("font-family", "background:"):
+            assert duplicated not in editor_rule, (
+                f".json-editor re-declares {duplicated} — it must come from .code-surface only"
+            )
+
+    def test_the_toggle_is_a_keyboard_operable_disclosure_button(self):
+        """Wave 5 accessibility: the new control must not be mouse-only."""
+        src = _read("components/sber-json-block.js")
+        toggle = re.search(r"<button\b[^>]*aria-expanded[^>]*>", src)
+        assert toggle, "the expand control must be a native <button> (Enter/Space for free)"
+        assert 'aria-controls="code"' in toggle.group(0), "the button must point at the region it expands"
+        assert 'id="code"' in src, "aria-controls needs its target id inside the shadow root"
+        assert 'aria-label="${this.label} payload"' in src, "the payload region needs an accessible name"
+        assert "aria-live=" in src, "the copy outcome must be announced"
+        assert not _clickable_without_keyboard(src), "every click target must have a keyboard path"
+
+    def test_the_shared_code_surface_wraps_long_lines(self):
+        """A horizontal scroll area is invisible on mobile for the same reason."""
+        surface = re.search(r"codeSurfaceStyles = css`(.*?)`;", _read("shared-styles.js"), re.DOTALL)
+        assert surface, "shared-styles.js must own the code surface"
+        body = surface.group(1)
+        assert "white-space: pre-wrap" in body
+        assert "overflow-wrap: anywhere" in body
+        assert "overflow-x" not in body, "long JSON must wrap, not scroll sideways"
+
+    def test_the_code_surface_colours_are_a_locked_pair(self):
+        """A themed background with a fixed foreground is an unreadable payload.
+
+        Home Assistant defines no ``--code-editor-color``, so that half always
+        resolves to the hard-coded light grey, while themes *do* set
+        ``--code-editor-background-color``.  A theme choosing a light editor
+        background would then paint #d4d4d4 on near-white (~1.3:1).  Both
+        colours must therefore come from the same place.
+        """
+        surface = re.search(r"codeSurfaceStyles = css`(.*?)`;", _read("shared-styles.js"), re.DOTALL)
+        assert surface
+        body = _strip_comments(surface.group(1))
+        background = re.search(r"\n\s*background(?:-color)?:\s*([^;]+);", body)
+        color = re.search(r"\n\s*color:\s*([^;]+);", body)
+        assert background, "the code surface must state its background"
+        assert color, "the code surface must state its text colour"
+        assert ("var(" in background.group(1)) == ("var(" in color.group(1)), (
+            f"background {background.group(1)!r} and color {color.group(1)!r} do not "
+            "come from the same source — one follows the theme, the other does not, "
+            "so some theme renders the payload invisible"
+        )
+        assert "var(" not in background.group(1), "HA ships no --code-editor-color companion; keep the pair literal"
+        fade = re.search(
+            r"\.fade \{(.*?)\}",
+            _strip_comments(_read("components/sber-json-block.js")),
+            re.DOTALL,
+        )
+        assert fade, "the clipped view needs its fade"
+        assert background.group(1).strip() in fade.group(1), (
+            "the fade must end on the surface's own background, otherwise the last "
+            "visible line dissolves into a different colour than the block"
+        )
+
+    def test_the_reported_payload_is_long_enough_to_be_collapsed(self):
+        """Guards the fixture: a short payload would make the node tests vacuous."""
+        text = json.dumps(_real_allowed_values(), indent=2)
+        assert len(text.splitlines()) > _collapsed_lines()
+
+    @requires_node
+    def test_expanding_restores_the_whole_payload(self, tmp_path):
+        """The real methods: collapsed slices, expanded is byte-identical JSON."""
+        value = _real_allowed_values()
+        driver = (
+            _json_block_harness() + f"const VALUE = {json.dumps(value)};\n"
+            "const out = {};\n"
+            "const block = makeBlock(VALUE);\n"
+            "const full = JSON.stringify(VALUE, null, 2);\n"
+            "out.fullLines = full.split('\\n').length;\n"
+            "out.truncatable = block.isTruncatable;\n"
+            "out.collapsed = block.visibleText();\n"
+            "out.hidden = block.hiddenLineCount;\n"
+            "const parses = (t) => { try { JSON.parse(t); return true; } catch { return false; } };\n"
+            "out.collapsedParses = parses(out.collapsed);\n"
+            "block._toggle();\n"
+            "out.expanded = block.visibleText();\n"
+            "out.expandedHidden = block.hiddenLineCount;\n"
+            "out.expandedIsFull = out.expanded === full;\n"
+            "out.expandedParses = parses(out.expanded);\n"
+            "block._toggle();\n"
+            "out.recollapsed = block.visibleText() === out.collapsed;\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver)
+        threshold = _collapsed_lines()
+        collapsed_lines = out["collapsed"].split("\n")
+        assert out["truncatable"] is True
+        assert collapsed_lines[:threshold] == json.dumps(value, indent=2).split("\n")[:threshold]
+        assert out["collapsed"].endswith("\n…"), "the clipped view must say it is clipped, in the text itself"
+        assert len(collapsed_lines) == threshold + 1, (
+            f"the collapsed view shows {len(collapsed_lines) - 1} payload lines, not "
+            f"{threshold} — a slice that ignores its own threshold makes the "
+            "'N more lines hidden' note count something else than the block shows"
+        )
+        assert out["hidden"] == out["fullLines"] - threshold
+        # shown + hidden == everything: the note the user reads must add up.
+        assert (len(collapsed_lines) - 1) + out["hidden"] == out["fullLines"], (
+            f"{len(collapsed_lines) - 1} lines on screen + {out['hidden']} announced as "
+            f"hidden != {out['fullLines']} lines of payload"
+        )
+        assert out["collapsedParses"] is False, (
+            "the collapsed slice is genuinely incomplete JSON — precisely why it "
+            "must be labelled instead of hidden behind an invisible scrollbar"
+        )
+        assert out["expandedIsFull"] is True, "expanding must reveal the payload verbatim"
+        assert out["expandedParses"] is True, "the expanded payload must be valid, closing braces and all"
+        assert out["expandedHidden"] == 0
+        assert out["recollapsed"] is True, "collapsing again must return to the short form"
+
+    @requires_node
+    def test_short_payloads_are_shown_whole_without_a_toggle(self, tmp_path):
+        """Boundary: exactly the threshold stays whole, one line more collapses."""
+        threshold = _collapsed_lines()
+        sizes = [0, 1, threshold - 1, threshold, threshold + 1]
+        driver = (
+            _json_block_harness() + "const line = (n) => Array.from({ length: n }, (_, i) => `l${i}`).join('\\n');\n"
+            "const out = {};\n"
+            f"for (const n of {json.dumps(sizes)}) {{\n"
+            "  const block = makeBlock(n === 0 ? '' : line(n));\n"
+            "  out[`n${n}`] = {\n"
+            "    lines: block.lineCount,\n"
+            "    truncatable: block.isTruncatable,\n"
+            "    hidden: block.hiddenLineCount,\n"
+            "    whole: block.visibleText() === block.text,\n"
+            "  };\n"
+            "}\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver)
+        assert out["n0"] == {"lines": 0, "truncatable": False, "hidden": 0, "whole": True}
+        assert out["n1"] == {"lines": 1, "truncatable": False, "hidden": 0, "whole": True}
+        assert out[f"n{threshold - 1}"]["truncatable"] is False
+        assert out[f"n{threshold}"] == {
+            "lines": threshold,
+            "truncatable": False,
+            "hidden": 0,
+            "whole": True,
+        }, "a payload that fits must not grow a pointless 'Show all' button"
+        assert out[f"n{threshold + 1}"] == {
+            "lines": threshold + 1,
+            "truncatable": True,
+            "hidden": 1,
+            "whole": False,
+        }, "one line over the threshold must already announce itself as clipped"
+
+    def test_a_single_hidden_line_is_worded_in_the_singular(self):
+        src = _read("components/sber-json-block.js")
+        assert 'hidden === 1 ? "line" : "lines"' in src, "'1 more lines hidden' reads like a bug"
+
+    @requires_node
+    def test_the_markup_only_signals_hidden_content_when_there_is_some(self, tmp_path):
+        """The shipped ``render()``, executed: every affordance tracks the state.
+
+        A fade over a fully expanded payload is the same false "there is more
+        below" hint the CSS crop gave — just prettier.
+        """
+        value = _real_allowed_values()
+        threshold = _collapsed_lines()
+        driver = (
+            _json_block_harness() + f"const VALUE = {json.dumps(value)};\n"
+            "const out = {};\n"
+            "const line = (n) => Array.from({ length: n }, (_, i) => `l${i}`).join('\\n');\n"
+            "out.emptyWithPlaceholder = makeBlock('', { placeholder: 'Click the button above "
+            "to load data...' }).render();\n"
+            "out.emptyDefault = makeBlock(null).render();\n"
+            "const block = makeBlock(VALUE);\n"
+            "out.collapsed = block.render();\n"
+            "block._toggle();\n"
+            "out.expanded = block.render();\n"
+            f"out.oneHidden = makeBlock(line({threshold + 1})).render();\n"
+            "out.short = makeBlock(line(3)).render();\n"
+            "out.hideCopy = makeBlock(VALUE, { hideCopy: true }).render();\n"
+            "const copying = makeBlock(VALUE);\n"
+            "copying._copyState = 'Copy failed';\n"
+            "out.copying = copying.render();\n"
+            "out.fullLines = JSON.stringify(VALUE, null, 2).split('\\n').length;\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver)
+
+        empty = out["emptyWithPlaceholder"]
+        assert "Click the button above to load data..." in empty, (
+            "an unloaded DevTools payload must explain itself — the old "
+            ":empty::before hint has to survive as the block's placeholder"
+        )
+        assert "<pre" not in empty, "nothing to show means nothing to render as a payload"
+        assert "<button" not in empty, "nothing to show means nothing to expand or copy"
+        assert "No data" in out["emptyDefault"], "a block with no placeholder still needs a word"
+
+        hidden = out["fullLines"] - threshold
+        assert f"Show all {out['fullLines']} lines" in out["collapsed"]
+        assert f"{hidden} more lines hidden" in out["collapsed"]
+        assert 'class="fade"' in out["collapsed"], "the clipped view needs its 'continues below' hint"
+        assert "aria-expanded=false" in out["collapsed"]
+        assert "Copy JSON" in out["collapsed"]
+
+        assert "Collapse" in out["expanded"]
+        assert "aria-expanded=true" in out["expanded"]
+        assert 'class="fade"' not in out["expanded"], (
+            "a fade over a fully shown payload claims there is more text below — "
+            "exactly the illusion issue #44 was filed about"
+        )
+        clip_note = re.compile(r"\d+ more lines? hidden")
+        assert not clip_note.search(out["expanded"]), "nothing is hidden once expanded, so nothing may say so"
+
+        assert "1 more line hidden" in out["oneHidden"], "'1 more lines hidden' reads like a bug"
+
+        assert "<pre" in out["short"], "a short payload is still a payload"
+        assert 'class="fade"' not in out["short"], "nothing is clipped, so nothing may fade out"
+        assert "Show all" not in out["short"], "a payload that fits offers no disclosure control"
+        assert not clip_note.search(out["short"])
+
+        assert "Copy JSON" not in out["hideCopy"], "hide-copy must actually remove the button, not merely dim it"
+        assert "Show all" in out["hideCopy"], "hide-copy must not take the disclosure control with it"
+
+        assert "Copy failed" in out["copying"], "the copy outcome must reach the markup"
+
+    @requires_node
+    def test_copy_always_takes_the_whole_payload(self, tmp_path):
+        """Copying the visible slice would paste JSON that really is broken."""
+        value = _real_allowed_values()
+        driver = (
+            _json_block_harness() + f"const VALUE = {json.dumps(value)};\n"
+            "const out = {};\n"
+            "const block = makeBlock(VALUE);\n"
+            "await block._copy();\n"
+            "out.whileCollapsed = copied.at(-1);\n"
+            "out.stateAfterCopy = block._copyState;\n"
+            "block._toggle();\n"
+            "await block._copy();\n"
+            "out.whileExpanded = copied.at(-1);\n"
+            "out.full = JSON.stringify(VALUE, null, 2);\n"
+            "copyOk = false;\n"
+            "await block._copy();\n"
+            "out.failureState = block._copyState;\n"
+            "out.pendingTimers = timers.length;\n"
+            "timers.at(-1).fn();\n"
+            "out.afterTimeout = block._copyState;\n"
+            "out.timeoutMs = timers.length ? null : COPY_FEEDBACK_MS;\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver)
+        assert out["whileCollapsed"] == out["full"], (
+            "the collapsed block copied only what was on screen — the pasted JSON "
+            "would be the truncated text the bug report was filed about"
+        )
+        assert out["whileExpanded"] == out["full"]
+        assert out["stateAfterCopy"] == "Copied"
+        assert out["failureState"] == "Copy failed", "a silent clipboard failure looks like a successful copy"
+        assert out["pendingTimers"] == 1, (
+            "each copy must replace the previous timer, otherwise the older one wipes the newer message early"
+        )
+        assert out["afterTimeout"] == "", "a stale 'Copy failed' outlives its cause"
+
+    @requires_node
+    def test_disconnect_cancels_the_pending_copy_timer(self, tmp_path):
+        """A timer firing into a detached element is a leak and a stray render."""
+        driver = (
+            _json_block_harness() + "const out = {};\n"
+            "const block = makeBlock({ a: 1 });\n"
+            "await block._copy();\n"
+            "out.beforeDisconnect = timers.length;\n"
+            "block.disconnectedCallback();\n"
+            "out.afterDisconnect = timers.length;\n"
+            "out.handle = block._copyTimer;\n"
+            "out.superCalls = superCalls;\n"
+            "block.disconnectedCallback();\n"
+            "out.idempotent = timers.length;\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver)
+        assert out["beforeDisconnect"] == 1
+        assert out["afterDisconnect"] == 0, "the copy-feedback timer outlived the element"
+        assert out["handle"] is None, "a stale handle would be cleared twice later"
+        assert out["superCalls"] == 1, "LitElement's own disconnect bookkeeping must still run"
+        assert out["idempotent"] == 0
+
+    @requires_node
+    def test_non_object_payloads_survive(self, tmp_path):
+        """Strings pass through; nothing at all renders nothing; cycles do not throw."""
+        driver = (
+            _json_block_harness() + "const out = {};\n"
+            "out.string = makeBlock('{\\n  \"a\": 1\\n}').text;\n"
+            "out.stringLines = makeBlock('{\\n  \"a\": 1\\n}').lineCount;\n"
+            "out.null = makeBlock(null).text;\n"
+            "out.undefined = makeBlock(undefined).text;\n"
+            "out.emptyLines = makeBlock(null).lineCount;\n"
+            "out.emptyTruncatable = makeBlock(null).isTruncatable;\n"
+            "out.emptyString = makeBlock('').lineCount;\n"
+            "out.number = makeBlock(42).text;\n"
+            "const circular = { name: 'loop' };\n"
+            "circular.self = circular;\n"
+            "try { out.circular = makeBlock(circular).text; } catch (e) { out.circular = `threw: ${e.message}`; }\n"
+            "const long = 'x'.repeat(5000);\n"
+            "const oneLine = makeBlock(long);\n"
+            "out.oneLine = { lines: oneLine.lineCount, truncatable: oneLine.isTruncatable,"
+            " whole: oneLine.visibleText() === long };\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver)
+        assert out["string"] == '{\n  "a": 1\n}', "an already-formatted payload must not be re-encoded"
+        assert out["stringLines"] == 3
+        assert out["null"] == ""
+        assert out["undefined"] == ""
+        assert out["emptyLines"] == 0
+        assert out["emptyTruncatable"] is False, "an empty payload must not offer a 'Show all' button"
+        assert out["emptyString"] == 0
+        assert out["number"] == "42"
+        assert not out["circular"].startswith("threw:"), (
+            "a circular payload must not blank the whole dialog: " + out["circular"]
+        )
+        assert out["oneLine"] == {"lines": 1, "truncatable": False, "whole": True}, (
+            "a single very long line is not collapsible — it must be wrapped by CSS, not clipped"
+        )

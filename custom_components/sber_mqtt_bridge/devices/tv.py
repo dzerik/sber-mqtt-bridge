@@ -136,10 +136,6 @@ class TvEntity(BaseEntity):
         self._apply_attr_specs(attrs)
         self.current_state = ha_state.get("state") not in ("off", "standby", "unavailable", "unknown")
 
-    def _has_instance_allowed_values(self) -> bool:
-        """TV source_list varies per device — model_id must be unique."""
-        return bool(self._source_list)
-
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list for TV capabilities.
 
@@ -171,7 +167,7 @@ class TvEntity(BaseEntity):
             }
         return allowed
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with TV attributes.
 
         Returns:

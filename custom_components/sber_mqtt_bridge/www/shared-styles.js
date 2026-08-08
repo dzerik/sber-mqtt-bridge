@@ -139,6 +139,39 @@ export const dialogStyles = css`
   }
 `;
 
+/**
+ * Monospace surface for payload dumps (``sber-json-block``, DevTools editor).
+ *
+ * ``white-space: pre-wrap`` plus ``overflow-wrap: anywhere`` is the load-bearing
+ * part: a long JSON line then wraps instead of opening a horizontal scroll area
+ * that mobile browsers render without a visible scrollbar — which is exactly how
+ * a complete payload came to look like truncated, invalid JSON (issue #44).
+ *
+ * Background and foreground are a **contrast-locked literal pair**, deliberately
+ * not themable.  Home Assistant ships no ``--code-editor-color``, while user
+ * themes do set ``--code-editor-background-color``; taking the background from
+ * the theme and the text from a fixed light grey would put #d4d4d4 on a light
+ * surface (contrast ≈ 1.3:1 — an unreadable payload in the very block that
+ * exists to make payloads readable).  Either both come from the theme or
+ * neither does, and only "neither" is safe here.  ``.fade`` in
+ * ``sber-json-block`` must keep fading to the same literal.
+ */
+export const codeSurfaceStyles = css`
+  .code-surface {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: "Fira Code", "Consolas", "Monaco", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    margin: 0;
+  }
+`;
+
 /** Search/filter text input used above lists and tables. */
 export const filterInputStyles = css`
   .filter-input {

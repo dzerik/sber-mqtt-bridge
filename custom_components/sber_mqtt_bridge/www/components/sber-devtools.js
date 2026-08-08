@@ -12,9 +12,12 @@
  * forwards it to vendor/lit.js).  Static imports would drop the query and
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
+await import(`./sber-json-block.js${_q}`);
+
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { messageBus } = await import(`../message-bus.js${_q}`);
 const { copyText } = await import(`../utils.js${_q}`);
+const { codeSurfaceStyles } = await import(`../shared-styles.js${_q}`);
 
 class SberDevtools extends LitElement {
   static get properties() {
@@ -221,7 +224,7 @@ class SberDevtools extends LitElement {
   /* ---------- styles ---------- */
 
   static get styles() {
-    return css`
+    return [codeSurfaceStyles, css`
       :host {
         display: block;
       }
@@ -319,33 +322,15 @@ class SberDevtools extends LitElement {
         opacity: 0.85;
       }
 
-      .json-viewer {
-        background: #1e1e1e;
-        color: #d4d4d4;
-        border-radius: 8px;
-        padding: 12px;
-        overflow-x: auto;
-        max-height: 500px;
-        overflow-y: auto;
-        font-family: "Fira Code", "Consolas", "Monaco", monospace;
-        font-size: 12px;
-        line-height: 1.5;
-        white-space: pre-wrap;
-        word-break: break-all;
-      }
-
+      /* Composes .code-surface from shared-styles.js; only the editor's own
+       * box model lives here.  A textarea keeps a native scrollbar and the
+       * caret to prove there is more text, so bounding its height does not
+       * mislead the way a cropped read-only dump did (issue #44). */
       .json-editor {
         width: 100%;
         min-height: 120px;
         max-height: 300px;
-        background: #1e1e1e;
-        color: #d4d4d4;
         border: 1px solid var(--divider-color, #555);
-        border-radius: 8px;
-        padding: 12px;
-        font-family: "Fira Code", "Consolas", "Monaco", monospace;
-        font-size: 12px;
-        line-height: 1.5;
         resize: vertical;
         margin-top: 8px;
         box-sizing: border-box;
@@ -356,12 +341,6 @@ class SberDevtools extends LitElement {
         justify-content: flex-end;
         margin-top: 8px;
         gap: 8px;
-      }
-
-      .json-viewer:empty::before {
-        content: "Click the button above to load data...";
-        color: #666;
-        font-style: italic;
       }
 
       .collapsible-content {
@@ -475,7 +454,7 @@ class SberDevtools extends LitElement {
         overflow-y: auto;
         border-radius: 8px;
       }
-    `;
+    `];
   }
 
   /* ---------- render ---------- */
@@ -527,8 +506,13 @@ class SberDevtools extends LitElement {
         </div>
         ${this._configError ? html`<div class="error-text">${this._configError}</div>` : ""}
         ${this._configOpen ? html`
-          <div class="json-viewer">${this._configPayload}</div>
-          <textarea class="json-editor"
+          <sber-json-block
+            label="Raw config payload"
+            hide-copy
+            placeholder="Click the button above to load data..."
+            .value=${this._configPayload}
+          ></sber-json-block>
+          <textarea class="json-editor code-surface"
             .value=${this._configEditable}
             @input=${(e) => { this._configEditable = e.target.value; }}
             placeholder="Edit JSON and click Send to publish to Sber..."></textarea>
@@ -576,8 +560,13 @@ class SberDevtools extends LitElement {
         </div>
         ${this._statesError ? html`<div class="error-text">${this._statesError}</div>` : ""}
         ${this._statesOpen ? html`
-          <div class="json-viewer">${this._statesPayload}</div>
-          <textarea class="json-editor"
+          <sber-json-block
+            label="Raw state payload"
+            hide-copy
+            placeholder="Click the button above to load data..."
+            .value=${this._statesPayload}
+          ></sber-json-block>
+          <textarea class="json-editor code-surface"
             .value=${this._statesEditable}
             @input=${(e) => { this._statesEditable = e.target.value; }}
             placeholder="Edit JSON and click Send to publish to Sber..."></textarea>

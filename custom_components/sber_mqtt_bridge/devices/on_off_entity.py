@@ -1,7 +1,7 @@
 """Base class for Sber on/off entities (relay, socket).
 
 Provides shared implementations of ``fill_by_ha_state``, ``_create_features_list``,
-and ``to_sber_current_state`` for devices that expose a simple on/off state
+and ``_build_current_state`` for devices that expose a simple on/off state
 via the Sber ``on_off`` feature.
 
 Supports optional ``power``, ``voltage``, and ``current`` features when the
@@ -153,7 +153,7 @@ class OnOffEntity(BaseEntity):
             features.append("child_lock")
         return features
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with online, on_off, energy, and child_lock.
 
         Returns:

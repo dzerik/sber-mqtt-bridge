@@ -65,14 +65,14 @@ class MotionSensorEntity(TamperAlarmMuteMixin, SimpleReadOnlySensor):
         """
         return "pir" if self.motion_detected else ""
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber state, omitting pir key when no motion detected.
 
         PIR is event-based per Sber spec: only emit ``pir`` on motion,
         omit the key entirely when idle.
         """
         # Use parent implementation for online, battery, signal
-        result = super().to_sber_current_state()
+        result = super()._build_current_state()
         entity_states = result[self.entity_id]["states"]
 
         if not self.motion_detected:

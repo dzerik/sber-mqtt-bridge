@@ -63,7 +63,7 @@ class IntercomEntity(OnOffEntity):
             "unlock",
         ]
 
-    def to_sber_current_state(self) -> dict[str, dict]:
+    def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with intercom attributes.
 
         Per the Sber spec, ``reject_call`` and ``unlock`` are command-only
@@ -74,7 +74,7 @@ class IntercomEntity(OnOffEntity):
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
-        base = super().to_sber_current_state()
+        base = super()._build_current_state()
         states = base[self.entity_id]["states"]
         states.append(make_state(SberFeature.INCOMING_CALL, make_bool_value(self._incoming_call)))
         return base
