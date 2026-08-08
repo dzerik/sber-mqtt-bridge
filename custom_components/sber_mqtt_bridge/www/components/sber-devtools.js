@@ -4,19 +4,23 @@
  * Three collapsible sections:
  * 1. Raw Config Payload — JSON sent to up/config
  * 2. Raw State Payload — JSON sent to up/status
- * 3. MQTT Message Log — real-time ring buffer of last 50 messages
+ * 3. MQTT Message Log — real-time ring buffer, fed by the shared
+ *    ``message-bus.js`` subscription (also consumed by sber-replay)
  */
 
-import { LitElement, html, css } from "../lit-base.js";
-
-/** Hard cap on the live MQTT message buffer (the backend ring buffer is
- * configurable and the live feed appends indefinitely otherwise). */
-const MAX_MESSAGES = 500;
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { messageBus } = await import(`../message-bus.js${_q}`);
+const { copyText } = await import(`../utils.js${_q}`);
 
 class SberDevtools extends LitElement {
   static get properties() {
     return {
       hass: { type: Object },
+      bus: { type: Object },
       _configPayload: { type: String },
       _statesPayload: { type: String },
       _messages: { type: Array },
@@ -53,7 +57,8 @@ class SberDevtools extends LitElement {
     this._sendingConfig = false;
     this._sendingStates = false;
     this._msgUnsub = null;
-    this._subscribing = false;
+    /** Shared live feed — one WS subscription for the whole panel. */
+    this.bus = messageBus;
   }
 
   connectedCallback() {
@@ -73,34 +78,17 @@ class SberDevtools extends LitElement {
     if (changedProps.has("hass") && this.hass) this._subscribeMessages();
   }
 
-  async _subscribeMessages() {
-    if (this._msgUnsub || this._subscribing) return;
-    this._subscribing = true;
-    try {
-      const unsub = await this.hass.connection.subscribeMessage(
-        (event) => {
-          if (event.snapshot) {
-            this._messages = event.snapshot.slice(-MAX_MESSAGES);
-          } else if (event.message) {
-            const appended = [...this._messages, event.message];
-            this._messages =
-              appended.length > MAX_MESSAGES ? appended.slice(-MAX_MESSAGES) : appended;
-          }
-        },
-        { type: "sber_mqtt_bridge/subscribe_messages" }
-      );
-      if (!this.isConnected) {
-        /* Detached while the subscribe round-trip was in flight — drop it
-         * immediately, otherwise it leaks past disconnectedCallback. */
-        unsub();
-        return;
+  _subscribeMessages() {
+    if (this._msgUnsub || !this.bus || !this.hass) return;
+    this._msgUnsub = this.bus.subscribe(
+      this.hass,
+      (messages) => {
+        this._messages = messages;
+      },
+      (err) => {
+        this._logError = err.message || String(err);
       }
-      this._msgUnsub = unsub;
-    } catch (e) {
-      this._logError = e.message || String(e);
-    } finally {
-      this._subscribing = false;
-    }
+    );
   }
 
   _unsubscribeMessages() {
@@ -109,6 +97,7 @@ class SberDevtools extends LitElement {
       this._msgUnsub = null;
     }
   }
+
 
   /* ---------- data ---------- */
 
@@ -146,7 +135,9 @@ class SberDevtools extends LitElement {
     if (!this.hass) return;
     try {
       const result = await this.hass.callWS({ type: "sber_mqtt_bridge/message_log" });
-      this._messages = result.messages || [];
+      /* Publish through the bus so every consumer of the shared feed
+       * (Replay) sees the same buffer instead of drifting apart. */
+      this.bus.replace(result.messages || []);
       this._logError = "";
     } catch (e) {
       this._logError = e.message || String(e);
@@ -156,7 +147,7 @@ class SberDevtools extends LitElement {
   async _clearLog() {
     try {
       await this.hass.callWS({ type: "sber_mqtt_bridge/clear_message_log" });
-      this._messages = [];
+      this.bus.clear();
       this._logError = "";
     } catch (e) {
       this._logError = e.message || String(e);
@@ -197,31 +188,15 @@ class SberDevtools extends LitElement {
     }
   }
 
-  _copyToClipboard(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(
-        () => this._toast("Copied to clipboard", "success"),
-        () => this._fallbackCopy(text),
-      );
-    } else {
-      this._fallbackCopy(text);
-    }
-  }
-
-  _fallbackCopy(text) {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand("copy");
-      this._toast("Copied to clipboard", "success");
-    } catch {
-      this._toast("Copy failed", "error");
-    }
-    document.body.removeChild(ta);
+  /**
+   * Copy text and report the outcome through the panel toast.
+   *
+   * @param {string} text - Text to copy.
+   * @param {string} [label] - Success message.
+   */
+  async _copy(text, label = "Copied to clipboard") {
+    const ok = await copyText(text);
+    this._toast(ok ? label : "Copy failed", ok ? "success" : "error");
   }
 
   _toast(message, type) {
@@ -236,24 +211,6 @@ class SberDevtools extends LitElement {
     const d = new Date(ts * 1000);
     return d.toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
       + "." + String(d.getMilliseconds()).padStart(3, "0");
-  }
-
-  async _copyPayload(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-      this.dispatchEvent(new CustomEvent("devtools-toast", {
-        detail: { message: "Payload copied", type: "success" },
-        bubbles: true, composed: true,
-      }));
-    } catch {
-      // Fallback for non-HTTPS contexts
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-    }
   }
 
   _truncate(str, maxLen = 120) {
@@ -562,7 +519,7 @@ class SberDevtools extends LitElement {
             </button>
             ${this._configPayload ? html`
               <button class="btn-secondary"
-                @click=${() => this._copyToClipboard(this._configPayload)}>
+                @click=${() => this._copy(this._configPayload)}>
                 Copy
               </button>
             ` : ""}
@@ -611,7 +568,7 @@ class SberDevtools extends LitElement {
             </button>
             ${this._statesPayload ? html`
               <button class="btn-secondary"
-                @click=${() => this._copyToClipboard(this._statesPayload)}>
+                @click=${() => this._copy(this._statesPayload)}>
                 Copy
               </button>
             ` : ""}
@@ -680,7 +637,7 @@ class SberDevtools extends LitElement {
                       <td class="topic-cell" title="${m.topic}">${m.topic}</td>
                       <td class="payload-cell" title="${m.payload}">
                         ${this._truncate(m.payload)}
-                        <button class="copy-btn" @click=${() => this._copyPayload(m.payload)} title="Copy payload">\u{1F4CB}</button>
+                        <button class="copy-btn" @click=${() => this._copy(m.payload, "Payload copied")} title="Copy payload">\u{1F4CB}</button>
                       </td>
                     </tr>
                   `)}

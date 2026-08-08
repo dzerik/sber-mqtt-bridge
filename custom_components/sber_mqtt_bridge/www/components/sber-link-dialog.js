@@ -6,24 +6,13 @@
  * Fires "links-saved" event when links are updated.
  */
 
-import { LitElement, html, css } from "../lit-base.js";
-
-/**
- * Resolve the element that really has focus, descending into shadow roots.
- *
- * ``document.activeElement`` only reports the outermost custom element, so a
- * naive capture would restore focus to the panel host instead of the button
- * the user actually activated.
- *
- * @returns {Element|null} Deepest focused element.
- */
-function deepActiveElement() {
-  let el = document.activeElement;
-  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
-    el = el.shadowRoot.activeElement;
-  }
-  return el;
-}
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { deepActiveElement } = await import(`../utils.js${_q}`);
+const { dialogStyles, buttonStyles } = await import(`../shared-styles.js${_q}`);
 
 class SberLinkDialog extends LitElement {
   static get properties() {
@@ -224,40 +213,8 @@ class SberLinkDialog extends LitElement {
   }
 
   static get styles() {
-    return css`
-      :host { display: none; }
-      :host([open]) { display: block; }
-
-      .overlay {
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.5); z-index: 999;
-        display: flex; align-items: center; justify-content: center;
-      }
-      .dialog {
-        background: var(--card-background-color, #fff);
-        border-radius: var(--ha-card-border-radius, 12px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-        width: 92%; max-width: 560px; max-height: 80vh;
-        display: flex; flex-direction: column; overflow: hidden;
-      }
-      .dialog-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 16px 20px; border-bottom: 1px solid var(--divider-color, #e0e0e0);
-      }
-      .dialog-header h2 { margin: 0; font-size: 18px; font-weight: 500; }
-      .close-btn {
-        background: none; border: none; font-size: 20px; cursor: pointer;
-        color: var(--secondary-text-color); padding: 4px 8px; border-radius: 4px;
-      }
-      .close-btn:hover { background: var(--secondary-background-color, #eee); }
-      .close-btn:focus-visible,
-      .btn:focus-visible,
-      input:focus-visible,
-      .dialog:focus-visible {
-        outline: 2px solid var(--primary-color, #03a9f4);
-        outline-offset: 2px;
-      }
-      .body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+    return [dialogStyles, buttonStyles, css`
+      .dialog { width: 92%; max-width: 560px; max-height: 80vh; }
       .info {
         font-size: 13px; color: var(--secondary-text-color); margin-bottom: 12px;
       }
@@ -291,19 +248,10 @@ class SberLinkDialog extends LitElement {
       }
       .error-text { color: var(--error-color, #f44336); }
       .empty { text-align: center; padding: 24px; color: var(--secondary-text-color); font-style: italic; }
-      .dialog-footer {
-        display: flex; align-items: center; justify-content: flex-end;
-        padding: 12px 20px; border-top: 1px solid var(--divider-color, #e0e0e0); gap: 8px;
-      }
-      .btn {
-        padding: 8px 16px; border: none; border-radius: 8px;
-        font-size: 13px; font-weight: 500; cursor: pointer;
-      }
-      .btn-primary { background: var(--primary-color); color: #fff; }
-      .btn-primary:hover { opacity: 0.85; }
-      .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-      .btn-secondary { background: var(--secondary-background-color, #eee); color: var(--primary-text-color); }
-    `;
+      /* Cancel + Save sit together on the right, unlike the wizard's
+       * Back/Next split, so the shared footer's spacing is overridden. */
+      .dialog-footer { justify-content: flex-end; }
+    `];
   }
 
   render() {

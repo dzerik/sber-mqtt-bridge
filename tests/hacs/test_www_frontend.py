@@ -10,10 +10,22 @@ the outside:
   never from a hand-maintained copy that silently drifts from
   :data:`sber_entity_map.OVERRIDABLE_CATEGORIES`.
 * **Live subscriptions** — DevTools components must re-subscribe after a
-  detach/re-attach cycle instead of dying silently.
+  detach/re-attach cycle instead of dying silently, and the broadcast
+  message feed must be multiplexed through a single WS subscription.
+* **Advisory validation** — the wizard may warn about a name, never refuse
+  one the backend would publish (``name_utils`` only logs).
+* **Partial batches** — a half-failed multi-add reports per-entity outcomes
+  and retries only what failed.
+* **Synchronisation** — mutations are confirmed by polling the backend, not
+  by sleeping a fixed 1.5 s and hoping.
 * **Accessibility** — clickable non-button elements must be reachable by
-  keyboard.
+  keyboard; no native ``confirm()``/``alert()``.
 * **Syntax** — every shipped module parses.
+
+Several checks execute the shipped code in node — either the whole module
+(``utils.js``, ``message-bus.js``, ``lit-base.js`` are dependency-free) or a
+single method lifted out of a LitElement class — so they assert behaviour
+rather than a paraphrase of it.
 """
 
 from __future__ import annotations
@@ -48,6 +60,36 @@ def _read(rel: str) -> str:
 def _js_modules() -> list[Path]:
     """Every first-party module shipped in ``www`` (vendored lit excluded)."""
     return sorted(p for p in WWW.rglob("*.js") if "vendor" not in p.parts)
+
+
+def _strip_comments(src: str) -> str:
+    """Drop ``/* */`` and ``//`` comments so prose is not mistaken for code."""
+    without_block = re.sub(r"/\*.*?\*/", "", src, flags=re.DOTALL)
+    return "\n".join(re.sub(r"(?<![:\w])//.*$", "", line) for line in without_block.splitlines())
+
+
+def _strip_media_blocks(src: str) -> str:
+    """Remove ``@media`` blocks — responsive overrides are not duplicates."""
+    out: list[str] = []
+    index = 0
+    while True:
+        start = src.find("@media", index)
+        if start == -1:
+            out.append(src[index:])
+            return "".join(out)
+        out.append(src[index:start])
+        depth = 0
+        cursor = src.index("{", start)
+        for i in range(cursor, len(src)):
+            if src[i] == "{":
+                depth += 1
+            elif src[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    index = i + 1
+                    break
+        else:  # pragma: no cover - unbalanced source would fail the parse test
+            return "".join(out)
 
 
 # --------------------------------------------------------------------------- #
@@ -230,6 +272,16 @@ SUBSCRIBING_COMPONENTS = [
     ("sber-validation.js", "_subscribe", "_unsubscribe"),
 ]
 
+# Components that own their WS subscription directly.  DevTools and Replay
+# share one through ``message-bus.js``, which carries the guards instead.
+OWN_SUBSCRIPTION_COMPONENTS = [
+    ("sber-traces.js", "_subscribe"),
+    ("sber-state-diff.js", "_subscribe"),
+    ("sber-validation.js", "_subscribe"),
+]
+
+BUS_CONSUMERS = ["sber-devtools.js", "sber-replay.js"]
+
 
 class TestSubscriptionLifecycle:
     """Every subscribing component must re-subscribe when re-attached."""
@@ -252,8 +304,8 @@ class TestSubscriptionLifecycle:
         src = (COMPONENTS / name).read_text(encoding="utf-8")
         assert "_hassReady" not in src, f"{name}: the one-shot _hassReady guard permanently blocks re-subscription"
 
-    @pytest.mark.parametrize(("name", "sub", "unsub"), SUBSCRIBING_COMPONENTS)
-    def test_subscribe_is_reentrancy_safe(self, name, sub, unsub):
+    @pytest.mark.parametrize(("name", "sub"), OWN_SUBSCRIPTION_COMPONENTS)
+    def test_subscribe_is_reentrancy_safe(self, name, sub):
         """``updated()`` fires on every hass mutation — one subscription only."""
         src = (COMPONENTS / name).read_text(encoding="utf-8")
         body = _method_body(src, sub)
@@ -263,29 +315,60 @@ class TestSubscriptionLifecycle:
             f"{name}: {sub} must drop the subscription if the element detached while the round-trip was in flight"
         )
 
-    @pytest.mark.parametrize(("name", "sub", "unsub"), SUBSCRIBING_COMPONENTS)
-    def test_live_buffer_is_capped(self, name, sub, unsub):
+    @pytest.mark.parametrize(("name", "sub"), OWN_SUBSCRIPTION_COMPONENTS)
+    def test_live_buffer_is_capped(self, name, sub):
         """Unbounded live buffers grow forever on a long-open DevTools tab."""
         body = _method_body((COMPONENTS / name).read_text(encoding="utf-8"), sub)
         assert body is not None
         assert ".slice(-MAX_" in body, f"{name}: live appends must be capped"
 
 
-def _method_body(src: str, name: str) -> str | None:
-    """Return the brace-balanced body of a class method, or ``None``."""
-    match = re.search(rf"^  (?:async )?{re.escape(name)}\([^)]*\) \{{$", src, re.MULTILINE)
+def _method_span(src: str, name: str) -> tuple[int, int, int] | None:
+    """Locate a class method or getter.
+
+    Returns:
+        ``(signature_start, body_open_brace, body_end)`` or ``None``.
+        The opening brace is taken from the end of the signature line, so
+        destructured parameters (``{ timeout = ... } = {}``) do not throw
+        the brace counter off.
+    """
+    match = re.search(
+        rf"^  (?:async |get )?{re.escape(name)}\(.*\) \{{$",
+        src,
+        re.MULTILINE,
+    )
     if match is None:
         return None
     depth = 0
-    start = src.index("{", match.start())
+    start = match.end() - 1
     for i in range(start, len(src)):
         if src[i] == "{":
             depth += 1
         elif src[i] == "}":
             depth -= 1
             if depth == 0:
-                return src[start : i + 1]
+                return match.start(), start, i + 1
     return None
+
+
+def _method_body(src: str, name: str) -> str | None:
+    """Return the brace-balanced body of a class method, or ``None``."""
+    span = _method_span(src, name)
+    if span is None:
+        return None
+    return src[span[1] : span[2]]
+
+
+def _method_source(src: str, name: str) -> str:
+    """Return a method verbatim (signature + body), ready to paste into a literal.
+
+    Used to execute a shipped method in node without instantiating the
+    whole LitElement — the test then checks real behaviour, not a
+    paraphrase of it.
+    """
+    span = _method_span(src, name)
+    assert span is not None, f"method {name} not found"
+    return src[span[0] : span[2]].strip()
 
 
 # Native elements already handle Enter/Space; ``.overlay`` is a backdrop whose
@@ -295,6 +378,20 @@ _BACKDROP_CLASS = 'class="overlay"'
 # A dialog container's @click only stops backdrop propagation — it is not a
 # control, so it needs no keyboard activation of its own.
 _NON_ACTIVATING = 'role="dialog"'
+
+
+def _exported_names(src: str) -> set[str]:
+    """Return the names a ``www`` module exports (declarations + destructures)."""
+    exported: set[str] = set()
+    for match in re.finditer(
+        r"^export (?:async )?(?:function|const|class)\s+([A-Za-z_$][\w$]*)",
+        src,
+        re.MULTILINE,
+    ):
+        exported.add(match.group(1))
+    for match in re.finditer(r"^export const \{([^}]+)\} =", src, re.MULTILINE):
+        exported.update(name.strip() for name in match.group(1).split(",") if name.strip())
+    return exported
 
 
 def _relative_js_modules() -> list[str]:
@@ -420,3 +517,1591 @@ class TestModulesParse:
         # sber-entity-row / sber-detail-dialog are imported by sber-device-table.
         missing = {tag for tag in rendered if tag not in imported}
         assert not missing, f"rendered but not imported by sber-panel.js: {sorted(missing)}"
+
+
+# Every element the panel must have registered by the time it is loaded.
+EXPECTED_ELEMENTS = {
+    "sber-detail-dialog",
+    "sber-device-table",
+    "sber-devtools",
+    "sber-diagnose",
+    "sber-entity-row",
+    "sber-link-dialog",
+    "sber-mqtt-panel",
+    "sber-replay",
+    "sber-settings",
+    "sber-state-diff",
+    "sber-stats-grid",
+    "sber-status-card",
+    "sber-toast",
+    "sber-toolbar",
+    "sber-traces",
+    "sber-validation",
+    "sber-wizard",
+}
+
+# Enough of a DOM for lit and the components to evaluate.  Not a rendering
+# environment — just enough that every module body actually runs.
+_DOM_SHIM = """
+globalThis.HTMLElement = class {
+  attachShadow() {
+    return { activeElement: null, querySelector: () => null, querySelectorAll: () => [] };
+  }
+};
+globalThis.Document = class {};
+globalThis.Node = class {};
+globalThis.Element = class {};
+globalThis.DocumentFragment = class {};
+globalThis.ShadowRoot = class {};
+globalThis.CSSStyleSheet = class { replaceSync() {} };
+globalThis.customElements = {
+  define: (name) => { (globalThis.__defined ||= []).push(name); },
+  get: () => undefined,
+};
+globalThis.document = {
+  activeElement: null,
+  adoptedStyleSheets: [],
+  createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, content: {}, innerHTML: "" }),
+  createTreeWalker: () => ({}),
+  createComment: () => ({}),
+  createTextNode: () => ({}),
+  addEventListener() {},
+  removeEventListener() {},
+  head: { appendChild() {} },
+  body: { appendChild() {}, removeChild() {} },
+};
+globalThis.window = globalThis;
+globalThis.getComputedStyle = () => ({});
+"""
+
+
+class TestModuleGraphLinks:
+    """The shipped modules must actually link and register their elements.
+
+    ``node --check`` only parses.  This evaluates the whole graph the way
+    the browser does — through ``sber-panel.js`` with a ``?v=`` query — so a
+    named import that no longer exists, a circular dependency or a module
+    that throws on load fails here instead of in the user's browser
+    console.
+    """
+
+    @requires_node
+    def test_loading_the_panel_registers_every_component(self, tmp_path):
+        driver = (
+            _DOM_SHIM + "const out = { failures: [] };\n"
+            f"const entry = {json.dumps((WWW / 'sber-panel.js').as_posix())};\n"
+            'try { await import(entry + "?v=1.2.3"); }\n'
+            "catch (e) { out.failures.push(String(e && e.message)); }\n"
+            "out.defined = (globalThis.__defined || []).sort();\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver)
+        assert out["failures"] == [], f"the panel's import graph does not link: {out['failures']}"
+        assert set(out["defined"]) == EXPECTED_ELEMENTS, (
+            f"registered {sorted(set(out['defined']) ^ EXPECTED_ELEMENTS)} unexpectedly"
+        )
+        assert len(out["defined"]) == len(set(out["defined"])), (
+            f"an element was defined twice — a duplicated module instance: {out['defined']}"
+        )
+
+    @pytest.mark.parametrize("path", sorted(_relative_js_modules()))
+    def test_every_destructured_import_name_exists(self, path):
+        """``const { x } = await import(...)`` yields ``undefined`` for a typo.
+
+        Unlike a static ``import { x } from``, destructuring a dynamic import
+        never fails at link time — the name is simply ``undefined`` and the
+        component dies later somewhere unrelated.  Check the target's
+        exports here instead.
+        """
+        src = _read(path)
+        base = (WWW / path).parent
+        imports = re.findall(r"const \{([^}]+)\} = await import\(`([^`$]+)\$\{_q\}`\)", src)
+        for names, spec in imports:
+            target = (base / spec).resolve()
+            assert target.is_file(), f"{path}: imports {spec}, which does not exist"
+            exported = _exported_names(target.read_text(encoding="utf-8"))
+            wanted = {name.strip() for name in names.split(",") if name.strip()}
+            missing = sorted(wanted - exported)
+            assert not missing, (
+                f"{path}: {spec} does not export {missing} — the dynamic import "
+                f"silently binds them to undefined (exports: {sorted(exported)})"
+            )
+
+
+# --------------------------------------------------------------------------- #
+# Salut name gate is advisory, not blocking
+# --------------------------------------------------------------------------- #
+
+
+def _run_node(tmp_path: Path, driver: str, *, extra_files: dict[str, str] | None = None) -> object:
+    """Write ``driver.mjs`` (plus helpers) into ``tmp_path`` and run it.
+
+    Returns:
+        The JSON printed by the driver on stdout.
+    """
+    for name, content in (extra_files or {}).items():
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+    (tmp_path / "driver.mjs").write_text(driver, encoding="utf-8")
+    proc = subprocess.run(  # noqa: S603
+        [NODE, str(tmp_path / "driver.mjs")],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
+    return json.loads(proc.stdout)
+
+
+# (name, expected advice level) — "" means "no remark at all".
+NAME_ADVICE_CASES: list[tuple[str, str]] = [
+    ("Лампа кухня", ""),
+    ("Смарт-телевизор", ""),
+    # Latin names are what the wizard used to refuse outright.
+    ("Living Room Lamp", "info"),
+    ("Lamp", "info"),
+    # Too short for Salut, still perfectly publishable.
+    ("Лк", "info"),
+    ("", "warn"),
+    ("а" * 64, "warn"),
+]
+
+
+class TestNameGateIsAdvisory:
+    """The wizard must not refuse names the backend would happily publish.
+
+    ``name_utils.warn_if_suspicious_name`` only logs, so a hard UI gate
+    diverges from the actual contract.
+    """
+
+    @requires_node
+    def test_name_advice_levels(self, tmp_path):
+        """Execute the shipped ``_nameAdvice`` and check its verdicts."""
+        method = _method_source(_read("components/sber-wizard.js"), "_nameAdvice")
+        driver = (
+            'import { isValidSalutName } from "./utils.mjs";\n'
+            f"const wizard = {{ {method} }};\n"
+            f"const cases = {json.dumps([name for name, _ in NAME_ADVICE_CASES])};\n"
+            "console.log(JSON.stringify(cases.map((c) => wizard._nameAdvice(c))));\n"
+        )
+        results = _run_node(tmp_path, driver, extra_files={"utils.mjs": _read("utils.js")})
+        for (name, expected), advice in zip(NAME_ADVICE_CASES, results, strict=True):
+            assert advice["level"] == expected, f"{name!r}: got {advice}"
+            if expected:
+                assert advice["text"], f"{name!r}: an advisory level needs an explanation"
+
+    @requires_node
+    def test_advice_never_reports_a_blocking_level(self, tmp_path):
+        """Only "" / "info" / "warn" exist — no level the footer could gate on."""
+        method = _method_source(_read("components/sber-wizard.js"), "_nameAdvice")
+        driver = (
+            'import { isValidSalutName } from "./utils.mjs";\n'
+            f"const wizard = {{ {method} }};\n"
+            "const probes = ['', 'x', 'Лампа', 'Living Room', 'a'.repeat(200), '💡'];\n"
+            "console.log(JSON.stringify(probes.map((p) => wizard._nameAdvice(p).level)));\n"
+        )
+        levels = _run_node(tmp_path, driver, extra_files={"utils.mjs": _read("utils.js")})
+        assert set(levels) <= {"", "info", "warn"}, levels
+
+    def test_finish_button_is_not_gated_by_name_validity(self):
+        """``canFinish`` must not consult the Salut validator."""
+        footer = _method_body(_read("components/sber-wizard.js"), "_renderFooter")
+        assert footer is not None
+        assert "isValidSalutName" not in footer, (
+            "_renderFooter gates Finish on the Salut pattern again — the backend "
+            "publishes Latin names, so the wizard must only advise"
+        )
+        assert "canFinish" in footer
+        assert "this._loading" in footer, "Finish must still be disabled while a submit is in flight"
+
+    def test_submit_does_not_bail_out_on_a_non_salut_name(self):
+        """``_finish`` must not return early because of the name pattern."""
+        body = _method_body(_read("components/sber-wizard.js"), "_finish")
+        assert body is not None
+        assert "isValidSalutName" not in body, (
+            "_finish refuses to send non-Salut names again — that contradicts "
+            "name_utils.warn_if_suspicious_name, which only logs"
+        )
+
+    def test_name_field_is_not_marked_invalid(self):
+        """``aria-invalid``/``.invalid`` would announce an error that isn't one."""
+        src = _read("components/sber-wizard.js")
+        form = _method_body(src, "_renderPrimaryForm")
+        assert form is not None
+        assert "aria-invalid" not in form, "an advisory remark must not be announced as an error"
+        assert "_nameAdvice" in form, "the form must render the advisory hint"
+
+
+# --------------------------------------------------------------------------- #
+# Multi-add: partial success is reported, never silently retried
+# --------------------------------------------------------------------------- #
+
+
+def _methods_as_object_body(src: str, names: list[str]) -> str:
+    """Splice shipped class methods into an object-literal body.
+
+    Getters, ``async`` methods and plain methods all keep their original
+    syntax inside an object literal, so the executed code is byte-for-byte
+    what ships — no paraphrase, no re-implementation.
+    """
+    return ",\n".join(_method_source(src, name) for name in names) + ","
+
+
+_WIZARD_METHODS = ["_pendingPrimaries", "_finish", "_emitComplete"]
+
+# A fake wizard carrying the real _finish/_emitComplete/_pendingPrimaries.
+# ``shouldFail(msg)`` returns an error string to reject that call, or null.
+_WIZARD_HARNESS = """
+function makeWizard(shouldFail) {
+  const wizard = {
+    calls: [],
+    events: [],
+    hidden: false,
+    _devices: [{ device_id: "dev1", primary: { entity_id: "switch.a" } }],
+    _selectedDeviceId: "dev1",
+    _selectedCategory: "socket",
+    _selectedPrimaries: ["switch.a", "switch.b", "switch.c"],
+    _perPrimary: {
+      "switch.a": { name: "A", room: "Kitchen" },
+      "switch.b": { name: "B", room: "Kitchen" },
+      "switch.c": { name: "C", room: "Hall" },
+    },
+    _enabledLinks: new Set(["sensor.batt"]),
+    _added: new Set(),
+    _failed: [],
+    _linksAttached: false,
+    _loading: false,
+    _error: "",
+    hass: {
+      callWS: async (msg) => {
+        wizard.calls.push(msg);
+        const reason = shouldFail(msg);
+        if (reason) throw new Error(reason);
+        return {};
+      },
+    },
+    hide() { wizard.hidden = true; },
+    dispatchEvent(event) { wizard.events.push(event.detail); },
+    __METHODS__
+  };
+  return wizard;
+}
+
+function snapshot(wizard) {
+  return {
+    sent: wizard.calls.map((c) => c.primary_entity_id),
+    links: wizard.calls.map((c) => c.linked_entity_ids),
+    names: wizard.calls.map((c) => c.name),
+    rooms: wizard.calls.map((c) => c.room),
+    added: [...wizard._added],
+    failed: wizard._failed,
+    hidden: wizard.hidden,
+    error: wizard._error,
+    loading: wizard._loading,
+    /* Copy: the caller resets wizard.events between rounds. */
+    events: [...wizard.events],
+  };
+}
+"""
+
+
+def _run_wizard_scenario(tmp_path: Path, body: str) -> dict:
+    """Execute ``body`` against the shipped wizard batch methods in node."""
+    harness = _WIZARD_HARNESS.replace(
+        "__METHODS__",
+        _methods_as_object_body(_read("components/sber-wizard.js"), _WIZARD_METHODS),
+    )
+    return _run_node(tmp_path, harness + body)
+
+
+class TestMultiAddPartialSuccess:
+    """A half-failed batch must not re-register the entities that succeeded."""
+
+    @requires_node
+    def test_partial_batch_retries_only_the_failures(self, tmp_path):
+        """Run the real ``_finish`` twice over a batch whose middle call fails.
+
+        Guards the whole contract behaviourally: which ids go out on the
+        retry, which carry ``linked_entity_ids``, what lands in ``_added``
+        and what the ``wizard-complete`` detail actually contains.
+        """
+        out = _run_wizard_scenario(
+            tmp_path,
+            'let failing = new Set(["switch.b"]);\n'
+            "const wizard = makeWizard((msg) =>"
+            ' failing.has(msg.primary_entity_id) ? "backend said no" : null);\n'
+            "const out = {};\n"
+            "await wizard._finish();\n"
+            "out.round1 = snapshot(wizard);\n"
+            "const addedRef = wizard._added;\n"
+            "wizard.calls.length = 0; wizard.events.length = 0;\n"
+            "failing = new Set();\n"
+            "await wizard._finish();\n"
+            "out.round2 = snapshot(wizard);\n"
+            "out.addedSetReplaced = addedRef !== wizard._added;\n"
+            "wizard.calls.length = 0; wizard.events.length = 0;\n"
+            "await wizard._finish();\n"
+            "out.round3 = snapshot(wizard);\n"
+            "console.log(JSON.stringify(out));\n",
+        )
+
+        first = out["round1"]
+        assert first["sent"] == ["switch.a", "switch.b", "switch.c"], "the first submit must try every primary"
+        assert first["names"] == ["A", "B", "C"], "each primary carries its own form values"
+        assert first["rooms"] == ["Kitchen", "Kitchen", "Hall"]
+        assert first["links"] == [["sensor.batt"], [], []], (
+            "linked sensors describe the parent device once — attaching them to "
+            "every primary duplicates the role and Sber rejects the batch"
+        )
+        assert first["added"] == ["switch.a", "switch.c"], "a mid-batch failure must not lose the accepted ids"
+        assert first["failed"] == [{"entity_id": "switch.b", "message": "backend said no"}], (
+            "the failure record must name the entity and the reason"
+        )
+        assert first["hidden"] is False, "the dialog must stay open while something failed"
+        assert "Added 2 of 3" in first["error"]
+        assert first["loading"] is False
+        assert len(first["events"]) == 1
+        assert first["events"][0]["added_entity_ids"] == ["switch.a", "switch.c"]
+        assert first["events"][0]["added_now"] == ["switch.a", "switch.c"]
+        assert first["events"][0]["failed"] == [{"entity_id": "switch.b", "message": "backend said no"}]
+        assert first["events"][0]["failed_count"] == 1
+        assert first["events"][0]["added_count"] == 2
+
+        second = out["round2"]
+        assert second["sent"] == ["switch.b"], (
+            "the retry re-sent an id the backend already accepted — that registers "
+            "the entity twice and (with _linksAttached set) wipes its linked sensors"
+        )
+        assert second["links"] == [[]], "the retry must not re-attach the linked sensors"
+        assert second["added"] == ["switch.a", "switch.c", "switch.b"]
+        assert second["failed"] == []
+        assert second["hidden"] is True, "a fully successful retry closes the dialog"
+        assert second["events"][0]["added_entity_ids"] == ["switch.a", "switch.c", "switch.b"], (
+            "the panel polls this list, so it must carry the whole session"
+        )
+        assert second["events"][0]["added_now"] == ["switch.b"], "only this submit's ids"
+        assert second["events"][0]["failed"] == []
+        assert out["addedSetReplaced"] is True, (
+            "_added is a reactive property mutated in place — Lit compares by "
+            "reference, so the retry label and the 'already added' badge freeze"
+        )
+
+        third = out["round3"]
+        assert third["sent"] == [], "nothing is pending — re-clicking Finish must not call the backend"
+        assert third["events"] == [], "a second wizard-complete would re-toast a batch already reported"
+        assert third["hidden"] is True
+
+    @requires_node
+    def test_a_fully_failed_batch_registers_nothing(self, tmp_path):
+        out = _run_wizard_scenario(
+            tmp_path,
+            'const wizard = makeWizard(() => "nope");\n'
+            "await wizard._finish();\n"
+            "console.log(JSON.stringify(snapshot(wizard)));\n",
+        )
+        assert out["sent"] == ["switch.a", "switch.b", "switch.c"], (
+            "the first failure must not abort the rest of the batch"
+        )
+        assert out["added"] == []
+        assert [f["entity_id"] for f in out["failed"]] == ["switch.a", "switch.b", "switch.c"]
+        assert out["hidden"] is False
+        assert "Nothing was added" in out["error"]
+        assert out["events"][0]["added_entity_ids"] == []
+        assert out["events"][0]["failed_count"] == 3
+
+    @requires_node
+    def test_links_are_attached_once_even_when_the_first_primary_fails(self, tmp_path):
+        """``_linksAttached`` must track acceptance, not attempts."""
+        out = _run_wizard_scenario(
+            tmp_path,
+            'const wizard = makeWizard((msg) => (msg.primary_entity_id === "switch.a" ? "nope" : null));\n'
+            "await wizard._finish();\n"
+            "console.log(JSON.stringify(snapshot(wizard)));\n",
+        )
+        assert out["links"] == [["sensor.batt"], ["sensor.batt"], []], (
+            "the rejected call consumed the linked sensors — they must move to the "
+            "next primary, and attach to exactly one accepted device"
+        )
+        assert out["added"] == ["switch.b", "switch.c"]
+
+    @requires_node
+    def test_finish_is_a_no_op_without_a_selected_device(self, tmp_path):
+        out = _run_wizard_scenario(
+            tmp_path,
+            "const wizard = makeWizard(() => null);\n"
+            'wizard._selectedDeviceId = "gone";\n'
+            "await wizard._finish();\n"
+            "console.log(JSON.stringify(snapshot(wizard)));\n",
+        )
+        assert out["sent"] == []
+        assert out["events"] == []
+        assert out["hidden"] is False
+
+    def test_finish_skips_already_added_primaries(self):
+        src = _read("components/sber-wizard.js")
+        body = _method_body(src, "_finish")
+        assert body is not None
+        assert "_pendingPrimaries" in body, (
+            "_finish re-sends the whole batch — a retry after a partial failure "
+            "would register the accepted entities twice"
+        )
+        pending = _method_body(src, "_pendingPrimaries")
+        assert pending is not None
+        assert "this._added.has" in pending
+        assert "this._added = new Set(" in body, (
+            "accepted entities must be remembered — and by reassignment, since "
+            "Lit cannot observe an in-place Set mutation"
+        )
+        assert "this._added.add(" not in body, "an in-place add leaves the reactive property stale"
+
+    def test_finish_collects_per_entity_failures(self):
+        body = _method_body(_read("components/sber-wizard.js"), "_finish")
+        assert body is not None
+        # try/catch must sit *inside* the loop, otherwise the first failure
+        # aborts the rest of the batch with no record of what happened.
+        loop = body[body.index("for (const primaryId") :]
+        per_call_guard = "each add_ha_device call needs its own catch so one failure does not abort the batch"
+        assert "try {" in loop, per_call_guard
+        assert "catch (err)" in loop, per_call_guard
+        assert "failed.push(" in loop
+
+    def test_complete_event_carries_both_outcome_lists(self):
+        body = _method_body(_read("components/sber-wizard.js"), "_emitComplete")
+        assert body is not None
+        # Match the object keys themselves — "failed" also occurs inside
+        # "failed_count", so a bare substring check would pass without the list.
+        keys = set(re.findall(r"^\s*([a-z_]+):", body, re.MULTILINE))
+        for key in ("added_entity_ids", "failed", "failed_count", "added_count"):
+            assert key in keys, f"wizard-complete must report {key}; got {sorted(keys)}"
+
+    def test_wizard_stays_open_when_something_failed(self):
+        body = _method_body(_read("components/sber-wizard.js"), "_finish")
+        assert body is not None
+        only_on_success = "the dialog must only close on a fully successful batch"
+        assert "if (failed.length === 0) {" in body, only_on_success
+        assert "this.hide();" in body, only_on_success
+
+    def test_panel_surfaces_the_failures(self):
+        body = _method_body(_read("sber-panel.js"), "_onWizardComplete")
+        assert body is not None
+        surfaced = "the panel must tell the user which entities failed, not just refresh"
+        assert "d.failed" in body, surfaced
+        assert '"error"' in body, surfaced
+        named = "the toast must name the offending entities and the reason"
+        assert "f.entity_id" in body, named
+        assert "f.message" in body, named
+
+
+# --------------------------------------------------------------------------- #
+# Mutations are confirmed by polling, never by a blind sleep
+# --------------------------------------------------------------------------- #
+
+# Panel methods that mutate backend state and must confirm the result.
+POLLING_METHODS = [
+    ("sber-panel.js", "_removeEntities"),
+    ("sber-panel.js", "_setOverride"),
+    ("sber-panel.js", "_clearAll"),
+    ("sber-panel.js", "_onToolbarAutoLink"),
+    ("sber-panel.js", "_onToolbarImport"),
+    ("sber-panel.js", "_onLinksSaved"),
+    ("sber-panel.js", "_onWizardComplete"),
+]
+
+
+class TestNoBlindDelays:
+    """``setTimeout(r, 1500)`` after a mutation is a race, not synchronisation."""
+
+    @pytest.mark.parametrize("path", sorted(_relative_js_modules()))
+    def test_no_hardcoded_sleep_before_a_refetch(self, path):
+        """No module may await a fixed-length sleep."""
+        offenders = re.findall(r"setTimeout\(\s*r\s*,\s*(\d+)\s*\)", _read(path))
+        assert not offenders, (
+            f"{path}: blind sleep of {offenders} ms — poll the backend for the "
+            "expected change instead of guessing how long it takes"
+        )
+
+    @pytest.mark.parametrize(("path", "method"), POLLING_METHODS)
+    def test_mutation_confirms_via_polling(self, path, method):
+        body = _method_body(_read(path), method)
+        assert body is not None, f"{path}: {method} is gone"
+        assert "_refreshUntil" in body, f"{path}: {method} does not wait for the mutation to become visible"
+
+    def test_detail_dialog_polls_after_save(self):
+        src = _read("components/sber-detail-dialog.js")
+        assert "_reloadUntilSaved" in _method_body(src, "_onSave")
+        body = _method_body(src, "_reloadUntilSaved")
+        assert body is not None
+        assert "RELOAD_TIMEOUT_MS" in body
+        assert "RELOAD_INTERVAL_MS" in body
+        assert "this.open" in body, "polling must stop when the user closes the dialog"
+
+    @requires_node
+    def test_detail_dialog_reload_waits_for_the_saved_values(self, tmp_path):
+        """Drive the shipped ``_reloadUntilSaved`` with a lagging backend."""
+        method = _method_source(_read("components/sber-detail-dialog.js"), "_reloadUntilSaved")
+        old = {"entity_id": "light.a", "redefinitions": {"name": "Old", "room": "", "home": ""}}
+        new = {"entity_id": "light.a", "redefinitions": {"name": "New", "room": "Hall", "home": ""}}
+        other = {"entity_id": "light.b", "redefinitions": {"name": "New", "room": "Hall", "home": ""}}
+        driver = (
+            "const RELOAD_INTERVAL_MS = 1;\nconst RELOAD_TIMEOUT_MS = 120;\n"
+            "function makeDialog(states) {\n"
+            "  let fetches = 0;\n"
+            "  const dialog = {\n"
+            "    open: true,\n"
+            "    isConnected: true,\n"
+            "    _data: null,\n"
+            "    get fetches() { return fetches; },\n"
+            "    async _fetchDetail() {"
+            " dialog._data = states[Math.min(fetches, states.length - 1)]; fetches += 1;"
+            " if (dialog.onFetch) dialog.onFetch(dialog); },\n"
+            f"    {method},\n"
+            "  };\n"
+            "  return dialog;\n"
+            "}\n"
+            f"const OLD = {json.dumps(old)}, NEW = {json.dumps(new)}, OTHER = {json.dumps(other)};\n"
+            f"const WANT = {json.dumps({'name': 'New', 'room': 'Hall', 'home': ''})};\n"
+            "const out = {};\n"
+            "const lagging = makeDialog([OLD, OLD, NEW]);\n"
+            'out.lagging = { ok: await lagging._reloadUntilSaved("light.a", WANT), fetches: lagging.fetches };\n'
+            "const stuck = makeDialog([OLD]);\n"
+            'out.stuck = { ok: await stuck._reloadUntilSaved("light.a", WANT), retried: stuck.fetches > 1 };\n'
+            "const closed = makeDialog([OLD, NEW]);\n"
+            "closed.onFetch = (d) => { d.open = false; };\n"
+            'out.closed = { ok: await closed._reloadUntilSaved("light.a", WANT), fetches: closed.fetches };\n'
+            "const swapped = makeDialog([OTHER, NEW]);\n"
+            'out.swapped = { ok: await swapped._reloadUntilSaved("light.a", WANT), fetches: swapped.fetches };\n'
+            "const broken = makeDialog([OLD, NEW]);\n"
+            'broken.onFetch = (d) => { d._error = "ws closed"; };\n'
+            'out.broken = { ok: await broken._reloadUntilSaved("light.a", WANT), fetches: broken.fetches };\n'
+            "console.log(JSON.stringify(out));\nprocess.exit(0);\n"
+        )
+        out = _run_node(tmp_path, driver)
+        assert out["lagging"] == {"ok": True, "fetches": 3}, (
+            "the dialog stopped before the saved values came back — a redefinition "
+            "the backend has not applied yet would be rendered as saved"
+        )
+        assert out["stuck"] == {"ok": False, "retried": True}, "a save that never lands must not report success"
+        assert out["closed"] == {"ok": False, "fetches": 1}, "closing the dialog must stop the poll"
+        assert out["swapped"] == {"ok": False, "fetches": 1}, (
+            "a payload describing a different entity was accepted as proof of this "
+            "save — its redefinitions happen to match, but they are not ours"
+        )
+        assert out["broken"] == {"ok": False, "fetches": 1}, "a failing fetch is not 'not yet' — stop polling"
+
+    @pytest.mark.parametrize(("path", "method"), POLLING_METHODS)
+    def test_mutation_uses_the_polling_result(self, path, method):
+        """Discarding the boolean means reporting success after a timeout.
+
+        ``_setOverride``'s "auto" branch is the documented exception: the
+        mapper may legitimately land on the same category, so "unchanged"
+        is not a failure to confirm.
+        """
+        body = _method_body(_read(path), method)
+        assert body is not None
+        used = re.search(r"(?:(?:const|let)\s+)?\w+\s*=\s*await this\._refreshUntil", body)
+        assert used, f"{path}: {method} throws away what _refreshUntil returned"
+
+    @requires_node
+    def test_refresh_until_stops_as_soon_as_the_change_lands(self, tmp_path):
+        """One fetch when the predicate holds; more while it does not."""
+        src = _read("sber-panel.js")
+        driver = (
+            "const POLL_INTERVAL_MS = 1;\nconst POLL_TIMEOUT_MS = 2000;\n"
+            "function makePanel(states) {\n"
+            "  return {\n"
+            "    isConnected: true,\n"
+            "    fetches: 0,\n"
+            "    _devices: [],\n"
+            "    _devicesExtra: {},\n"
+            "    async _fetchAll() { this._devices = states[Math.min(this.fetches, states.length - 1)];"
+            " this.fetches += 1; },\n"
+            f"    {_method_source(src, '_refreshUntil')},\n"
+            "  };\n"
+            "}\n"
+            "const out = {};\n"
+            "const immediate = makePanel([[{ entity_id: 'a' }]]);\n"
+            "out.immediate = { ok: await immediate._refreshUntil((d) => d.length === 1),"
+            " fetches: immediate.fetches };\n"
+            "const late = makePanel([[], [], [{ entity_id: 'a' }]]);\n"
+            "out.late = { ok: await late._refreshUntil((d) => d.length === 1), fetches: late.fetches };\n"
+            "const never = makePanel([[]]);\n"
+            "const t0 = Date.now();\n"
+            "const hung = Symbol('hung');\n"
+            "const verdict = await Promise.race([\n"
+            "  never._refreshUntil(() => false, { timeout: 60, interval: 1 }),\n"
+            "  new Promise((r) => setTimeout(() => r(hung), 2000)),\n"
+            "]);\n"
+            "out.never = { ok: verdict === hung ? 'never returned' : verdict,"
+            " elapsedUnder: Date.now() - t0 < 2000, fetches: never.fetches > 1 };\n"
+            "const boom = makePanel([[]]);\n"
+            "out.throwing = { ok: await boom._refreshUntil(() => { throw new Error('x'); }) };\n"
+            "const gone = makePanel([[], [{ entity_id: 'a' }]]);\n"
+            "gone.isConnected = false;\n"
+            "out.detached = { ok: await gone._refreshUntil((d) => d.length === 1), fetches: gone.fetches };\n"
+            "console.log(JSON.stringify(out));\n"
+            # A regression that never terminates would keep the loop (and node)
+            # alive forever; exit explicitly so the assertion reports it fast.
+            "process.exit(0);\n"
+        )
+        out = _run_node(tmp_path, driver)
+        assert out["immediate"] == {"ok": True, "fetches": 1}, "must not poll once the state is already there"
+        assert out["late"]["ok"] is True
+        assert out["late"]["fetches"] == 3, "must keep re-reading until the change appears"
+        assert out["never"] == {"ok": False, "elapsedUnder": True, "fetches": True}, (
+            "a change that never lands must time out instead of looping forever"
+        )
+        assert out["throwing"] == {"ok": False}, "a throwing predicate must not strand the panel"
+        assert out["detached"] == {"ok": False, "fetches": 1}, "a detached panel must stop polling after the first read"
+
+
+# --------------------------------------------------------------------------- #
+# Each per-command poll predicate, executed against scripted backend states
+# --------------------------------------------------------------------------- #
+
+# Everything the mutating handlers touch, so the shipped bodies run verbatim.
+_PANEL_METHODS = [
+    "_fetchAll",
+    "_refreshUntil",
+    "_reportUnconfirmed",
+    "_countLinks",
+    "_removeEntities",
+    "_setOverride",
+    "_clearAll",
+    "_onToolbarAutoLink",
+    "_onToolbarImport",
+    "_onLinksSaved",
+    "_onWizardComplete",
+]
+
+# ``snapshots`` is the sequence the backend returns from successive
+# ``sber_mqtt_bridge/devices`` reads (the last entry repeats forever), so a
+# predicate that accepts the pre-mutation state shows up as a lower read
+# count — which is exactly the regression a substring assert cannot see.
+_PANEL_HARNESS = """
+const POLL_INTERVAL_MS = 1;
+const POLL_TIMEOUT_MS = 150;
+
+function makePanel(snapshots, opts = {}) {
+  let reads = 0;
+  const panel = {
+    isConnected: true,
+    _devices: [],
+    _devicesExtra: {},
+    _status: null,
+    _loading: false,
+    _error: "",
+    toasts: [],
+    calls: [],
+    get reads() { return reads; },
+    get deviceCalls() {
+      return panel.calls.filter((c) => c.type === "sber_mqtt_bridge/devices").length;
+    },
+    hass: {
+      callWS: async (msg) => {
+        panel.calls.push(msg);
+        if (msg.type === "sber_mqtt_bridge/devices") {
+          if (opts.devicesError) throw new Error(opts.devicesError);
+          const snap = snapshots[Math.min(reads, snapshots.length - 1)];
+          reads += 1;
+          return {
+            devices: snap.devices,
+            total: snap.total === undefined ? snap.devices.length : snap.total,
+          };
+        }
+        if (msg.type === "sber_mqtt_bridge/status") return { connected: true };
+        return opts.result || {};
+      },
+    },
+    _showToast(message, type) { panel.toasts.push([message, type]); },
+    __METHODS__
+  };
+  return panel;
+}
+
+function report(panel) {
+  return {
+    reads: panel.reads,
+    deviceCalls: panel.deviceCalls,
+    devices: panel._devices.map((d) => d.entity_id),
+    error: panel._error,
+    loading: panel._loading,
+    toasts: panel.toasts,
+    mutations: panel.calls
+      .filter((c) => !c.type.endsWith("/devices") && !c.type.endsWith("/status"))
+      .map((c) => c.type),
+  };
+}
+"""
+
+
+def _run_panel_scenario(tmp_path: Path, body: str) -> dict:
+    """Execute ``body`` against the shipped panel mutation handlers in node."""
+    harness = _PANEL_HARNESS.replace(
+        "__METHODS__",
+        _methods_as_object_body(_read("sber-panel.js"), _PANEL_METHODS),
+    )
+    return _run_node(tmp_path, harness + body + "process.exit(0);\n")
+
+
+def _device(entity_id: str, **extra: object) -> str:
+    """Render one device object for a node snapshot."""
+    return json.dumps({"entity_id": entity_id, **extra})
+
+
+class TestPollPredicates:
+    """Each predicate must reject the pre-mutation snapshot and accept the next.
+
+    ``_refreshUntil``'s loop is covered above; these drive the predicates
+    the loop is *given*, which is where an inverted or degraded comparison
+    hides — it still polls, it just accepts the stale answer.
+    """
+
+    @requires_node
+    def test_removal_is_not_accepted_while_the_entity_is_still_listed(self, tmp_path):
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            f"  {{ devices: [{_device('light.a')}, {_device('light.b')}] }},\n"
+            f"  {{ devices: [{_device('light.b')}] }},\n"
+            "]);\n"
+            'await panel._removeEntities(["light.a"]);\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["reads"] == 2, (
+            "the first read still lists light.a — accepting it means the table "
+            "keeps showing a device the user just removed"
+        )
+        assert out["devices"] == ["light.b"]
+        assert out["error"] == ""
+        assert out["loading"] is False
+
+    @requires_node
+    def test_removal_that_never_lands_is_reported(self, tmp_path):
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            f"  {{ devices: [{_device('light.a')}, {_device('light.b')}] }},\n"
+            "]);\n"
+            'await panel._removeEntities(["light.a"]);\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["reads"] > 1, "the panel must actually retry"
+        assert "did not confirm" in out["error"], (
+            "a mutation that never became visible must be surfaced, not silently swallowed"
+        )
+
+    @requires_node
+    def test_override_is_not_accepted_with_the_previous_category(self, tmp_path):
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            f"  {{ devices: [{_device('light.a', sber_category='relay')}] }},\n"
+            f"  {{ devices: [{_device('light.a', sber_category='relay')}] }},\n"
+            f"  {{ devices: [{_device('light.a', sber_category='socket')}] }},\n"
+            "]);\n"
+            'await panel._setOverride("light.a", "socket");\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["reads"] == 3, "the predicate accepted a snapshot that still carried the old category"
+        assert out["error"] == ""
+
+    @requires_node
+    def test_override_to_a_different_category_is_not_accepted(self, tmp_path):
+        """Landing on some *other* category is not the one that was asked for."""
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            f"  {{ devices: [{_device('light.a', sber_category='valve')}] }},\n"
+            "]);\n"
+            'await panel._setOverride("light.a", "socket");\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["reads"] > 1
+        assert "Category socket" in out["error"]
+
+    @requires_node
+    def test_auto_override_never_claims_an_unconfirmed_failure(self, tmp_path):
+        """Reverting to "auto" may resolve to the same category — that is fine."""
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            f"  {{ devices: [{_device('light.a', sber_category='relay')}] }},\n"
+            "]);\n"
+            'await panel._setOverride("light.a", "auto");\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["error"] == "", "an unchanged category after revert-to-auto is not an error"
+        assert out["mutations"] == ["sber_mqtt_bridge/set_override"]
+
+    @requires_node
+    def test_clear_all_waits_for_the_counter_too(self, tmp_path):
+        """An empty ``devices`` list with a non-zero ``total`` is mid-rebuild."""
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            "  { devices: [], total: 3 },\n"
+            "  { devices: [], total: 0 },\n"
+            "]);\n"
+            "await panel._clearAll();\n"
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["reads"] == 2
+        assert out["error"] == ""
+
+    @requires_node
+    def test_auto_link_waits_for_the_link_count_to_move(self, tmp_path):
+        linked = {"battery": "sensor.batt"}
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            f"  {{ devices: [{_device('light.a', linked_entities={})}] }},\n"
+            f"  {{ devices: [{_device('light.a', linked_entities={})}] }},\n"
+            f"  {{ devices: [{_device('light.a', linked_entities=linked)}] }},\n"
+            "], { result: { linked_count: 1, devices_affected: 1 } });\n"
+            "await panel._onToolbarAutoLink();\n"
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["reads"] == 3, "the panel must not report links the backend has not applied yet"
+        assert out["toasts"] == [["Auto-linked 1 sensor(s) to 1 device(s)", "success"]]
+
+    @requires_node
+    def test_auto_link_with_nothing_to_do_does_not_poll(self, tmp_path):
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([{ devices: [] }], { result: { linked_count: 0 } });\n"
+            "await panel._onToolbarAutoLink();\n"
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["reads"] == 1, "nothing changed — one read is enough"
+        assert out["toasts"][0][1] == "info"
+
+    @requires_node
+    def test_import_waits_for_the_new_total(self, tmp_path):
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            "  { devices: [], total: 0 },\n"
+            f"  {{ devices: [{_device('light.a')}, {_device('light.b')}], total: 2 }},\n"
+            "]);\n"
+            'await panel._onToolbarImport({ detail: { config: { exposed_entities: ["light.a", "light.b"] } } });\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["reads"] == 2
+        assert out["toasts"] == [["Config imported successfully", "success"]]
+
+    @requires_node
+    def test_import_that_never_shows_up_is_not_reported_as_success(self, tmp_path):
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([{ devices: [], total: 0 }]);\n"
+            'await panel._onToolbarImport({ detail: { config: { exposed_entities: ["light.a"] } } });\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["toasts"][0][1] != "success", "an unconfirmed import must not claim success"
+        assert "did not report" in out["toasts"][0][0]
+
+    @requires_node
+    def test_links_saved_rejects_a_swap_with_the_same_key_count(self, tmp_path):
+        """The regression the in-code comment forbids: counting instead of comparing."""
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            f"  {{ devices: [{_device('light.a', linked_entities={'battery': 'sensor.old'})}] }},\n"
+            f"  {{ devices: [{_device('light.a', linked_entities={'battery': 'sensor.new'})}] }},\n"
+            "]);\n"
+            'await panel._onLinksSaved({ detail: { entity_id: "light.a", links: { battery: "sensor.new" } } });\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["reads"] == 2, (
+            "sensor.old -> sensor.new keeps the key count identical; a count-only "
+            "predicate accepts the stale map and the dialog closes on old data"
+        )
+        assert out["toasts"] == [["Entity links updated", "success"]]
+
+    @requires_node
+    def test_links_saved_rejects_a_stale_superset(self, tmp_path):
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            f"  {{ devices: [{_device('light.a', linked_entities={'battery': 'sensor.new', 'signal': 'sensor.s'})}] }},\n"
+            f"  {{ devices: [{_device('light.a', linked_entities={'battery': 'sensor.new'})}] }},\n"
+            "]);\n"
+            'await panel._onLinksSaved({ detail: { entity_id: "light.a", links: { battery: "sensor.new" } } });\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["reads"] == 2, "a removed role must be gone before the save counts as applied"
+
+    @requires_node
+    def test_links_saved_that_never_lands_is_not_a_success_toast(self, tmp_path):
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            f"  {{ devices: [{_device('light.a', linked_entities={'battery': 'sensor.old'})}] }},\n"
+            "]);\n"
+            'await panel._onLinksSaved({ detail: { entity_id: "light.a", links: { battery: "sensor.new" } } });\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["toasts"][0][1] != "success"
+        assert "old" in out["toasts"][0][0]
+
+    @requires_node
+    def test_wizard_batch_waits_for_every_added_entity(self, tmp_path):
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([\n"
+            f"  {{ devices: [{_device('light.a')}] }},\n"
+            f"  {{ devices: [{_device('light.a')}, {_device('light.b')}] }},\n"
+            "]);\n"
+            "await panel._onWizardComplete({ detail: {"
+            ' added_entity_ids: ["light.a", "light.b"], failed: [], linked_count: 0 } });\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["reads"] == 2, "half the batch showing up is not the batch showing up"
+        assert out["toasts"] == [["Added 2 devices", "success"]]
+
+    @requires_node
+    def test_wizard_failures_are_named_in_the_toast(self, tmp_path):
+        out = _run_panel_scenario(
+            tmp_path,
+            "const panel = makePanel([{ devices: [] }]);\n"
+            "await panel._onWizardComplete({ detail: { added_entity_ids: [], failed: ["
+            ' { entity_id: "light.x", message: "not allowed" } ], linked_count: 0 } });\n'
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["toasts"][0][1] == "error"
+        assert "light.x" in out["toasts"][0][0]
+        assert "not allowed" in out["toasts"][0][0]
+
+    @requires_node
+    @pytest.mark.parametrize(
+        ("label", "call"),
+        [
+            ("remove", 'await panel._removeEntities(["light.a"]);'),
+            ("override", 'await panel._setOverride("light.a", "socket");'),
+            ("clear_all", "await panel._clearAll();"),
+        ],
+    )
+    def test_a_failing_backend_stops_the_poll_immediately(self, tmp_path, label, call):
+        """An erroring fetch is not "not yet" — retrying it 150x helps nobody.
+
+        ``_devices`` is pre-populated with what the table was already
+        showing, so the predicate cannot be trivially satisfied by the empty
+        list a failed fetch leaves behind.
+        """
+        out = _run_panel_scenario(
+            tmp_path,
+            'const panel = makePanel([{ devices: [] }], { devicesError: "ws closed" });\n'
+            'panel._devices = [{ entity_id: "light.a", sber_category: "relay", linked_entities: {} }];\n'
+            "panel._devicesExtra = { total: 1 };\n"
+            f"{call}\n"
+            "console.log(JSON.stringify(report(panel)));\n",
+        )
+        assert out["deviceCalls"] == 1, (
+            f"{label}: the panel kept re-reading a backend that is answering with errors — "
+            "an error is not 'the mutation has not landed yet'"
+        )
+        assert out["error"] == "ws closed", "the real backend error must stay on screen, not be overwritten"
+
+
+# --------------------------------------------------------------------------- #
+# One shared subscription to the message feed
+# --------------------------------------------------------------------------- #
+
+
+class TestSingleMessageSubscription:
+    """DevTools and Replay render the same feed — they must share one socket."""
+
+    def test_only_the_bus_talks_to_subscribe_messages(self):
+        owners = [path for path in _relative_js_modules() if '"sber_mqtt_bridge/subscribe_messages"' in _read(path)]
+        assert owners == ["message-bus.js"], (
+            f"{owners} each open their own subscription to the same broadcast feed — "
+            "route them through message-bus.js instead"
+        )
+
+    @pytest.mark.parametrize("name", BUS_CONSUMERS)
+    def test_consumers_use_the_bus(self, name):
+        src = (COMPONENTS / name).read_text(encoding="utf-8")
+        assert "message-bus.js" in src, f"{name} must consume the shared bus"
+        assert "connection.subscribeMessage" not in src, (
+            f"{name} subscribes directly again — that is a second socket for the same feed"
+        )
+        assert "bus: { type: Object }" in src, f"{name} must accept the bus from the panel"
+
+    def test_panel_owns_and_passes_the_bus(self):
+        panel = _read("sber-panel.js")
+        assert "message-bus.js" in panel
+        assert panel.count(".bus=${messageBus}") == len(BUS_CONSUMERS), (
+            "the panel must hand the same bus instance to every consumer"
+        )
+
+    @requires_node
+    def test_bus_multiplexes_one_subscription(self, tmp_path):
+        """Two listeners, one WS subscription, identical buffers."""
+        driver = (
+            'import { createMessageBus } from "./message-bus.mjs";\n'
+            "let opened = 0, closed = 0, push = null;\n"
+            "const hass = { connection: { subscribeMessage: async (cb) => {"
+            " opened += 1; push = cb; return () => { closed += 1; }; } } };\n"
+            "const bus = createMessageBus(3);\n"
+            "const a = [], b = [];\n"
+            "const offA = bus.subscribe(hass, (m) => a.push(m.length));\n"
+            "const offB = bus.subscribe(hass, (m) => b.push(m.length));\n"
+            "await new Promise((r) => setTimeout(r, 10));\n"
+            "const out = { opened, active: bus.active, listeners: bus.listenerCount };\n"
+            "push({ snapshot: [{ id: 1 }] });\n"
+            "push({ message: { id: 2 } });\n"
+            "out.a = [...a]; out.b = [...b];\n"
+            "out.bothSeeSameBuffer = bus.messages.length === 2;\n"
+            "push({ message: { id: 3 } });\n"
+            "push({ message: { id: 4 } });\n"
+            "out.capped = bus.messages.length;\n"
+            "out.oldestDropped = bus.messages[0].id;\n"
+            "bus.clear();\n"
+            "out.cleared = bus.messages.length;\n"
+            "offA();\n"
+            "out.stillOpenAfterOneLeaves = { closed, active: bus.active };\n"
+            "offA();\n"
+            "out.doubleReleaseIsNoop = bus.listenerCount;\n"
+            "offB();\n"
+            "out.closedWhenLastLeaves = { closed, active: bus.active };\n"
+            "bus.subscribe(hass, () => {});\n"
+            "await new Promise((r) => setTimeout(r, 10));\n"
+            "out.reopened = opened;\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver, extra_files={"message-bus.mjs": _read("message-bus.js")})
+        assert out["opened"] == 1, "two listeners must share a single subscription"
+        assert out["active"] is True
+        assert out["listeners"] == 2
+        assert out["a"] == out["b"] == [1, 2], "every listener must see every update"
+        assert out["bothSeeSameBuffer"] is True
+        assert out["capped"] == 3, "the shared buffer must stay capped"
+        assert out["oldestDropped"] == 2, "the cap must drop the oldest message first"
+        assert out["cleared"] == 0
+        assert out["stillOpenAfterOneLeaves"] == {"closed": 0, "active": True}, (
+            "one component leaving must not kill the feed for the other"
+        )
+        assert out["doubleReleaseIsNoop"] == 1, "releasing twice must not drop the other listener"
+        assert out["closedWhenLastLeaves"] == {"closed": 1, "active": False}, (
+            "the subscription must be released when nobody is listening"
+        )
+        assert out["reopened"] == 2, "a new listener must re-open the feed"
+
+    @requires_node
+    def test_bus_drops_a_subscription_that_lost_its_listeners_in_flight(self, tmp_path):
+        """Detaching during the round-trip must not leak the socket."""
+        driver = (
+            'import { createMessageBus } from "./message-bus.mjs";\n'
+            "let closed = 0;\n"
+            "const hass = { connection: { subscribeMessage: async () => {"
+            " await new Promise((r) => setTimeout(r, 20)); return () => { closed += 1; }; } } };\n"
+            "const bus = createMessageBus();\n"
+            "const off = bus.subscribe(hass, () => {});\n"
+            "off();\n"
+            "await new Promise((r) => setTimeout(r, 60));\n"
+            "console.log(JSON.stringify({ closed, active: bus.active, listeners: bus.listenerCount }));\n"
+        )
+        out = _run_node(tmp_path, driver, extra_files={"message-bus.mjs": _read("message-bus.js")})
+        assert out == {"closed": 1, "active": False, "listeners": 0}
+
+    @requires_node
+    def test_bus_reports_subscribe_failures_to_listeners(self, tmp_path):
+        driver = (
+            'import { createMessageBus } from "./message-bus.mjs";\n'
+            "const hass = { connection: { subscribeMessage: async () => {"
+            ' throw new Error("boom"); } } };\n'
+            "const bus = createMessageBus();\n"
+            "const errors = [];\n"
+            "bus.subscribe(hass, () => {}, (e) => errors.push(e.message));\n"
+            "await new Promise((r) => setTimeout(r, 20));\n"
+            "console.log(JSON.stringify({ errors, active: bus.active }));\n"
+        )
+        out = _run_node(tmp_path, driver, extra_files={"message-bus.mjs": _read("message-bus.js")})
+        assert out == {"errors": ["boom"], "active": False}, "a failed subscribe must reach the component, not vanish"
+
+    @requires_node
+    def test_manual_log_fetch_and_clear_go_through_the_bus(self, tmp_path):
+        """A private buffer is exactly the divergence the bus was built to remove.
+
+        Runs the shipped ``_fetchLog``/``_clearLog`` with a real bus and a
+        second listener standing in for Replay: whatever DevTools pulls or
+        drops must be visible to it.
+        """
+        src = (COMPONENTS / "sber-devtools.js").read_text(encoding="utf-8")
+        methods = _methods_as_object_body(src, ["_fetchLog", "_clearLog"])
+        driver = (
+            'import { createMessageBus } from "./message-bus.mjs";\n'
+            "const bus = createMessageBus();\n"
+            "const hassStub = { connection: { subscribeMessage: async () => () => {} } };\n"
+            "const replay = [];\n"
+            "bus.subscribe(hassStub, (m) => replay.push(m.map((x) => x.id)));\n"
+            "const devtools = {\n"
+            "  bus,\n"
+            "  _messages: [],\n"
+            '  _logError: "stale",\n'
+            "  calls: [],\n"
+            "  hass: { callWS: async (msg) => {\n"
+            "    devtools.calls.push(msg.type);\n"
+            '    if (devtools.boom) throw new Error("ws closed");\n'
+            '    if (msg.type === "sber_mqtt_bridge/message_log") return { messages: [{ id: 1 }, { id: 2 }] };\n'
+            "    return {};\n"
+            "  } },\n"
+            f"  {methods}\n"
+            "};\n"
+            "bus.subscribe(hassStub, (m) => { devtools._messages = m; });\n"
+            "const out = {};\n"
+            "await devtools._fetchLog();\n"
+            "out.afterFetch = { replay: replay.at(-1), own: devtools._messages.map((m) => m.id),"
+            " error: devtools._logError };\n"
+            "await devtools._clearLog();\n"
+            "out.afterClear = { replay: replay.at(-1), own: devtools._messages.map((m) => m.id),"
+            " calls: [...devtools.calls] };\n"
+            "devtools.boom = true;\n"
+            "bus.replace([{ id: 9 }]);\n"
+            "await devtools._fetchLog();\n"
+            "out.afterFailure = { replay: replay.at(-1), error: devtools._logError };\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver, extra_files={"message-bus.mjs": _read("message-bus.js")})
+        assert out["afterFetch"]["replay"] == [1, 2], (
+            "the manual message_log fetch landed in a private field — Replay still "
+            "renders the old buffer, which is the divergence the bus removed"
+        )
+        assert out["afterFetch"]["own"] == [1, 2]
+        assert out["afterFetch"]["error"] == "", "a successful fetch must drop the previous error"
+        assert out["afterClear"]["replay"] == [], "clearing the log must empty every consumer's view"
+        assert out["afterClear"]["own"] == []
+        assert out["afterClear"]["calls"] == [
+            "sber_mqtt_bridge/message_log",
+            "sber_mqtt_bridge/clear_message_log",
+        ]
+        assert out["afterFailure"] == {"replay": [9], "error": "ws closed"}, (
+            "a failed fetch must report the error and leave the shared buffer alone"
+        )
+
+
+# --------------------------------------------------------------------------- #
+# No dead exports, no duplicated dialog CSS, one clipboard helper
+# --------------------------------------------------------------------------- #
+
+SHARED_STYLE_CONSUMERS = ["sber-wizard.js", "sber-link-dialog.js", "sber-toolbar.js"]
+
+
+class TestSharedModules:
+    """Helpers live in one place and every export has a consumer."""
+
+    @pytest.mark.parametrize("path", ["utils.js", "message-bus.js", "shared-styles.js"])
+    def test_no_dead_exports(self, path):
+        """An export nobody imports is dead weight that drifts out of sync."""
+        src = _read(path)
+        exported = _exported_names(src)
+        assert exported, f"{path}: expected at least one export"
+
+        # A name counts as used when it appears anywhere in the frontend or in
+        # this test suite outside of its own `export` line.
+        consumers = [_read(other) for other in _relative_js_modules() if other != path]
+        consumers.append("\n".join(line for line in src.splitlines() if not line.startswith("export")))
+        consumers.append(Path(__file__).read_text(encoding="utf-8"))
+        haystack = "\n".join(consumers)
+        dead = sorted(name for name in exported if not re.search(rf"\b{re.escape(name)}\b", haystack))
+        assert not dead, f"{path}: dead export(s) {dead} — delete them or wire them up"
+
+    @pytest.mark.parametrize("name", SHARED_STYLE_CONSUMERS)
+    def test_dialog_and_button_css_is_not_re_declared(self, name):
+        """Six local copies of ``.btn`` drifted apart — keep exactly one."""
+        src = (COMPONENTS / name).read_text(encoding="utf-8")
+        assert "shared-styles.js" in src, f"{name} must compose the shared styles"
+        # Responsive overrides inside @media are deltas, not second definitions.
+        base = _strip_media_blocks(src)
+        duplicated = [rule for rule in (".btn {", ".btn-primary {", ".dialog-header {") if rule in base]
+        assert not duplicated, f"{name} re-declares {duplicated} — those live in shared-styles.js now"
+
+    def test_shared_styles_define_the_common_rules(self):
+        src = _read("shared-styles.js")
+        for rule in (".btn {", ".btn-primary {", ".dialog-header {", ".overlay {"):
+            assert rule in src, f"shared-styles.js must define {rule}"
+
+    def test_single_focus_helper(self):
+        """Four copies of the shadow-DOM focus walk is four places to fix."""
+        owners = [path for path in _relative_js_modules() if re.search(r"function deepActiveElement", _read(path))]
+        assert owners == ["utils.js"], f"{owners} re-implement deepActiveElement — import it from utils.js"
+        consumers = [
+            path for path in _relative_js_modules() if "deepActiveElement" in _read(path) and path != "utils.js"
+        ]
+        assert set(consumers) == {
+            "components/sber-detail-dialog.js",
+            "components/sber-link-dialog.js",
+            "components/sber-toolbar.js",
+            "components/sber-wizard.js",
+        }, f"every modal must manage focus through the shared helper; got {sorted(consumers)}"
+
+    def test_single_clipboard_helper(self):
+        """Two hand-rolled copy helpers meant two different fallback behaviours."""
+        owners = [path for path in _relative_js_modules() if "navigator.clipboard" in _read(path)]
+        assert owners == ["utils.js"], f"{owners} re-implement the clipboard fallback"
+        assert "document.execCommand" in _read("utils.js"), (
+            "the fallback for insecure contexts must survive the consolidation"
+        )
+
+    @requires_node
+    def test_deep_active_element_descends_through_shadow_roots(self, tmp_path):
+        """``document.activeElement`` stops at the outermost custom element.
+
+        Without the descent every dialog would restore focus to the panel
+        host instead of the control the user activated — the page scrolls
+        back to the top and the focus ring lands nowhere useful.
+        """
+        driver = (
+            'import { deepActiveElement } from "./utils.mjs";\n'
+            'const button = { name: "row-button" };\n'
+            'const row = { name: "row", shadowRoot: { activeElement: button } };\n'
+            'const panel = { name: "panel", shadowRoot: { activeElement: row } };\n'
+            "const out = {};\n"
+            "globalThis.document = { activeElement: panel };\n"
+            "out.nested = deepActiveElement().name;\n"
+            'globalThis.document = { activeElement: { name: "plain" } };\n'
+            "out.flat = deepActiveElement().name;\n"
+            'globalThis.document = { activeElement: { name: "empty-shadow", shadowRoot: { activeElement: null } } };\n'
+            "out.emptyShadow = deepActiveElement().name;\n"
+            "globalThis.document = { activeElement: null };\n"
+            "out.none = deepActiveElement();\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver, extra_files={"utils.mjs": _read("utils.js")})
+        assert out["nested"] == "row-button", "focus inside two shadow roots must be resolved, not the host"
+        assert out["flat"] == "plain"
+        assert out["emptyShadow"] == "empty-shadow", "a shadow root with nothing focused is the answer itself"
+        assert out["none"] is None
+
+    @requires_node
+    def test_copy_text_falls_back_when_the_clipboard_api_is_unavailable(self, tmp_path):
+        """Plain-HTTP HA installs have no ``navigator.clipboard``."""
+        driver = (
+            'import { copyText } from "./utils.mjs";\n'
+            "const calls = [];\n"
+            "const node = { value: '', style: {}, select() { calls.push('select'); } };\n"
+            "globalThis.document = { createElement: () => node,"
+            " body: { appendChild: () => calls.push('append'), removeChild: () => calls.push('remove') },"
+            " execCommand: (c) => { calls.push(c); return true; } };\n"
+            "const setNavigator = (v) => Object.defineProperty(globalThis, 'navigator',"
+            " { value: v, configurable: true });\n"
+            "setNavigator({});\n"
+            "const okLegacy = await copyText('hello');\n"
+            "const legacyCalls = [...calls];\n"
+            "calls.length = 0;\n"
+            "setNavigator({ clipboard: { writeText: async () => { throw new Error('denied'); } } });\n"
+            "const okDenied = await copyText('hello');\n"
+            "const deniedCalls = [...calls];\n"
+            "calls.length = 0;\n"
+            "globalThis.document.execCommand = () => false;\n"
+            "const failed = await copyText('hello');\n"
+            "console.log(JSON.stringify({ okLegacy, legacyCalls, okDenied, deniedCalls, failed,"
+            " removedNode: calls.includes('remove'), value: node.value }));\n"
+        )
+        out = _run_node(tmp_path, driver, extra_files={"utils.mjs": _read("utils.js")})
+        assert out["okLegacy"] is True, "no clipboard API must not mean no copy"
+        assert out["legacyCalls"] == ["append", "select", "copy", "remove"]
+        assert out["okDenied"] is True, "a rejected writeText must fall back, not fail"
+        assert out["deniedCalls"] == ["append", "select", "copy", "remove"]
+        assert out["failed"] is False, "a failing execCommand must be reported"
+        assert out["removedNode"] is True, "the scratch textarea must always be removed"
+        assert out["value"] == "hello"
+
+
+# --------------------------------------------------------------------------- #
+# Cache-busting reaches the whole import graph
+# --------------------------------------------------------------------------- #
+
+
+class TestCacheBusting:
+    """``?v=`` must not stop at the component layer."""
+
+    @pytest.mark.parametrize("path", sorted(_relative_js_modules()))
+    def test_no_static_import_of_lit_base(self, path):
+        src = _read(path)
+        assert not re.search(r'^import .* from "\.{1,2}/lit-base\.js";', src, re.MULTILINE), (
+            f"{path}: a static import drops the ?v= query, so the browser keeps "
+            "serving the cached lit bundle after an upgrade"
+        )
+
+    @pytest.mark.parametrize("path", sorted(_relative_js_modules()))
+    def test_every_dynamic_import_carries_the_version(self, path):
+        unversioned = [
+            spec
+            for spec in re.findall(r"import\(`([^`]+)`\)", _read(path))
+            if "${_q}" not in spec and "${VERSION_QUERY}" not in spec
+        ]
+        assert not unversioned, f"{path}: {unversioned} imported without the ?v= query"
+
+    def test_lit_base_forwards_the_query_to_the_vendor_bundle(self):
+        src = _read("lit-base.js")
+        assert "import(`./vendor/lit.js${VERSION_QUERY}`)" in src
+
+    @requires_node
+    def test_version_query_reaches_the_vendor_module(self, tmp_path):
+        """Import lit-base with a version and watch what vendor/lit.js receives."""
+        stub = (
+            "globalThis.__seen = globalThis.__seen || [];\n"
+            "globalThis.__seen.push(new URL(import.meta.url).search);\n"
+            "export const LitElement = class {};\n"
+            "export const html = null, css = null, ReactiveElement = null, CSSResult = null,\n"
+            "  unsafeCSS = null, nothing = null, noChange = null, render = null, svg = null, mathml = null;\n"
+        )
+        driver = (
+            'const mod = await import("./lit-base.mjs?v=9.9.9");\n'
+            "console.log(JSON.stringify({ seen: globalThis.__seen, own: mod.VERSION_QUERY }));\n"
+        )
+        out = _run_node(
+            tmp_path,
+            driver,
+            extra_files={
+                "lit-base.mjs": _read("lit-base.js").replace("./vendor/lit.js", "./vendor/lit.mjs"),
+                "vendor/lit.mjs": stub,
+            },
+        )
+        assert out == {"seen": ["?v=9.9.9"], "own": "?v=9.9.9"}, (
+            "the vendored lit bundle was fetched without the cache-busting query"
+        )
+
+    @requires_node
+    def test_a_missing_vendor_export_fails_loudly(self, tmp_path):
+        """Destructuring a dynamic import loses the link-time error.
+
+        ``export ... from`` used to fail immediately, naming the symbol.
+        Without a guard, a re-vendored bundle that dropped a name yields
+        ``undefined`` and the first component dies with the useless
+        "class extends value undefined is not a constructor".
+        """
+        names = [
+            "LitElement",
+            "html",
+            "css",
+            "ReactiveElement",
+            "CSSResult",
+            "unsafeCSS",
+            "nothing",
+            "noChange",
+            "render",
+            "svg",
+            "mathml",
+        ]
+        driver_lines = ["const out = {};"]
+        for dropped in ("css", "LitElement", "mathml"):
+            kept = [n for n in names if n != dropped]
+            stub = "".join(f"export const {n} = {{}};\n" for n in kept)
+            (tmp_path / "vendor").mkdir(parents=True, exist_ok=True)
+            (tmp_path / f"lit-base-{dropped}.mjs").write_text(
+                _read("lit-base.js").replace("./vendor/lit.js", f"./vendor/{dropped}-missing.mjs"),
+                encoding="utf-8",
+            )
+            (tmp_path / "vendor" / f"{dropped}-missing.mjs").write_text(stub, encoding="utf-8")
+            driver_lines.append(
+                f'try {{ await import("./lit-base-{dropped}.mjs");'
+                f' out["{dropped}"] = "imported without complaint"; }}'
+                f' catch (e) {{ out["{dropped}"] = e.message; }}'
+            )
+        driver_lines.append("console.log(JSON.stringify(out));")
+        out = _run_node(tmp_path, "\n".join(driver_lines) + "\n")
+        for dropped in ("css", "LitElement", "mathml"):
+            assert dropped in out[dropped], (
+                f"lit-base swallowed a missing {dropped!r} export instead of naming it: {out[dropped]!r}"
+            )
+            assert "vendor" in out[dropped]
+
+
+# --------------------------------------------------------------------------- #
+# Table rows survive HTML parsing
+# --------------------------------------------------------------------------- #
+
+
+class TestDeviceTableRows:
+    """``<tr><custom-element>`` is foster-parented out of the table."""
+
+    def test_rows_are_not_wrapped_in_a_tr(self):
+        src = _read("components/sber-device-table.js")
+        body = src[src.index("<tbody>") : src.index("</tbody>")]
+        assert "<sber-entity-row" in body, "the table must still render rows"
+        assert "<tr" not in body, (
+            "a <tr> around <sber-entity-row> is foster-parented by the HTML parser: "
+            "the custom element lands outside the table and the class binding on the "
+            "orphaned <tr> never reaches it"
+        )
+
+    def test_row_state_class_is_applied_by_the_row_itself(self):
+        src = _read("components/sber-entity-row.js")
+        body = _method_body(src, "updated")
+        assert body is not None, "sber-entity-row must set its own state class"
+        assert 'classList.add("row-online")' in body
+        assert 'classList.add("row-offline")' in body
+        for selector in (":host(.row-online)", ":host(.row-offline)"):
+            assert selector in src, f"{selector} styling must exist for the class to matter"
+
+    def test_row_renders_as_a_table_row(self):
+        """Without ``display: table-row`` the cells no longer line up."""
+        assert "display: table-row;" in _read("components/sber-entity-row.js")
+
+
+# --------------------------------------------------------------------------- #
+# No native browser dialogs
+# --------------------------------------------------------------------------- #
+
+
+class TestNoNativeDialogs:
+    """``confirm()``/``alert()`` are unstyled, blocking and suppressible."""
+
+    @pytest.mark.parametrize("path", sorted(_relative_js_modules()))
+    def test_no_confirm_or_alert(self, path):
+        offenders = re.findall(r"(?<![\w.$])(confirm|alert)\s*\(", _strip_comments(_read(path)))
+        assert not offenders, f"{path}: native {sorted(set(offenders))}() — use the panel's own dialog/toast"
+
+    def test_clear_all_asks_for_confirmation_in_panel(self):
+        src = (COMPONENTS / "sber-toolbar.js").read_text(encoding="utf-8")
+        assert 'role="dialog"' in src
+        assert 'aria-modal="true"' in src
+        assert 'e.key === "Escape"' in src, "the confirm dialog must be escapable"
+        accept = _method_body(src, "_acceptConfirm")
+        assert accept is not None
+        assert 'this._dispatch("toolbar-clear-all")' in accept
+        opener = _method_body(src, "_onClearAll")
+        assert opener is not None
+        assert "toolbar-clear-all" not in opener, "Clear All must not fire before the user confirms"
+
+    def test_import_errors_reach_the_panel_toast(self):
+        toolbar = (COMPONENTS / "sber-toolbar.js").read_text(encoding="utf-8")
+        assert "toolbar-toast" in toolbar
+        assert "@toolbar-toast=" in _read("sber-panel.js"), (
+            "the panel must listen for toolbar toasts, otherwise the message is lost"
+        )
+
+    @requires_node
+    def test_confirm_modal_restores_focus_and_traps_tab(self, tmp_path):
+        """The replacement for ``confirm()`` must not be a worse citizen than it.
+
+        ``confirm()`` at least gave focus back to the page; a home-grown
+        modal that leaks Tab into the inert page behind it and drops focus
+        on close fails WCAG 2.4.3/2.4.7 outright.
+        """
+        src = (COMPONENTS / "sber-toolbar.js").read_text(encoding="utf-8")
+        methods = _methods_as_object_body(
+            src,
+            ["_onClearAll", "_closeConfirm", "_cancelConfirm", "_acceptConfirm", "_onConfirmKeydown"],
+        )
+        driver = (
+            "const focusLog = [];\n"
+            "function control(name) { return { name, focus() { focused = this; focusLog.push(name); } }; }\n"
+            'const opener = control("clear-all-button");\n'
+            'const cancelBtn = control("cancel");\n'
+            'const acceptBtn = control("accept");\n'
+            "let focused = opener;\n"
+            "function deepActiveElement() { return focused; }\n"
+            "function makeToolbar() {\n"
+            "  return {\n"
+            '    _confirming: "",\n'
+            "    _returnFocusTo: null,\n"
+            "    events: [],\n"
+            "    shadowRoot: { querySelectorAll: (sel) =>"
+            ' (sel === ".confirm button" ? [cancelBtn, acceptBtn] : []) },\n'
+            "    _closeBulk() {},\n"
+            "    _dispatch(name) { this.events.push(name); },\n"
+            f"    {methods}\n"
+            "  };\n"
+            "}\n"
+            "const out = {};\n"
+            "const cancelled = makeToolbar();\n"
+            "cancelled._onClearAll();\n"
+            "out.opened = { confirming: cancelled._confirming,"
+            " captured: cancelled._returnFocusTo?.name };\n"
+            "focused = cancelBtn;\n"
+            "focusLog.length = 0;\n"
+            "cancelled._cancelConfirm();\n"
+            "out.cancelled = { confirming: cancelled._confirming, focusLog: [...focusLog],"
+            " events: cancelled.events, dangling: cancelled._returnFocusTo };\n"
+            "const accepted = makeToolbar();\n"
+            "focused = opener;\n"
+            "accepted._onClearAll();\n"
+            "focused = acceptBtn;\n"
+            "focusLog.length = 0;\n"
+            "accepted._acceptConfirm();\n"
+            "out.accepted = { focusLog: [...focusLog], events: accepted.events };\n"
+            "const trap = makeToolbar();\n"
+            "function press(key, shiftKey, active) {\n"
+            "  focused = active;\n"
+            "  focusLog.length = 0;\n"
+            "  let prevented = false;\n"
+            "  trap._onConfirmKeydown({ key, shiftKey, preventDefault: () => { prevented = true; } });\n"
+            "  return { prevented, focusLog: [...focusLog] };\n"
+            "}\n"
+            "out.tabFromLast = press('Tab', false, acceptBtn);\n"
+            "out.shiftTabFromFirst = press('Tab', true, cancelBtn);\n"
+            "out.tabFromFirst = press('Tab', false, cancelBtn);\n"
+            "out.otherKey = press('a', false, cancelBtn);\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver)
+        assert out["opened"] == {"confirming": "clear-all", "captured": "clear-all-button"}, (
+            "the opener must be captured before focus moves into the modal"
+        )
+        assert out["cancelled"]["confirming"] == ""
+        assert out["cancelled"]["focusLog"] == ["clear-all-button"], (
+            "cancelling left focus inside a modal that no longer exists"
+        )
+        assert out["cancelled"]["events"] == [], "Cancel must not clear anything"
+        assert out["cancelled"]["dangling"] is None, "a stale opener reference would steal a later focus"
+        assert out["accepted"]["focusLog"] == ["clear-all-button"], "accepting must return focus too"
+        assert out["accepted"]["events"] == ["toolbar-clear-all"]
+        assert out["tabFromLast"] == {"prevented": True, "focusLog": ["cancel"]}, (
+            "Tab off the last button escaped into the page behind the overlay"
+        )
+        assert out["shiftTabFromFirst"] == {"prevented": True, "focusLog": ["accept"]}
+        assert out["tabFromFirst"] == {"prevented": False, "focusLog": []}, (
+            "Tab between the modal's own buttons must stay native"
+        )
+        assert out["otherKey"] == {"prevented": False, "focusLog": []}
+
+
+# --------------------------------------------------------------------------- #
+# Transient error banners must not outlive their cause
+# --------------------------------------------------------------------------- #
+
+
+class TestErrorBannersAreCleared:
+    """An error left on screen after the next success is a lie."""
+
+    @requires_node
+    def test_copy_report_clears_a_previous_failure(self, tmp_path):
+        method = _method_source((COMPONENTS / "sber-diagnose.js").read_text(encoding="utf-8"), "_copyReport")
+        driver = (
+            "let outcome = false;\n"
+            "async function copyText() {\n"
+            '  if (outcome === "throw") throw new Error("boom");\n'
+            "  return outcome;\n"
+            "}\n"
+            "const view = {\n"
+            '  _report: { verdict: "ok" },\n'
+            '  _error: "",\n'
+            f"  {method},\n"
+            "};\n"
+            "const out = {};\n"
+            "await view._copyReport();\n"
+            "out.afterFailure = view._error;\n"
+            "outcome = true;\n"
+            "await view._copyReport();\n"
+            "out.afterSuccess = view._error;\n"
+            'outcome = "throw";\n'
+            "await view._copyReport();\n"
+            "out.afterThrow = view._error;\n"
+            "view._report = null;\n"
+            "outcome = true;\n"
+            "await view._copyReport();\n"
+            "out.withoutReport = view._error;\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver)
+        assert out["afterFailure"], "a failed copy must say so"
+        assert out["afterSuccess"] == "", (
+            "the banner from the earlier failure survived a successful copy — the "
+            "user sees 'clipboard unavailable' while the text is on the clipboard"
+        )
+        assert "boom" in out["afterThrow"]
+        assert out["withoutReport"] == out["afterThrow"], "no report means no copy and no state change"

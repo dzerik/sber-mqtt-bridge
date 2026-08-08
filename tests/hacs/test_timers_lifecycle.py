@@ -244,48 +244,48 @@ class _StubHass:
         self.config_entries = _StubConfigEntries()
 
 
-class _StubBridge:
-    """Just the two attributes RedefinitionsStore reads from its bridge."""
+class _StoreEnv:
+    """The two HA objects RedefinitionsStore is constructed with."""
 
     def __init__(self, loop: FakeLoop) -> None:
-        self._hass = _StubHass(loop)
-        self._entry = _StubEntry()
+        self.hass = _StubHass(loop)
+        self.entry = _StubEntry()
 
 
-def _make_store() -> tuple[RedefinitionsStore, _StubBridge, FakeLoop]:
+def _make_store() -> tuple[RedefinitionsStore, _StoreEnv, FakeLoop]:
     loop = FakeLoop()
-    bridge = _StubBridge(loop)
-    return RedefinitionsStore(bridge), bridge, loop
+    env = _StoreEnv(loop)
+    return RedefinitionsStore(env.hass, env.entry), env, loop
 
 
 class TestStoreDebounceFlush:
     """Normal debounced persistence still works after the shutdown additions."""
 
     async def test_flush_fires_after_debounce_window(self) -> None:
-        store, bridge, loop = _make_store()
+        store, env, loop = _make_store()
         await store.async_update("light.lamp", {"name": "  Лампа  ", "room": ""})
 
         loop.advance(1.9)
-        assert bridge._entry.options == {}, "persisted before the debounce window elapsed"
+        assert env.entry.options == {}, "persisted before the debounce window elapsed"
 
         loop.advance(0.2)
         # Normalization must survive the round-trip: stripped name, empty room dropped.
-        assert bridge._entry.options["redefinitions"] == {"light.lamp": {"name": "Лампа"}}
+        assert env.entry.options["redefinitions"] == {"light.lamp": {"name": "Лампа"}}
 
     async def test_rapid_updates_coalesce_into_one_write(self) -> None:
-        store, bridge, loop = _make_store()
+        store, env, loop = _make_store()
         await store.async_update("light.lamp", {"name": "A"})
         loop.advance(1.0)
         await store.async_update("light.lamp", {"name": "B"})
         loop.advance(3.0)
-        assert len(bridge._hass.config_entries.written_options) == 1
-        assert bridge._entry.options["redefinitions"] == {"light.lamp": {"name": "B"}}
+        assert len(env.hass.config_entries.written_options) == 1
+        assert env.entry.options["redefinitions"] == {"light.lamp": {"name": "B"}}
 
     async def test_persisted_options_are_a_copy_not_the_live_dict(self) -> None:
-        store, bridge, loop = _make_store()
+        store, env, loop = _make_store()
         await store.async_update("light.lamp", {"name": "Lamp"})
         loop.advance(2.1)
-        persisted = bridge._entry.options["redefinitions"]
+        persisted = env.entry.options["redefinitions"]
 
         # In-memory mutation after flush (e.g. handle_rename_device writes
         # into raw) must not silently rewrite the already-persisted options.
@@ -298,65 +298,65 @@ class TestStoreShutdown:
     """shutdown() must flush dirty state and kill the debounce timer."""
 
     async def test_shutdown_flushes_unsaved_changes(self) -> None:
-        store, bridge, loop = _make_store()
+        store, env, loop = _make_store()
         await store.async_update("light.lamp", {"name": "Lamp"})
-        assert bridge._entry.options == {}  # still inside the debounce window
+        assert env.entry.options == {}  # still inside the debounce window
 
         store.shutdown()
-        assert bridge._entry.options["redefinitions"] == {"light.lamp": {"name": "Lamp"}}, (
+        assert env.entry.options["redefinitions"] == {"light.lamp": {"name": "Lamp"}}, (
             "rename within 2s of shutdown was lost — shutdown must flush dirty state"
         )
         assert loop.pending == [], "shutdown left the debounce timer armed"
 
     async def test_no_timer_fires_after_shutdown(self) -> None:
-        store, bridge, loop = _make_store()
+        store, env, loop = _make_store()
         await store.async_update("light.lamp", {"name": "Old"})
         store.shutdown()
 
         # A successor bridge instance writes its own options after unload...
         successor_options = {"redefinitions": {"light.lamp": {"name": "New"}}}
-        bridge._entry.options = successor_options
+        env.entry.options = successor_options
 
         # ...and a post-shutdown update must not arm a timer that would
         # later do a last-writer-wins overwrite of the successor's data.
         await store.async_update("light.other", {"name": "Late"})
         loop.advance(10)
-        assert bridge._entry.options is successor_options, (
+        assert env.entry.options is successor_options, (
             "a debounce timer survived shutdown and overwrote the successor's options"
         )
-        assert len(bridge._hass.config_entries.written_options) == 1
+        assert len(env.hass.config_entries.written_options) == 1
 
     async def test_shutdown_is_idempotent(self) -> None:
-        store, bridge, _loop = _make_store()
+        store, env, _loop = _make_store()
         await store.async_update("light.lamp", {"name": "Lamp"})
         store.shutdown()
         store.shutdown()
-        assert len(bridge._hass.config_entries.written_options) == 1
+        assert len(env.hass.config_entries.written_options) == 1
 
     def test_shutdown_clean_store_writes_nothing(self) -> None:
-        store, bridge, _loop = _make_store()
+        store, env, _loop = _make_store()
         store.shutdown()
-        assert bridge._hass.config_entries.written_options == []
-        assert bridge._entry.options == {}
+        assert env.hass.config_entries.written_options == []
+        assert env.entry.options == {}
 
 
 class TestStoreFlushNow:
     """flush_now() persists immediately but keeps the store alive."""
 
     async def test_flush_now_persists_and_store_stays_usable(self) -> None:
-        store, bridge, loop = _make_store()
+        store, env, loop = _make_store()
         await store.async_update("light.lamp", {"name": "A"})
         store.flush_now()
-        assert bridge._entry.options["redefinitions"] == {"light.lamp": {"name": "A"}}
+        assert env.entry.options["redefinitions"] == {"light.lamp": {"name": "A"}}
         assert loop.pending == []
 
         # Unlike shutdown, the store must keep persisting afterwards.
         await store.async_update("light.lamp", {"name": "B"})
         loop.advance(2.1)
-        assert bridge._entry.options["redefinitions"] == {"light.lamp": {"name": "B"}}
+        assert env.entry.options["redefinitions"] == {"light.lamp": {"name": "B"}}
 
     def test_flush_now_clean_store_is_noop(self) -> None:
-        store, bridge, _loop = _make_store()
+        store, env, _loop = _make_store()
         store.flush_now()
         store.flush_now()
-        assert bridge._hass.config_entries.written_options == []
+        assert env.hass.config_entries.written_options == []

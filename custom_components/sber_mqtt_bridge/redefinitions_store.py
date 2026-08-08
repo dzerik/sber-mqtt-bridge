@@ -1,9 +1,13 @@
 """Sber MQTT bridge — persisted device redefinitions store.
 
 Owns the in-memory redefinitions dict and the debounced ConfigEntry
-persistence flow extracted from :class:`SberBridge`. Bridge keeps
-thin proxies for backward compatibility with the WS API, the command
-dispatcher, and existing tests.
+persistence flow extracted from :class:`SberBridge`. The command
+dispatcher holds the store directly; the bridge keeps a read-only
+``_redefinitions`` proxy for the WS API and existing tests.
+
+The store depends only on the two HA objects it actually needs — the
+core (for the event loop) and the config entry (for options persistence)
+— never on the bridge that owns it.
 """
 
 from __future__ import annotations
@@ -13,7 +17,8 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .sber_bridge import SberBridge
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,19 +30,21 @@ writing back to ConfigEntry.options. Mirrors the prior bridge value."""
 class RedefinitionsStore:
     """Holds device redefinitions and debounces their persistence.
 
-    Constructed with a back-reference to its parent :class:`SberBridge`
-    so it can reach ``_hass`` (for the event loop) and ``_entry`` (for
-    options persistence). The coupling is one-way and explicit.
+    Constructed with the HA core and the owning config entry; it never
+    sees the bridge, so bridge internals can move freely.
     """
 
-    def __init__(self, bridge: SberBridge) -> None:
-        """Bind the store to its parent bridge.
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Bind the store to its HA context.
 
         Args:
-            bridge: The parent bridge whose ``_hass`` and ``_entry``
-                this store reads.
+            hass: HA core — used for the event loop (debounce timer) and
+                for ``config_entries.async_update_entry``.
+            entry: Config entry whose ``options`` hold the persisted
+                redefinitions snapshot.
         """
-        self._bridge = bridge
+        self._hass = hass
+        self._entry = entry
         self._redefinitions: dict[str, dict] = {}
         self._dirty = False
         self._timer: asyncio.TimerHandle | None = None
@@ -50,13 +57,38 @@ class RedefinitionsStore:
 
     @property
     def raw(self) -> dict[str, dict]:
-        """Return the live dict (internal use only — for bridge proxies)."""
+        """Return the live dict (read-only view for bridge proxies).
+
+        Deliberately getter-only: :meth:`replace` is the single write
+        path for the whole map, so there is no second way to swap it.
+        """
         return self._redefinitions
 
-    @raw.setter
-    def raw(self, value: dict[str, dict]) -> None:
-        """Replace the live dict (used by entity loader on reload)."""
-        self._redefinitions = value
+    def has(self, entity_id: str) -> bool:
+        """Return True when a redefinition record exists for ``entity_id``.
+
+        Lets callers probe the store without borrowing the live dict.
+        """
+        return entity_id in self._redefinitions
+
+    def replace(self, values: dict[str, dict]) -> None:
+        """Swap the whole redefinitions map (entity reload path).
+
+        Does not mark the store dirty: the incoming map comes *from*
+        persisted options, so re-persisting it would be a no-op write.
+
+        The caller must hand over ownership of ``values``: the store
+        keeps the mapping it was given and mutates it in place from
+        :meth:`async_update`, so a caller that keeps its own alias will
+        observe those writes.  No aliasing guarantee is offered in the
+        other direction — do not rely on mutating ``values`` afterwards
+        to update the store.
+
+        Args:
+            values: New ``entity_id → fields`` mapping, built by the
+                entity loader from persisted options.
+        """
+        self._redefinitions = values
 
     async def async_update(self, entity_id: str, fields: dict[str, str | None]) -> dict[str, str]:
         """Update a redefinition entry and schedule a debounced persist.
@@ -110,7 +142,7 @@ class RedefinitionsStore:
             return
         if self._timer is not None:
             self._timer.cancel()
-        self._timer = self._bridge._hass.loop.call_later(_PERSIST_DEBOUNCE_SECONDS, self._flush)
+        self._timer = self._hass.loop.call_later(_PERSIST_DEBOUNCE_SECONDS, self._flush)
 
     def flush_now(self) -> None:
         """Cancel the pending debounce timer and persist immediately.
@@ -146,7 +178,6 @@ class RedefinitionsStore:
         if not self._dirty:
             return
         self._dirty = False
-        bridge = self._bridge
         snapshot = {entity_id: dict(fields) for entity_id, fields in self._redefinitions.items()}
-        new_options = {**bridge._entry.options, "redefinitions": snapshot}
-        bridge._hass.config_entries.async_update_entry(bridge._entry, options=new_options)
+        new_options = {**self._entry.options, "redefinitions": snapshot}
+        self._hass.config_entries.async_update_entry(self._entry, options=new_options)

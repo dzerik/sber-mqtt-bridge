@@ -22,12 +22,13 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Event, HomeAssistant, callback
 
-from .command_dispatcher import SberCommandDispatcher
+from .command_dispatcher import DispatcherDeps, SberCommandDispatcher
 from .const import (
     CONF_ACK_AUDIT_DELAY,
     CONF_CONFIRM_DELAY,
     CONF_DEBOUNCE_DELAY,
     CONF_HA_SERIAL_NUMBER,
+    CONF_HUB_AUTO_PARENT,
     CONF_MAX_MQTT_PAYLOAD,
     CONF_MESSAGE_LOG_SIZE,
     CONF_RECONNECT_MAX,
@@ -45,7 +46,6 @@ from .devices.base_entity import BaseEntity
 from .devtools_hub import DevToolsHub
 from .entity_registry import SberEntityLoader
 from .ha_state_forwarder import HaStateForwarder
-from .message_logger import MessageLogger
 from .mqtt_client_service import (
     MqttClientService,
     MqttServiceHooks,
@@ -54,7 +54,7 @@ from .mqtt_client_service import (
 from .redefinitions_store import RedefinitionsStore
 from .repairs import check_and_create_issues
 from .sber_constants import MqttTopicSuffix
-from .sber_publisher import SberPublisher
+from .sber_publisher import ConfigPublishContext, PublisherDeps, SberPublisher
 from .schema_validator import ValidationCollector
 from .state_diff import DiffCollector
 from .trace_collector import TraceCollector
@@ -162,7 +162,7 @@ class SberBridge:
         self._entities: dict[str, BaseEntity] = {}
         self._enabled_entity_ids: list[str] = []
         # Persisted redefinitions delegated to RedefinitionsStore (v1.38.4).
-        self._redef_store = RedefinitionsStore(self)
+        self._redef_store = RedefinitionsStore(hass, entry)
         self._entity_links: dict[str, dict[str, str]] = {}
         """Primary entity → {role: linked_entity_id}."""
         self._linked_reverse: dict[str, tuple[str, str]] = {}
@@ -185,28 +185,13 @@ class SberBridge:
 
         self._stats = BridgeStats()
 
-        # Publish coordinator owns the three Sber publish flows and the
-        # last-config timestamp; bridge keeps thin delegators below.
-        self._publisher = SberPublisher(self)
+        # DevTools collector aggregate (message log, traces, diff, validation).
+        # Built early: both the publisher and the dispatcher receive it as an
+        # explicit dependency rather than reaching back through the bridge.
+        self._devtools = DevToolsHub(message_log_size=self._message_log_size)
 
-        # Gate: delay initial MQTT publish until HA is fully started so that
-        # entity states (and therefore Sber features) are fully populated.
-        self._ha_ready = asyncio.Event()
-
-        # HA → Sber event forwarder: owns state-change subscription + debouncing
-        self._state_forwarder = HaStateForwarder(
-            hass=hass,
-            debounce_delay=self._debounce_delay,
-            get_entities=lambda: self._entities,
-            get_linked_reverse=lambda: self._linked_reverse,
-            on_publish_states=self._publish_states,
-            on_republish_config=self._publish_config,
-            create_safe_task=self._create_safe_task,
-            on_trace_state_change=self._trace_on_state_change,
-        )
-
-        # Sber protocol command dispatcher (commands, status/config request, etc.)
-        self._command_dispatcher = SberCommandDispatcher(self)
+        # Delayed confirm tasks per entity (dedup: cancel previous on new command)
+        self._confirm_tasks: dict[str, asyncio.Task] = {}
 
         # MQTT transport service: owns reconnect loop + publish + subscribe
         self._mqtt_service = MqttClientService(
@@ -238,69 +223,185 @@ class SberBridge:
             on_audit=self._run_ack_audit,
         )
 
-        # Delayed confirm tasks per entity (dedup: cancel previous on new command)
-        self._confirm_tasks: dict[str, asyncio.Task] = {}
+        # Publish coordinator owns the three Sber publish flows and the
+        # last-config timestamp; bridge keeps thin delegators below.
+        self._publisher = SberPublisher(
+            PublisherDeps(
+                root_topic=self._root_topic,
+                stats=self._stats,
+                devtools=self._devtools,
+                is_connected=self._is_transport_ready,
+                publish=self._publish_via_transport,
+                log_message=self._log_message,
+                get_entities=lambda: self._entities,
+                get_enabled_entity_ids=lambda: self._enabled_entity_ids,
+                get_redefinitions=lambda: self._redef_store.raw,
+                get_config_context=self._build_config_publish_context,
+                on_config_published=self._on_config_published,
+            )
+        )
 
-        # DevTools collector aggregate (message log, traces, diff, validation).
-        self._devtools = DevToolsHub(message_log_size=self._message_log_size)
+        # Gate: delay initial MQTT publish until HA is fully started so that
+        # entity states (and therefore Sber features) are fully populated.
+        self._ha_ready = asyncio.Event()
 
-    @property
-    def _last_config_publish_time(self) -> float | None:
-        """Backward-compat proxy — actual state lives on the publisher."""
-        return self._publisher.last_config_publish_time
+        # HA → Sber event forwarder: owns state-change subscription + debouncing
+        self._state_forwarder = HaStateForwarder(
+            hass=hass,
+            debounce_delay=self._debounce_delay,
+            get_entities=lambda: self._entities,
+            get_linked_reverse=lambda: self._linked_reverse,
+            on_publish_states=self._publish_states,
+            on_republish_config=self._publish_config,
+            create_safe_task=self._create_safe_task,
+            on_trace_state_change=self._trace_on_state_change,
+        )
 
-    @_last_config_publish_time.setter
-    def _last_config_publish_time(self, value: float | None) -> None:
-        self._publisher._last_config_publish_time = value
+        # Sber protocol command dispatcher (commands, status/config request, etc.)
+        self._command_dispatcher = SberCommandDispatcher(
+            DispatcherDeps(
+                hass=hass,
+                stats=self._stats,
+                ack_audit=self._ack_audit,
+                publisher=self._publisher,
+                redefinitions=self._redef_store,
+                devtools=self._devtools,
+                get_entities=lambda: self._entities,
+                get_enabled_entity_ids=lambda: self._enabled_entity_ids,
+                schedule_confirm=self.schedule_confirm,
+                refresh_repair_issues=self.refresh_repair_issues,
+            )
+        )
+
+    # ------------------------------------------------------------------
+    # Collaborator-facing hooks (the callables handed out in __init__)
+    # ------------------------------------------------------------------
+
+    def _is_transport_ready(self) -> bool:
+        """Return True when a live MQTT session can accept a publish.
+
+        Tolerates a torn-down service (``None``) so publish callers get a
+        clean "skip" instead of an ``AttributeError``.
+        """
+        service = self._mqtt_service
+        return service is not None and service.is_connected
+
+    async def _publish_via_transport(self, topic: str, payload: str) -> None:
+        """Publish through the MQTT service, or fail loudly if it is gone.
+
+        Args:
+            topic: Full MQTT topic.
+            payload: Serialized payload.
+
+        Raises:
+            RuntimeError: When the transport service has been torn down
+                or is not connected.
+            aiomqtt.MqttError: Propagated from the transport.
+        """
+        service = self._mqtt_service
+        if service is None:
+            raise RuntimeError("MQTT service is not initialized")
+        await service.publish(topic, payload)
+
+    def _build_config_publish_context(self) -> ConfigPublishContext:
+        """Resolve the descriptor context for the next config publish."""
+        ha_location = self._hass.config.location_name
+        location = ha_location if ha_location and ha_location != "Home Assistant" else "Мой дом"
+        return ConfigPublishContext(
+            default_home=location,
+            default_room=location,
+            auto_parent_id=self._entry.options.get(CONF_HUB_AUTO_PARENT, False),
+            ha_serial_prefix=self.ha_serial_prefix,
+        )
+
+    def _on_config_published(self) -> None:
+        """React to a successful config publish: arm the silent-rejection audit."""
+        self._ack_audit.schedule_audit()
+        unack = self.unacknowledged_entities
+        if unack:
+            _LOGGER.info(
+                "Waiting for Sber ack on %d entities (audit in %ds): %s",
+                len(unack),
+                int(self._ack_audit_delay),
+                ", ".join(unack),
+            )
+
+    @callback
+    def schedule_confirm(self, entity_id: str) -> None:
+        """(Re)arm the delayed state confirm for one commanded entity.
+
+        Cancels a still-pending confirm for the same entity first, so a
+        rapid command sequence produces exactly one confirmation.  The
+        bridge owns these tasks because it also cancels them on
+        :meth:`async_stop`.
+
+        Args:
+            entity_id: HA entity identifier that was just commanded.
+        """
+        old_task = self._confirm_tasks.pop(entity_id, None)
+        if old_task and not old_task.done():
+            old_task.cancel()
+        self._confirm_tasks[entity_id] = self._create_safe_task(
+            self._delayed_confirm(entity_id), name=f"delayed_confirm_{entity_id}"
+        )
 
     @property
     def _redefinitions(self) -> dict[str, dict]:
         """Backward-compat proxy — actual storage lives on RedefinitionsStore."""
         return self._redef_store.raw
 
-    @_redefinitions.setter
-    def _redefinitions(self, value: dict[str, dict]) -> None:
-        self._redef_store.raw = value
-
-    # --- DevTools collector proxies (real owners live on self._devtools) ---
-
-    @property
-    def _msg_logger(self) -> MessageLogger:
-        """Backward-compat proxy — MessageLogger lives on DevToolsHub."""
-        return self._devtools.message_logger
+    # --- DevTools collector aliases ---------------------------------
+    # The real owners live on ``self._devtools`` and are reachable via the
+    # public ``trace_collector`` / ``diff_collector`` / ``validation_collector``
+    # properties below.  These private aliases are kept only because test
+    # modules outside this refactor's perimeter still use them.
 
     @property
     def _trace_collector(self) -> TraceCollector:
-        """Backward-compat proxy — TraceCollector lives on DevToolsHub."""
+        """Deprecated alias for :attr:`trace_collector`."""
         return self._devtools.trace_collector
 
     @property
     def _diff_collector(self) -> DiffCollector:
-        """Backward-compat proxy — DiffCollector lives on DevToolsHub."""
+        """Deprecated alias for :attr:`diff_collector`."""
         return self._devtools.diff_collector
 
     @property
     def _validation_collector(self) -> ValidationCollector:
-        """Backward-compat proxy — ValidationCollector lives on DevToolsHub."""
+        """Deprecated alias for :attr:`validation_collector`."""
         return self._devtools.validation_collector
 
     @property
     def is_connected(self) -> bool:
         """Return True if connected to Sber MQTT (owned by MqttClientService)."""
-        return self._mqtt_service.is_connected
+        return self._is_transport_ready()
+
+    # --- Connection-state forwarding ---------------------------------
+    # :class:`MqttClientService` is the single owner of ``_connected`` /
+    # ``_client``; the bridge stores neither, so there is no duplicated
+    # state — only forwarding.
+    #
+    # Reads: production code goes through :meth:`_is_transport_ready`
+    # (via the public :attr:`is_connected`); the ``_connected`` getter is
+    # kept only because tests and the setters below share the name.
+    #
+    # Writes: still production paths — :meth:`async_stop`,
+    # :meth:`_mark_connected` and :meth:`_handle_disconnect` drive the
+    # connect/disconnect/teardown transitions through these setters, and
+    # tests reuse them to force a state without a live broker.
+    #
+    # Removing the setters therefore needs a public state-transition API
+    # on :class:`MqttClientService` first (it currently exposes no way to
+    # flip ``_connected`` / ``_client`` from outside), not just test edits.
 
     @property
     def _connected(self) -> bool:
         """Connection flag — single source of truth is :class:`MqttClientService`."""
-        return self._mqtt_service.is_connected
+        return self._is_transport_ready()
 
     @_connected.setter
     def _connected(self, value: bool) -> None:
-        """Backward-compat shim: forward writes to the owning service.
-
-        Kept so legacy tests that force ``bridge._connected = True/False``
-        keep working; production code should not need this setter.
-        """
+        """Forward a forced connection state to the owning service."""
         self._mqtt_service._connected = value
 
     @property
@@ -310,7 +411,7 @@ class SberBridge:
 
     @_mqtt_client.setter
     def _mqtt_client(self, value: aiomqtt.Client | None) -> None:
-        """Backward-compat shim: forward writes to the owning service."""
+        """Forward a forced client object to the owning service."""
         self._mqtt_service._client = value
 
     @property
@@ -333,7 +434,7 @@ class SberBridge:
             return "disconnected"
         if not self._ha_ready.is_set():
             return "starting"
-        if not self._connected:
+        if not self.is_connected:
             return "connecting"
         if self._ack_audit.is_awaiting:
             return "awaiting_ack"
@@ -649,7 +750,7 @@ class SberBridge:
         """
         if not context_id:
             return
-        self._trace_collector.record(
+        self.trace_collector.record(
             context_id,
             type_="ha_state_changed",
             entity_id=entity_id,
@@ -719,14 +820,7 @@ class SberBridge:
         # Cancel the redefinitions debounce timer and flush a pending
         # snapshot synchronously so a reload within the debounce window
         # cannot lose (or later overwrite) user edits.
-        # TODO(Wave 5): move this into a public RedefinitionsStore.shutdown()
-        # — the store module is outside the W1D perimeter, so the bridge
-        # reaches into its privates as a documented stopgap.
-        timer = self._redef_store._timer
-        if timer is not None:
-            timer.cancel()
-            self._redef_store._timer = None
-        self._redef_store._flush()
+        self._redef_store.shutdown()
 
         # Stop the MQTT service reconnect loop
         await self._mqtt_service.stop()
@@ -770,7 +864,7 @@ class SberBridge:
         self._enabled_entity_ids = result.enabled_entity_ids
         self._entity_links = result.entity_links
         self._linked_reverse = result.linked_reverse
-        self._redefinitions = result.redefinitions
+        self._redef_store.replace(result.redefinitions)
 
         # Prune stale ack tracking
         valid_ids = set(self._enabled_entity_ids)
@@ -817,7 +911,7 @@ class SberBridge:
         else:
             # HA was already marked ready (shouldn't happen, but be safe) —
             # force republish since entities were just reloaded.
-            if self._connected:
+            if self.is_connected:
                 self._create_safe_task(self._publish_config(), name="republish_config")
                 self._create_safe_task(self._publish_states(force=True), name="republish_states")
 
@@ -932,7 +1026,7 @@ class SberBridge:
         cannot acknowledge anything, so an audit would only produce
         false positives.
         """
-        if not self._connected:
+        if not self.is_connected:
             return
         unack = self.unacknowledged_entities
         if unack:
@@ -944,7 +1038,7 @@ class SberBridge:
             )
             # Mark any active correlation traces for these entities as failed
             # so DevTools surfaces "Sber never acknowledged" cleanly.
-            self._trace_collector.record_silent_rejection(unack)
+            self.trace_collector.record_silent_rejection(unack)
         self._create_safe_task(
             check_and_create_issues(self._hass, self),
             name="ack_audit_issues",
@@ -1062,15 +1156,6 @@ class SberBridge:
         """Delegate Sber command handling to :class:`SberCommandDispatcher`."""
         await self._command_dispatcher.handle_command(payload)
 
-    async def _publish_command_echo(self, devices: dict[str, dict]) -> None:
-        """Delegate to :meth:`SberPublisher.publish_command_echo`.
-
-        Thin proxy preserved for backward compatibility with tests and
-        the command dispatcher; real implementation lives in the
-        publisher (extracted in v1.38.3).
-        """
-        await self._publisher.publish_command_echo(devices)
-
     async def _delayed_confirm(self, entity_id: str) -> None:
         """Delayed state confirmation for a commanded entity.
 
@@ -1136,25 +1221,6 @@ class SberBridge:
     def _handle_global_config(self, payload: bytes) -> None:
         """Delegate global config handling to :class:`SberCommandDispatcher`."""
         self._command_dispatcher.handle_global_config(payload)
-
-    @callback
-    def _on_ha_state_changed(self, event: Event) -> None:
-        """Delegate HA state change to :class:`HaStateForwarder`.
-
-        Kept as a thin proxy on ``SberBridge`` for backwards compatibility
-        with tests that call ``bridge._on_ha_state_changed(event)`` directly.
-        The real logic lives in :mod:`.ha_state_forwarder`.
-        """
-        self._state_forwarder._on_ha_state_changed(event)
-
-    @callback
-    def _schedule_debounced_publish(self, entity_id: str) -> None:
-        """Delegate debounced publish scheduling to :class:`HaStateForwarder`.
-
-        Kept as a thin proxy on ``SberBridge`` for backwards compatibility
-        with tests.
-        """
-        self._state_forwarder._schedule_debounced_publish(entity_id)
 
     async def async_publish_entity_status(self, entity_id: str) -> None:
         """Publish the current state of a single entity to Sber cloud.

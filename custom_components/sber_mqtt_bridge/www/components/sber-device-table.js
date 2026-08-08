@@ -5,14 +5,16 @@
  * inline delete and category override controls.
  */
 
-const _v = new URL(import.meta.url).searchParams.get("v") || "";
-const _q = _v ? `?v=${_v}` : "";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
 await Promise.all([
   import(`./sber-entity-row.js${_q}`),
   import(`./sber-detail-dialog.js${_q}`),
 ]);
 
-import { LitElement, html, css } from "../lit-base.js";
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 
 /** How many times the static category registry is re-fetched after an error. */
 const MAX_CATEGORY_ATTEMPTS = 3;
@@ -529,19 +531,17 @@ class SberDeviceTable extends LitElement {
                   <tbody>
                     ${filtered.map(
                       (d) => html`
-                        <tr class="${d.is_online ? "online" : "offline"}">
-                          <sber-entity-row
-                            .device=${d}
-                            .categories=${this._categories}
-                            .selected=${this._selected.has(d.entity_id)}
-                            @selection-changed=${this._onSelectionChanged}
-                            @delete-entity=${this._onDeleteEntity}
-                            @override-changed=${this._onOverrideChanged}
-                            @sync-entity=${this._onSyncEntity}
-                            @link-entity=${this._onLinkEntity}
-                            @show-detail=${this._onShowDetail}
-                          ></sber-entity-row>
-                        </tr>
+                        <sber-entity-row
+                          .device=${d}
+                          .categories=${this._categories}
+                          .selected=${this._selected.has(d.entity_id)}
+                          @selection-changed=${this._onSelectionChanged}
+                          @delete-entity=${this._onDeleteEntity}
+                          @override-changed=${this._onOverrideChanged}
+                          @sync-entity=${this._onSyncEntity}
+                          @link-entity=${this._onLinkEntity}
+                          @show-detail=${this._onShowDetail}
+                        ></sber-entity-row>
                       `
                     )}
                   </tbody>

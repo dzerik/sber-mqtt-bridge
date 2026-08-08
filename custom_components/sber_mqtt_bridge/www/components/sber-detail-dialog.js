@@ -5,24 +5,17 @@
  * device registry data, model config with features and allowed values.
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { deepActiveElement } = await import(`../utils.js${_q}`);
 
-/**
- * Resolve the element that really has focus, descending into shadow roots.
- *
- * ``document.activeElement`` only reports the outermost custom element, so a
- * naive capture would restore focus to the panel host instead of the button
- * the user actually activated.
- *
- * @returns {Element|null} Deepest focused element.
- */
-function deepActiveElement() {
-  let el = document.activeElement;
-  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
-    el = el.shadowRoot.activeElement;
-  }
-  return el;
-}
+/** Delay between two confirmation re-reads after a save. */
+const RELOAD_INTERVAL_MS = 200;
+/** Give up waiting for the saved overrides after this long. */
+const RELOAD_TIMEOUT_MS = 8000;
 
 class SberDetailDialog extends LitElement {
   static get properties() {
@@ -307,15 +300,50 @@ class SberDetailDialog extends LitElement {
     this._saveError = "";
   }
 
-  async show(entityId) {
-    if (!this.hass) return;
-    this._returnFocusTo = deepActiveElement();
-    this.open = true;
+  /**
+   * Re-read the detail payload until the saved overrides come back.
+   *
+   * ``update_redefinitions`` returns before the entry reload has rebuilt
+   * the device, so a single re-fetch races it.  Polling replaces a fixed
+   * sleep: it is neither too early on a slow install nor needlessly slow
+   * on a fast one, and it stops the moment the user closes the dialog.
+   *
+   * @param {string} entityId - Entity being edited.
+   * @param {object} expected - ``{name, room, home}`` that were submitted.
+   * @returns {Promise<boolean>} False if the timeout expired first.
+   */
+  async _reloadUntilSaved(entityId, expected) {
+    const deadline = Date.now() + RELOAD_TIMEOUT_MS;
+    for (;;) {
+      await this._fetchDetail(entityId);
+      /* Identity first: a payload describing some *other* entity says
+       * nothing about this save, even when its redefinitions happen to
+       * carry the same name/room. */
+      if (this._data?.entity_id !== entityId) return false;
+      /* ``_fetchDetail`` swallows its failure into ``_error`` and leaves the
+       * previous payload in place — retrying a broken backend for the whole
+       * window would only stall the dialog. */
+      if (this._error) return false;
+      const saved = this._data?.redefinitions || {};
+      const applied = ["name", "room", "home"].every(
+        (key) => (saved[key] || "") === (expected[key] || "")
+      );
+      if (applied) return true;
+      /* The dialog was closed — stop polling. */
+      if (!this.open || !this.isConnected) return false;
+      if (Date.now() >= deadline) return false;
+      await new Promise((r) => setTimeout(r, RELOAD_INTERVAL_MS));
+    }
+  }
+
+  /**
+   * Fetch the detail payload for ``entityId`` into ``_data``.
+   *
+   * @param {string} entityId - Entity to describe.
+   */
+  async _fetchDetail(entityId) {
     this._loading = true;
     this._error = "";
-    this._saveStatus = "";
-    this._saveError = "";
-    this._data = null;
     try {
       this._data = await this.hass.callWS({
         type: "sber_mqtt_bridge/device_detail",
@@ -326,6 +354,18 @@ class SberDetailDialog extends LitElement {
     } finally {
       this._loading = false;
     }
+  }
+
+  async show(entityId) {
+    if (!this.hass) return;
+    this._returnFocusTo = deepActiveElement();
+    this.open = true;
+    this._loading = true;
+    this._error = "";
+    this._saveStatus = "";
+    this._saveError = "";
+    this._data = null;
+    await this._fetchDetail(entityId);
   }
 
   hide() {
@@ -591,12 +631,7 @@ class SberDetailDialog extends LitElement {
       });
       this._saveStatus = "ok";
       this.requestUpdate();
-      // Re-fetch detail after a short delay — but only if the user has not
-      // closed the dialog meanwhile, otherwise show() would re-open it.
-      const entityId = this._data.entity_id;
-      setTimeout(() => {
-        if (this.open) this.show(entityId);
-      }, 1500);
+      await this._reloadUntilSaved(this._data.entity_id, { name, room, home });
     } catch (e) {
       this._saveStatus = "error";
       this._saveError = e.message || String(e);

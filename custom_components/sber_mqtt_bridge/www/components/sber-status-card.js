@@ -5,7 +5,11 @@
  * and descriptive text. Phases: starting, connecting, awaiting_ack, ready, disconnected.
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 
 /** Phase metadata: color class, label, description. */
 const PHASES = {

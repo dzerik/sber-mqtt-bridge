@@ -329,7 +329,7 @@ class TestPublishFailureSemantics:
         _add_relay(bridge, "switch.lamp", "on")
         bridge._mqtt_service.publish.side_effect = aiomqtt.MqttError("broker gone")
 
-        await bridge._publish_command_echo(
+        await bridge._publisher.publish_command_echo(
             {"switch.lamp": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": False}}]}}
         )
 
@@ -358,7 +358,7 @@ class TestPublishGuards:
 
         await bridge._publish_states(["switch.lamp"], force=True)
         await bridge._publish_config()
-        await bridge._publish_command_echo({"switch.lamp": {"states": []}})
+        await bridge._publisher.publish_command_echo({"switch.lamp": {"states": []}})
 
         assert publish.await_count == 0
         assert bridge._stats.publish_errors == 0, "a skipped publish was counted as an error"
@@ -369,7 +369,7 @@ class TestPublishGuards:
         bridge = _make_bridge()
         _add_relay(bridge, "switch.lamp", "on")
 
-        await bridge._publish_command_echo(
+        await bridge._publisher.publish_command_echo(
             {
                 "switch.ghost": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]},
                 "switch.lamp": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": False}}]},
@@ -385,7 +385,7 @@ class TestPublishGuards:
         bridge = _make_bridge()
         _add_relay(bridge, "switch.lamp", "on")
 
-        await bridge._publish_command_echo({"switch.ghost": {"states": []}})
+        await bridge._publisher.publish_command_echo({"switch.ghost": {"states": []}})
 
         assert bridge._mqtt_service.publish.await_count == 0
 

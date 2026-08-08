@@ -228,9 +228,10 @@ class TestTypeConfusionDefense:
         """
         bridge = _make_bridge()
         _add_relay(bridge, "switch.a", state="on")
-        bridge._ack_audit = MagicMock()
-        bridge._ack_audit.is_awaiting = True
-        bridge._ack_audit.timeout_check.return_value = False
+        # Arm the *real* guard (30s grace) instead of stubbing it out, so
+        # the dispatcher is exercised against the production ack semantics.
+        bridge._ack_audit.activate_post_connect()
+        assert bridge._ack_audit.is_awaiting is True
 
         devices = {"switch.a": 42, "switch.b": {"states": ["oops", {"key": "on_off"}]}}
         rejected = await bridge._command_dispatcher._handle_reconnect_grace(devices)

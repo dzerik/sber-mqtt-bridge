@@ -393,7 +393,7 @@ class TestSberBridgeEchoFix:
         bridge._mqtt_service.publish.reset_mock()
 
         # Act: simulate HA firing state_changed with the same context
-        bridge._on_ha_state_changed(_state_changed_event("switch.lamp", "off", "on", sber_context))
+        bridge._state_forwarder._on_ha_state_changed(_state_changed_event("switch.lamp", "off", "on", sber_context))
         payloads = await _flush_status_publishes(bridge)
 
         # Assert: the confirmation really reached the MQTT transport
@@ -405,7 +405,7 @@ class TestSberBridgeEchoFix:
     @pytest.mark.asyncio
     async def test_ha_originated_state_change_is_published(self, bridge):
         """State change from HA UI (random context) must be published."""
-        bridge._on_ha_state_changed(_state_changed_event("switch.lamp", "off", "on", Context()))
+        bridge._state_forwarder._on_ha_state_changed(_state_changed_event("switch.lamp", "off", "on", Context()))
         payloads = await _flush_status_publishes(bridge)
 
         assert len(payloads) == 1

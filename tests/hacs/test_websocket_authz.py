@@ -26,6 +26,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiomqtt
 import pytest
 import voluptuous as vol
+from _ws_dispatch import dispatch
 from homeassistant.exceptions import Unauthorized
 
 import custom_components.sber_mqtt_bridge.websocket_api as ws_pkg
@@ -215,7 +216,7 @@ class TestUpdateSettingsValidation:
             patch(f"{_SETTINGS_MODULE}.get_config_entry", return_value=entry),
             patch(f"{_SETTINGS_MODULE}.get_bridge", return_value=bridge),
         ):
-            await ws_update_settings.__wrapped__(hass, connection, {"id": 1, "settings": settings})
+            await dispatch(ws_update_settings, hass, connection, {"id": 1, "settings": settings})
         return bridge
 
     @pytest.mark.parametrize(
@@ -292,7 +293,7 @@ class TestImportValidation:
     async def _call(self, hass: MagicMock, connection: MagicMock, config: dict) -> MagicMock:
         entry = _make_entry()
         with patch(f"{_IO_MODULE}.get_config_entry", return_value=entry):
-            await ws_import.__wrapped__(hass, connection, {"id": 1, "config": config})
+            await dispatch(ws_import, hass, connection, {"id": 1, "config": config})
         return entry
 
     @pytest.mark.parametrize(
@@ -392,7 +393,7 @@ class TestSendRawErrors:
 
     async def _call(self, hass: MagicMock, connection: MagicMock, bridge: MagicMock, payload: str = "{}") -> None:
         with patch(f"{_RAW_MODULE}.get_bridge", return_value=bridge):
-            await ws_send_raw_config.__wrapped__(hass, connection, {"id": 1, "payload": payload})
+            await dispatch(ws_send_raw_config, hass, connection, {"id": 1, "payload": payload})
 
     async def test_mqtt_error_maps_to_publish_failed(self, hass: MagicMock, connection: MagicMock) -> None:
         bridge = self._bridge(aiomqtt.MqttError("broken pipe"))

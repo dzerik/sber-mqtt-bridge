@@ -1411,9 +1411,11 @@ class TestRedefinitionsFlows:
         hass = _make_hass()
         bridge = _make_bridge(hass, RelayEntity, "switch.lamp", "on")
 
-        bridge._redefinitions = {
-            "switch.lamp": {"name": "New Name", "room": "Bedroom"},
-        }
+        bridge._redef_store.replace(
+            {
+                "switch.lamp": {"name": "New Name", "room": "Bedroom"},
+            }
+        )
 
         await bridge._publish_config()
 

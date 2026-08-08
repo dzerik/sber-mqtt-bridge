@@ -12,7 +12,12 @@
  * entity.
  */
 
-import { LitElement, html, css } from "../lit-base.js";
+/* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
+ * forwards it to vendor/lit.js).  Static imports would drop the query and
+ * pin the browser to a stale copy of lit after an upgrade. */
+const _q = new URL(import.meta.url).search;
+const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { copyText } = await import(`../utils.js${_q}`);
 
 const VERDICT_LABEL = {
   ok: "Clean",
@@ -65,7 +70,10 @@ class SberDiagnose extends LitElement {
   async _copyReport() {
     if (!this._report) return;
     try {
-      await navigator.clipboard.writeText(JSON.stringify(this._report, null, 2));
+      const ok = await copyText(JSON.stringify(this._report, null, 2));
+      /* Always reassign: leaving the previous failure on screen makes a
+       * later successful copy look broken. */
+      this._error = ok ? "" : "Copy failed — clipboard unavailable";
     } catch (e) {
       this._error = `Copy failed: ${e.message || e}`;
     }

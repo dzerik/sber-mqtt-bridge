@@ -21,6 +21,22 @@ from ..sber_models import normalize_sber_value
 
 _LOGGER = logging.getLogger(__name__)
 
+
+class NoSnapshot:
+    """Sentinel type marking an omitted ``snapshot`` argument.
+
+    ``None`` is a meaningful snapshot value ("serialization failed, treat
+    as changed"), so :meth:`BaseEntity.mark_state_published` cannot use it
+    as its default.  Public because it appears in that method's public
+    signature — callers reading the annotation must be able to name it.
+    """
+
+    __slots__ = ()
+
+
+NO_SNAPSHOT = NoSnapshot()
+"""Singleton sentinel for :meth:`BaseEntity.mark_state_published`."""
+
 # ---------------------------------------------------------------------------
 #  Typed command result types for process_cmd return values
 # ---------------------------------------------------------------------------
@@ -894,11 +910,26 @@ class BaseEntity(ABC):
             return True
         return current != self._previous_sber_state
 
-    def mark_state_published(self) -> None:
-        """Snapshot current Sber state as the last published state.
+    def mark_state_published(self, *, snapshot: dict | NoSnapshot | None = NO_SNAPSHOT) -> None:
+        """Record the state that was just published, for value diffing.
 
-        Called after successful MQTT publish to enable value diffing.
+        Called after a successful MQTT publish so
+        :meth:`has_significant_change` can suppress redundant publishes.
+
+        Args:
+            snapshot: The exact wire state that went out, captured
+                *before* the publish awaited.  Passing it is the correct
+                form for the publish path: re-serializing here would
+                capture changes that raced in during the network
+                round-trip and silently swallow them (lost update).
+                ``None`` is a valid snapshot value and means "treat the
+                entity as changed on the next diff".  When the argument
+                is omitted entirely the current state is serialized now,
+                which is only safe when no publish await intervened.
         """
+        if not isinstance(snapshot, NoSnapshot):
+            self._previous_sber_state = snapshot
+            return
         try:
             self._previous_sber_state = self.to_sber_current_state()
         except (RuntimeError, TypeError, ValueError):
