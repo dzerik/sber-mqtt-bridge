@@ -415,6 +415,46 @@ async def test_connection_loop_crash_is_logged_not_lost(hass: HomeAssistant, cap
     await bridge.async_stop()
 
 
+async def test_connection_loop_does_not_block_startup(hass: HomeAssistant) -> None:
+    """The never-ending MQTT loop must not hold up HA bootstrap.
+
+    Regression guard for a real startup stall: the loop was scheduled with
+    ``hass.async_create_task``, which Home Assistant tracks and awaits in
+    ``async_block_till_done``.  Since the loop runs forever, bootstrap sat
+    on it until the setup timeout fired ("Setup timed out for bootstrap
+    waiting on ... _mqtt_connection_loop - moving forward") and every HA
+    start was delayed by that timeout.
+
+    ``async_block_till_done`` is exactly the primitive bootstrap uses, so
+    asserting that it returns while the loop is still running reproduces
+    the stall directly: with a tracked task this call never comes back.
+    """
+    entry = _make_entry(hass)
+    bridge = SberBridge(hass, entry)
+
+    never_ends = asyncio.Event()
+
+    async def _run_forever(*_args: object, **_kwargs: object) -> None:
+        await never_ends.wait()
+
+    bridge._mqtt_service.run = _run_forever
+
+    await bridge.async_start()
+
+    # Must not hang: a tracked (non-background) task makes this await the loop.
+    async with asyncio.timeout(5):
+        await hass.async_block_till_done()
+
+    assert bridge._connection_task is not None
+    assert not bridge._connection_task.done(), "precondition: the loop must still be running"
+    assert bridge._connection_task in hass._background_tasks, (
+        "the MQTT loop must be a background task — tracked tasks block HA bootstrap"
+    )
+
+    never_ends.set()
+    await bridge.async_stop()
+
+
 # ---------------------------------------------------------------------------
 # Payload-size guard + handler isolation
 # ---------------------------------------------------------------------------
