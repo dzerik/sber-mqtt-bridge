@@ -353,13 +353,23 @@ class TestGlobalConfigHardening:
         assert "Sber HTTP API endpoint" not in caplog.text
 
     def test_valid_endpoint_still_logged(self, caplog: pytest.LogCaptureFixture) -> None:
-        """The happy path still surfaces the endpoint (hardening is not over-rejecting)."""
+        """The happy path still surfaces the endpoint (hardening is not over-rejecting).
+
+        Asserts on the log record's argument rather than a substring of the
+        formatted text: exact equality is the stronger check (a truncated or
+        mangled endpoint would still pass a substring test), and it keeps
+        CodeQL from reading the assertion as URL-substring sanitization.
+        """
         import logging as _logging
 
+        endpoint = "https://api.sber.test"
         bridge = _make_bridge()
         with caplog.at_level(_logging.INFO):
-            bridge._handle_global_config(json.dumps({"http_api_endpoint": "https://api.sber.test"}).encode())
-        assert "https://api.sber.test" in caplog.text
+            bridge._handle_global_config(json.dumps({"http_api_endpoint": endpoint}).encode())
+
+        records = [r for r in caplog.records if r.getMessage().startswith("Sber HTTP API endpoint")]
+        assert len(records) == 1, "endpoint must be logged exactly once"
+        assert records[0].args == (endpoint,)
 
 
 class TestChangeGroupValidation:
