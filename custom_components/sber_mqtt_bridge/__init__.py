@@ -102,11 +102,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
         # Register WebSocket API (idempotent — skips if already registered)
         async_setup_websocket_api(hass)
 
-        # Register frontend panel (static path + sidebar entry)
-        panel_dir = str(pathlib.Path(__file__).parent / "www")
-        await hass.http.async_register_static_paths(
-            [StaticPathConfig("/sber_mqtt_bridge/panel", panel_dir, cache_headers=False)]
-        )
+        # Register frontend panel (static path + sidebar entry).
+        #
+        # The static path is registered ONCE per HA instance, not per entry
+        # setup: aiohttp freezes its router as soon as the HTTP server is
+        # running, so a second registration during a reload raises
+        # RuntimeError -> ConfigEntryNotReady and the entry never comes back.
+        # Every mutating panel command reloads the entry, so without this
+        # guard the panel bricked the integration on the first click.
+        # Same marker pattern as async_setup_websocket_api.
+        static_marker = f"{DOMAIN}_panel_static_registered"
+        if not hass.data.get(static_marker):
+            panel_dir = str(pathlib.Path(__file__).parent / "www")
+            await hass.http.async_register_static_paths(
+                [StaticPathConfig("/sber_mqtt_bridge/panel", panel_dir, cache_headers=False)]
+            )
+            hass.data[static_marker] = True
 
         async_register_built_in_panel(
             hass,

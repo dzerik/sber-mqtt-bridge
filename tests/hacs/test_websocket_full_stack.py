@@ -127,55 +127,6 @@ def _no_mqtt_reconnect_loop(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(SberBridge, "_mqtt_connection_loop", _noop)
 
 
-@pytest.fixture
-def unpatched_static_paths() -> None:
-    """Opt out of :func:`_static_paths_registered_once`.
-
-    Requesting this fixture disables the de-duplicating patch, so the
-    test sees ``async_setup_entry`` exactly as it behaves in a running
-    HA.  Used by :func:`test_reload_triggering_command_keeps_entry_loaded`
-    to pin the production defect the patch works around.
-    """
-    return
-
-
-@pytest.fixture(autouse=True)
-def _static_paths_registered_once(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Make the panel's static-path registration survive an entry reload.
-
-    ``aiohttp`` freezes the router as soon as the HTTP server starts, so
-    the second ``async_register_static_paths`` call made by
-    ``async_setup_entry`` on reload raises ``RuntimeError`` and turns
-    every reload into ``ConfigEntryNotReady`` — a production-side issue
-    tracked outside this test module (``__init__.py`` should register
-    the panel's static path once per HA instance, not per entry setup,
-    the way ``async_setup_websocket_api`` already does with its
-    ``sber_mqtt_bridge_ws_registered`` marker).
-    Serving the panel's JavaScript is orthogonal to WebSocket command
-    behaviour, so the re-registration is skipped here instead of being
-    worked around in every reload-triggering test — but the defect
-    itself is *not* hidden: :func:`test_reload_triggering_command_keeps_entry_loaded`
-    opts out via the ``unpatched_static_paths`` fixture and fails
-    (``xfail(strict=True)``) until the production fix lands.
-    """
-    if "unpatched_static_paths" in request.fixturenames:
-        return
-
-    from homeassistant.components.http import HomeAssistantHTTP
-
-    original = HomeAssistantHTTP.async_register_static_paths
-    seen: set[str] = set()
-
-    async def _register_once(self: HomeAssistantHTTP, configs: Any) -> None:
-        fresh = [config for config in configs if config.url_path not in seen]
-        if not fresh:
-            return
-        seen.update(config.url_path for config in fresh)
-        await original(self, fresh)
-
-    monkeypatch.setattr(HomeAssistantHTTP, "async_register_static_paths", _register_once)
-
-
 def _register_devices(hass: HomeAssistant) -> None:
     """Create two HA devices with the entities the wizard tests need."""
     owner = MockConfigEntry(domain="test_devices")
@@ -376,26 +327,14 @@ def _command_payload() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Known production defect — pinned so it cannot be forgotten
+# Reload safety — the defect this used to pin is now fixed in production
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "custom_components/sber_mqtt_bridge/__init__.py registers the panel's "
-        "static path on every async_setup_entry; aiohttp freezes the router "
-        "once HA is running, so the reload raises RuntimeError -> "
-        "ConfigEntryNotReady and the entry never comes back. Remove this "
-        "xfail (and the _static_paths_registered_once patch) once the static "
-        "path is registered once per HA instance."
-    ),
-)
 async def test_reload_triggering_command_keeps_entry_loaded(
     hass: HomeAssistant,
     admin: Any,
     entry: MockConfigEntry,
-    unpatched_static_paths: None,
 ) -> None:
     """A panel action that reloads the entry must not brick the integration.
 

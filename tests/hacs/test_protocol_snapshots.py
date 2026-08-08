@@ -11,6 +11,7 @@ import json
 
 import pytest
 from syrupy.assertion import SnapshotAssertion
+from syrupy.extensions.amber import AmberSnapshotExtension
 
 from custom_components.sber_mqtt_bridge import sber_protocol
 from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
@@ -20,6 +21,26 @@ from custom_components.sber_mqtt_bridge.sber_protocol import (
     build_hub_device,
     build_states_list_json,
 )
+
+
+@pytest.fixture
+def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
+    """Pin the plain syrupy extension so the snapshot directory is stable.
+
+    ``pytest-homeassistant-custom-component`` ships Home Assistant's own
+    ``snapshot`` fixture, whose extension overrides ``dirname()`` to
+    ``snapshots/`` instead of syrupy's default ``__snapshots__/``.  Whether
+    that override wins depends on the plugin version, so the effective
+    directory silently differed between CI (0.13.316 — pinned in
+    ``constraints.txt`` for Python 3.13 support) and newer local installs.
+    The repo carried BOTH directories to paper over it until the duplicate
+    was removed as dead code — which broke CI only.
+
+    Forcing the plain extension makes the location deterministic: these are
+    protocol-payload snapshots, not HA registry dumps, so none of HA's
+    custom serializers apply.
+    """
+    return snapshot.use_extension(AmberSnapshotExtension)
 
 
 @pytest.fixture(autouse=True)
