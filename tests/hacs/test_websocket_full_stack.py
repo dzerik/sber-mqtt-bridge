@@ -714,6 +714,48 @@ class TestRawModule:
         payload = json.loads(result["payload"])
         assert any(device["id"] == LAMP for device in payload["devices"])
 
+    @pytest.mark.parametrize("auto_parent", [True, False])
+    async def test_raw_config_preview_matches_what_is_published(
+        self,
+        hass: HomeAssistant,
+        admin: Any,
+        entry: MockConfigEntry,
+        transport: RecordingTransport,
+        auto_parent: bool,
+    ) -> None:
+        """The DevTools preview must be byte-identical to the published config.
+
+        Regression guard for issue #44: ``ws_raw_config`` called the payload
+        builder without ``auto_parent_id`` / ``default_home`` / ``default_room``
+        and silently inherited the builder's defaults, so the preview always
+        showed ``parent_id: "root"`` however the user set the toggle.  The
+        reporter concluded the setting "is not applied to the config" — the
+        publish was in fact correct, only the preview lied.
+
+        Parametrised over both toggle states so a preview that hardcodes
+        either answer fails.
+        """
+        hass.config_entries.async_update_entry(
+            entry, options={**entry.options, CONF_HUB_AUTO_PARENT: auto_parent}
+        )
+        await hass.async_block_till_done()
+
+        preview = json.loads((await ok(admin, "raw_config"))["payload"])
+
+        transport.published.clear()
+        await ok(admin, "republish")
+        await hass.async_block_till_done()
+        config_topic = f"{SBER_TOPIC_PREFIX}/test/up/config"
+        sent = [json.loads(body) for topic, body in transport.published if topic == config_topic]
+        assert sent, "republish did not publish a config payload"
+
+        assert preview == sent[-1], "DevTools preview diverged from the published config"
+
+        lamp = next(d for d in preview["devices"] if d["id"] == LAMP)
+        assert ("parent_id" in lamp) is auto_parent, (
+            f"parent_id must follow hub_auto_parent_id={auto_parent}, got {lamp.get('parent_id', 'absent')!r}"
+        )
+
     async def test_raw_states_returns_parsable_payload(self, admin: Any) -> None:
         result = await ok(admin, "raw_states")
         assert LAMP in json.loads(result["payload"])["devices"]

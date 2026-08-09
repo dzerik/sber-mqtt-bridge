@@ -107,8 +107,31 @@ def test_devices_list_multiple_entities(snapshot: SnapshotAssertion) -> None:
     entities = {"switch.lamp": relay, "sensor.temp": sensor}
     enabled = ["switch.lamp", "sensor.temp"]
 
-    result = json.loads(build_devices_list_json(entities, enabled)[0])
+    # Hub hierarchy explicitly ON: this snapshot documents the parent_id
+    # payload.  Passing the flag rather than relying on the default keeps
+    # the intent visible (the default is False — see issue #44).
+    result = json.loads(build_devices_list_json(entities, enabled, auto_parent_id=True)[0])
     assert result == snapshot
+
+
+def test_devices_list_without_hub_hierarchy_has_no_parent_id() -> None:
+    """With the hierarchy off (the default) no device carries parent_id.
+
+    Issue #44: the reporter saw ``parent_id: "root"`` on every device after
+    turning the toggle off.  The payload builder was in fact correct — the
+    DevTools preview was not — but the builder's own default was ``True``,
+    so any caller that forgot the argument re-enabled the hierarchy.
+    """
+    relay = RelayEntity(RELAY_ENTITY_DATA)
+    relay.fill_by_ha_state(HA_STATE_ON)
+
+    result = json.loads(build_devices_list_json({"switch.lamp": relay}, ["switch.lamp"])[0])
+
+    children = [d for d in result["devices"] if d["id"] != "root"]
+    assert children, "precondition: at least one child device"
+    assert all("parent_id" not in d for d in children), (
+        f"hierarchy is off by default, got {[d.get('parent_id') for d in children]}"
+    )
 
 
 def test_states_list_multiple_entities(snapshot: SnapshotAssertion) -> None:
@@ -134,7 +157,7 @@ def test_devices_list_with_redefinitions(snapshot: SnapshotAssertion) -> None:
     enabled = ["switch.lamp"]
     redefs = {"switch.lamp": {"home": "My Home", "room": "Kitchen", "name": "New Lamp"}}
 
-    result = json.loads(build_devices_list_json(entities, enabled, redefs)[0])
+    result = json.loads(build_devices_list_json(entities, enabled, redefs, auto_parent_id=True)[0])
     assert result == snapshot
 
 

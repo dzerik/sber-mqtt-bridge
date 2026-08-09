@@ -29,14 +29,26 @@ async def ws_raw_config(
     msg: dict[str, Any],
     bridge: Any,
 ) -> None:
-    """Get the raw config JSON that would be sent to Sber."""
+    """Get the raw config JSON that would be sent to Sber.
+
+    Uses the same context object as the real publish
+    (:attr:`SberBridge.config_publish_context`) so this preview cannot drift
+    from what is actually sent.  Passing only some arguments here silently
+    fell back to the builder's defaults and made the preview show
+    ``parent_id: "root"`` and empty home/room regardless of the user's
+    settings (issue #44).
+    """
     from ..sber_protocol import build_devices_list_json
 
+    ctx = bridge.config_publish_context
     payload, _valid, _invalid = build_devices_list_json(
         bridge.entities,
         bridge.enabled_entity_ids,
         bridge.redefinitions,
-        ha_serial_prefix=bridge.ha_serial_prefix,
+        default_home=ctx.default_home,
+        default_room=ctx.default_room,
+        auto_parent_id=ctx.auto_parent_id,
+        ha_serial_prefix=ctx.ha_serial_prefix,
     )
     connection.send_result(msg["id"], {"payload": payload})
 
