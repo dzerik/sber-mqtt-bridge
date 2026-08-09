@@ -16,7 +16,7 @@ from .sber_models import validate_config_payload, validate_device, validate_stat
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "1.43.1"
+VERSION = "1.43.2"
 """Protocol version string included in the hub device descriptor."""
 
 
@@ -99,7 +99,7 @@ def build_devices_list_json(
     redefinitions: dict[str, dict] | None = None,
     default_home: str = "",
     default_room: str = "",
-    auto_parent_id: bool = True,
+    auto_parent_id: bool = False,
     ha_serial_prefix: str | None = None,
 ) -> tuple[str, bool, list[str]]:
     """Build Sber device config JSON for MQTT publish.
@@ -119,6 +119,10 @@ def build_devices_list_json(
         auto_parent_id: When True, automatically set ``parent_id`` to the hub
             ID (``"root"``) for all child devices that don't have an explicit
             parent_id.  This creates a proper hierarchy in Sber cloud.
+            Defaults to ``False`` to match ``SETTINGS_DEFAULTS`` — a caller
+            that forgets this argument must not silently enable a hierarchy
+            the user turned off (issue #44: the DevTools preview did exactly
+            that and always displayed ``parent_id: "root"``).
         ha_serial_prefix: Per-HA-instance serial prefix.  When provided,
             every device (including the hub) receives a
             ``partner_meta.ha_serial_number`` marker; sister integrations

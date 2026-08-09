@@ -303,6 +303,19 @@ class SberBridge:
             raise RuntimeError("MQTT service is not initialized")
         await service.publish(topic, payload)
 
+    @property
+    def config_publish_context(self) -> ConfigPublishContext:
+        """Return the descriptor context the next config publish will use.
+
+        Public so the DevTools "Raw config" preview can render exactly what
+        would go on the wire.  Previously the preview called the payload
+        builder without these arguments and silently got the builder's own
+        defaults, so it always showed ``parent_id: "root"`` no matter how
+        ``hub_auto_parent_id`` was set — reported as "the setting is not
+        applied to the config" (issue #44).
+        """
+        return self._build_config_publish_context()
+
     def _build_config_publish_context(self) -> ConfigPublishContext:
         """Resolve the descriptor context for the next config publish."""
         ha_location = self._hass.config.location_name
