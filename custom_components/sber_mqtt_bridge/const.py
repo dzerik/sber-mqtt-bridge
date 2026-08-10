@@ -56,6 +56,21 @@ CONF_CONFIRM_DELAY = "confirm_delay"
 CONF_ACK_AUDIT_DELAY = "ack_audit_delay"
 """Options key for delay (seconds) before auditing unacknowledged entities after config publish."""
 
+CONF_CONFIG_SETTLE_DELAY = "config_settle_delay"
+"""Options key for the quiet window (seconds) before publishing ``up/config``.
+
+Sber treats every config payload as the complete device list, so a partial
+one makes it drop — and later re-create — the missing devices, losing their
+room.  While entities are still loading, each new arrival re-arms this timer;
+the publish happens once the stream goes quiet (issue #44)."""
+
+CONF_CONFIG_MAX_WAIT = "config_max_wait"
+"""Options key for the upper bound (seconds) on waiting for entities to load.
+
+Guards against waiting forever when an entity never reports state (a Zigbee
+stick that did not come up).  Once exceeded, the config is published without
+the missing entities and a warning naming them is logged."""
+
 CONF_HA_SERIAL_NUMBER = "ha_serial_number_enabled"
 """Options key for emitting per-HA serial markers in ``partner_meta.ha_serial_number``.
 
@@ -92,6 +107,11 @@ SETTINGS_DEFAULTS: dict[str, int | float | bool] = {
     CONF_HUB_AUTO_PARENT: False,
     CONF_CONFIRM_DELAY: 1.5,
     CONF_ACK_AUDIT_DELAY: 60,
+    # 5 s comfortably spans the gaps between devices inside one Zigbee/Z-Wave
+    # burst without noticeably delaying a small setup; 120 s covers a large
+    # mesh coming up while still bounding a stick that never reports.
+    CONF_CONFIG_SETTLE_DELAY: 5.0,
+    CONF_CONFIG_MAX_WAIT: 120.0,
     CONF_HA_SERIAL_NUMBER: False,
     CONF_SILENT_REJECTION_ALERTS: False,
 }
