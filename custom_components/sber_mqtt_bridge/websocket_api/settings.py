@@ -11,6 +11,8 @@ from homeassistant.core import HomeAssistant, callback
 
 from ..const import (
     CONF_ACK_AUDIT_DELAY,
+    CONF_CONFIG_MAX_WAIT,
+    CONF_CONFIG_SETTLE_DELAY,
     CONF_CONFIRM_DELAY,
     CONF_DEBOUNCE_DELAY,
     CONF_HA_SERIAL_NUMBER,
@@ -94,6 +96,10 @@ SETTINGS_VALUES_SCHEMA = vol.Schema(
         vol.Optional(CONF_HUB_AUTO_PARENT): _strict_bool,
         vol.Optional(CONF_CONFIRM_DELAY): vol.All(_strict_number, vol.Range(min=0, max=60)),
         vol.Optional(CONF_ACK_AUDIT_DELAY): vol.All(_strict_number, vol.Range(min=1, max=3600)),
+        # Settle window may legitimately be 0 (publish as soon as quiet is
+        # meaningless — fire immediately); the cap must stay above it.
+        vol.Optional(CONF_CONFIG_SETTLE_DELAY): vol.All(_strict_number, vol.Range(min=0, max=300)),
+        vol.Optional(CONF_CONFIG_MAX_WAIT): vol.All(_strict_number, vol.Range(min=1, max=900)),
         vol.Optional(CONF_HA_SERIAL_NUMBER): _strict_bool,
         vol.Optional(CONF_SILENT_REJECTION_ALERTS): _strict_bool,
     },

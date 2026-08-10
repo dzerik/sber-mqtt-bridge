@@ -23,8 +23,11 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Event, HomeAssistant, callback
 
 from .command_dispatcher import DispatcherDeps, SberCommandDispatcher
+from .config_publish_gate import ConfigPublishGate
 from .const import (
     CONF_ACK_AUDIT_DELAY,
+    CONF_CONFIG_MAX_WAIT,
+    CONF_CONFIG_SETTLE_DELAY,
     CONF_CONFIRM_DELAY,
     CONF_DEBOUNCE_DELAY,
     CONF_HA_SERIAL_NUMBER,
@@ -245,6 +248,20 @@ class SberBridge:
         # entity states (and therefore Sber features) are fully populated.
         self._ha_ready = asyncio.Event()
 
+        # Coalescing gate in front of up/config: Sber treats every config
+        # payload as the complete device list, so a partial one (entities
+        # still loading) makes it drop and later re-create devices, losing
+        # their room.  See ConfigPublishGate (issue #44).
+        self._config_gate = ConfigPublishGate(
+            loop=hass.loop,
+            settle_delay=self._config_settle_delay,
+            max_wait=self._config_max_wait,
+            get_enabled_entity_ids=lambda: list(self._enabled_entity_ids),
+            get_ready_entity_ids=lambda: {eid for eid, ent in self._entities.items() if ent.is_filled_by_state},
+            publish=self._publish_config,
+            create_task=self._create_safe_task,
+        )
+
         # HA → Sber event forwarder: owns state-change subscription + debouncing
         self._state_forwarder = HaStateForwarder(
             hass=hass,
@@ -252,7 +269,7 @@ class SberBridge:
             get_entities=lambda: self._entities,
             get_linked_reverse=lambda: self._linked_reverse,
             on_publish_states=self._publish_states,
-            on_republish_config=self._publish_config,
+            on_republish_config=self._request_config_publish,
             create_safe_task=self._create_safe_task,
             on_trace_state_change=self._trace_on_state_change,
         )
@@ -528,9 +545,24 @@ class SberBridge:
         await self._publish_config()
         return existing
 
+    async def _request_config_publish(self) -> None:
+        """Ask the gate for a config publish instead of firing one now.
+
+        Called when an entity becomes available or its feature set changes.
+        During startup these fire once per entity, and each individual
+        publish would be an incomplete device list — which Sber treats as
+        "the rest were removed" (issue #44).  The gate coalesces the burst
+        into a single complete payload.
+        """
+        self._config_gate.request("entity availability change")
+
     async def async_republish_config(self) -> None:
-        """Public wrapper for forcing a device config republish to Sber."""
-        await self._publish_config()
+        """Public wrapper for forcing a device config republish to Sber.
+
+        Explicit user action — bypasses the coalescing gate so the panel's
+        "Re-publish" button is immediate.
+        """
+        await self._config_gate.flush_now()
 
     def _attach_error_logger(self, task: asyncio.Task, name: str | None) -> asyncio.Task:
         """Log any unhandled exception of ``task`` instead of losing it.
@@ -629,6 +661,10 @@ class SberBridge:
         self._message_log_size: int = int(options.get(CONF_MESSAGE_LOG_SIZE, SETTINGS_DEFAULTS[CONF_MESSAGE_LOG_SIZE]))
         self._confirm_delay: float = float(options.get(CONF_CONFIRM_DELAY, SETTINGS_DEFAULTS[CONF_CONFIRM_DELAY]))
         self._ack_audit_delay: float = float(options.get(CONF_ACK_AUDIT_DELAY, SETTINGS_DEFAULTS[CONF_ACK_AUDIT_DELAY]))
+        self._config_settle_delay: float = float(
+            options.get(CONF_CONFIG_SETTLE_DELAY, SETTINGS_DEFAULTS[CONF_CONFIG_SETTLE_DELAY])
+        )
+        self._config_max_wait: float = float(options.get(CONF_CONFIG_MAX_WAIT, SETTINGS_DEFAULTS[CONF_CONFIG_MAX_WAIT]))
         self._ha_serial_enabled: bool = bool(
             options.get(CONF_HA_SERIAL_NUMBER, SETTINGS_DEFAULTS[CONF_HA_SERIAL_NUMBER])
         )
@@ -652,6 +688,7 @@ class SberBridge:
         """
         self._load_settings_from_options(options)
         self._state_forwarder.set_debounce_delay(self._debounce_delay)
+        self._config_gate.update_delays(settle_delay=self._config_settle_delay, max_wait=self._config_max_wait)
         self._mqtt_service.update_backoff_limits(self._reconnect_min, self._reconnect_max)
         self._mqtt_service.update_verify_ssl(self._verify_ssl)
         self._devtools.resize(self._message_log_size)
@@ -889,6 +926,7 @@ class SberBridge:
                 _LOGGER.exception("MQTT connection task raised during shutdown")
             self._connection_task = None
 
+        self._config_gate.cancel()
         self._connected = False
 
     @callback
@@ -966,7 +1004,7 @@ class SberBridge:
             # HA was already marked ready (shouldn't happen, but be safe) —
             # force republish since entities were just reloaded.
             if self.is_connected:
-                self._create_safe_task(self._publish_config(), name="republish_config")
+                self._config_gate.request("entities reloaded after HA start")
                 self._create_safe_task(self._publish_states(force=True), name="republish_states")
 
     async def _mqtt_connection_loop(self) -> None:
@@ -1043,7 +1081,13 @@ class SberBridge:
         SUBSCRIBE, so the message buffer is guaranteed to be empty of
         stale "corrective" commands when we start listening.
         """
-        await self._publish_config()
+        # Wait for the entity set to finish loading before the very first
+        # publish: Sber reads every config payload as the complete device
+        # list, so shipping one while a Zigbee coordinator is still bringing
+        # devices up makes the cloud drop and later re-create them, losing
+        # their room (issue #44).  Bounded by the gate's hard cap.
+        await self._config_gate.wait_until_ready()
+        await self._config_gate.flush_now()
         await self._publish_states(force=True)
 
     async def _subscribe_down_topics(self, client: aiomqtt.Client) -> None:

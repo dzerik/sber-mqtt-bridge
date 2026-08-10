@@ -415,6 +415,64 @@ async def test_connection_loop_crash_is_logged_not_lost(hass: HomeAssistant, cap
     await bridge.async_stop()
 
 
+async def test_staggered_entity_startup_publishes_one_complete_config(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Entities arriving one by one must yield ONE complete config, not N partial ones.
+
+    Reproduces the reporter's setup from issue #44: a Zigbee coordinator
+    brings devices up gradually.  ``build_devices_list_json`` skips entities
+    without state, so every "entity became available" publish used to ship a
+    device list missing the ones still loading.  Sber treats each payload as
+    the authoritative list — it dropped the absent devices and re-registered
+    them as new on the next payload, which is what reset their rooms.
+    """
+    registry = er.async_get(hass)
+    for name in ("lamp_a", "lamp_b", "lamp_c"):
+        registry.async_get_or_create("switch", "test", f"{name}-uid", suggested_object_id=name)
+    exposed = ["switch.lamp_a", "switch.lamp_b", "switch.lamp_c"]
+
+    # Only the first entity has state when the bridge starts.
+    hass.states.async_set("switch.lamp_a", "on")
+    entry = _make_entry(hass, options={"exposed_entities": exposed})
+    fake = FakeMqttClient()
+    _install_fake_mqtt(monkeypatch, fake)
+    bridge = SberBridge(hass, entry)
+
+    try:
+        await bridge.async_start()
+        hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
+        await hass.async_block_till_done()
+
+        # Let the transport actually connect, so the handshake is reached.
+        await _wait_until(lambda: fake.connect_count >= 1)
+
+        # Now the decisive assertion: connected, but two entities are still
+        # missing, so NOTHING may reach the broker.  Without the gate the
+        # handshake publishes a config holding only switch.lamp_a here, and
+        # that partial list is what makes Sber drop the other two.
+        with pytest.raises(TimeoutError):
+            await _wait_until(lambda: bool(fake.published), deadline=0.3)
+
+        # The remaining two arrive later, as a Zigbee stick would deliver them.
+        for entity_id in ("switch.lamp_b", "switch.lamp_c"):
+            hass.states.async_set(entity_id, "on")
+            await hass.async_block_till_done()
+
+        await _wait_until(lambda: fake.subscribed)
+
+        configs = [json.loads(body) for topic, body in fake.published if topic.endswith("/up/config")]
+        assert configs, "no config was published at all"
+
+        # Not one payload may omit a device that already has state: that
+        # omission is what Sber reads as "the device is gone".
+        for payload in configs:
+            ids = {device["id"] for device in payload["devices"]}
+            assert set(exposed) <= ids, f"partial config published, missing {sorted(set(exposed) - ids)}"
+    finally:
+        await bridge.async_stop()
+
+
 async def test_connection_loop_does_not_block_startup(hass: HomeAssistant) -> None:
     """The never-ending MQTT loop must not hold up HA bootstrap.
 
