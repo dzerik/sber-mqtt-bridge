@@ -48,6 +48,7 @@ class ConfigPublishGate:
         max_wait: float,
         get_enabled_entity_ids: Callable[[], list[str]],
         get_ready_entity_ids: Callable[[], set[str]],
+        get_cloud_known_ids: Callable[[], frozenset[str]],
         publish: Callable[[], Awaitable[None]],
         create_task: Callable[..., asyncio.Task],
     ) -> None:
@@ -63,6 +64,10 @@ class ConfigPublishGate:
                 should end up in the payload.
             get_ready_entity_ids: Callable returning the entity IDs that
                 currently have state and would actually be serialized.
+            get_cloud_known_ids: Callable returning the entity IDs the Sber
+                cloud currently holds.  Only these block a publish: omitting
+                a device the cloud has is destructive, whereas a device it
+                has never seen can safely join a later payload.
             publish: Async callback performing the real config publish.
             create_task: Bridge helper that schedules a task with error
                 logging.
@@ -72,6 +77,7 @@ class ConfigPublishGate:
         self._max_wait = max_wait
         self._get_enabled_entity_ids = get_enabled_entity_ids
         self._get_ready_entity_ids = get_ready_entity_ids
+        self._get_cloud_known_ids = get_cloud_known_ids
         self._publish = publish
         self._create_task = create_task
 
@@ -100,6 +106,7 @@ class ConfigPublishGate:
         """
         missing = self._missing_entity_ids()
         if not missing:
+            # Complete set — nothing to gain from waiting.
             _LOGGER.debug("Config publish (%s): all entities ready, publishing now", reason)
             self._ready_event.set()
             self._fire()
@@ -108,11 +115,20 @@ class ConfigPublishGate:
         now = self._loop.time()
         if self._pending_since is None:
             self._pending_since = now
-            _LOGGER.debug(
-                "Config publish (%s): waiting for %d more entities to load",
-                reason,
-                len(missing),
-            )
+            blocking = self._blocking_entity_ids()
+            if blocking:
+                _LOGGER.debug(
+                    "Config publish (%s): holding — %d device(s) the cloud already holds have not reported yet: %s",
+                    reason,
+                    len(blocking),
+                    ", ".join(sorted(blocking)),
+                )
+            else:
+                _LOGGER.debug(
+                    "Config publish (%s): coalescing while %d entity(ies) still load",
+                    reason,
+                    len(missing),
+                )
         self._cancel_timer()
         deadline = self._pending_since + self._max_wait
         delay = min(self._settle_delay, max(0.0, deadline - now))
@@ -135,7 +151,7 @@ class ConfigPublishGate:
             (the caller should publish anyway — a device that never reports
             must not block the bridge forever).
         """
-        if not self._missing_entity_ids():
+        if not self._blocking_entity_ids():
             return True
 
         self._ready_event.clear()
@@ -143,7 +159,7 @@ class ConfigPublishGate:
             async with asyncio.timeout(self._max_wait):
                 await self._ready_event.wait()
         except TimeoutError:
-            missing = self._missing_entity_ids()
+            missing = self._blocking_entity_ids()
             _LOGGER.warning(
                 "Publishing Sber config after waiting %.0fs without %d entity(ies): %s. "
                 "Sber registers late arrivals as new devices and moves them to the hub's room; "
@@ -169,6 +185,18 @@ class ConfigPublishGate:
         ready = self._get_ready_entity_ids()
         return [entity_id for entity_id in self._get_enabled_entity_ids() if entity_id not in ready]
 
+    def _blocking_entity_ids(self) -> list[str]:
+        """Return the entities whose absence from a publish would be destructive.
+
+        Only devices the cloud already holds qualify: dropping one of those
+        makes Sber re-register it as new and move it to the hub's room.  A
+        device the cloud has never seen can safely arrive in a later payload,
+        so a battery sensor that wakes up minutes after start does not hold
+        up the rest of the house on first setup.
+        """
+        cloud_known = self._get_cloud_known_ids()
+        return [entity_id for entity_id in self._missing_entity_ids() if entity_id in cloud_known]
+
     def _cancel_timer(self) -> None:
         if self._timer is not None:
             self._timer.cancel()
@@ -177,11 +205,22 @@ class ConfigPublishGate:
     def _on_timer(self) -> None:
         """Fire after the settle window or the hard cap."""
         self._timer = None
-        missing = self._missing_entity_ids()
-        if missing and self._pending_since is not None and self._loop.time() - self._pending_since < self._max_wait:
-            # Quiet window elapsed but the cap has not: entities stopped
-            # arriving, so publishing what we have is the best we can do.
-            _LOGGER.debug("Config publish: %d entities still missing after settle window", len(missing))
+        missing = self._blocking_entity_ids()
+        now = self._loop.time()
+        cap_reached = self._pending_since is None or now - self._pending_since >= self._max_wait
+        if missing and not cap_reached:
+            # The stream went quiet, but a device the cloud holds is still
+            # absent — publishing now would drop it.  Silence is not evidence
+            # that it will never arrive: a battery sensor may report minutes
+            # later.  Keep waiting until the hard cap decides.
+            _LOGGER.debug(
+                "Config publish: still holding for %d cloud-known device(s): %s",
+                len(missing),
+                ", ".join(sorted(missing)),
+            )
+            deadline = self._pending_since + self._max_wait
+            self._timer = self._loop.call_later(max(0.0, min(self._settle_delay, deadline - now)), self._on_timer)
+            return
         if missing:
             _LOGGER.warning(
                 "Publishing Sber config without %d entity(ies) that never reported state: %s. "

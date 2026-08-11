@@ -22,6 +22,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Event, HomeAssistant, callback
 
+from .cloud_device_registry import CloudDeviceRegistry
 from .command_dispatcher import DispatcherDeps, SberCommandDispatcher
 from .config_publish_gate import ConfigPublishGate
 from .const import (
@@ -248,6 +249,11 @@ class SberBridge:
         # entity states (and therefore Sber features) are fully populated.
         self._ha_ready = asyncio.Event()
 
+        # What the Sber cloud currently holds — the floor a publish must not
+        # go below.  Fed by our own publishes and by the device list Sber
+        # names in every status_request (issue #44).
+        self._cloud_devices = CloudDeviceRegistry(hass, entry)
+
         # Coalescing gate in front of up/config: Sber treats every config
         # payload as the complete device list, so a partial one (entities
         # still loading) makes it drop and later re-create devices, losing
@@ -258,6 +264,7 @@ class SberBridge:
             max_wait=self._config_max_wait,
             get_enabled_entity_ids=lambda: list(self._enabled_entity_ids),
             get_ready_entity_ids=lambda: {eid for eid, ent in self._entities.items() if ent.is_filled_by_state},
+            get_cloud_known_ids=lambda: self._cloud_devices.known,
             publish=self._publish_config,
             create_task=self._create_safe_task,
         )
@@ -344,8 +351,16 @@ class SberBridge:
             ha_serial_prefix=self.ha_serial_prefix,
         )
 
-    def _on_config_published(self) -> None:
-        """React to a successful config publish: arm the silent-rejection audit."""
+    def _on_config_published(self, published_ids: list[str]) -> None:
+        """React to a successful config publish.
+
+        Records what the cloud now holds (so a later publish cannot drop one
+        of those devices) and arms the silent-rejection audit.
+
+        Args:
+            published_ids: Entity ids that went out in the payload.
+        """
+        self._cloud_devices.note_published(published_ids)
         self._ack_audit.schedule_audit()
         unack = self.unacknowledged_entities
         if unack:
@@ -927,6 +942,7 @@ class SberBridge:
             self._connection_task = None
 
         self._config_gate.cancel()
+        self._cloud_devices.shutdown()
         self._connected = False
 
     @callback
@@ -1287,7 +1303,17 @@ class SberBridge:
                 self._confirm_tasks.pop(entity_id, None)
 
     async def _handle_sber_status_request(self, payload: bytes) -> None:
-        """Delegate Sber status request to :class:`SberCommandDispatcher`."""
+        """Delegate Sber status request to :class:`SberCommandDispatcher`.
+
+        The request names the devices the cloud holds — direct evidence,
+        recorded before dispatching so a restart cannot publish a list that
+        drops one of them (issue #44).
+        """
+        from .sber_protocol import parse_sber_status_request
+
+        requested = parse_sber_status_request(payload)
+        if requested:
+            self._cloud_devices.note_cloud_reported(requested)
         await self._command_dispatcher.handle_status_request(payload)
 
     async def _handle_sber_config_request(self) -> None:
