@@ -31,6 +31,22 @@ const SETTING_DEFS = [
     ],
   },
   {
+    group: "Device sync",
+    note: "Sber reads every config publish as the COMPLETE device list, so one that omits a device makes the cloud drop it and re-register it later in the hub's room. The bridge therefore waits for devices to load before publishing. Raise the settle delay if you have battery-powered Zigbee sensors that wake up slowly.",
+    fields: [
+      { key: "config_settle_delay", label: "Config settle delay (s)", min: 0, max: 300, step: 1, type: "number" },
+      { key: "config_max_wait", label: "Max wait for devices (s)", min: 1, max: 900, step: 10, type: "number" },
+    ],
+  },
+  {
+    group: "Commands",
+    note: "Applied immediately",
+    fields: [
+      { key: "confirm_delay", label: "Delayed state confirmation (s)", min: 0, max: 60, step: 0.5, type: "number" },
+      { key: "ack_audit_delay", label: "Silent-rejection audit delay (s)", min: 1, max: 3600, step: 10, type: "number" },
+    ],
+  },
+  {
     group: "Debug",
     note: "Applied immediately",
     fields: [

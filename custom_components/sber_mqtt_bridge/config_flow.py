@@ -31,6 +31,8 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_CONFIG_MAX_WAIT,
+    CONF_CONFIG_SETTLE_DELAY,
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
     CONF_SBER_BROKER,
@@ -41,6 +43,7 @@ from .const import (
     DOMAIN,
     SBER_BROKER_DEFAULT,
     SBER_PORT_DEFAULT,
+    SETTINGS_DEFAULTS,
 )
 from .sber_entity_map import (
     SUPPORTED_DOMAINS,
@@ -450,7 +453,43 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             menu_options=[
                 "select_entities_menu",
                 "type_overrides",
+                "device_sync",
             ],
+        )
+
+    async def async_step_device_sync(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Tune how long the bridge waits for devices before publishing config.
+
+        Sber reads every ``up/config`` as the complete device list, so the
+        bridge holds the publish until slow devices have reported (issue #44).
+        Battery-powered Zigbee sensors can take far longer than the default
+        settle window, which is why this is user-tunable here as well as in
+        the panel.
+
+        Args:
+            user_input: Submitted values, or ``None`` to render the form.
+
+        Returns:
+            The form, or the saved options entry.
+        """
+        if user_input is not None:
+            return self.async_create_entry(data={**self.config_entry.options, **user_input})
+
+        options = self.config_entry.options
+        return self.async_show_form(
+            step_id="device_sync",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_CONFIG_SETTLE_DELAY,
+                        default=options.get(CONF_CONFIG_SETTLE_DELAY, SETTINGS_DEFAULTS[CONF_CONFIG_SETTLE_DELAY]),
+                    ): vol.All(vol.Coerce(float), vol.Range(min=0, max=300)),
+                    vol.Required(
+                        CONF_CONFIG_MAX_WAIT,
+                        default=options.get(CONF_CONFIG_MAX_WAIT, SETTINGS_DEFAULTS[CONF_CONFIG_MAX_WAIT]),
+                    ): vol.All(vol.Coerce(float), vol.Range(min=1, max=900)),
+                }
+            ),
         )
 
     # ── Entity Type Preview ──

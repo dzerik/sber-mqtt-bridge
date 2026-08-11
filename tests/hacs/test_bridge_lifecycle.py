@@ -434,7 +434,9 @@ async def test_staggered_entity_startup_publishes_one_complete_config(
 
     # Only the first entity has state when the bridge starts.
     hass.states.async_set("switch.lamp_a", "on")
-    entry = _make_entry(hass, options={"exposed_entities": exposed})
+    # This is a RESTART: Sber already holds all three from the previous run,
+    # so omitting any of them from a payload would make the cloud drop it.
+    entry = _make_entry(hass, options={"exposed_entities": exposed, "cloud_known_devices": exposed})
     fake = FakeMqttClient()
     _install_fake_mqtt(monkeypatch, fake)
     bridge = SberBridge(hass, entry)

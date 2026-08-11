@@ -104,8 +104,12 @@ class PublisherDeps:
     get_config_context: Callable[[], ConfigPublishContext]
     """Resolves the descriptor context for the next config publish."""
 
-    on_config_published: Callable[[], None]
-    """Invoked after a successful config publish (arms the ack audit)."""
+    on_config_published: Callable[[list[str]], None]
+    """Invoked after a successful config publish with the ids that went out.
+
+    The ids matter, not just the event: they are exactly what the Sber cloud
+    now holds, which the bridge records so a later publish cannot silently
+    drop one of them (issue #44)."""
 
 
 class SberPublisher:
@@ -421,4 +425,4 @@ class SberPublisher:
             ", ".join(ids_to_publish),
         )
 
-        deps.on_config_published()
+        deps.on_config_published(list(ids_to_publish))

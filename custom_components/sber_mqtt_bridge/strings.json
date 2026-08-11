@@ -54,7 +54,8 @@
         "title": "Advanced Options",
         "menu_options": {
           "select_entities_menu": "Entity selection",
-          "type_overrides": "Entity type overrides"
+          "type_overrides": "Entity type overrides",
+          "device_sync": "Device sync timing"
         }
       },
       "select_entities_menu": {
@@ -89,6 +90,14 @@
       "type_overrides": {
         "title": "Entity Type Overrides",
         "description": "Override the Sber device type for each exposed entity. 'Auto' uses automatic detection based on HA domain and device class."
+      },
+      "device_sync": {
+        "title": "Device sync timing",
+        "description": "Sber reads every config publish as the COMPLETE device list, so one that omits a device makes the cloud drop it and re-register it later in the hub's room. The bridge waits for devices to report before publishing. Raise the settle delay if you have battery-powered Zigbee sensors that wake up slowly.",
+        "data": {
+          "config_settle_delay": "Settle delay (seconds)",
+          "config_max_wait": "Max wait for devices (seconds)"
+        }
       }
     }
   },

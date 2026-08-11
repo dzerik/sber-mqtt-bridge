@@ -67,10 +67,19 @@ class GateHarness:
     SETTLE = 5.0
     MAX_WAIT = 120.0
 
-    def __init__(self, enabled: list[str], ready: set[str] | None = None) -> None:
+    def __init__(
+        self,
+        enabled: list[str],
+        ready: set[str] | None = None,
+        cloud_known: set[str] | None = None,
+    ) -> None:
         self.loop = FakeLoop()
         self.enabled = enabled
         self.ready = set(ready or ())
+        # Default: the cloud already holds every enabled device — the restart
+        # case, where omitting one is destructive.  Pass an explicit set to
+        # model a fresh install.
+        self.cloud_known = set(enabled) if cloud_known is None else set(cloud_known)
         self.publishes: list[set[str]] = []
 
         async def _publish() -> None:
@@ -91,6 +100,7 @@ class GateHarness:
             max_wait=self.MAX_WAIT,
             get_enabled_entity_ids=lambda: list(self.enabled),
             get_ready_entity_ids=lambda: set(self.ready),
+            get_cloud_known_ids=lambda: frozenset(self.cloud_known),
             publish=_publish,
             create_task=_create_task,
         )
@@ -132,7 +142,7 @@ def test_startup_burst_collapses_into_one_complete_publish() -> None:
 
 def test_partial_set_waits_for_the_settle_window() -> None:
     """Entities stop arriving before the set is complete → publish after quiet."""
-    h = GateHarness(enabled=["light.a", "light.b"])
+    h = GateHarness(enabled=["light.a", "light.b"], cloud_known={"light.a"})
 
     h.arrive("light.a")
     h.loop.advance(GateHarness.SETTLE - 0.1)
@@ -145,7 +155,7 @@ def test_partial_set_waits_for_the_settle_window() -> None:
 
 def test_each_arrival_rearms_the_window() -> None:
     """A steady trickle must not publish once per entity."""
-    h = GateHarness(enabled=["light.a", "light.b", "light.c", "light.d"])
+    h = GateHarness(enabled=["light.a", "light.b", "light.c", "light.d"], cloud_known=set())
 
     for entity_id in ("light.a", "light.b", "light.c"):
         h.arrive(entity_id)
@@ -214,7 +224,7 @@ def test_cancel_drops_pending_publish() -> None:
 
 def test_has_pending_reflects_the_armed_timer() -> None:
     """The bridge uses this to reason about shutdown ordering."""
-    h = GateHarness(enabled=["light.a", "light.b"])
+    h = GateHarness(enabled=["light.a", "light.b"], cloud_known={"light.a"})
     assert h.gate.has_pending is False
 
     h.arrive("light.a")
@@ -234,9 +244,69 @@ def test_empty_enabled_set_publishes_immediately() -> None:
     assert h.loop.pending == 0
 
 
+def test_devices_the_cloud_never_saw_do_not_block() -> None:
+    """First setup must not wait: nothing is at risk yet.
+
+    A device the cloud has never held can safely join a later payload — it
+    is simply registered then.  Only omitting a device the cloud *already*
+    holds is destructive, so a battery sensor that wakes up minutes after a
+    fresh install must not delay everything else.
+    """
+    h = GateHarness(enabled=["light.a", "sensor.sleepy"], ready={"light.a"}, cloud_known=set())
+
+    h.gate.request("connect")
+    h.loop.advance(GateHarness.SETTLE)
+
+    assert h.publishes == [{"light.a"}], "must publish without waiting for an unknown device"
+
+    # And it must not keep holding: the cap is irrelevant here.
+    h.loop.advance(GateHarness.MAX_WAIT)
+    assert len(h.publishes) == 1
+
+
+def test_device_the_cloud_holds_blocks_until_it_reports() -> None:
+    """The reporter's sleeping sensor: known to the cloud, slow to wake.
+
+    Waiting here is not a timing guess — publishing without this device
+    would make Sber drop it and re-register it in the hub's room.
+    """
+    h = GateHarness(
+        enabled=["light.a", "sensor.sleepy"],
+        ready={"light.a"},
+        cloud_known={"light.a", "sensor.sleepy"},
+    )
+
+    h.gate.request("connect")
+    h.loop.advance(GateHarness.SETTLE * 3)
+
+    assert h.publishes == [], "a device the cloud holds must not be dropped from the payload"
+
+    h.arrive("sensor.sleepy")
+
+    assert h.publishes == [{"light.a", "sensor.sleepy"}]
+
+
+def test_forgotten_device_stops_blocking() -> None:
+    """Un-exposing a device must not wedge every future publish.
+
+    Otherwise a device the user removed stays 'known to the cloud' forever
+    and can never become ready again.
+    """
+    h = GateHarness(enabled=["light.a"], ready=set(), cloud_known={"light.a", "sensor.gone"})
+
+    h.gate.request("connect")
+    assert h.publishes == [], "light.a is still missing"
+
+    h.arrive("light.a")
+
+    # sensor.gone is no longer enabled, so it is not in _missing either —
+    # only enabled-and-known-and-unready entities block.
+    assert h.publishes == [{"light.a"}]
+
+
 def test_updated_delays_take_effect_on_the_next_burst() -> None:
     """Options flow can retune the gate without a restart."""
-    h = GateHarness(enabled=["light.a", "light.b"])
+    h = GateHarness(enabled=["light.a", "light.b"], cloud_known={"light.a"})
     h.gate.update_delays(settle_delay=1.0, max_wait=10.0)
 
     h.arrive("light.a")
