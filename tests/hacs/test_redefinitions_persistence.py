@@ -120,6 +120,8 @@ def test_load_restores_persisted_redefinitions():
     mock_reg_entry.platform = "test"
     mock_reg_entry.unique_id = "saved_1"
     mock_reg_entry.original_device_class = None
+    # HA 'Show as' override — None unless the user set it.
+    mock_reg_entry.device_class = None
     mock_reg_entry.entity_category = None
     mock_reg_entry.icon = None
     mock_reg_entry.disabled_by = None

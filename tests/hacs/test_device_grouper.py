@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from custom_components.sber_mqtt_bridge.device_grouper import (
+    effective_device_class,
     DeviceGroup,
     EntityRole,
     HaDeviceGrouper,
@@ -52,6 +53,7 @@ def _make_entity(
     device_id: str | None = None,
     domain: str | None = None,
     original_device_class: str | None = None,
+    device_class: str | None = None,
     name: str | None = None,
     original_name: str | None = None,
     area_id: str | None = None,
@@ -66,6 +68,9 @@ def _make_entity(
     entry.domain = domain or entity_id.split(".")[0]
     entry.device_id = device_id
     entry.original_device_class = original_device_class
+    # HA's user-facing "Show as" override.  None unless the user set it —
+    # a bare MagicMock would be truthy and silently mask the real class.
+    entry.device_class = device_class
     entry.name = name
     entry.original_name = original_name
     entry.area_id = area_id
@@ -821,3 +826,56 @@ class TestSorting:
         names = [g.name for g in result]
         # Bedroom (Bravo), Living Room (Charlie), then exposed Alpha last
         assert names == ["Bravo", "Charlie", "Alpha"]
+
+
+class TestEffectiveDeviceClass:
+    """HA's per-entity "Show as" override must steer categorisation.
+
+    Issues #50/#51: a user marks a cover as *Garage* (or converts a switch to
+    a cover via the built-in Switch-as-X helper and then marks it) expecting
+    it to land in the Sber ``gate`` category.  HA stores that choice in
+    ``RegistryEntry.device_class`` while ``original_device_class`` keeps
+    whatever the integration reported — reading only the latter ignored the
+    user entirely.
+    """
+
+    def test_user_override_wins_over_integration_value(self) -> None:
+        entry = _make_entity("cover.shutter", original_device_class="shutter", device_class="garage")
+        assert effective_device_class(entry) == "garage"
+
+    def test_falls_back_to_integration_value(self) -> None:
+        entry = _make_entity("cover.shutter", original_device_class="shutter")
+        assert effective_device_class(entry) == "shutter"
+
+    def test_empty_when_neither_is_set(self) -> None:
+        assert effective_device_class(_make_entity("cover.plain")) == ""
+
+    def test_override_moves_the_device_into_the_gate_category(self, hass: MagicMock) -> None:
+        """End-to-end through the wizard: the override decides the category."""
+        with (
+            patch("custom_components.sber_mqtt_bridge.device_grouper.er.async_get") as er_get,
+            patch("custom_components.sber_mqtt_bridge.device_grouper.dr.async_get") as dr_get,
+            patch("custom_components.sber_mqtt_bridge.device_grouper.ar.async_get") as ar_get,
+        ):
+            entity_reg, device_reg, area_reg = er_get.return_value, dr_get.return_value, ar_get.return_value
+            _set_devices(device_reg, [_make_device("dev_gate", name="Garage door")])
+            _set_areas(area_reg, [])
+            _set_entities(
+                entity_reg,
+                [
+                    _make_entity(
+                        "cover.garage",
+                        device_id="dev_gate",
+                        original_device_class="shutter",
+                        device_class="garage",
+                        original_name="Garage",
+                    )
+                ],
+            )
+
+            grouper = HaDeviceGrouper(hass)
+            in_gate = [g.device_id for g in grouper.list_for_category("gate")]
+            in_blind = [g.device_id for g in grouper.list_for_category("window_blind")]
+
+        assert in_gate == ["dev_gate"], "the override must place the device under gate"
+        assert in_blind == [], "and take it out of the category its integration reported"

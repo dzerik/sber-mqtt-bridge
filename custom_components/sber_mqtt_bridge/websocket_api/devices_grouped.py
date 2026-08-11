@@ -25,7 +25,7 @@ from ..const import (
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
 )
-from ..device_grouper import HaDeviceGrouper
+from ..device_grouper import HaDeviceGrouper, effective_device_class
 from ..devices.base_entity import resolve_link_role
 from ..sber_entity_map import (
     CATEGORY_DOMAIN_MAP,
@@ -187,7 +187,7 @@ def _validate_primary(
             f"Entity {primary_id} does not belong to device {device_id}",
         )
 
-    if not spec.matches(primary_entry.domain, primary_entry.original_device_class or ""):
+    if not spec.matches(primary_entry.domain, effective_device_class(primary_entry)):
         raise _AddDeviceError(
             "primary_category_mismatch",
             f"Entity {primary_id} cannot be promoted to category {category!r}",
@@ -197,7 +197,7 @@ def _validate_primary(
         primary_id,
         {
             "entity_id": primary_entry.entity_id,
-            "original_device_class": primary_entry.original_device_class or "",
+            "original_device_class": effective_device_class(primary_entry),
             "device_id": primary_entry.device_id,
             "name": primary_entry.name or primary_entry.original_name or primary_id,
             "original_name": primary_entry.original_name,
@@ -228,7 +228,7 @@ def _resolve_role_mapping(
         linked_entry = entity_reg.async_get(linked_id)
         if linked_entry is None:
             raise _AddDeviceError("linked_not_found", f"Entity {linked_id} not in registry")
-        link_role = resolve_link_role(linked_entry.domain, linked_entry.original_device_class or "")
+        link_role = resolve_link_role(linked_entry.domain, effective_device_class(linked_entry))
         if not link_role or link_role not in accepted_role_names:
             raise _AddDeviceError(
                 "linked_role_not_accepted",
@@ -415,7 +415,7 @@ async def ws_suggest_links(
             entity_id,
             {
                 "entity_id": entity_id,
-                "original_device_class": primary_entry.original_device_class or "",
+                "original_device_class": effective_device_class(primary_entry),
             },
         )
         primary_category = sber.category if sber is not None else ""

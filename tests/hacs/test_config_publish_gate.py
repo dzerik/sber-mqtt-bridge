@@ -81,9 +81,13 @@ class GateHarness:
         # model a fresh install.
         self.cloud_known = set(enabled) if cloud_known is None else set(cloud_known)
         self.publishes: list[set[str]] = []
+        self.forced: list[bool] = []
 
-        async def _publish() -> None:
+        async def _publish(*, force: bool = False) -> None:
             # Snapshot what the payload *would* contain at publish time.
+            # ``force`` mirrors the publisher signature (explicit user action
+            # bypasses the unchanged-payload check).
+            self.forced.append(force)
             self.publishes.append(set(self.ready))
 
         def _create_task(coro, *, name=None):
@@ -204,6 +208,7 @@ async def test_flush_now_bypasses_coalescing() -> None:
     await h.gate.flush_now()
 
     assert h.publishes == [{"light.a"}]
+    assert h.forced == [True], "an explicit re-publish must bypass the unchanged-payload check"
     assert h.loop.pending == 0, "flush must cancel the pending timer"
 
     h.loop.advance(GateHarness.MAX_WAIT * 2)

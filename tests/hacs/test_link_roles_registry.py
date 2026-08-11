@@ -89,6 +89,8 @@ def _reg_entry(entity_id: str, *, device_id: str | None = None, device_class: st
     entry.domain = entity_id.split(".")[0]
     entry.device_id = device_id
     entry.original_device_class = device_class
+    # HA 'Show as' override — None unless the user set it.
+    entry.device_class = None
     entry.name = None
     entry.original_name = entity_id
     entry.area_id = None
