@@ -41,6 +41,24 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+def effective_device_class(entry: er.RegistryEntry) -> str:
+    """Return the device class Home Assistant actually shows for ``entry``.
+
+    HA keeps two values: ``original_device_class`` (what the integration
+    reported) and ``device_class`` (the user's "Show as" override in the
+    entity settings).  The override wins everywhere in HA, so it must win
+    here too — otherwise a user who marks a cover as *Garage* to steer it
+    into the Sber ``gate`` category is silently ignored (issues #50/#51).
+
+    Args:
+        entry: Entity registry entry.
+
+    Returns:
+        The effective device class, or ``""`` when neither is set.
+    """
+    return entry.device_class or entry.original_device_class or ""
+
+
 class EntityRole(StrEnum):
     """Classification of an entity inside a :class:`DeviceGroup`."""
 
@@ -220,7 +238,7 @@ class HaDeviceGrouper:
         # Orphan entities (no device_id) — e.g. SmartIR, template entities.
         # Each becomes its own "virtual" device group.
         for entry in orphan_entries:
-            if not spec.matches(entry.domain, entry.original_device_class or ""):
+            if not spec.matches(entry.domain, effective_device_class(entry)):
                 continue
             group = self._build_orphan_group(entry, sber_category)
             if group is not None:
@@ -411,7 +429,7 @@ class HaDeviceGrouper:
         unchanged so the caller can still flag the device as
         ``already_exposed=True`` instead of dropping it from the list.
         """
-        matching = [entry for entry in device_entries if spec.matches(entry.domain, entry.original_device_class or "")]
+        matching = [entry for entry in device_entries if spec.matches(entry.domain, effective_device_class(entry))]
         if not matching:
             return None, []
         unexposed = [entry for entry in matching if entry.entity_id not in self._exposed]
@@ -436,7 +454,7 @@ class HaDeviceGrouper:
         for entry in device_entries:
             if entry.entity_id == primary_entity_id:
                 continue
-            dc = entry.original_device_class or ""
+            dc = effective_device_class(entry)
             link_role = resolve_link_role(entry.domain, dc)
             if link_role and link_role in accepted_role_names:
                 linked.append(
@@ -482,7 +500,7 @@ class HaDeviceGrouper:
         index: dict[str, list[tuple[str, er.RegistryEntry]]] = {}
         for device_id, entries in entities_by_device.items():
             for entry in entries:
-                link_role = resolve_link_role(entry.domain, entry.original_device_class or "")
+                link_role = resolve_link_role(entry.domain, effective_device_class(entry))
                 if link_role:
                     index.setdefault(link_role, []).append((device_id, entry))
         return index
@@ -545,7 +563,7 @@ class HaDeviceGrouper:
         """
         entity_data = {
             "entity_id": entry.entity_id,
-            "original_device_class": entry.original_device_class or "",
+            "original_device_class": effective_device_class(entry),
             "name": entry.name or entry.original_name or entry.entity_id,
             "original_name": entry.original_name,
             "platform": entry.platform,
@@ -577,13 +595,13 @@ class HaDeviceGrouper:
         # hasn't specified one (e.g. UNSUPPORTED entities).
         auto_category = sber_category
         if auto_category is None:
-            matches = categories_for_domain(entry.domain, entry.original_device_class)
+            matches = categories_for_domain(entry.domain, effective_device_class(entry))
             auto_category = matches[0] if matches else None
 
         return GroupedEntity(
             entity_id=entry.entity_id,
             domain=entry.domain,
-            device_class=entry.original_device_class or "",
+            device_class=effective_device_class(entry),
             friendly_name=friendly,
             area=area,
             role=role,

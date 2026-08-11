@@ -80,6 +80,8 @@ def _make_entity(
     entry.domain = domain or entity_id.split(".")[0]
     entry.device_id = device_id
     entry.original_device_class = original_device_class
+    # HA 'Show as' override — None unless the user set it.
+    entry.device_class = None
     entry.name = name
     entry.original_name = original_name
     entry.platform = platform

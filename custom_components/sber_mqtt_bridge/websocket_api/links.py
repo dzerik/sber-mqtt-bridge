@@ -18,6 +18,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 
 from ..const import CONF_ENTITY_LINKS, CONF_EXPOSED_ENTITIES
+from ..device_grouper import effective_device_class
 from ._common import (  # noqa: F401 — get_config_entry re-exported for test patching
     WS_ENTITY_ID,
     get_bridge,
@@ -121,7 +122,7 @@ async def ws_auto_link_all(
                 continue
             if e.disabled:
                 continue
-            dc = e.original_device_class or ""
+            dc = effective_device_class(e)
             for lr in linkable_roles:
                 if lr.matches(e.domain, dc) and lr.role not in new_links:
                     new_links[lr.role] = e.entity_id

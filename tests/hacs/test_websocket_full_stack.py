@@ -735,9 +735,7 @@ class TestRawModule:
         Parametrised over both toggle states so a preview that hardcodes
         either answer fails.
         """
-        hass.config_entries.async_update_entry(
-            entry, options={**entry.options, CONF_HUB_AUTO_PARENT: auto_parent}
-        )
+        hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_HUB_AUTO_PARENT: auto_parent})
         await hass.async_block_till_done()
 
         preview = json.loads((await ok(admin, "raw_config"))["payload"])

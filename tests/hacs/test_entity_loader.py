@@ -72,6 +72,8 @@ def _make_reg_entry(
     entry.entity_id = entity_id
     entry.device_id = device_id
     entry.original_device_class = original_device_class
+    # HA 'Show as' override — None unless the user set it.
+    entry.device_class = None
     entry.name = name
     entry.original_name = original_name
     entry.area_id = area_id

@@ -262,8 +262,8 @@ class SberBridge:
             loop=hass.loop,
             settle_delay=self._config_settle_delay,
             max_wait=self._config_max_wait,
-            get_enabled_entity_ids=lambda: list(self._enabled_entity_ids),
-            get_ready_entity_ids=lambda: {eid for eid, ent in self._entities.items() if ent.is_filled_by_state},
+            get_enabled_entity_ids=self._config_relevant_entity_ids,
+            get_ready_entity_ids=self._ready_entity_ids,
             get_cloud_known_ids=lambda: self._cloud_devices.known,
             publish=self._publish_config,
             create_task=self._create_safe_task,
@@ -559,6 +559,23 @@ class SberBridge:
         existing = await self._redef_store.async_update(entity_id, fields)
         await self._publish_config()
         return existing
+
+    def _config_relevant_entity_ids(self) -> list[str]:
+        """Entities whose readiness affects the published config.
+
+        Includes linked companions: a temperature sensor's ``humidity``
+        feature comes from its linked sibling, so publishing before that
+        sibling reports yields a *narrower* feature set — and, since the
+        model id is a digest of the capabilities, a different model id for
+        the very same physical device on every restart (issue #44).
+        """
+        return [*self._enabled_entity_ids, *self._linked_reverse]
+
+    def _ready_entity_ids(self) -> set[str]:
+        """Entities that already have state (primaries and linked alike)."""
+        ready = {eid for eid, ent in self._entities.items() if ent.is_filled_by_state}
+        ready |= {eid for eid in self._linked_reverse if self._hass.states.get(eid) is not None}
+        return ready
 
     async def _request_config_publish(self) -> None:
         """Ask the gate for a config publish instead of firing one now.
@@ -1363,6 +1380,6 @@ class SberBridge:
         """Delegate to :meth:`SberPublisher.publish_states`."""
         await self._publisher.publish_states(entity_ids, force=force)
 
-    async def _publish_config(self, entity_ids: list[str] | None = None) -> None:
+    async def _publish_config(self, entity_ids: list[str] | None = None, *, force: bool = False) -> None:
         """Delegate to :meth:`SberPublisher.publish_config`."""
-        await self._publisher.publish_config(entity_ids)
+        await self._publisher.publish_config(entity_ids, force=force)

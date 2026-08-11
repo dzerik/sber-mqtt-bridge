@@ -128,6 +128,8 @@ class SberPublisher:
         """
         self._deps = deps
         self._last_config_publish_time: float | None = None
+        self._last_config_payload: str | None = None
+        """Last payload actually sent — used to skip identical republishes."""
         """Monotonic timestamp of the most recent successful config publish."""
 
     @property
@@ -376,10 +378,16 @@ class SberPublisher:
                 entity.mark_state_published(snapshot=snapshot)
         self._record_devtools(topic, payload, ids_to_publish)
 
-    async def publish_config(self, entity_ids: list[str] | None = None) -> None:
+    async def publish_config(self, entity_ids: list[str] | None = None, *, force: bool = False) -> None:
         """Publish device descriptor on ``up/config``.
 
+        Skips the publish when the payload is byte-identical to the previous
+        one, unless ``force`` is set: several triggers can fire together
+        during startup and re-sending an unchanged device list only makes the
+        cloud re-evaluate a configuration that did not change.
+
         Args:
+            force: Publish even if nothing changed (explicit user action).
             entity_ids: Specific entity IDs to publish, or ``None`` for all
                 enabled entities.
 
@@ -410,6 +418,13 @@ class SberPublisher:
                 ", ".join(invalid_ids),
             )
         topic = f"{deps.root_topic}/up/config"
+        if not force and payload == self._last_config_payload:
+            # Byte-identical to what Sber already has.  Several triggers can
+            # legitimately fire at once during startup (the handshake and the
+            # coalescing gate), and re-sending the same device list only makes
+            # the cloud re-evaluate a configuration that did not change.
+            _LOGGER.debug("Config unchanged since last publish — skipping")
+            return
         _LOGGER.debug(
             "Publishing config to %s (%d bytes): %s",
             topic,
@@ -419,6 +434,7 @@ class SberPublisher:
         if not await self._publish_logged(topic, payload, "config"):
             return
         self._last_config_publish_time = time.monotonic()
+        self._last_config_payload = payload
         _LOGGER.info(
             "Published device config to Sber (%d entities): %s",
             len(ids_to_publish),
