@@ -29,9 +29,11 @@ from .const import (
     CONF_ENTITY_LINKS,
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
+    CONF_GATE_OPTIONS,
 )
 from .custom_capabilities import get_custom_config
 from .devices.base_entity import BaseEntity
+from .devices.gate import ImpulseGateEntity
 from .sber_entity_map import create_sber_entity
 
 if TYPE_CHECKING:
@@ -168,6 +170,7 @@ class SberEntityLoader:
             Dict mapping entity_id to the created BaseEntity subclass.
         """
         type_overrides: dict[str, str] = self._entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
+        gate_options: dict[str, dict] = self._entry.options.get(CONF_GATE_OPTIONS, {})
         new_entities: dict[str, BaseEntity] = {}
         entity_reg = er.async_get(self._hass)
         device_reg = dr.async_get(self._hass)
@@ -207,6 +210,7 @@ class SberEntityLoader:
 
             new_entities[entity_id] = sber_entity
             self._apply_yaml_overrides(sber_entity, entity_id, yaml_cfg)
+            self._apply_gate_options(sber_entity, gate_options.get(entity_id))
             self._link_device_registry(sber_entity, entry, device_reg, area_reg)
 
             state = self._hass.states.get(entity_id)
@@ -261,6 +265,24 @@ class SberEntityLoader:
         if yaml_cfg.sber_features_remove is not None:
             sber_entity.removed_features = yaml_cfg.sber_features_remove
             _LOGGER.debug("YAML sber_features_remove for %s: %s", entity_id, yaml_cfg.sber_features_remove)
+
+    @staticmethod
+    def _apply_gate_options(sber_entity: BaseEntity, options: dict | None) -> None:
+        """Apply per-entity impulse-gate options (``gate_options``).
+
+        Applied in the same pass as the YAML overrides so the options are
+        already in place before the initial ``fill_by_ha_state`` /
+        ``update_linked_data`` — the contact polarity must be known before
+        the first contact reading is interpreted.
+
+        Args:
+            sber_entity: Freshly created Sber entity.
+            options: Option dict for this entity, or ``None`` when the
+                user configured none.
+        """
+        if not options or not isinstance(sber_entity, ImpulseGateEntity):
+            return
+        sber_entity.apply_gate_options(options)
 
     @staticmethod
     def _link_device_registry(
@@ -343,6 +365,14 @@ class SberEntityLoader:
                     continue
                 valid_roles[role] = linked_id
                 new_reverse[linked_id] = (primary_id, role)
+                # Register the link BEFORE reading the initial state: the
+                # link exists because the user configured it, not because
+                # the companion already has a state object.  At HA start
+                # the linked integration often loads after this one, and a
+                # composite device (ImpulseGateEntity) that believes it has
+                # no link publishes a fabricated position with online=true
+                # and drops its safety guard.
+                primary_entity.register_link(role, linked_id)
                 linked_state = self._hass.states.get(linked_id)
                 if linked_state is None:
                     log_fn = _LOGGER.debug if not self._hass.is_running else _LOGGER.warning
@@ -372,7 +402,6 @@ class SberEntityLoader:
                         role,
                         primary_id,
                     )
-                primary_entity.register_link(role, linked_id)
             if valid_roles:
                 new_links[primary_id] = valid_roles
                 _LOGGER.info("Entity links for %s: %s", primary_id, valid_roles)

@@ -29,6 +29,8 @@ class SberDetailDialog extends LitElement {
       _error: { type: String },
       _saveStatus: { type: String },
       _saveError: { type: String },
+      _gateStatus: { type: String },
+      _gateError: { type: String },
     };
   }
 
@@ -288,6 +290,8 @@ class SberDetailDialog extends LitElement {
     this._error = "";
     this._saveStatus = "";
     this._saveError = "";
+    this._gateStatus = "";
+    this._gateError = "";
   }
 
   /**
@@ -354,6 +358,8 @@ class SberDetailDialog extends LitElement {
     this._error = "";
     this._saveStatus = "";
     this._saveError = "";
+    this._gateStatus = "";
+    this._gateError = "";
     this._data = null;
     await this._fetchDetail(entityId);
   }
@@ -428,6 +434,7 @@ class SberDetailDialog extends LitElement {
       </div>
       <div class="body">
         ${this._renderEditForm(d)}
+        ${d.gate_options ? this._renderGateOptions(d) : ""}
         ${this._renderOverview(d)}
         ${this._renderSberStates(d)}
         ${d.linked_entities?.length ? this._renderLinkedEntities(d) : ""}
@@ -604,6 +611,69 @@ class SberDetailDialog extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Render the impulse-gate settings (issue #53).
+   *
+   * Only shown when the backend reports ``gate_options``, i.e. for a
+   * gate built from an impulse relay + a contact sensor.  A cover-based
+   * gate has no such options and renders nothing.
+   *
+   * @param {object} d - Detail payload.
+   * @returns {import("lit").TemplateResult} Section template.
+   */
+  _renderGateOptions(d) {
+    const g = d.gate_options || {};
+    return html`
+      <div class="section">
+        <div class="section-title">Impulse Gate</div>
+        <div class="edit-form">
+          <label class="edit-label" for="gate-invert">Contact</label>
+          <label>
+            <input type="checkbox" id="gate-invert" .checked=${!!g.invert_contact} />
+            Inverted (sensor reports "on" when the gate is closed)
+          </label>
+          <label class="edit-label" for="gate-service">Impulse</label>
+          <select class="edit-input" id="gate-service" .value=${g.impulse_service || "auto"}>
+            <option value="auto">Automatic (toggle)</option>
+            <option value="toggle">switch.toggle</option>
+            <option value="turn_on">switch.turn_on</option>
+          </select>
+          <div class="edit-actions">
+            <button class="edit-save" @click=${this._onSaveGateOptions}>
+              \u{1F6AA} Save gate options
+            </button>
+            ${g.contact_stale
+              ? html`<span class="save-status error">⚠ Contact sensor is unavailable — showing last known position</span>`
+              : ""}
+            ${this._gateStatus
+              ? html`<span class="save-status ${this._gateStatus}" title=${this._gateError || ""}>${this._gateStatus === "ok" ? "✓ Saved" : `✗ ${this._gateError || "Error"}`}</span>`
+              : ""}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async _onSaveGateOptions() {
+    if (!this.hass || !this._data) return;
+    const invert = !!this.shadowRoot.getElementById("gate-invert")?.checked;
+    const service = this.shadowRoot.getElementById("gate-service")?.value || "auto";
+    try {
+      await this.hass.callWS({
+        type: "sber_mqtt_bridge/update_gate_options",
+        entity_id: this._data.entity_id,
+        invert_contact: invert,
+        impulse_service: service,
+      });
+      this._gateStatus = "ok";
+      this._gateError = "";
+    } catch (e) {
+      this._gateStatus = "error";
+      this._gateError = e.message || String(e);
+    }
+    this.requestUpdate();
   }
 
   async _onSave() {

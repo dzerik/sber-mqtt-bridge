@@ -15,7 +15,9 @@ from ..const import (
     CONF_ENTITY_LINKS,
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
+    CONF_GATE_OPTIONS,
 )
+from ..devices.gate import IMPULSE_SERVICE_OPTIONS
 from ._common import (  # noqa: F401 — get_bridge/get_config_entry re-exported for test patching
     OVERRIDABLE_CATEGORIES,
     WS_ENTITY_ID,
@@ -37,6 +39,19 @@ IMPORT_CONFIG_SCHEMA = vol.Schema(
             {cv.entity_id: vol.Schema({vol.Any("name", "room", "home"): str})}
         ),
         vol.Optional("entity_links"): vol.Schema({cv.entity_id: vol.Schema({cv.string: cv.entity_id})}),
+        # Impulse-gate settings (issue #53).  Validated by value, not just
+        # by shape: ``invert_contact`` flips the meaning of every contact
+        # reading, so a garbage value must never reach entity loading.
+        vol.Optional("gate_options"): vol.Schema(
+            {
+                cv.entity_id: vol.Schema(
+                    {
+                        vol.Optional("invert_contact"): bool,
+                        vol.Optional("impulse_service"): vol.In(IMPULSE_SERVICE_OPTIONS),
+                    }
+                )
+            }
+        ),
     },
     extra=vol.ALLOW_EXTRA,  # tolerate "version" and future metadata keys
 )
@@ -63,15 +78,20 @@ async def ws_export(
     msg: dict[str, Any],
     entry: Any,
 ) -> None:
-    """Export the full device configuration as JSON."""
+    """Export the full device configuration as JSON.
+
+    ``version`` 3 added ``gate_options``; older payloads simply lack the
+    key and import unchanged (every key is optional).
+    """
     connection.send_result(
         msg["id"],
         {
-            "version": 2,
+            "version": 3,
             "exposed_entities": list(entry.options.get(CONF_EXPOSED_ENTITIES, [])),
             "type_overrides": dict(entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})),
             "redefinitions": dict(entry.options.get("redefinitions", {})),
             "entity_links": dict(entry.options.get(CONF_ENTITY_LINKS, {})),
+            "gate_options": dict(entry.options.get(CONF_GATE_OPTIONS, {})),
         },
     )
 
@@ -117,6 +137,8 @@ async def ws_import(
         new_options["redefinitions"] = config["redefinitions"]
     if "entity_links" in config:
         new_options[CONF_ENTITY_LINKS] = config["entity_links"]
+    if "gate_options" in config:
+        new_options[CONF_GATE_OPTIONS] = config["gate_options"]
 
     hass.config_entries.async_update_entry(entry, options=new_options)
     await hass.config_entries.async_reload(entry.entry_id)

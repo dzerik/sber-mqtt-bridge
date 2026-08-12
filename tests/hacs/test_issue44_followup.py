@@ -684,7 +684,8 @@ class TestSubclassContract:
         """Only ``BaseEntity`` may define ``to_sber_current_state``."""
         offenders = [
             klass.__qualname__
-            for klass in _classes_below_base(CATEGORY_DOMAIN_MAP[category].cls)
+            for produced in CATEGORY_DOMAIN_MAP[category].entity_classes
+            for klass in _classes_below_base(produced)
             if "to_sber_current_state" in vars(klass)
         ]
         assert offenders == [], (
@@ -695,9 +696,11 @@ class TestSubclassContract:
     @pytest.mark.parametrize("category", sorted(CATEGORY_DOMAIN_MAP))
     def test_every_device_class_implements_the_hook(self, category: str) -> None:
         """The state builder must be a real implementation, not the abstract stub."""
-        cls = CATEGORY_DOMAIN_MAP[category].cls
-        assert any("_build_current_state" in vars(klass) for klass in _classes_below_base(cls))
-        assert getattr(cls._build_current_state, "__isabstractmethod__", False) is False
+        produced = CATEGORY_DOMAIN_MAP[category].entity_classes
+        assert produced, f"{category} declares no concrete entity class"
+        for cls in produced:
+            assert any("_build_current_state" in vars(klass) for klass in _classes_below_base(cls))
+            assert getattr(cls._build_current_state, "__isabstractmethod__", False) is False
 
     @pytest.mark.parametrize("category", sorted(CATEGORY_DOMAIN_MAP))
     def test_the_wrapper_is_the_one_that_filters(self, category: str) -> None:

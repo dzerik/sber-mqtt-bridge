@@ -310,6 +310,30 @@ def _section_linked_entities(
     return out
 
 
+def _section_gate_options(entity: Any) -> dict[str, Any] | None:
+    """Return the impulse-gate option block, or ``None`` for other devices.
+
+    Lets the panel render the contact-polarity / impulse-service controls
+    only for entities that actually have them (issue #53).
+
+    Args:
+        entity: Loaded Sber entity.
+
+    Returns:
+        ``{"invert_contact": bool, "impulse_service": str}`` for an
+        impulse gate, ``None`` otherwise.
+    """
+    from ..devices.gate import ImpulseGateEntity
+
+    if not isinstance(entity, ImpulseGateEntity):
+        return None
+    return {
+        "invert_contact": entity.invert_contact,
+        "impulse_service": entity.impulse_service_option,
+        "contact_stale": entity.contact_stale,
+    }
+
+
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/device_detail",
@@ -358,5 +382,9 @@ async def ws_device_detail(
     redefs = bridge.redefinitions.get(entity_id)
     if redefs:
         result["redefinitions"] = redefs
+
+    gate_options = _section_gate_options(entity)
+    if gate_options is not None:
+        result["gate_options"] = gate_options
 
     connection.send_result(msg["id"], result)

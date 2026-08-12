@@ -37,6 +37,19 @@
       "reauth_successful": "Re-authentication successful"
     }
   },
+  "config_panel": {
+    "gate_options": {
+      "title": "Impulse gate",
+      "invert_contact": "Inverted contact",
+      "invert_contact_description": "Enable when the linked contact sensor reports \"on\" while the gate is closed",
+      "impulse_service": "Impulse service",
+      "impulse_service_auto": "Automatic (toggle)",
+      "impulse_service_toggle": "switch.toggle",
+      "impulse_service_turn_on": "switch.turn_on",
+      "contact_stale": "The contact sensor is unavailable — the last known position is shown",
+      "missing_required_role": "Link the gate position sensor (a binary sensor with device class garage door, door or opening) before adding this device"
+    }
+  },
   "options": {
     "step": {
       "init": {

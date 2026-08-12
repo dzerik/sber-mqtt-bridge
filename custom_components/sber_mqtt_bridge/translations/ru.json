@@ -37,6 +37,19 @@
       "reauth_successful": "Повторная аутентификация выполнена успешно"
     }
   },
+  "config_panel": {
+    "gate_options": {
+      "title": "Импульсные ворота",
+      "invert_contact": "Инвертировать геркон",
+      "invert_contact_description": "Включите, если связанный датчик показывает «on» при закрытых воротах",
+      "impulse_service": "Сервис импульса",
+      "impulse_service_auto": "Автоматически (toggle)",
+      "impulse_service_toggle": "switch.toggle",
+      "impulse_service_turn_on": "switch.turn_on",
+      "contact_stale": "Датчик положения недоступен — показано последнее известное положение",
+      "missing_required_role": "Свяжите датчик положения ворот (бинарный сенсор с классом garage door, door или opening) перед добавлением устройства"
+    }
+  },
   "options": {
     "step": {
       "init": {

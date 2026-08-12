@@ -18,7 +18,9 @@ from ..const import (
     CONF_ENTITY_LINKS,
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
+    CONF_GATE_OPTIONS,
 )
+from ..devices.gate import IMPULSE_SERVICE_OPTIONS
 from ._common import (  # noqa: F401 — get_config_entry re-exported for test patching
     OVERRIDABLE_CATEGORIES,
     WS_ENTITY_ID,
@@ -86,15 +88,21 @@ async def ws_remove_entities(
 
     overrides: dict[str, str] = dict(entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}))
     entity_links: dict[str, dict] = dict(entry.options.get(CONF_ENTITY_LINKS, {}))
+    gate_options: dict[str, dict] = dict(entry.options.get(CONF_GATE_OPTIONS, {}))
     for eid in to_remove:
         overrides.pop(eid, None)
         entity_links.pop(eid, None)
+        # Per-entity gate settings are removed together with the entity:
+        # left behind, an inverted contact polarity would silently come
+        # back the day the same entity is added again through the wizard.
+        gate_options.pop(eid, None)
 
     if removed > 0:
         new_options = dict(entry.options)
         new_options[CONF_EXPOSED_ENTITIES] = new_list
         new_options[CONF_ENTITY_TYPE_OVERRIDES] = overrides
         new_options[CONF_ENTITY_LINKS] = entity_links
+        new_options[CONF_GATE_OPTIONS] = gate_options
         hass.config_entries.async_update_entry(entry, options=new_options)
         await hass.config_entries.async_reload(entry.entry_id)
 
@@ -140,6 +148,46 @@ async def ws_set_type_override(
 
 @websocket_api.websocket_command(
     {
+        vol.Required("type"): "sber_mqtt_bridge/update_gate_options",
+        vol.Required("entity_id"): WS_ENTITY_ID,
+        vol.Optional("invert_contact"): bool,
+        vol.Optional("impulse_service"): vol.In(IMPULSE_SERVICE_OPTIONS),
+    }
+)
+@websocket_api.async_response
+@requires_entry
+async def ws_update_gate_options(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    entry: Any,
+) -> None:
+    """Update impulse-gate options for a single entity (issue #53).
+
+    Only the keys present in the payload are changed, so the panel can
+    submit one toggle without resending the rest.  The entry is reloaded
+    afterwards because the options are consumed while entities are being
+    built (contact polarity must be applied before the first reading).
+    """
+    entity_id: str = msg["entity_id"]
+
+    all_options: dict[str, dict] = dict(entry.options.get(CONF_GATE_OPTIONS, {}))
+    entity_options: dict[str, Any] = dict(all_options.get(entity_id, {}))
+    for key in ("invert_contact", "impulse_service"):
+        if key in msg:
+            entity_options[key] = msg[key]
+    all_options[entity_id] = entity_options
+
+    new_options = dict(entry.options)
+    new_options[CONF_GATE_OPTIONS] = all_options
+    hass.config_entries.async_update_entry(entry, options=new_options)
+    await hass.config_entries.async_reload(entry.entry_id)
+
+    connection.send_result(msg["id"], {"entity_id": entity_id, "gate_options": entity_options})
+
+
+@websocket_api.websocket_command(
+    {
         vol.Required("type"): "sber_mqtt_bridge/clear_all",
     }
 )
@@ -157,6 +205,7 @@ async def ws_clear_all(
     new_options[CONF_EXPOSED_ENTITIES] = []
     new_options[CONF_ENTITY_TYPE_OVERRIDES] = {}
     new_options[CONF_ENTITY_LINKS] = {}
+    new_options[CONF_GATE_OPTIONS] = {}
     hass.config_entries.async_update_entry(entry, options=new_options)
     await hass.config_entries.async_reload(entry.entry_id)
 

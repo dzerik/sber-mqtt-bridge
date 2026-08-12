@@ -46,6 +46,7 @@ from .entities import (
     ws_clear_all,
     ws_remove_entities,
     ws_set_type_override,
+    ws_update_gate_options,
 )
 from .io_export import ws_export, ws_import, ws_update_redefinitions
 from .links import ws_auto_link_all, ws_set_entity_links
@@ -112,6 +113,7 @@ __all__ = [
     "ws_subscribe_traces",
     "ws_subscribe_validation_issues",
     "ws_suggest_links",
+    "ws_update_gate_options",
     "ws_update_redefinitions",
     "ws_update_settings",
 ]
@@ -133,6 +135,7 @@ _COMMANDS = (
     ws_add_entities,
     ws_remove_entities,
     ws_set_type_override,
+    ws_update_gate_options,
     ws_clear_all,
     # Linking
     ws_set_entity_links,
