@@ -54,6 +54,13 @@ class VacuumCleanerEntity(BaseEntity):
     - Cleaning program (fan speed)
     - Battery percentage (legacy ``battery_level`` attribute or linked
       battery sensor via the ``battery`` link role)
+
+    Command handlers address the entity in **its own** HA domain
+    (:meth:`get_entity_domain`) rather than a hard-coded ``vacuum``, so an
+    entity forced into this category by a user type override is driven
+    through services that actually exist for it.  For a ``vacuum.*``
+    entity — the only domain this category maps to — the emitted calls
+    are unchanged.
     """
 
     LINKABLE_ROLES = (ROLE_BATTERY,)
@@ -210,7 +217,7 @@ class VacuumCleanerEntity(BaseEntity):
         ha_service = _SBER_CMD_TO_HA_SERVICE.get(value.get("enum_value") or "")
         if ha_service is None:
             return []
-        return [self._build_service_call("vacuum", ha_service, self.entity_id)]
+        return [self._build_service_call(self.get_entity_domain(), ha_service, self.entity_id)]
 
     def _cmd_vacuum_program(self, value: dict) -> list[CommandResult]:
         """Handle ``vacuum_cleaner_program``: vacuum.set_fan_speed.
@@ -226,4 +233,8 @@ class VacuumCleanerEntity(BaseEntity):
         fan_speed = value.get("enum_value")
         if not fan_speed:
             return []
-        return [self._build_service_call("vacuum", "set_fan_speed", self.entity_id, {"fan_speed": fan_speed})]
+        return [
+            self._build_service_call(
+                self.get_entity_domain(), "set_fan_speed", self.entity_id, {"fan_speed": fan_speed}
+            )
+        ]

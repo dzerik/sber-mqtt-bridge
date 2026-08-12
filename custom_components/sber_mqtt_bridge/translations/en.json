@@ -47,7 +47,24 @@
       "impulse_service_toggle": "switch.toggle",
       "impulse_service_turn_on": "switch.turn_on",
       "contact_stale": "The contact sensor is unavailable — the last known position is shown",
-      "missing_required_role": "Link the gate position sensor (a binary sensor with device class garage door, door or opening) before adding this device"
+      "missing_required_role": "Link the gate position sensor (a binary sensor with device class garage door, door or opening) before adding this device",
+      "missing_required_link_warning": "This gate has no position sensor linked, so it reports \"closed\" whatever the leaf does. Link a binary sensor in the \"open_state\" role.",
+      "travel_time": "Leaf travel time (seconds)",
+      "travel_time_description": "Time the gate needs to travel end to end. 0 disables it: the position then changes only when the contact sensor reports. With a value set, the gate reports \"opening\" / \"closing\" right after the impulse until the sensor confirms.",
+      "save": "Save gate options"
+    },
+    "detail_dialog": {
+      "loading": "Loading…",
+      "close": "Close details",
+      "override": "Sber Override",
+      "overview": "Overview",
+      "sber_states": "Sber States (current)",
+      "linked_entities": "Linked Entities",
+      "model_config": "Sber Model Config",
+      "ha_attributes": "HA Attributes",
+      "device_registry": "HA Device Registry",
+      "saved": "Saved",
+      "error": "Error"
     }
   },
   "options": {
@@ -67,7 +84,8 @@
         "title": "Advanced Options",
         "menu_options": {
           "select_entities_menu": "Entity selection",
-          "type_overrides": "Entity type overrides"
+          "type_overrides": "Entity type overrides",
+          "device_sync": "Device sync timing"
         }
       },
       "select_entities_menu": {
@@ -102,6 +120,14 @@
       "type_overrides": {
         "title": "Entity Type Overrides",
         "description": "Override the Sber device type for each exposed entity. 'Auto' uses automatic detection based on HA domain and device class."
+      },
+      "device_sync": {
+        "title": "Device sync timing",
+        "description": "Sber reads every config publish as the COMPLETE device list, so one that omits a device makes the cloud drop it and re-register it later in the hub's room. The bridge waits for devices to report before publishing. Raise the settle delay if you have battery-powered Zigbee sensors that wake up slowly.",
+        "data": {
+          "config_settle_delay": "Settle delay (seconds)",
+          "config_max_wait": "Max wait for devices (seconds)"
+        }
       }
     }
   },
@@ -121,6 +147,10 @@
     "broken_entity_links": {
       "title": "Broken entity links",
       "description": "{count} linked entities are not available: {links}. Check that the linked entities exist and are not disabled."
+    },
+    "missing_required_links": {
+      "title": "Devices missing an obligatory linked sensor",
+      "description": "{count} device(s) cannot report their real state because an obligatory linked sensor is missing: {entities}. An impulse gate without a position sensor reports \"closed\" no matter where the leaf is. Open the Sber Bridge panel, pick the device and link the sensor for the listed role."
     },
     "unacknowledged_entities": {
       "title": "Devices not recognized by Sber",

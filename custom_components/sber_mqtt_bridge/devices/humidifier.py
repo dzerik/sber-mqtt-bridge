@@ -60,6 +60,12 @@ class HumidifierEntity(BaseEntity):
     - On/off control
     - Target humidity setting
     - Work mode selection (when supported by the device)
+
+    Command handlers address the entity in **its own** HA domain
+    (:meth:`get_entity_domain`) rather than a hard-coded ``humidifier``,
+    so an entity forced into this category by a user type override is
+    driven through services that actually exist for it.  For a
+    ``humidifier.*`` entity the emitted calls are unchanged.
     """
 
     LINKABLE_ROLES = (ROLE_HUMIDITY,)
@@ -280,18 +286,23 @@ class HumidifierEntity(BaseEntity):
         }
 
     def _cmd_on_off(self, value: dict) -> list[dict]:
+        """Handle ``on_off``: turn the humidifier on / off in its own HA domain."""
         if value.get("type") != SberValueType.BOOL:
             return []
         on = value.get("bool_value", False)
-        return [self._build_on_off_service_call(self.entity_id, "humidifier", on)]
+        return [self._build_on_off_service_call(self.entity_id, self.get_entity_domain(), on)]
 
     def _cmd_humidity(self, value: dict) -> list[dict]:
+        """Handle ``hvac_humidity_set`` / ``humidity``: set the target humidity."""
         humidity = _safe_int_parser(value.get("integer_value"))
         if humidity is None:
             return []
-        return [self._build_service_call("humidifier", "set_humidity", self.entity_id, {"humidity": humidity})]
+        return [
+            self._build_service_call(self.get_entity_domain(), "set_humidity", self.entity_id, {"humidity": humidity})
+        ]
 
     def _cmd_mode(self, value: dict) -> list[dict]:
+        """Handle ``hvac_air_flow_power`` / ``hvac_work_mode``: pick an HA mode."""
         sber_mode = value.get("enum_value")
         if sber_mode is None:
             return []
@@ -301,15 +312,17 @@ class HumidifierEntity(BaseEntity):
             if HA_TO_SBER_HUMIDIFIER_MODE.get(ha_m.lower(), ha_m.lower()) == sber_mode:
                 ha_mode = ha_m
                 break
-        return [self._build_service_call("humidifier", "set_mode", self.entity_id, {"mode": ha_mode})]
+        return [self._build_service_call(self.get_entity_domain(), "set_mode", self.entity_id, {"mode": ha_mode})]
 
     def _cmd_night_mode(self, value: dict) -> list[dict]:
+        """Handle ``hvac_night_mode``: switch between a night mode and a normal one."""
         night_on = value.get("bool_value", False)
+        domain = self.get_entity_domain()
         if night_on:
             night_modes = [m for m in self.available_modes if m.lower() in ("sleep", "night")]
             mode = night_modes[0] if night_modes else "night"
-            return [self._build_service_call("humidifier", "set_mode", self.entity_id, {"mode": mode})]
+            return [self._build_service_call(domain, "set_mode", self.entity_id, {"mode": mode})]
         normal_modes = [m for m in self.available_modes if m.lower() not in ("sleep", "night")]
         if not normal_modes:
             return []
-        return [self._build_service_call("humidifier", "set_mode", self.entity_id, {"mode": normal_modes[0]})]
+        return [self._build_service_call(domain, "set_mode", self.entity_id, {"mode": normal_modes[0]})]

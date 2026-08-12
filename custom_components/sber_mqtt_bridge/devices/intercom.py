@@ -95,6 +95,11 @@ class IntercomEntity(OnOffEntity):
         HA ``lock`` entity this maps to ``lock.unlock``; for switch-like
         overrides it maps to ``turn_on``.
 
+        The literal ``"lock"`` domain below is *not* a hard-coded-domain
+        defect: it is reached only inside the ``domain == "lock"`` branch,
+        so it is equal to :meth:`get_entity_domain` by construction and
+        keeps the ``lock.unlock`` service name next to its own domain.
+
         Args:
             value: Sber value dict from the command payload.
 

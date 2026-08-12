@@ -766,11 +766,26 @@ def _methods_as_object_body(src: str, names: list[str]) -> str:
     return ",\n".join(_method_source(src, name) for name in names) + ","
 
 
-_WIZARD_METHODS = ["_pendingPrimaries", "_finish", "_emitComplete"]
+_WIZARD_METHODS = ["_pendingPrimaries", "_finish", "_emitComplete", "_errorText"]
 
-# A fake wizard carrying the real _finish/_emitComplete/_pendingPrimaries.
-# ``shouldFail(msg)`` returns an error string to reject that call, or null.
+# A fake wizard carrying the real _finish/_emitComplete/_pendingPrimaries/
+# _errorText.  ``shouldFail(msg)`` returns an error string to reject that
+# call, or null; return an object to reject with a coded WS error.
+#
+# ``t`` mirrors the real contract of ``www/localize.js``: a key with no
+# translation comes back unchanged, which is exactly what ``_errorText``
+# keys its "translated or not" decision on.
 _WIZARD_HARNESS = """
+const PANEL_STRINGS = {
+  "gate_options.missing_required_role": "Свяжите датчик положения ворот",
+};
+function t(hass, key) {
+  return PANEL_STRINGS[key] ?? key;
+}
+"""
+
+
+_WIZARD_HARNESS += """
 function makeWizard(shouldFail) {
   const wizard = {
     calls: [],
@@ -795,6 +810,11 @@ function makeWizard(shouldFail) {
       callWS: async (msg) => {
         wizard.calls.push(msg);
         const reason = shouldFail(msg);
+        if (reason && typeof reason === "object") {
+          /* Home Assistant rejects callWS with {code, message}, not an
+           * Error — that shape is what carries the machine-readable code. */
+          throw reason;
+        }
         if (reason) throw new Error(reason);
         return {};
       },
@@ -831,6 +851,46 @@ def _run_wizard_scenario(tmp_path: Path, body: str) -> dict:
         _methods_as_object_body(_read("components/sber-wizard.js"), _WIZARD_METHODS),
     )
     return _run_node(tmp_path, harness + body)
+
+
+class TestWizardErrorLocalization:
+    """A coded backend refusal must reach the user in their language."""
+
+    @requires_node
+    def test_coded_error_is_translated_and_plain_one_is_not(self, tmp_path):
+        """Проверяет выбор между переводом и сырым текстом бэкенда.
+
+        Отказ ``missing_required_role`` — единственная ошибка мастера,
+        которую пользователь может исправить сам (привязать геркон к
+        воротам), поэтому она обязана показываться на его языке.  Если
+        тест упадёт, русскоязычный пользователь снова увидит английскую
+        строку разработчика ровно в тот момент, когда ему нужно понять,
+        что делать.  Вторая половина теста стережёт обратное: ошибка без
+        кода (или с кодом, для которого перевода нет) обязана сохранить
+        текст бэкенда, а не превратиться в голый ключ перевода.
+        """
+        out = _run_wizard_scenario(
+            tmp_path,
+            'const coded = {code: "missing_required_role", message: "Category needs role open_state"};\n'
+            'const untranslated = {code: "not_found", message: "Entity is gone"};\n'
+            "const wizard = makeWizard((msg) => {\n"
+            '  if (msg.primary_entity_id === "switch.a") return coded;\n'
+            '  if (msg.primary_entity_id === "switch.b") return untranslated;\n'
+            '  return "plain failure";\n'
+            "});\n"
+            "await wizard._finish();\n"
+            "console.log(JSON.stringify({failed: wizard._failed}));\n",
+        )
+
+        messages = {item["entity_id"]: item["message"] for item in out["failed"]}
+        assert messages["switch.a"] == "Свяжите датчик положения ворот", (
+            "коды с переводом обязаны локализоваться — иначе строка "
+            "config_panel.gate_options.missing_required_role мертва"
+        )
+        assert messages["switch.b"] == "Entity is gone", (
+            "код без перевода обязан сохранить сообщение бэкенда, а не показать ключ"
+        )
+        assert messages["switch.c"] == "plain failure", "ошибка без кода вообще не должна трогаться"
 
 
 class TestMultiAddPartialSuccess:

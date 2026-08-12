@@ -141,12 +141,16 @@ CONF_GATE_OPTIONS = "gate_options"
 
 Shape::
 
-    {"switch.gate": {"invert_contact": False, "impulse_service": "auto"}}
+    {"switch.gate": {"invert_contact": False, "impulse_service": "auto", "travel_time": 0}}
 
 ``invert_contact`` flips the polarity of the linked reed contact (``on``
 means *open* by default), ``impulse_service`` picks the HA service used
-to pulse a ``switch`` relay (``auto`` → ``toggle``).  Only
-``ImpulseGateEntity`` reads it; entries for other entities are ignored.
+to pulse a ``switch`` relay (``auto`` → ``toggle``), ``travel_time`` is
+how long (seconds) the leaf needs to travel — ``0`` (the default) keeps
+the movement emulation off, any positive value makes the gate publish
+``opening`` / ``closing`` between the impulse and the contact's
+confirmation.  Only ``ImpulseGateEntity`` reads it; entries for other
+entities are ignored.
 """
 
 # NOTE: the list of HA domains exportable to Sber lives in

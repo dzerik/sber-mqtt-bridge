@@ -31,6 +31,7 @@ await Promise.all([
 
 const { LitElement, html, css } = await import(`./lit-base.js${_q}`);
 const { messageBus } = await import(`./message-bus.js${_q}`);
+const { ensurePanelTranslations } = await import(`./localize.js${_q}`);
 
 /** Tab labels, index-aligned with the ``_tab`` state value. */
 const TABS = ["Devices", "Status", "DevTools", "Settings"];
@@ -101,6 +102,10 @@ class SberMqttPanel extends LitElement {
 
   updated(changedProps) {
     if (changedProps.has("hass") && this.hass) {
+      /* Panel strings live in the integration's `config_panel` translation
+       * category, which nothing in the frontend fetches on its own — see
+       * ./localize.js.  Cheap and idempotent: one fetch per language. */
+      ensurePanelTranslations(this.hass, this);
       if (!this._hassReady) {
         this._hassReady = true;
         this._fetchAll();

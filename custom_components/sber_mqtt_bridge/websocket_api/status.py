@@ -313,15 +313,22 @@ def _section_linked_entities(
 def _section_gate_options(entity: Any) -> dict[str, Any] | None:
     """Return the impulse-gate option block, or ``None`` for other devices.
 
-    Lets the panel render the contact-polarity / impulse-service controls
-    only for entities that actually have them (issue #53).
+    Lets the panel render the contact-polarity / impulse-service /
+    travel-time controls only for entities that actually have them
+    (issue #53).
+
+    Every key the panel's gate form reads must be present: the form
+    submits all of its fields at once, so a control left without a value
+    (because the backend never reported one) would reset the stored
+    option the next time the user toggles its neighbour.
 
     Args:
         entity: Loaded Sber entity.
 
     Returns:
-        ``{"invert_contact": bool, "impulse_service": str}`` for an
-        impulse gate, ``None`` otherwise.
+        ``{"invert_contact": bool, "impulse_service": str,
+        "contact_stale": bool, "travel_time": float}`` for an impulse
+        gate, ``None`` otherwise.
     """
     from ..devices.gate import ImpulseGateEntity
 
@@ -331,7 +338,32 @@ def _section_gate_options(entity: Any) -> dict[str, Any] | None:
         "invert_contact": entity.invert_contact,
         "impulse_service": entity.impulse_service_option,
         "contact_stale": entity.contact_stale,
+        "travel_time": entity.travel_time,
     }
+
+
+def _missing_required_links(bridge: Any, entity_id: str, entity: Any) -> list[str]:
+    """Return the required link roles this device still has no entity for.
+
+    Composite devices (the impulse gate) publish a fabricated state
+    without their companion sensor.  The wizard refuses to create one,
+    but assigning the category by hand through ``set_override`` bypasses
+    that check — so the dialog has to warn instead of showing a device
+    that reports "closed" forever.
+
+    Args:
+        bridge: Active bridge (read for its link map).
+        entity_id: Primary entity identifier.
+        entity: Loaded Sber entity.
+
+    Returns:
+        Unmapped role names, empty list when the device is complete.
+    """
+    required: tuple[str, ...] = getattr(entity, "REQUIRED_LINK_ROLES", ())
+    if not required:
+        return []
+    linked = bridge.entity_links.get(entity_id, {})
+    return [role for role in required if role not in linked]
 
 
 @websocket_api.websocket_command(
@@ -369,6 +401,9 @@ async def ws_device_detail(
         "sber_states": _section_sber_states(entity),
         "sber_model": _section_sber_model(entity),
         **_section_ha_state(hass, entity_id),
+        # Always present (empty list == healthy) so the panel can render
+        # the warning banner without probing for the key.
+        "missing_required_links": _missing_required_links(bridge, entity_id, entity),
     }
 
     device_info = _section_device_info(entry, device_reg, area_reg)

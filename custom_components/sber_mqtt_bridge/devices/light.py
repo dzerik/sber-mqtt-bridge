@@ -50,6 +50,13 @@ class LightEntity(BaseEntity):
 
     Accepts battery / battery_low / signal_strength linked sensors via
     :attr:`LINKABLE_ROLES` (Zigbee lights commonly report these).
+
+    Command handlers address the entity in **its own** HA domain
+    (:meth:`get_entity_domain`) rather than a hard-coded ``light``, so an
+    entity forced into ``light`` / ``led_strip`` by a user type override
+    is driven through services that actually exist for it.  For a
+    ``light.*`` entity — the only domain these categories map to — the
+    emitted calls are unchanged.
     """
 
     LINKABLE_ROLES = SENSOR_LINK_ROLES
@@ -296,19 +303,21 @@ class LightEntity(BaseEntity):
         if value.get("type") != SberValueType.BOOL:
             return []
         on = value.get("bool_value", False)
-        return [self._build_on_off_service_call(self.entity_id, "light", on)]
+        return [self._build_on_off_service_call(self.entity_id, self.get_entity_domain(), on)]
 
     def _cmd_brightness(self, value: dict) -> list[dict]:
-        """Handle ``light_brightness``: set brightness via ``light.turn_on``."""
+        """Handle ``light_brightness``: set brightness via ``turn_on``."""
         sber_br_value = _safe_int_parser(value.get("integer_value"))
         if sber_br_value is None:
             return []
         ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
         brightness = max(0, min(int(ha_br_value), 255))
-        return [self._build_service_call("light", "turn_on", self.entity_id, {"brightness": brightness})]
+        return [
+            self._build_service_call(self.get_entity_domain(), "turn_on", self.entity_id, {"brightness": brightness})
+        ]
 
     def _cmd_colour(self, value: dict) -> list[dict]:
-        """Handle ``light_colour``: set HSV color via ``light.turn_on``."""
+        """Handle ``light_colour``: set HSV color via ``turn_on``."""
         hsv_color = value.get("colour_value")
         if hsv_color is not None:
             color = ColorConverter.sber_to_ha_hsv(
@@ -322,7 +331,7 @@ class LightEntity(BaseEntity):
         brightness = max(color[2], 1)
         return [
             self._build_service_call(
-                "light",
+                self.get_entity_domain(),
                 "turn_on",
                 self.entity_id,
                 {
@@ -345,11 +354,12 @@ class LightEntity(BaseEntity):
         debounced publish can send stale / wrong mode to Sber.
         """
         mode_value = value.get("enum_value")
+        domain = self.get_entity_domain()
         if mode_value == "colour":
             if isinstance(self.hs_color, (list, tuple)) and len(self.hs_color) >= 2:
                 return [
                     self._build_service_call(
-                        "light",
+                        domain,
                         "turn_on",
                         self.entity_id,
                         {"hs_color": [self.hs_color[0], self.hs_color[1]]},
@@ -363,7 +373,7 @@ class LightEntity(BaseEntity):
             ha_kelvin = int(1_000_000 / max(ha_mireds, 1))
             return [
                 self._build_service_call(
-                    "light",
+                    domain,
                     "turn_on",
                     self.entity_id,
                     {"color_temp_kelvin": ha_kelvin},
@@ -373,7 +383,7 @@ class LightEntity(BaseEntity):
         if COLOR_MODES & set(self.supported_color_modes):
             return [
                 self._build_service_call(
-                    "light",
+                    domain,
                     "turn_on",
                     self.entity_id,
                     {"hs_color": [0, 0]},
@@ -388,4 +398,8 @@ class LightEntity(BaseEntity):
             return []
         ha_mireds = self.color_temp_converter.sber_to_ha(sber_color_temp)
         ha_kelvin = int(1_000_000 / max(ha_mireds, 1))
-        return [self._build_service_call("light", "turn_on", self.entity_id, {"color_temp_kelvin": ha_kelvin})]
+        return [
+            self._build_service_call(
+                self.get_entity_domain(), "turn_on", self.entity_id, {"color_temp_kelvin": ha_kelvin}
+            )
+        ]

@@ -1530,8 +1530,21 @@ class TestGateOptionsLifecycle:
             {RELAY: {"impulse_service": "explode"}},
             {RELAY: {"invert_contact": "yes"}},
             {"not an entity id": {"invert_contact": True}},
+            # ``bool`` — подкласс ``int``: без явного отказа ``Coerce(float)``
+            # молча превратит ``true`` в «одну секунду хода», включит
+            # эмуляцию и сменит ``model.id`` ворот в облаке.
+            {RELAY: {"travel_time": True}},
+            {RELAY: {"travel_time": 601}},
+            {RELAY: {"travel_time": "twenty"}},
         ],
-        ids=["unknown_service", "non_bool_invert", "bad_entity_id"],
+        ids=[
+            "unknown_service",
+            "non_bool_invert",
+            "bad_entity_id",
+            "boolean_travel_time",
+            "out_of_range_travel_time",
+            "non_numeric_travel_time",
+        ],
     )
     async def test_import_rejects_malformed_gate_options(
         self,

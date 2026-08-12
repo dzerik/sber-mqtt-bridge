@@ -60,11 +60,17 @@ class FanSpeedMixin:
     * ``self.preset_modes: list[str]``
     * ``self.percentage: int | None``
     * ``self.entity_id: str``
+    * ``self.get_entity_domain() -> str`` from BaseEntity
     * ``self._build_service_call(domain, service, entity_id, data)`` from BaseEntity
     * ``self._build_on_off_service_call(entity_id, domain, on)`` from BaseEntity
 
     The mixin does not define its own state — it only delegates between
-    Sber speed enum values and HA fan platform calls.
+    Sber speed enum values and HA fan platform calls.  The service domain
+    comes from the host entity's own id (:meth:`BaseEntity.get_entity_domain`)
+    instead of a hard-coded ``fan``, so an entity forced into ``hvac_fan`` /
+    ``hvac_air_purifier`` by a user type override is driven through
+    services that actually exist for it.  For a ``fan.*`` entity — the only
+    domain these two categories map to — the emitted calls are unchanged.
 
     Also provides the two Sber command handlers shared by every HA
     ``fan``-backed category (``on_off`` / ``hvac_air_flow_power``).
@@ -88,7 +94,7 @@ class FanSpeedMixin:
         return None
 
     def _cmd_on_off(self, value: dict) -> list[CommandResult]:
-        """Handle ``on_off``: fan.turn_on / fan.turn_off.
+        """Handle ``on_off``: turn_on / turn_off in the entity's own domain.
 
         Args:
             value: Sber value dict from the command payload.
@@ -100,7 +106,7 @@ class FanSpeedMixin:
         if value.get("type") != SberValueType.BOOL:
             return []
         on = value.get("bool_value", False)
-        return [self._build_on_off_service_call(self.entity_id, "fan", on)]
+        return [self._build_on_off_service_call(self.entity_id, self.get_entity_domain(), on)]
 
     def _cmd_air_flow_power(self, value: dict) -> list[CommandResult]:
         """Handle ``hvac_air_flow_power``: fan speed via preset_mode or percentage.
@@ -120,12 +126,13 @@ class FanSpeedMixin:
         """Handle Sber fan speed ENUM → HA preset_mode or percentage."""
         if not speed:
             return []
+        domain = self.get_entity_domain()
         if speed in self.preset_modes:
-            return [self._build_service_call("fan", "set_preset_mode", self.entity_id, {"preset_mode": speed})]
+            return [self._build_service_call(domain, "set_preset_mode", self.entity_id, {"preset_mode": speed})]
         pct = _SBER_SPEED_TO_PERCENTAGE.get(speed)
         if pct is None:
             return []
         if pct == 0:
             # 'auto' mode -- turn on without specific speed
-            return [self._build_service_call("fan", "turn_on", self.entity_id)]
-        return [self._build_service_call("fan", "set_percentage", self.entity_id, {"percentage": pct})]
+            return [self._build_service_call(domain, "turn_on", self.entity_id)]
+        return [self._build_service_call(domain, "set_percentage", self.entity_id, {"percentage": pct})]

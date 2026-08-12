@@ -19,9 +19,6 @@ _LOGGER = logging.getLogger(__name__)
 TV_CATEGORY = "tv"
 """Sber device category for TV entities."""
 
-_MP_DOMAIN = "media_player"
-"""HA domain for TV / media player entities."""
-
 _CUSTOM_KEY_SERVICE_MAP: dict[str, str] = {
     "play": "media_play",
     "pause": "media_pause",
@@ -82,6 +79,14 @@ class TvEntity(BaseEntity):
     - Source (input) selection
     - Channel switching (+/-)
     - Navigation direction (up/down/left/right/ok)
+
+    Command handlers address the entity in **its own** HA domain
+    (:meth:`get_entity_domain`) rather than a hard-coded ``media_player``:
+    ``tv`` is an overridable category, so a ``switch.tv_power`` promoted
+    to ``tv`` by a user type override would otherwise be driven with
+    ``media_player.turn_on`` — a call HA cannot route, silently dropping
+    every Sber command.  For a ``media_player.*`` entity — the only domain
+    the category maps to by itself — the emitted calls are unchanged.
     """
 
     ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
@@ -203,7 +208,7 @@ class TvEntity(BaseEntity):
         if value.get("type") != SberValueType.BOOL:
             return []
         on = value.get("bool_value", False)
-        return [self._build_on_off_service_call(self.entity_id, _MP_DOMAIN, on)]
+        return [self._build_on_off_service_call(self.entity_id, self.get_entity_domain(), on)]
 
     def _cmd_volume_int(self, value: dict) -> list[dict]:
         vol = _safe_int_parser(value.get("integer_value"))
@@ -211,7 +216,7 @@ class TvEntity(BaseEntity):
             return []
         return [
             self._build_service_call(
-                _MP_DOMAIN,
+                self.get_entity_domain(),
                 "volume_set",
                 self.entity_id,
                 {"volume_level": vol / 100.0},
@@ -222,7 +227,7 @@ class TvEntity(BaseEntity):
         muted = value.get("bool_value", False)
         return [
             self._build_service_call(
-                _MP_DOMAIN,
+                self.get_entity_domain(),
                 "volume_mute",
                 self.entity_id,
                 {"is_volume_muted": muted},
@@ -233,7 +238,7 @@ class TvEntity(BaseEntity):
         source = value.get("enum_value")
         if not source:
             return []
-        return [self._build_service_call(_MP_DOMAIN, "select_source", self.entity_id, {"source": source})]
+        return [self._build_service_call(self.get_entity_domain(), "select_source", self.entity_id, {"source": source})]
 
     def _cmd_channel_int(self, value: dict) -> list[dict]:
         ch = _safe_int_parser(value.get("integer_value"))
@@ -249,7 +254,7 @@ class TvEntity(BaseEntity):
 
     def _build_play_channel_call(self, channel: int) -> dict:
         return self._build_service_call(
-            _MP_DOMAIN,
+            self.get_entity_domain(),
             "play_media",
             self.entity_id,
             {
@@ -264,7 +269,7 @@ class TvEntity(BaseEntity):
         service = service_map.get(enum_value or "")
         if service is None:
             return []
-        return [self._build_service_call(_MP_DOMAIN, service, self.entity_id)]
+        return [self._build_service_call(self.get_entity_domain(), service, self.entity_id)]
 
     def _cmd_custom_key(self, value: dict) -> list[dict]:
         custom = value.get("enum_value")
@@ -278,4 +283,4 @@ class TvEntity(BaseEntity):
                 self.entity_id,
             )
             return []
-        return [self._build_service_call(_MP_DOMAIN, service, self.entity_id)]
+        return [self._build_service_call(self.get_entity_domain(), service, self.entity_id)]

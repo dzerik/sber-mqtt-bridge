@@ -121,6 +121,13 @@ class ValveEntity(BatteryAndSignalLinkMixin, BaseEntity):
         State is NOT mutated here -- it will be updated when HA fires a
         ``state_changed`` event that is handled by ``fill_by_ha_state``.
 
+        The service domain comes from the entity id
+        (:meth:`get_entity_domain`) rather than a hard-coded ``valve``, so
+        an entity forced into this category by a user type override is
+        driven through services that actually exist for it.  For a
+        ``valve.*`` entity — the only domain this category maps to — the
+        emitted call is unchanged.
+
         Args:
             value: Sber value dict from the command payload.
 
@@ -132,4 +139,4 @@ class ValveEntity(BatteryAndSignalLinkMixin, BaseEntity):
         service = _VALVE_OPEN_SET_SERVICES.get(value.get("enum_value") or "")
         if service is None:
             return []
-        return [self._build_service_call("valve", service, self.entity_id)]
+        return [self._build_service_call(self.get_entity_domain(), service, self.entity_id)]

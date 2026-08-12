@@ -14,6 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 
 from ..const import CONF_MAX_MQTT_PAYLOAD, DOMAIN, SETTINGS_DEFAULTS
+from ..devices.gate import MAX_TRAVEL_TIME_SECONDS
 from ..sber_entity_map import OVERRIDABLE_CATEGORIES as OVERRIDABLE_CATEGORIES
 
 if TYPE_CHECKING:
@@ -61,6 +62,46 @@ WS_PAYLOAD = vol.All(cv.string, _payload_byte_cap)
 
 Enforces the same byte-length cap as the inbound MQTT guard so a
 payload accepted by the schema cannot be rejected at publish time."""
+
+
+def _reject_bool(value: Any) -> Any:
+    """Refuse a ``bool`` before any numeric coercion sees it.
+
+    ``bool`` is a subclass of ``int`` in Python, so ``vol.Coerce(float)``
+    happily turns ``True`` into ``1.0`` and ``False`` into ``0.0``.  For
+    ``travel_time`` that silently means "one second of travel", which is
+    exactly the value :meth:`ImpulseGateEntity._apply_travel_time`
+    refuses — but the schema runs first, so the entity never gets to see
+    the ``bool`` and the guard is bypassed.
+
+    ``vol.NotIn([True, False])`` cannot be used instead: it compares by
+    equality, so it would also reject the perfectly valid ``0`` and ``1``.
+
+    Args:
+        value: Raw value from the WS / import payload.
+
+    Returns:
+        ``value`` unchanged when it is not a ``bool``.
+
+    Raises:
+        vol.Invalid: When ``value`` is ``True`` or ``False``.
+    """
+    if isinstance(value, bool):
+        raise vol.Invalid("expected a number, got a boolean")
+    return value
+
+
+WS_TRAVEL_TIME = vol.All(
+    _reject_bool,
+    vol.Coerce(float),
+    vol.Range(min=0, max=MAX_TRAVEL_TIME_SECONDS),
+)
+"""Validator for the impulse gate's ``travel_time`` option (issue #53).
+
+Shared by ``update_gate_options`` and the ``import`` payload schema so
+both entry points enforce the same bounds *and* the same ``bool``
+rejection — a value that survives one path but not the other would make
+an exported config fail to import back."""
 
 
 def get_config_entry(hass: HomeAssistant) -> ConfigEntry | None:

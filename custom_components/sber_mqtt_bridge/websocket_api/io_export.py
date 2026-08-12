@@ -21,6 +21,7 @@ from ..devices.gate import IMPULSE_SERVICE_OPTIONS
 from ._common import (  # noqa: F401 — get_bridge/get_config_entry re-exported for test patching
     OVERRIDABLE_CATEGORIES,
     WS_ENTITY_ID,
+    WS_TRAVEL_TIME,
     get_bridge,
     get_config_entry,
     requires_bridge,
@@ -48,6 +49,10 @@ IMPORT_CONFIG_SCHEMA = vol.Schema(
                     {
                         vol.Optional("invert_contact"): bool,
                         vol.Optional("impulse_service"): vol.In(IMPULSE_SERVICE_OPTIONS),
+                        # Same validator as ``update_gate_options``: the inner
+                        # schema is strict, so a key missing here would make
+                        # an *exported* config fail to import back.
+                        vol.Optional("travel_time"): WS_TRAVEL_TIME,
                     }
                 )
             }

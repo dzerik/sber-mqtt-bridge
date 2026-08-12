@@ -145,6 +145,13 @@ class ClimateEntity(BaseEntity):
     - ``_supports_swing``: include hvac_air_flow_direction (default True for AC)
     - ``_supports_work_mode``: include hvac_work_mode (default True for AC)
     - ``_supports_thermostat_mode``: include hvac_thermostat_mode (default False)
+
+    Every command handler targets the entity in **its own** HA domain
+    (:meth:`get_entity_domain`) instead of a hard-coded ``climate``:
+    :class:`~.hvac_boiler.HvacBoilerEntity` inherits this class but is
+    registered for the ``water_heater`` domain, and any entity can be
+    forced into a climate category through a user type override.  For a
+    ``climate.*`` entity the emitted calls are unchanged.
     """
 
     LINKABLE_ROLES = (ROLE_TEMPERATURE,)
@@ -564,10 +571,11 @@ class ClimateEntity(BaseEntity):
         }
 
     def _cmd_on_off(self, value: dict) -> list[dict]:
+        """Handle ``on_off``: turn the appliance on / off in its own HA domain."""
         if value.get("type") != SberValueType.BOOL:
             return []
         on = value.get("bool_value", False)
-        return [self._build_on_off_service_call(self.entity_id, "climate", on)]
+        return [self._build_on_off_service_call(self.entity_id, self.get_entity_domain(), on)]
 
     def _cmd_temp_set(self, value: dict) -> list[dict]:
         """Handle ``hvac_temp_set``: single target or heat_cool range shift.
@@ -586,12 +594,13 @@ class ClimateEntity(BaseEntity):
         temp = _safe_float_parser(value.get("integer_value"))
         if temp is None:
             return []
+        domain = self.get_entity_domain()
         if self._target_is_range and self._target_temp_high is not None and self._target_temp_low is not None:
             midpoint = (self._target_temp_high + self._target_temp_low) / 2
             delta = temp - midpoint
             return [
                 self._build_service_call(
-                    "climate",
+                    domain,
                     "set_temperature",
                     self.entity_id,
                     {
@@ -600,7 +609,7 @@ class ClimateEntity(BaseEntity):
                     },
                 )
             ]
-        return [self._build_service_call("climate", "set_temperature", self.entity_id, {"temperature": temp})]
+        return [self._build_service_call(domain, "set_temperature", self.entity_id, {"temperature": temp})]
 
     def _cmd_air_flow_power(self, value: dict) -> list[dict]:
         """Handle fan speed: prefer ``set_fan_mode``, fall back to presets."""
@@ -613,12 +622,13 @@ class ClimateEntity(BaseEntity):
             if HA_TO_SBER_FAN_MODE.get(fm, fm) == sber_mode:
                 ha_fan = fm
                 break
+        domain = self.get_entity_domain()
         if ha_fan and (not self.fan_modes or ha_fan in self.fan_modes):
-            return [self._build_service_call("climate", "set_fan_mode", self.entity_id, {"fan_mode": ha_fan})]
+            return [self._build_service_call(domain, "set_fan_mode", self.entity_id, {"fan_mode": ha_fan})]
         # Fallback: turbo / quiet → preset_mode
         preset = self._sber_fan_mode_to_preset(sber_mode)
         if preset is not None:
-            return [self._build_service_call("climate", "set_preset_mode", self.entity_id, {"preset_mode": preset})]
+            return [self._build_service_call(domain, "set_preset_mode", self.entity_id, {"preset_mode": preset})]
         return []
 
     def _sber_fan_mode_to_preset(self, sber_mode: str) -> str | None:
@@ -646,12 +656,13 @@ class ClimateEntity(BaseEntity):
         ha_swing = SBER_TO_HA_SWING.get(sber_swing)
         if not ha_swing:
             return []
+        domain = self.get_entity_domain()
         if self._uses_horizontal_swing:
             if ha_swing not in self.swing_horizontal_modes:
                 return []
             return [
                 self._build_service_call(
-                    "climate",
+                    domain,
                     "set_swing_horizontal_mode",
                     self.entity_id,
                     {"swing_horizontal_mode": ha_swing},
@@ -659,7 +670,7 @@ class ClimateEntity(BaseEntity):
             ]
         if self.swing_modes and ha_swing not in self.swing_modes:
             return []
-        return [self._build_service_call("climate", "set_swing_mode", self.entity_id, {"swing_mode": ha_swing})]
+        return [self._build_service_call(domain, "set_swing_mode", self.entity_id, {"swing_mode": ha_swing})]
 
     def _cmd_work_mode(self, value: dict) -> list[dict]:
         """Handle ``hvac_work_mode``: prefer ``set_hvac_mode``, fall back to presets."""
@@ -668,12 +679,13 @@ class ClimateEntity(BaseEntity):
             return []
         # Sber turbo/quiet work modes map to HA preset_modes
         preset = self._sber_fan_mode_to_preset(sber_mode)
+        domain = self.get_entity_domain()
         if preset is not None:
-            return [self._build_service_call("climate", "set_preset_mode", self.entity_id, {"preset_mode": preset})]
+            return [self._build_service_call(domain, "set_preset_mode", self.entity_id, {"preset_mode": preset})]
         ha_mode = SBER_TO_HA_WORK_MODE.get(sber_mode)
         if not ha_mode or (self.hvac_modes and ha_mode not in self.hvac_modes):
             return []
-        return [self._build_service_call("climate", "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode})]
+        return [self._build_service_call(domain, "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode})]
 
     def _cmd_thermostat_mode(self, value: dict) -> list[dict]:
         sber_mode = value.get("enum_value")
@@ -682,26 +694,31 @@ class ClimateEntity(BaseEntity):
         ha_mode = SBER_TO_HA_THERMOSTAT_MODE.get(sber_mode)
         if not ha_mode or (self.hvac_modes and ha_mode not in self.hvac_modes):
             return []
-        return [self._build_service_call("climate", "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode})]
+        return [
+            self._build_service_call(self.get_entity_domain(), "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode})
+        ]
 
     def _cmd_humidity_set(self, value: dict) -> list[dict]:
         humidity = _safe_clamped_int_parser(value.get("integer_value"), 0, 100)
         if humidity is None:
             return []
-        return [self._build_service_call("climate", "set_humidity", self.entity_id, {"humidity": humidity})]
+        return [
+            self._build_service_call(self.get_entity_domain(), "set_humidity", self.entity_id, {"humidity": humidity})
+        ]
 
     def _cmd_night_mode(self, value: dict) -> list[dict]:
         """Handle ``hvac_night_mode``: toggle sleep/night preset."""
         night_on = value.get("bool_value", False)
         presets = self._preset_modes or []
+        domain = self.get_entity_domain()
         if night_on:
             preset = "sleep" if "sleep" in presets else "night"
-            return [self._build_service_call("climate", "set_preset_mode", self.entity_id, {"preset_mode": preset})]
+            return [self._build_service_call(domain, "set_preset_mode", self.entity_id, {"preset_mode": preset})]
         # Turn off: fall back to first non-night preset or "none"
         normal_presets = [p for p in presets if p not in ("sleep", "night")]
         if "none" in presets or normal_presets:
             fallback = normal_presets[0] if normal_presets else "none"
-            return [self._build_service_call("climate", "set_preset_mode", self.entity_id, {"preset_mode": fallback})]
+            return [self._build_service_call(domain, "set_preset_mode", self.entity_id, {"preset_mode": fallback})]
         _LOGGER.warning(
             "Cannot turn off night mode for %s: no non-night presets available",
             self.entity_id,
