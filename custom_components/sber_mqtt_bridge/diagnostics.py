@@ -28,6 +28,7 @@ def _build_entity_diagnostics(bridge) -> list[dict[str, Any]]:
     Returns:
         List of dicts with entity diagnostic details.
     """
+    missing_links = bridge.entities_missing_required_links
     result: list[dict[str, Any]] = []
     for entity_id, entity in bridge.entities.items():
         entry: dict[str, Any] = {
@@ -36,6 +37,9 @@ def _build_entity_diagnostics(bridge) -> list[dict[str, Any]]:
             "sber_features": entity.get_final_features_list(),
             "is_filled_by_state": entity.is_filled_by_state,
             "has_linked_device": entity.linked_device is not None,
+            # Non-empty means the device is composite and mis-configured:
+            # it publishes a fabricated state (see the matching repair).
+            "missing_required_links": missing_links.get(entity_id, []),
         }
 
         # Current state summary
@@ -64,6 +68,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: SberBri
             "enabled_entity_ids": bridge.enabled_entity_ids,
             "redefinitions": bridge.redefinitions,
             "unacknowledged_entities": bridge.unacknowledged_entities,
+            "entities_missing_required_links": bridge.entities_missing_required_links,
             "stats": bridge.stats,
         },
         "entities": _build_entity_diagnostics(bridge),

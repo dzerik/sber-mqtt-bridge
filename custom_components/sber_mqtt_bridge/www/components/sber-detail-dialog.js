@@ -13,6 +13,16 @@ await import(`./sber-json-block.js${_q}`);
 
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { deepActiveElement } = await import(`../utils.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
+
+/**
+ * Upper bound the backend accepts for the gate travel time, in seconds.
+ *
+ * Mirrors ``MAX_TRAVEL_TIME_SECONDS`` in ``devices/gate.py``: the input
+ * refuses out-of-range values here instead of letting the save fail with
+ * a raw voluptuous message.
+ */
+const MAX_TRAVEL_TIME_SECONDS = 600;
 
 /** Delay between two confirmation re-reads after a save. */
 const RELOAD_INTERVAL_MS = 200;
@@ -29,6 +39,8 @@ class SberDetailDialog extends LitElement {
       _error: { type: String },
       _saveStatus: { type: String },
       _saveError: { type: String },
+      _gateStatus: { type: String },
+      _gateError: { type: String },
     };
   }
 
@@ -187,7 +199,10 @@ class SberDetailDialog extends LitElement {
 
       .edit-form {
         display: grid;
-        grid-template-columns: 80px 1fr;
+        /* Wide enough for a translated label: Russian runs ~1.5x longer
+         * than English and 80px turned "Leaf travel time (seconds)" into
+         * a four-line column. */
+        grid-template-columns: minmax(80px, 140px) 1fr;
         gap: 8px 12px;
         align-items: center;
       }
@@ -235,6 +250,22 @@ class SberDetailDialog extends LitElement {
       }
       .save-status.ok { color: var(--success-color, #4caf50); }
       .save-status.error { color: var(--error-color, #f44336); }
+
+      .field-hint {
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 1.4;
+        color: var(--secondary-text-color);
+      }
+      .warning-banner {
+        margin-bottom: 8px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        line-height: 1.4;
+        color: var(--primary-text-color);
+        background: var(--warning-color, #ff9800);
+      }
 
       /* ── Mobile ── */
       @media (max-width: 768px) {
@@ -288,6 +319,8 @@ class SberDetailDialog extends LitElement {
     this._error = "";
     this._saveStatus = "";
     this._saveError = "";
+    this._gateStatus = "";
+    this._gateError = "";
   }
 
   /**
@@ -348,12 +381,18 @@ class SberDetailDialog extends LitElement {
 
   async show(entityId) {
     if (!this.hass) return;
+    /* The dialog can be the first thing rendered after a reload (deep link
+     * into the device table), so it cannot rely on the panel root having
+     * already fetched the `config_panel` strings — see ../localize.js. */
+    ensurePanelTranslations(this.hass, this);
     this._returnFocusTo = deepActiveElement();
     this.open = true;
     this._loading = true;
     this._error = "";
     this._saveStatus = "";
     this._saveError = "";
+    this._gateStatus = "";
+    this._gateError = "";
     this._data = null;
     await this._fetchDetail(entityId);
   }
@@ -398,7 +437,7 @@ class SberDetailDialog extends LitElement {
         @click=${(e) => e.stopPropagation()}
       >
         ${this._loading
-          ? html`<div class="loading">Loading...</div>`
+          ? html`<div class="loading">${t(this.hass, "detail_dialog.loading")}</div>`
           : this._error
             ? html`<div class="error">${this._error}</div>`
             : this._renderContent()}
@@ -424,10 +463,11 @@ class SberDetailDialog extends LitElement {
     return html`
       <div class="header">
         <h2 id="detail-dialog-title">${d.name || d.entity_id}</h2>
-        <button class="close-btn" aria-label="Close details" @click=${() => this.hide()}>\u2715</button>
+        <button class="close-btn" aria-label=${t(this.hass, "detail_dialog.close")} @click=${() => this.hide()}>\u2715</button>
       </div>
       <div class="body">
         ${this._renderEditForm(d)}
+        ${d.gate_options ? this._renderGateOptions(d) : ""}
         ${this._renderOverview(d)}
         ${this._renderSberStates(d)}
         ${d.linked_entities?.length ? this._renderLinkedEntities(d) : ""}
@@ -443,7 +483,7 @@ class SberDetailDialog extends LitElement {
     const statusText = d.is_online ? "Online" : d.is_filled ? "Offline" : "Loading\u2026";
     return html`
       <div class="section">
-        <div class="section-title">Overview</div>
+        <div class="section-title">${t(this.hass, "detail_dialog.overview")}</div>
         <div class="grid">
           <span class="label">Entity ID</span>
           <span class="value"><code>${d.entity_id}</code></span>
@@ -464,10 +504,10 @@ class SberDetailDialog extends LitElement {
 
   _renderSberStates(d) {
     const states = d.sber_states || [];
-    if (!states.length) return html`<div class="section"><div class="section-title">Sber States</div><span style="color:var(--secondary-text-color);font-size:13px">No state data</span></div>`;
+    if (!states.length) return html`<div class="section"><div class="section-title">${t(this.hass, "detail_dialog.sber_states")}</div><span style="color:var(--secondary-text-color);font-size:13px">No state data</span></div>`;
     return html`
       <div class="section">
-        <div class="section-title">Sber States (current)</div>
+        <div class="section-title">${t(this.hass, "detail_dialog.sber_states")}</div>
         <table class="state-table">
           <tr><th>Key</th><th>Type</th><th>Value</th></tr>
           ${states.map((s) => {
@@ -491,7 +531,7 @@ class SberDetailDialog extends LitElement {
   _renderLinkedEntities(d) {
     return html`
       <div class="section">
-        <div class="section-title">Linked Entities</div>
+        <div class="section-title">${t(this.hass, "detail_dialog.linked_entities")}</div>
         ${d.linked_entities.map((le) => html`
           <div class="linked-card">
             <span class="linked-role">${le.role}</span>
@@ -510,7 +550,7 @@ class SberDetailDialog extends LitElement {
     const deps = model.dependencies || {};
     return html`
       <div class="section">
-        <div class="section-title">Sber Model Config</div>
+        <div class="section-title">${t(this.hass, "detail_dialog.model_config")}</div>
         <div class="grid">
           <span class="label">Model ID</span>
           <span class="value"><code>${model.id || "\u2014"}</code></span>
@@ -541,7 +581,7 @@ class SberDetailDialog extends LitElement {
     if (!keys.length) return "";
     return html`
       <div class="section">
-        <div class="section-title">HA Attributes</div>
+        <div class="section-title">${t(this.hass, "detail_dialog.ha_attributes")}</div>
         <table class="state-table">
           <tr><th>Attribute</th><th>Value</th></tr>
           ${keys.map((k) => {
@@ -558,7 +598,7 @@ class SberDetailDialog extends LitElement {
     const di = d.device_info;
     return html`
       <div class="section">
-        <div class="section-title">HA Device Registry</div>
+        <div class="section-title">${t(this.hass, "detail_dialog.device_registry")}</div>
         <div class="grid">
           <span class="label">Device Name</span>
           <span class="value">${di.name || "\u2014"}</span>
@@ -581,7 +621,7 @@ class SberDetailDialog extends LitElement {
     const r = d.redefinitions || {};
     return html`
       <div class="section">
-        <div class="section-title">Sber Override</div>
+        <div class="section-title">${t(this.hass, "detail_dialog.override")}</div>
         <div class="edit-form">
           <label class="edit-label" for="edit-name">Name</label>
           <input class="edit-input" type="text" id="edit-name"
@@ -599,11 +639,110 @@ class SberDetailDialog extends LitElement {
             <button class="edit-save" @click=${this._onSave}>
               \u{1F4BE} Save & Re-publish
             </button>
-            ${this._saveStatus ? html`<span class="save-status ${this._saveStatus}" title=${this._saveError || ""}>${this._saveStatus === "ok" ? "\u2713 Saved" : `\u2717 ${this._saveError || "Error"}`}</span>` : ""}
+            ${this._saveStatus ? html`<span class="save-status ${this._saveStatus}" title=${this._saveError || ""}>${this._saveStatus === "ok" ? `\u2713 ${t(this.hass, "detail_dialog.saved")}` : `\u2717 ${this._saveError || t(this.hass, "detail_dialog.error")}`}</span>` : ""}
           </div>
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Render the impulse-gate settings (issue #53).
+   *
+   * Only shown when the backend reports ``gate_options``, i.e. for a
+   * gate built from an impulse relay + a contact sensor.  A cover-based
+   * gate has no such options and renders nothing.
+   *
+   * All labels come from the ``config_panel.gate_options`` translation
+   * block (see ``../localize.js``); nothing here is hardcoded English.
+   *
+   * @param {object} d - Detail payload.
+   * @returns {import("lit").TemplateResult} Section template.
+   */
+  _renderGateOptions(d) {
+    const g = d.gate_options || {};
+    /* The travel-time control is rendered only when the backend actually
+     * reports the option.  Showing it against an older backend would send
+     * a 0 on the next save and silently wipe whatever was configured. */
+    const hasTravelTime = g.travel_time !== undefined && g.travel_time !== null;
+    const missingLinks = d.missing_required_links || [];
+    return html`
+      <div class="section">
+        <div class="section-title">${t(this.hass, "gate_options.title")}</div>
+        ${missingLinks.length
+          ? html`<div class="warning-banner" role="alert">
+              ⚠ ${t(this.hass, "gate_options.missing_required_link_warning")}
+            </div>`
+          : ""}
+        <div class="edit-form">
+          <label class="edit-label" for="gate-invert">${t(this.hass, "gate_options.invert_contact")}</label>
+          <label>
+            <input type="checkbox" id="gate-invert" .checked=${!!g.invert_contact} />
+            ${t(this.hass, "gate_options.invert_contact_description")}
+          </label>
+          <label class="edit-label" for="gate-service">${t(this.hass, "gate_options.impulse_service")}</label>
+          <select class="edit-input" id="gate-service" .value=${g.impulse_service || "auto"}>
+            <option value="auto">${t(this.hass, "gate_options.impulse_service_auto")}</option>
+            <option value="toggle">${t(this.hass, "gate_options.impulse_service_toggle")}</option>
+            <option value="turn_on">${t(this.hass, "gate_options.impulse_service_turn_on")}</option>
+          </select>
+          ${hasTravelTime
+            ? html`
+                <label class="edit-label" for="gate-travel">${t(this.hass, "gate_options.travel_time")}</label>
+                <div>
+                  <input class="edit-input" type="number" id="gate-travel"
+                    min="0" max=${MAX_TRAVEL_TIME_SECONDS} step="0.5"
+                    .value=${String(g.travel_time)} />
+                  <div class="field-hint">${t(this.hass, "gate_options.travel_time_description")}</div>
+                </div>
+              `
+            : ""}
+          <div class="edit-actions">
+            <button class="edit-save" @click=${this._onSaveGateOptions}>
+              \u{1F6AA} ${t(this.hass, "gate_options.save")}
+            </button>
+            ${g.contact_stale
+              ? html`<span class="save-status error">⚠ ${t(this.hass, "gate_options.contact_stale")}</span>`
+              : ""}
+            ${this._gateStatus
+              ? html`<span class="save-status ${this._gateStatus}" title=${this._gateError || ""}>${this._gateStatus === "ok" ? `✓ ${t(this.hass, "detail_dialog.saved")}` : `✗ ${this._gateError || t(this.hass, "detail_dialog.error")}`}</span>`
+              : ""}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async _onSaveGateOptions() {
+    if (!this.hass || !this._data) return;
+    const invert = !!this.shadowRoot.getElementById("gate-invert")?.checked;
+    const service = this.shadowRoot.getElementById("gate-service")?.value || "auto";
+    const payload = {
+      type: "sber_mqtt_bridge/update_gate_options",
+      entity_id: this._data.entity_id,
+      invert_contact: invert,
+      impulse_service: service,
+    };
+    /* Only present when the control was rendered — see `_renderGateOptions`.
+     * An empty field is left out rather than coerced: `Number("")` is 0,
+     * which the backend reads as "travel-time emulation off" — a cleared
+     * box would silently disable the feature instead of doing nothing. */
+    const travelField = this.shadowRoot.getElementById("gate-travel");
+    if (travelField && travelField.value !== "") {
+      const travel = Number(travelField.value);
+      if (Number.isFinite(travel) && travel >= 0 && travel <= MAX_TRAVEL_TIME_SECONDS) {
+        payload.travel_time = travel;
+      }
+    }
+    try {
+      await this.hass.callWS(payload);
+      this._gateStatus = "ok";
+      this._gateError = "";
+    } catch (e) {
+      this._gateStatus = "error";
+      this._gateError = e.message || String(e);
+    }
+    this.requestUpdate();
   }
 
   async _onSave() {

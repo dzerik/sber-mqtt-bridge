@@ -42,6 +42,7 @@ async def check_and_create_issues(hass: HomeAssistant, bridge: SberBridge) -> No
     _check_entities_without_state(hass, bridge)
     _check_connection_issues(hass, bridge)
     _check_broken_links(hass, bridge)
+    _check_missing_required_links(hass, bridge)
     _check_unacknowledged_entities(hass, bridge)
     _check_validation_failures(hass, bridge)
     _check_sber_errors(hass, bridge)
@@ -148,6 +149,41 @@ def _check_broken_links(hass: HomeAssistant, bridge: SberBridge) -> None:
         )
     else:
         async_delete_issue(hass, DOMAIN, "broken_entity_links")
+
+
+def _check_missing_required_links(hass: HomeAssistant, bridge: SberBridge) -> None:
+    """Create/delete issue for composite devices missing an obligatory link.
+
+    An impulse gate without its reed contact publishes ``close`` forever
+    and cannot be trusted by any automation.  The device wizard refuses
+    to create one, but the "expose the entity, then set the category by
+    hand" path (``set_override``) bypasses that check — and deliberately
+    stays allowed, because assigning the category before linking the
+    sensor is a legitimate order of operations.  The result must
+    therefore be *visible* rather than forbidden; the issue clears itself
+    on the next check once the link exists.
+
+    Args:
+        hass: Home Assistant core instance.
+        bridge: The active SberBridge instance.
+    """
+    missing = bridge.entities_missing_required_links
+    details = [f"{eid} ({', '.join(roles)})" for eid, roles in sorted(missing.items())]
+    if details:
+        async_create_issue(
+            hass,
+            DOMAIN,
+            "missing_required_links",
+            is_fixable=False,
+            severity=IssueSeverity.WARNING,
+            translation_key="missing_required_links",
+            translation_placeholders={
+                "count": str(len(details)),
+                "entities": ", ".join(details[:5]),
+            },
+        )
+    else:
+        async_delete_issue(hass, DOMAIN, "missing_required_links")
 
 
 def _check_unacknowledged_entities(hass: HomeAssistant, bridge: SberBridge) -> None:

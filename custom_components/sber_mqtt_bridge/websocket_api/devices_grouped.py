@@ -243,6 +243,42 @@ def _resolve_role_mapping(
     return role_mapping
 
 
+def _validate_required_roles(
+    primary_sber: Any,
+    role_mapping: dict[str, str],
+    category: str,
+) -> None:
+    """Ensure every :attr:`BaseEntity.REQUIRED_LINK_ROLES` role is mapped.
+
+    Composite devices (issue #53's impulse gate) cannot publish a truthful
+    state without their companion sensor — an impulse relay alone would
+    report a fabricated position.  Refusing the add is better than
+    creating a half-broken Sber device the user has to debug later.
+
+    Categories whose primary class declares no required roles (all of
+    them except the impulse gate, including the ``cover``-based gate) are
+    unaffected.
+
+    Args:
+        primary_sber: Instantiated primary Sber entity, or ``None`` when
+            the category could not be resolved.
+        role_mapping: Resolved ``role → entity_id`` mapping.
+        category: Sber category being added (for the error message).
+
+    Raises:
+        _AddDeviceError: When a required role has no linked entity.
+    """
+    if primary_sber is None:
+        return
+    missing = [role for role in primary_sber.REQUIRED_LINK_ROLES if role not in role_mapping]
+    if not missing:
+        return
+    raise _AddDeviceError(
+        "missing_required_role",
+        f"Category {category!r} requires linked entities for role(s): {', '.join(missing)}",
+    )
+
+
 def _build_options_patch(
     existing_options: dict,
     primary_id: str,
@@ -333,13 +369,14 @@ async def ws_add_ha_device(
     primary_id: str = msg["primary_entity_id"]
 
     try:
-        _, _, accepted_role_names = _validate_primary(msg, entity_reg)
+        _, primary_sber, accepted_role_names = _validate_primary(msg, entity_reg)
         role_mapping = _resolve_role_mapping(
             list(msg.get("linked_entity_ids", [])),
             entity_reg,
             accepted_role_names,
             category,
         )
+        _validate_required_roles(primary_sber, role_mapping, category)
     except _AddDeviceError as err:
         connection.send_error(msg["id"], err.code, err.detail)
         return

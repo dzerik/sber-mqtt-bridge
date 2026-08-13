@@ -162,3 +162,11 @@ SERVICE_TURN_OFF = "turn_off"
 
 SERVICE_PRESS = "press"
 """HA service name for button press."""
+
+SERVICE_TOGGLE = "toggle"
+"""HA service name for toggling a switch-like entity.
+
+Canonical impulse for an impulse-driven gate relay: the relay's HA state
+is an echo of the last written value, and the hardware pulses on a
+*change* of that value, so ``toggle`` always produces a pulse whereas a
+repeated ``turn_on`` may be a no-op."""

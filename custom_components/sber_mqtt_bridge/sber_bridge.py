@@ -31,6 +31,7 @@ from .const import (
     CONF_CONFIG_SETTLE_DELAY,
     CONF_CONFIRM_DELAY,
     CONF_DEBOUNCE_DELAY,
+    CONF_GATE_OPTIONS,
     CONF_HA_SERIAL_NUMBER,
     CONF_HUB_AUTO_PARENT,
     CONF_MAX_MQTT_PAYLOAD,
@@ -71,6 +72,15 @@ RECONNECT_GRACE_TIMEOUT = 30.0
 After a reconnect, the bridge publishes HA states and waits for Sber to
 acknowledge them (via status_request or config_request) before accepting
 commands.  This timeout is a fallback in case Sber never sends a request."""
+
+DEFERRED_CONFIRM_SLOT_SUFFIX = "#deferred"
+"""Suffix of the ``_confirm_tasks`` slot holding an entity-requested republish.
+
+The default confirm is keyed by the bare entity id (unchanged), so an
+entity that asks for a *second*, later publish through
+``pending_confirm_delay`` gets its own slot instead of cancelling the
+short one.  ``#`` cannot occur in an HA entity id, so the two namespaces
+can never collide."""
 
 LOG_PAYLOAD_MAX_CHARS = 8192
 """Maximum characters of a payload stored in the DevTools message log.
@@ -373,21 +383,76 @@ class SberBridge:
 
     @callback
     def schedule_confirm(self, entity_id: str) -> None:
-        """(Re)arm the delayed state confirm for one commanded entity.
+        """(Re)arm the delayed state confirm(s) for one commanded entity.
 
-        Cancels a still-pending confirm for the same entity first, so a
-        rapid command sequence produces exactly one confirmation.  The
-        bridge owns these tasks because it also cancels them on
-        :meth:`async_stop`.
+        Always arms the short confirm that lets HA settle its async
+        attribute updates (:attr:`_confirm_delay`).  An entity may ask for
+        a *second*, later republish through a ``pending_confirm_delay``
+        attribute — the impulse gate uses it to replace its emulated
+        ``opening`` / ``closing`` value once the leaf's travel time is
+        over (see :class:`~devices.gate.ImpulseGateEntity`).  Both go
+        through the very same :meth:`_delayed_confirm` machinery, just in
+        different slots, so there is exactly one timer mechanism to reason
+        about (and to cancel on :meth:`async_stop`).
+
+        Cancels a still-pending confirm in the same slot first, so a rapid
+        command sequence produces exactly one confirmation per slot.  An
+        entity that no longer asks for a deferred republish gets its slot
+        *cleared*: a timer armed for a movement that has since been
+        cancelled (counter-command, contact arrival, option switched off)
+        would otherwise survive for the whole travel time and fire a
+        redundant forced publish long after the fact.
 
         Args:
             entity_id: HA entity identifier that was just commanded.
         """
-        old_task = self._confirm_tasks.pop(entity_id, None)
-        if old_task and not old_task.done():
-            old_task.cancel()
-        self._confirm_tasks[entity_id] = self._create_safe_task(
-            self._delayed_confirm(entity_id), name=f"delayed_confirm_{entity_id}"
+        self._arm_confirm(entity_id, entity_id, self._confirm_delay)
+
+        entity = self._entities.get(entity_id)
+        deferred = getattr(entity, "pending_confirm_delay", None)
+        deferred_slot = f"{entity_id}{DEFERRED_CONFIRM_SLOT_SUFFIX}"
+        if isinstance(deferred, int | float) and not isinstance(deferred, bool) and deferred > self._confirm_delay:
+            self._arm_confirm(deferred_slot, entity_id, float(deferred), background=True)
+        else:
+            self._cancel_confirm(deferred_slot)
+
+    @callback
+    def _cancel_confirm(self, slot: str) -> None:
+        """Cancel and forget the confirm task registered under ``slot``.
+
+        Args:
+            slot: Key in :attr:`_confirm_tasks`; unknown slots are a no-op.
+        """
+        task = self._confirm_tasks.pop(slot, None)
+        if task and not task.done():
+            task.cancel()
+
+    @callback
+    def _arm_confirm(self, slot: str, entity_id: str, delay: float, *, background: bool = False) -> None:
+        """Replace the confirm task registered under ``slot``.
+
+        Args:
+            slot: Key in :attr:`_confirm_tasks`.  The plain entity id is
+                the default confirm; suffixed slots carry entity-requested
+                deferred republishes.
+            entity_id: HA entity identifier to re-publish.
+            delay: Seconds to wait before publishing.
+            background: Schedule as an *untracked* background task.
+                Required for entity-requested delays: they are measured in
+                whole leaf travel times (up to
+                ``MAX_TRAVEL_TIME_SECONDS`` + margin = 600.5 s), and a
+                tracked task sleeping that long violates the SHORT-LIVED
+                contract of :meth:`_create_safe_task` — it would hold up
+                every ``async_block_till_done`` (i.e. every test touching
+                a moving gate) and still be running at HA's final
+                shutdown stage.  Both kinds stay in :attr:`_confirm_tasks`
+                and are cancelled by :meth:`async_stop` all the same.
+        """
+        self._cancel_confirm(slot)
+        coro = self._delayed_confirm(entity_id, delay=delay, slot=slot)
+        name = f"delayed_confirm_{slot}"
+        self._confirm_tasks[slot] = (
+            self._create_daemon_task(coro, name=name) if background else self._create_safe_task(coro, name=name)
         )
 
     @property
@@ -534,6 +599,35 @@ class SberBridge:
         """Return entity IDs that were published but not yet acknowledged by Sber."""
         return [eid for eid in self._enabled_entity_ids if eid not in self._stats.acknowledged_entities]
 
+    @property
+    def entities_missing_required_links(self) -> dict[str, list[str]]:
+        """Return loaded composite entities whose required links are unmapped.
+
+        A class with a non-empty
+        :attr:`~devices.base_entity.BaseEntity.REQUIRED_LINK_ROLES` cannot
+        publish a truthful state without its companion — an impulse gate
+        without a reed contact reports ``close`` forever.  The wizard
+        refuses to create such a device, but "add the entity, then set the
+        category by hand" bypasses that check, so the half-configured
+        device has to stay *visible* instead of silent: this property
+        feeds the HA repair issue, diagnostics and the panel's device
+        dialog.
+
+        Returns:
+            ``entity_id → unmapped role names`` (declaration order), empty
+            when every composite device is fully linked.
+        """
+        missing: dict[str, list[str]] = {}
+        for entity_id, entity in self._entities.items():
+            required = getattr(entity, "REQUIRED_LINK_ROLES", ())
+            if not required:
+                continue
+            linked = self._entity_links.get(entity_id, {})
+            absent = [role for role in required if role not in linked]
+            if absent:
+                missing[entity_id] = absent
+        return missing
+
     async def async_update_redefinition(self, entity_id: str, fields: dict[str, str | None]) -> dict[str, str]:
         """Merge redefinition fields for an entity and trigger config republish.
 
@@ -559,6 +653,107 @@ class SberBridge:
         existing = await self._redef_store.async_update(entity_id, fields)
         await self._publish_config()
         return existing
+
+    async def async_update_gate_options(self, entity_id: str, fields: dict[str, Any]) -> dict[str, Any]:
+        """Merge impulse-gate options for one entity and apply them live.
+
+        Persists into ``entry.options[gate_options]`` and then pushes the
+        merged values straight into the loaded entity instead of reloading
+        the config entry: a reload tears the MQTT session down and back up,
+        and dropping the bridge for a couple of seconds because someone
+        flipped a checkbox is not a trade the user agreed to.  Same
+        approach as :meth:`async_update_redefinition`.
+
+        The entity is re-seeded from HA afterwards because some options
+        change how *existing* readings are interpreted (``invert_contact``
+        flips the meaning of the contact's last value), and both the
+        config and this entity's state are republished because the model
+        descriptor may change too (``travel_time`` adds
+        ``allowed_values.open_state``).  The config publish covers *every*
+        device on purpose: Sber reads each config payload as the complete
+        device list, so a one-device payload would make the cloud drop and
+        re-create everything else (issue #44).  Only the state publish is
+        narrowed to the edited entity.
+
+        Args:
+            entity_id: HA entity identifier of the gate relay.
+            fields: Partial gate-option mapping; only the keys present are
+                changed.  Validation of individual values happens in
+                :meth:`~devices.gate.ImpulseGateEntity.apply_gate_options`.
+
+        Returns:
+            The merged option dict stored for this entity.
+
+        Raises:
+            KeyError: If ``entity_id`` is not loaded in the bridge.
+            TypeError: If the entity is not an impulse gate.
+            HomeAssistantError: If the follow-up publish fails.
+        """
+        from .devices.gate import ImpulseGateEntity
+
+        entity = self._entities.get(entity_id)
+        if entity is None:
+            raise KeyError(entity_id)
+        if not isinstance(entity, ImpulseGateEntity):
+            raise TypeError(f"{entity_id} is not an impulse gate")
+
+        all_options: dict[str, dict] = dict(self._entry.options.get(CONF_GATE_OPTIONS, {}))
+        merged: dict[str, Any] = {**all_options.get(entity_id, {}), **fields}
+        all_options[entity_id] = merged
+        new_options = dict(self._entry.options)
+        new_options[CONF_GATE_OPTIONS] = all_options
+        self._hass.config_entries.async_update_entry(self._entry, options=new_options)
+
+        entity.apply_gate_options(merged)
+        self._refresh_entity_from_ha(entity_id)
+        await self._publish_config()
+        await self._publish_states([entity_id], force=True)
+        return merged
+
+    @callback
+    def _refresh_entity_from_ha(self, entity_id: str) -> None:
+        """Re-apply the current HA states of an entity and its linked companions.
+
+        Mirrors what :class:`SberEntityLoader` does at load time, without
+        rebuilding the entity: used after a settings change that alters how
+        the already-received readings must be interpreted.  Failures are
+        contained per entity (same narrow tuple as the loader) — a broken
+        refresh must not take down the caller's WebSocket command.
+
+        Args:
+            entity_id: HA entity identifier of the primary entity.
+        """
+        entity = self._entities.get(entity_id)
+        if entity is None:
+            return
+
+        def _apply(source_id: str, role: str | None) -> None:
+            """Feed one HA state back into the entity, isolating failures."""
+            state = self._hass.states.get(source_id)
+            if state is None:
+                return
+            ha_state = {
+                "entity_id": source_id,
+                "state": state.state,
+                "attributes": dict(state.attributes),
+            }
+            try:
+                if role is None:
+                    entity.fill_by_ha_state(ha_state)
+                else:
+                    entity.update_linked_data(role, ha_state)
+            except (TypeError, ValueError, KeyError, AttributeError):
+                _LOGGER.warning(
+                    "Failed to refresh %s from %s (role=%s)",
+                    entity_id,
+                    source_id,
+                    role,
+                    exc_info=True,
+                )
+
+        _apply(entity_id, None)
+        for role, linked_id in self._entity_links.get(entity_id, {}).items():
+            _apply(linked_id, role)
 
     def _config_relevant_entity_ids(self) -> list[str]:
         """Entities whose readiness affects the published config.
@@ -1287,18 +1482,28 @@ class SberBridge:
         """Delegate Sber command handling to :class:`SberCommandDispatcher`."""
         await self._command_dispatcher.handle_command(payload)
 
-    async def _delayed_confirm(self, entity_id: str) -> None:
+    async def _delayed_confirm(
+        self,
+        entity_id: str,
+        delay: float | None = None,
+        slot: str | None = None,
+    ) -> None:
         """Delayed state confirmation for a commanded entity.
 
-        Waits :attr:`_confirm_delay` seconds (letting HA settle async
-        attribute updates) and then re-publishes the entity's current
-        state to Sber.  Cleans up ``_confirm_tasks`` entry on completion.
+        Waits ``delay`` seconds (letting HA settle async attribute
+        updates, or letting a gate leaf finish its travel) and then
+        re-publishes the entity's current state to Sber.  Cleans up the
+        ``_confirm_tasks`` entry on completion.
 
         Args:
             entity_id: HA entity identifier to confirm.
+            delay: Seconds to wait; defaults to :attr:`_confirm_delay`.
+            slot: Key this task is registered under in
+                :attr:`_confirm_tasks`; defaults to ``entity_id``.
         """
+        slot = slot if slot is not None else entity_id
         try:
-            await asyncio.sleep(self._confirm_delay)
+            await asyncio.sleep(self._confirm_delay if delay is None else delay)
             entity = self._entities.get(entity_id)
             if entity is not None:
                 ha_state = self._hass.states.get(entity_id)
@@ -1316,8 +1521,8 @@ class SberBridge:
             # Only pop if THIS task still owns the slot. A faster follow-up
             # command may have already replaced us; we must not delete the
             # successor's handle.
-            if self._confirm_tasks.get(entity_id) is asyncio.current_task():
-                self._confirm_tasks.pop(entity_id, None)
+            if self._confirm_tasks.get(slot) is asyncio.current_task():
+                self._confirm_tasks.pop(slot, None)
 
     async def _handle_sber_status_request(self, payload: bytes) -> None:
         """Delegate Sber status request to :class:`SberCommandDispatcher`.

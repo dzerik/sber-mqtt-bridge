@@ -136,6 +136,23 @@ SBER_GLOBAL_CONFIG_TOPIC = "sberdevices/v1/__config"
 CONF_ENTITY_LINKS = "entity_links"
 """Options key for entity linking config: {primary_entity_id: {role: linked_entity_id}}."""
 
+CONF_GATE_OPTIONS = "gate_options"
+"""Options key for per-entity impulse-gate settings (issue #53).
+
+Shape::
+
+    {"switch.gate": {"invert_contact": False, "impulse_service": "auto", "travel_time": 0}}
+
+``invert_contact`` flips the polarity of the linked reed contact (``on``
+means *open* by default), ``impulse_service`` picks the HA service used
+to pulse a ``switch`` relay (``auto`` → ``toggle``), ``travel_time`` is
+how long (seconds) the leaf needs to travel — ``0`` (the default) keeps
+the movement emulation off, any positive value makes the gate publish
+``opening`` / ``closing`` between the impulse and the contact's
+confirmation.  Only ``ImpulseGateEntity`` reads it; entries for other
+entities are ignored.
+"""
+
 # NOTE: the list of HA domains exportable to Sber lives in
 # ``sber_entity_map.SUPPORTED_DOMAINS`` — it is derived from
 # CATEGORY_DOMAIN_MAP so it cannot drift from the category registry.

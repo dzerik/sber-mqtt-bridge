@@ -139,17 +139,37 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
         }
 
     def _cmd_set_position(self, value: dict) -> list[dict]:
+        """Handle ``open_percentage`` — drive the cover to an absolute position.
+
+        The service domain is taken from the entity id rather than
+        hard-coded to ``cover`` (same pattern as ``intercom``): subclasses
+        promoted from another HA domain must not emit a ``cover.*`` call
+        for, say, a ``switch``.  For ``cover`` entities the result is
+        byte-for-byte identical to the previous hard-coded form.
+        """
         ha_position = _safe_clamped_int_parser(value.get("integer_value"), 0, 100)
         if ha_position is None:
             return []
-        return [self._build_service_call("cover", "set_cover_position", self.entity_id, {"position": ha_position})]
+        return [
+            self._build_service_call(
+                self.get_entity_domain(),
+                "set_cover_position",
+                self.entity_id,
+                {"position": ha_position},
+            )
+        ]
 
     def _cmd_open_set(self, value: dict) -> list[dict]:
+        """Handle ``open_set`` — open / close / stop the cover.
+
+        Uses :meth:`get_entity_domain` for the same reason as
+        :meth:`_cmd_set_position`.
+        """
         action = value.get("enum_value")
         service = self._OPEN_SET_SERVICE_MAP.get(action or "")
         if service is None:
             return []
-        return [self._build_service_call("cover", service, self.entity_id)]
+        return [self._build_service_call(self.get_entity_domain(), service, self.entity_id)]
 
     _TILT_CATEGORIES = frozenset({"window_blind"})
     """Sber categories whose spec includes ``light_transmission_percentage``."""

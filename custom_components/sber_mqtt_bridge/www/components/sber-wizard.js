@@ -23,6 +23,7 @@
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { slugify, isValidSalutName, deepActiveElement } = await import(`../utils.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { dialogStyles, buttonStyles, filterInputStyles } = await import(`../shared-styles.js${_q}`);
 
 class SberWizard extends LitElement {
@@ -99,12 +100,38 @@ class SberWizard extends LitElement {
 
   async show() {
     this._reset();
+    /* Fetch the panel strings before anything can fail: the only
+     * translated message here is an *error*, so waiting for a first
+     * render to trigger the load would show English exactly once —
+     * on the occasion that matters. */
+    ensurePanelTranslations(this.hass, this);
     this._returnFocusTo = deepActiveElement();
     this.open = true;
     await this.updateComplete;
     const dialog = this.shadowRoot.querySelector(".dialog");
     if (dialog) dialog.focus();
     await this._loadCategories();
+  }
+
+  /**
+   * Render a backend failure for the user.
+   *
+   * A backend error code that has a translation under
+   * `config_panel.gate_options.<code>` is shown translated — those
+   * describe something the user can act on, such as a missing link.
+   * There is deliberately no list of "translatable" codes here: `t()`
+   * returns the key unchanged when nothing is defined for it, so adding
+   * the string is all it takes to localize a new code, and everything
+   * else keeps the backend's own developer-English message.
+   *
+   * @param {{code?: string, message?: string}} err WebSocket error.
+   * @returns {string} Text to show next to the failed entity.
+   */
+  _errorText(err) {
+    const key = err?.code ? `gate_options.${err.code}` : null;
+    const translated = key ? t(this.hass, key) : null;
+    if (translated && translated !== key) return translated;
+    return err?.message || String(err);
   }
 
   hide() {
@@ -279,7 +306,7 @@ class SberWizard extends LitElement {
         this._linksAttached = true;
         added.push(primaryId);
       } catch (err) {
-        failed.push({ entity_id: primaryId, message: err.message || String(err) });
+        failed.push({ entity_id: primaryId, message: this._errorText(err) });
       }
     }
     /* Reassign instead of mutating: ``_added`` is a reactive property, and

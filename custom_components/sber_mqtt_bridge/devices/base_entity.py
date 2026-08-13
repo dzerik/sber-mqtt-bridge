@@ -249,8 +249,27 @@ dedicated device_class for formaldehyde; the closest match is
 ``volatile_organic_compounds_parts``. Users with a distinct HCHO sensor
 will link it manually via the wizard."""
 
+ROLE_OPEN_STATE = LinkableRole(
+    "open_state",
+    frozenset({"binary_sensor"}),
+    frozenset({"garage_door", "door", "opening"}),
+)
+"""Reed/contact sensor reporting the real position of an impulse-driven gate.
+
+The primary entity of such a gate is the impulse relay (``switch`` /
+``button`` / ``script``), whose own HA state is only an echo of the last
+written relay value and says nothing about the leaf.  The position must
+therefore come from a companion contact sensor linked in this role.
+
+``window`` is deliberately **not** accepted: window contacts are common
+and would otherwise become gate candidates in the wizard.
+"""
+
 SENSOR_LINK_ROLES: tuple[LinkableRole, ...] = (ROLE_BATTERY, ROLE_BATTERY_LOW, ROLE_SIGNAL)
 """Common linkable roles for battery-powered devices (sensors, covers, valves)."""
+
+GATE_LINK_ROLES: tuple[LinkableRole, ...] = (ROLE_OPEN_STATE, ROLE_SIGNAL)
+"""Linkable roles accepted by an impulse gate (the Sber ``gate`` spec has no battery)."""
 
 
 def _collect_declared_roles() -> tuple[LinkableRole, ...]:
@@ -360,6 +379,19 @@ class BaseEntity(ABC):
 
     LINKABLE_ROLES: ClassVar[tuple[LinkableRole, ...]] = ()
     """Linkable roles this device class accepts. Override in subclasses."""
+
+    REQUIRED_LINK_ROLES: ClassVar[tuple[str, ...]] = ()
+    """Role names this device class cannot work without.
+
+    Empty for every class whose Sber features are derivable from the
+    primary HA entity alone.  A non-empty tuple means the device is
+    *composite*: without those links it would publish a fabricated state
+    (see :class:`~devices.gate.ImpulseGateEntity`, whose position exists
+    only in a linked contact sensor).  The wizard refuses to add such a
+    device when a required role is unmapped
+    (``websocket_api.devices_grouped.ws_add_ha_device`` →
+    ``missing_required_role``).
+    """
 
     def register_link(self, role: str, linked_entity_id: str) -> None:
         """Register a linked companion entity for the given role.

@@ -37,6 +37,36 @@
       "reauth_successful": "Re-authentication successful"
     }
   },
+  "config_panel": {
+    "gate_options": {
+      "title": "Impulse gate",
+      "invert_contact": "Inverted contact",
+      "invert_contact_description": "Enable when the linked contact sensor reports \"on\" while the gate is closed",
+      "impulse_service": "Impulse service",
+      "impulse_service_auto": "Automatic (toggle)",
+      "impulse_service_toggle": "switch.toggle",
+      "impulse_service_turn_on": "switch.turn_on",
+      "contact_stale": "The contact sensor is unavailable — the last known position is shown",
+      "missing_required_role": "Link the gate position sensor (a binary sensor with device class garage door, door or opening) before adding this device",
+      "missing_required_link_warning": "This gate has no position sensor linked, so it reports \"closed\" whatever the leaf does. Link a binary sensor in the \"open_state\" role.",
+      "travel_time": "Leaf travel time (seconds)",
+      "travel_time_description": "Time the gate needs to travel end to end. 0 disables it: the position then changes only when the contact sensor reports. With a value set, the gate reports \"opening\" / \"closing\" right after the impulse until the sensor confirms.",
+      "save": "Save gate options"
+    },
+    "detail_dialog": {
+      "loading": "Loading…",
+      "close": "Close details",
+      "override": "Sber Override",
+      "overview": "Overview",
+      "sber_states": "Sber States (current)",
+      "linked_entities": "Linked Entities",
+      "model_config": "Sber Model Config",
+      "ha_attributes": "HA Attributes",
+      "device_registry": "HA Device Registry",
+      "saved": "Saved",
+      "error": "Error"
+    }
+  },
   "options": {
     "step": {
       "init": {
@@ -117,6 +147,10 @@
     "broken_entity_links": {
       "title": "Broken entity links",
       "description": "{count} linked entities are not available: {links}. Check that the linked entities exist and are not disabled."
+    },
+    "missing_required_links": {
+      "title": "Devices missing an obligatory linked sensor",
+      "description": "{count} device(s) cannot report their real state because an obligatory linked sensor is missing: {entities}. An impulse gate without a position sensor reports \"closed\" no matter where the leaf is. Open the Sber Bridge panel, pick the device and link the sensor for the listed role."
     },
     "unacknowledged_entities": {
       "title": "Devices not recognized by Sber",

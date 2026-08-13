@@ -22,7 +22,7 @@ from .devices.climate import ClimateEntity
 from .devices.curtain import CurtainEntity
 from .devices.door_sensor import DoorSensorEntity
 from .devices.gas_sensor import GasSensorEntity
-from .devices.gate import GateEntity
+from .devices.gate import make_gate_entity
 from .devices.humidifier import HumidifierEntity
 from .devices.humidity_sensor import HumiditySensorEntity
 from .devices.hvac_air_purifier import HvacAirPurifierEntity
@@ -96,6 +96,12 @@ class CategorySpec:
             declared ``device_class`` at all, this category accepts it as a
             fallback.  Used by ``relay`` so that a plain ``switch`` without
             device_class becomes a relay rather than silently unmatched.
+        no_device_class_domains: Restricts ``fallback_when_no_device_class``
+            to the listed domains.  Empty (default) keeps the historical
+            behaviour — the fallback applies to every domain of the
+            category.  Needed by ``gate``, which must accept a bare
+            ``switch`` (impulse relay, issue #53) while leaving a bare
+            ``cover`` to ``curtain`` exactly as before.
     """
 
     cls: Callable[[dict[str, Any]], BaseEntity]
@@ -103,6 +109,30 @@ class CategorySpec:
     device_classes: tuple[str, ...] | None = None
     preferred_rank: int = 50
     fallback_when_no_device_class: bool = False
+    no_device_class_domains: tuple[str, ...] = ()
+
+    @property
+    def entity_classes(self) -> tuple[type[BaseEntity], ...]:
+        """Concrete entity classes this category can instantiate.
+
+        :attr:`cls` is only required to be *callable*, and the ``gate``
+        category uses that freedom: one Sber category covers two very
+        different devices (an HA ``cover`` and an impulse relay), so its
+        ``cls`` is the :func:`~devices.gate.make_gate_entity` factory.
+        Introspection — "does this category produce an ``OnOffEntity``?",
+        "does any of its classes override the publish wrapper?" — must go
+        through this property instead of assuming ``cls`` is a class.
+
+        A factory advertises what it can build via a ``produces`` tuple
+        attribute; a plain class advertises itself.
+
+        Returns:
+            Tuple of concrete :class:`BaseEntity` subclasses, empty when a
+            factory does not declare ``produces``.
+        """
+        if isinstance(self.cls, type):
+            return (self.cls,)
+        return tuple(getattr(self.cls, "produces", ()))
 
     def matches(self, domain: str, device_class: str | None) -> bool:
         """Return True if an HA entity of ``(domain, device_class)`` promotes here."""
@@ -113,7 +143,9 @@ class CategorySpec:
         dc = device_class or ""
         if dc in self.device_classes:
             return True
-        return self.fallback_when_no_device_class and dc == ""
+        if not self.fallback_when_no_device_class or dc != "":
+            return False
+        return not self.no_device_class_domains or domain in self.no_device_class_domains
 
 
 CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
@@ -141,10 +173,17 @@ CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
     ),
     # ── Covers ──────────────────────────────────────────────────────────
     "gate": CategorySpec(
-        cls=GateEntity,
-        domains=("cover",),
+        # ``cover`` MUST stay first: probe helpers build ``f"{domains[0]}.probe"``
+        # and the factory routes ``cover.*`` to the historical GateEntity.
+        cls=make_gate_entity,
+        domains=("cover", "switch", "button", "script"),
         device_classes=("gate", "garage_door", "garage", "door"),
-        preferred_rank=3,
+        # Rank 35 keeps gate *out* of auto-detection for a plain switch
+        # (relay 10 → intercom 30 → gate 35 → kettle 40): an impulse gate
+        # is only reachable by picking the category explicitly.
+        preferred_rank=35,
+        fallback_when_no_device_class=True,
+        no_device_class_domains=("switch", "button", "script"),
     ),
     "window_blind": CategorySpec(
         cls=WindowBlindEntity,

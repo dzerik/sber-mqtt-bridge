@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+  <defs>
+    <radialGradient id="core" cx="0.47" cy="0.66" r="0.95">
+      <stop offset="0" stop-color="#F7EC1F"/>
+      <stop offset="0.30" stop-color="#C9E62B"/>
+      <stop offset="0.55" stop-color="#4CD854"/>
+      <stop offset="0.76" stop-color="#14CE8B"/>
+      <stop offset="0.88" stop-color="#0DCBC7"/>
+      <stop offset="0.96" stop-color="#13B2E0"/>
+      <stop offset="1" stop-color="#1E86DF"/>
+    </radialGradient>
+    <radialGradient id="rim" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.82" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.94" stop-color="#0FBFD8" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#2050D8" stop-opacity="0.9"/>
+    </radialGradient>
+    <linearGradient id="topBlue" x1="0.38" y1="0" x2="0.5" y2="0.55">
+      <stop offset="0" stop-color="#2437E6" stop-opacity="0.6"/>
+      <stop offset="0.3" stop-color="#16B8E8" stop-opacity="0.15"/>
+      <stop offset="0.55" stop-color="#16B8E8" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="ball"><circle cx="256" cy="256" r="244"/></clipPath>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="softer" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+  </defs>
+  <g transform="translate(32 32) scale(0.875)">
+    <!-- сфера в стиле Sber -->
+    <circle cx="256" cy="256" r="244" fill="url(#core)"/>
+    <circle cx="256" cy="256" r="244" fill="url(#rim)"/>
+    <circle cx="256" cy="256" r="244" fill="url(#topBlue)"/>
+    <g clip-path="url(#ball)">
+      <path d="M40 240 C 110 90, 320 60, 460 190 C 470 220, 468 250, 455 280
+               C 420 170, 300 120, 210 150 C 130 176, 80 230, 60 300 C 45 280, 38 262, 40 240 Z"
+            fill="#5FEFD0" opacity="0.5" filter="url(#soft)"/>
+      <path d="M90 170 C 160 70, 350 60, 430 150 C 350 90, 180 95, 110 190 Z"
+            fill="#A9F8E4" opacity="0.35" filter="url(#soft)"/>
+      <path d="M210 300 C 240 250, 310 245, 350 280 C 310 262, 255 272, 235 315 Z"
+            fill="#FDFBD0" opacity="0.4" filter="url(#softer)"/>
+      <path d="M60 380 C 130 470, 320 490, 440 390 C 380 480, 170 500, 60 380 Z"
+            fill="#4CE87A" opacity="0.45" filter="url(#soft)"/>
+    </g>
+    <g transform="translate(256 262) scale(0.87) translate(-256 -262)">
+      <!-- домик -->
+      <path d="M256 126 L398 244 V386 a12 12 0 0 1 -12 12 H126 a12 12 0 0 1 -12 -12 V244 Z"
+            fill="#ffffff" stroke="#ffffff" stroke-width="26" stroke-linejoin="round"/>
+      <!-- двунаправленный поток HA ⇄ Sber -->
+      <g stroke="#0E7A33" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <path d="M188 276 H300"/>
+        <path d="M276 246 L312 276 L276 306"/>
+        <path d="M324 350 H212"/>
+        <path d="M236 320 L200 350 L236 380"/>
+      </g>
+    </g>
+  </g>
+  <text x="516" y="232" font-family="DejaVu Sans" font-weight="bold" font-size="74" fill="#21A038">Sber MQTT</text>
+  <text x="516" y="330" font-family="DejaVu Sans" font-weight="bold" font-size="74" fill="#0E7A33">Bridge</text>
+</svg>

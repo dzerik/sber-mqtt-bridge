@@ -1041,6 +1041,7 @@ VALID_PAYLOADS: dict[str, dict[str, Any]] = {
     "add_entities": {"entity_ids": [PUMP]},
     "remove_entities": {"entity_ids": [LAMP]},
     "set_override": {"entity_id": LAMP, "category": "led_strip"},
+    "update_gate_options": {"entity_id": LAMP, "invert_contact": True},
     "set_entity_links": {"entity_id": LAMP, "links": {"temperature": LAMP_TEMP}},
     "import": {"config": {"exposed_entities": [PUMP]}},
     "update_redefinitions": {"entity_id": LAMP, "name": "Кухня"},

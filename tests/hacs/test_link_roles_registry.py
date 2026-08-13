@@ -65,12 +65,18 @@ from custom_components.sber_mqtt_bridge.websocket_api.devices_grouped import ws_
 # ---------------------------------------------------------------------------
 
 _ALL_DEVICE_CLASSES = sorted(
-    {spec.cls for spec in CATEGORY_DOMAIN_MAP.values()},
+    {cls for spec in CATEGORY_DOMAIN_MAP.values() for cls in spec.entity_classes},
     key=lambda cls: cls.__name__,
 )
-"""Every concrete device class reachable through the wizard."""
+"""Every concrete device class reachable through the wizard.
 
-_ON_OFF_CATEGORIES = sorted(cat for cat, spec in CATEGORY_DOMAIN_MAP.items() if issubclass(spec.cls, OnOffEntity))
+Goes through :attr:`CategorySpec.entity_classes` rather than ``spec.cls``:
+a category may register a *factory* (``gate`` builds either a cover-based
+or an impulse-relay entity), and both of its products must be swept."""
+
+_ON_OFF_CATEGORIES = sorted(
+    cat for cat, spec in CATEGORY_DOMAIN_MAP.items() if any(issubclass(cls, OnOffEntity) for cls in spec.entity_classes)
+)
 """Every Sber category served by an :class:`OnOffEntity` subclass."""
 
 _SENSOR_AIR_LOGGER = "custom_components.sber_mqtt_bridge.devices.sensor_air"
@@ -404,7 +410,7 @@ class TestOnOffCapabilityFlags:
 class TestRegistryConstruction:
     """ALL_LINKABLE_ROLES is derived, ordered, and complete."""
 
-    def test_contains_all_eleven_known_roles(self):
+    def test_contains_all_twelve_known_roles(self):
         assert {r.role for r in ALL_LINKABLE_ROLES} == {
             "battery",
             "battery_low",
@@ -417,6 +423,8 @@ class TestRegistryConstruction:
             "pm10",
             "tvoc",
             "hcho",
+            # Reed contact of an impulse gate (issue #53).
+            "open_state",
         }
 
     def test_registry_equals_module_level_declarations_in_source_order(self):
