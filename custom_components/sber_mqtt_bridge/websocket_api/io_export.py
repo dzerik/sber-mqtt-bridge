@@ -13,15 +13,14 @@ from homeassistant.helpers import config_validation as cv
 
 from ..const import (
     CONF_ENTITY_LINKS,
+    CONF_ENTITY_OPTIONS,
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
-    CONF_GATE_OPTIONS,
 )
-from ..devices.gate import IMPULSE_SERVICE_OPTIONS
 from ._common import (  # noqa: F401 — get_bridge/get_config_entry re-exported for test patching
+    ENTITY_OPTIONS_SCHEMA,
     OVERRIDABLE_CATEGORIES,
     WS_ENTITY_ID,
-    WS_TRAVEL_TIME,
     get_bridge,
     get_config_entry,
     requires_bridge,
@@ -40,23 +39,13 @@ IMPORT_CONFIG_SCHEMA = vol.Schema(
             {cv.entity_id: vol.Schema({vol.Any("name", "room", "home"): str})}
         ),
         vol.Optional("entity_links"): vol.Schema({cv.entity_id: vol.Schema({cv.string: cv.entity_id})}),
-        # Impulse-gate settings (issue #53).  Validated by value, not just
-        # by shape: ``invert_contact`` flips the meaning of every contact
-        # reading, so a garbage value must never reach entity loading.
-        vol.Optional("gate_options"): vol.Schema(
-            {
-                cv.entity_id: vol.Schema(
-                    {
-                        vol.Optional("invert_contact"): bool,
-                        vol.Optional("impulse_service"): vol.In(IMPULSE_SERVICE_OPTIONS),
-                        # Same validator as ``update_gate_options``: the inner
-                        # schema is strict, so a key missing here would make
-                        # an *exported* config fail to import back.
-                        vol.Optional("travel_time"): WS_TRAVEL_TIME,
-                    }
-                )
-            }
-        ),
+        # Per-entity device settings (gate polarity and timers, kettle
+        # operation modes, ...).  Validated by value, not just by shape:
+        # ``invert_contact`` flips the meaning of every contact reading,
+        # so a garbage value must never reach entity loading.  The inner
+        # schema is the very one ``update_entity_options`` enforces, so an
+        # exported config always imports back.
+        vol.Optional("gate_options"): vol.Schema({cv.entity_id: ENTITY_OPTIONS_SCHEMA}),
     },
     extra=vol.ALLOW_EXTRA,  # tolerate "version" and future metadata keys
 )
@@ -87,6 +76,12 @@ async def ws_export(
 
     ``version`` 3 added ``gate_options``; older payloads simply lack the
     key and import unchanged (every key is optional).
+
+    The ``gate_options`` block carries the per-entity options of *every*
+    category since v1.47 (kettle operation modes included).  The name is
+    kept because it is also the literal storage key — see
+    :data:`~const.CONF_ENTITY_OPTIONS` — and because renaming it would
+    make v1.46 exports and imports disagree for no gain.
     """
     connection.send_result(
         msg["id"],
@@ -96,7 +91,7 @@ async def ws_export(
             "type_overrides": dict(entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})),
             "redefinitions": dict(entry.options.get("redefinitions", {})),
             "entity_links": dict(entry.options.get(CONF_ENTITY_LINKS, {})),
-            "gate_options": dict(entry.options.get(CONF_GATE_OPTIONS, {})),
+            "gate_options": dict(entry.options.get(CONF_ENTITY_OPTIONS, {})),
         },
     )
 
@@ -143,7 +138,7 @@ async def ws_import(
     if "entity_links" in config:
         new_options[CONF_ENTITY_LINKS] = config["entity_links"]
     if "gate_options" in config:
-        new_options[CONF_GATE_OPTIONS] = config["gate_options"]
+        new_options[CONF_ENTITY_OPTIONS] = config["gate_options"]
 
     hass.config_entries.async_update_entry(entry, options=new_options)
     await hass.config_entries.async_reload(entry.entry_id)

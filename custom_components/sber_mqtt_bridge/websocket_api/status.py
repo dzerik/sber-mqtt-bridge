@@ -310,36 +310,33 @@ def _section_linked_entities(
     return out
 
 
-def _section_gate_options(entity: Any) -> dict[str, Any] | None:
-    """Return the impulse-gate option block, or ``None`` for other devices.
+def _section_entity_options(entity: Any) -> tuple[str, dict[str, Any]] | None:
+    """Return the per-entity option block and the key to report it under.
 
-    Lets the panel render the contact-polarity / impulse-service /
-    travel-time controls only for entities that actually have them
-    (issue #53).
+    Lets the panel render a device's own settings — a gate's contact
+    polarity and timers, a kettle's operation modes — only for entities
+    that actually have them.  Both the block key and its contents come
+    from the device class (``ENTITY_OPTIONS_BLOCK`` /
+    ``entity_options_state``), so a new option set needs no change here.
 
-    Every key the panel's gate form reads must be present: the form
-    submits all of its fields at once, so a control left without a value
-    (because the backend never reported one) would reset the stored
-    option the next time the user toggles its neighbour.
+    Every key the matching panel form reads must be present in the
+    block: a form submits all of its fields at once, so a control left
+    without a value (because the backend never reported one) would reset
+    the stored option the next time the user touches its neighbour.
 
     Args:
         entity: Loaded Sber entity.
 
     Returns:
-        ``{"invert_contact": bool, "impulse_service": str,
-        "contact_stale": bool, "travel_time": float}`` for an impulse
-        gate, ``None`` otherwise.
+        ``(block_key, values)``, or ``None`` for a device class that
+        declares no options.
     """
-    from ..devices.gate import ImpulseGateEntity
-
-    if not isinstance(entity, ImpulseGateEntity):
+    if not entity.supports_entity_options:
         return None
-    return {
-        "invert_contact": entity.invert_contact,
-        "impulse_service": entity.impulse_service_option,
-        "contact_stale": entity.contact_stale,
-        "travel_time": entity.travel_time,
-    }
+    state = entity.entity_options_state()
+    if not state:
+        return None
+    return entity.ENTITY_OPTIONS_BLOCK, state
 
 
 def _missing_required_links(bridge: Any, entity_id: str, entity: Any) -> list[str]:
@@ -418,8 +415,9 @@ async def ws_device_detail(
     if redefs:
         result["redefinitions"] = redefs
 
-    gate_options = _section_gate_options(entity)
-    if gate_options is not None:
-        result["gate_options"] = gate_options
+    options_block = _section_entity_options(entity)
+    if options_block is not None:
+        block_key, values = options_block
+        result[block_key] = values
 
     connection.send_result(msg["id"], result)

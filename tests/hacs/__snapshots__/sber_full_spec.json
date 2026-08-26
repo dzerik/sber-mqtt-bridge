@@ -1184,6 +1184,11 @@
       ]
     },
     "button_10_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_10_event",
       "range": null,
       "type": "ENUM",
@@ -1192,6 +1197,11 @@
       ]
     },
     "button_1_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_1_event",
       "range": null,
       "type": "ENUM",
@@ -1200,6 +1210,11 @@
       ]
     },
     "button_2_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_2_event",
       "range": null,
       "type": "ENUM",
@@ -1208,6 +1223,11 @@
       ]
     },
     "button_3_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_3_event",
       "range": null,
       "type": "ENUM",
@@ -1216,6 +1236,11 @@
       ]
     },
     "button_4_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_4_event",
       "range": null,
       "type": "ENUM",
@@ -1224,6 +1249,11 @@
       ]
     },
     "button_5_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_5_event",
       "range": null,
       "type": "ENUM",
@@ -1232,6 +1262,11 @@
       ]
     },
     "button_6_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_6_event",
       "range": null,
       "type": "ENUM",
@@ -1240,6 +1275,11 @@
       ]
     },
     "button_7_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_7_event",
       "range": null,
       "type": "ENUM",
@@ -1248,6 +1288,11 @@
       ]
     },
     "button_8_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_8_event",
       "range": null,
       "type": "ENUM",
@@ -1256,6 +1301,11 @@
       ]
     },
     "button_9_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_9_event",
       "range": null,
       "type": "ENUM",
@@ -1264,6 +1314,11 @@
       ]
     },
     "button_bottom_left_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_bottom_left_event",
       "range": null,
       "type": "ENUM",
@@ -1272,6 +1327,11 @@
       ]
     },
     "button_bottom_right_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_bottom_right_event",
       "range": null,
       "type": "ENUM",
@@ -1280,6 +1340,11 @@
       ]
     },
     "button_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_event",
       "range": null,
       "type": "ENUM",
@@ -1288,6 +1353,11 @@
       ]
     },
     "button_left_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_left_event",
       "range": null,
       "type": "ENUM",
@@ -1296,6 +1366,11 @@
       ]
     },
     "button_right_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_right_event",
       "range": null,
       "type": "ENUM",
@@ -1304,6 +1379,11 @@
       ]
     },
     "button_top_left_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_top_left_event",
       "range": null,
       "type": "ENUM",
@@ -1312,6 +1392,11 @@
       ]
     },
     "button_top_right_event": {
+      "enum_values": [
+        "click",
+        "double_click",
+        "long_press"
+      ],
       "name": "button_top_right_event",
       "range": null,
       "type": "ENUM",
@@ -1320,6 +1405,10 @@
       ]
     },
     "channel": {
+      "enum_values": [
+        "+",
+        "-"
+      ],
       "name": "channel",
       "range": null,
       "type": "ENUM",
@@ -1363,6 +1452,15 @@
       ]
     },
     "custom_key": {
+      "enum_values": [
+        "confirm",
+        "back",
+        "home",
+        "play",
+        "pause",
+        "previous",
+        "next"
+      ],
       "name": "custom_key",
       "range": null,
       "type": "ENUM",
@@ -1371,6 +1469,12 @@
       ]
     },
     "direction": {
+      "enum_values": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
       "name": "direction",
       "range": null,
       "type": "ENUM",
@@ -1414,6 +1518,14 @@
       ]
     },
     "hvac_air_flow_direction": {
+      "enum_values": [
+        "auto",
+        "horizontal",
+        "no",
+        "rotation",
+        "swing",
+        "vertical"
+      ],
       "name": "hvac_air_flow_direction",
       "range": null,
       "type": "ENUM",
@@ -1422,6 +1534,14 @@
       ]
     },
     "hvac_air_flow_power": {
+      "enum_values": [
+        "auto",
+        "high",
+        "low",
+        "medium",
+        "quiet",
+        "turbo"
+      ],
       "name": "hvac_air_flow_power",
       "range": null,
       "type": "ENUM",
@@ -1450,6 +1570,12 @@
       ]
     },
     "hvac_direction_set": {
+      "enum_values": [
+        "left",
+        "right",
+        "up",
+        "down"
+      ],
       "name": "hvac_direction_set",
       "range": null,
       "type": "ENUM",
@@ -1458,6 +1584,12 @@
       ]
     },
     "hvac_heating_rate": {
+      "enum_values": [
+        "auto",
+        "high",
+        "low",
+        "medium"
+      ],
       "name": "hvac_heating_rate",
       "range": null,
       "type": "ENUM",
@@ -1526,6 +1658,15 @@
       ]
     },
     "hvac_thermostat_mode": {
+      "enum_values": [
+        "auto",
+        "cooling",
+        "eco",
+        "fast_cooling",
+        "fast_heating",
+        "heating",
+        "turbo"
+      ],
       "name": "hvac_thermostat_mode",
       "range": null,
       "type": "ENUM",
@@ -1560,6 +1701,20 @@
       ]
     },
     "hvac_work_mode": {
+      "enum_values": [
+        "air_purification",
+        "auto",
+        "comfortable_sleep",
+        "cooling",
+        "dehumidification",
+        "eco",
+        "fast_cooling",
+        "fast_heating",
+        "heating",
+        "self_cleaning",
+        "turbo",
+        "ventilation"
+      ],
       "name": "hvac_work_mode",
       "range": null,
       "type": "ENUM",
@@ -1635,6 +1790,10 @@
       ]
     },
     "light_mode": {
+      "enum_values": [
+        "white",
+        "colour"
+      ],
       "name": "light_mode",
       "range": null,
       "type": "ENUM",
@@ -1734,6 +1893,11 @@
       ]
     },
     "open_left_set": {
+      "enum_values": [
+        "open",
+        "close",
+        "stop"
+      ],
       "name": "open_left_set",
       "range": null,
       "type": "ENUM",
@@ -1743,6 +1907,12 @@
       ]
     },
     "open_left_state": {
+      "enum_values": [
+        "open",
+        "close",
+        "opening",
+        "closing"
+      ],
       "name": "open_left_state",
       "range": null,
       "type": "ENUM",
@@ -1763,6 +1933,12 @@
       ]
     },
     "open_rate": {
+      "enum_values": [
+        "auto",
+        "low",
+        "medium",
+        "high"
+      ],
       "name": "open_rate",
       "range": null,
       "type": "ENUM",
@@ -1782,6 +1958,11 @@
       ]
     },
     "open_right_set": {
+      "enum_values": [
+        "open",
+        "close",
+        "stop"
+      ],
       "name": "open_right_set",
       "range": null,
       "type": "ENUM",
@@ -1791,6 +1972,12 @@
       ]
     },
     "open_right_state": {
+      "enum_values": [
+        "open",
+        "close",
+        "opening",
+        "closing"
+      ],
       "name": "open_right_state",
       "range": null,
       "type": "ENUM",
@@ -1800,6 +1987,11 @@
       ]
     },
     "open_set": {
+      "enum_values": [
+        "open",
+        "close",
+        "stop"
+      ],
       "name": "open_set",
       "range": null,
       "type": "ENUM",
@@ -1811,6 +2003,12 @@
       ]
     },
     "open_state": {
+      "enum_values": [
+        "open",
+        "close",
+        "opening",
+        "closing"
+      ],
       "name": "open_state",
       "range": null,
       "type": "ENUM",
@@ -1822,6 +2020,9 @@
       ]
     },
     "pir": {
+      "enum_values": [
+        "pir"
+      ],
       "name": "pir",
       "range": null,
       "type": "ENUM",
@@ -1871,6 +2072,11 @@
       ]
     },
     "sensor_sensitive": {
+      "enum_values": [
+        "low",
+        "medium",
+        "high"
+      ],
       "name": "sensor_sensitive",
       "range": null,
       "type": "ENUM",
@@ -1882,6 +2088,11 @@
       ]
     },
     "signal_strength": {
+      "enum_values": [
+        "low",
+        "medium",
+        "high"
+      ],
       "name": "signal_strength",
       "range": null,
       "type": "ENUM",
@@ -1909,6 +2120,17 @@
       ]
     },
     "source": {
+      "enum_values": [
+        "hdmi1",
+        "hdmi2",
+        "hdmi3",
+        "tv",
+        "av",
+        "content",
+        "screencast",
+        "+",
+        "-"
+      ],
       "name": "source",
       "range": null,
       "type": "ENUM",
@@ -1925,6 +2147,10 @@
       ]
     },
     "temp_unit_view": {
+      "enum_values": [
+        "c",
+        "f"
+      ],
       "name": "temp_unit_view",
       "range": null,
       "type": "ENUM",
@@ -1964,6 +2190,11 @@
       ]
     },
     "vacuum_cleaner_cleaning_type": {
+      "enum_values": [
+        "dry",
+        "wet",
+        "mixed"
+      ],
       "name": "vacuum_cleaner_cleaning_type",
       "range": null,
       "type": "ENUM",
@@ -1972,6 +2203,12 @@
       ]
     },
     "vacuum_cleaner_command": {
+      "enum_values": [
+        "start",
+        "pause",
+        "return_to_dock",
+        "resume"
+      ],
       "name": "vacuum_cleaner_command",
       "range": null,
       "type": "ENUM",
@@ -1980,6 +2217,12 @@
       ]
     },
     "vacuum_cleaner_program": {
+      "enum_values": [
+        "perimeter",
+        "spot",
+        "smart",
+        "random_route"
+      ],
       "name": "vacuum_cleaner_program",
       "range": null,
       "type": "ENUM",
@@ -1988,6 +2231,12 @@
       ]
     },
     "vacuum_cleaner_status": {
+      "enum_values": [
+        "cleaning",
+        "docked",
+        "pause",
+        "returning_to_dock"
+      ],
       "name": "vacuum_cleaner_status",
       "range": null,
       "type": "ENUM",
@@ -2005,6 +2254,10 @@
       ]
     },
     "volume": {
+      "enum_values": [
+        "+",
+        "-"
+      ],
       "name": "volume",
       "range": null,
       "type": "ENUM",
@@ -2029,6 +2282,6 @@
       ]
     }
   },
-  "generated_at": "2026-07-03T14:23:03.048208+00:00",
+  "generated_at": "2026-08-26T11:22:53.415012+00:00",
   "source": "https://developers.sber.ru/docs/ru/smarthome/c2c"
 }

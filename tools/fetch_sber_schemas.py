@@ -128,6 +128,20 @@ _TYPE_DECL_RE = re.compile(
 # Trailing commas in Sber JSON examples (not valid JSON) — strip before parsing
 _TRAILING_COMMA_RE = re.compile(r",(\s*[}\]])")
 
+# One accepted value of an ENUM function, as the page words it:
+#   "auto — скорость меняется автоматически."
+# The value itself is a protocol slug; "+" and "-" are real ones (tv.source).
+_ENUM_VALUE_RE = re.compile(r"^([a-z0-9_]+|\+|-)\s+—\s+\S", flags=re.MULTILINE)
+
+# The heading that ends the vocabulary and starts the category list.  Its
+# entries look exactly like enum values ("hvac_ac — кондиционеры."), so the
+# scan MUST stop here or every category name becomes a fake enum value.
+_ENUM_STOP_MARKER = "Устройства с этой функцией"
+
+# Where the vocabulary starts.  Everything above it is prose about the type
+# and the usage mode, which never carries the "value — description" shape.
+_ENUM_START_MARKER = "Назначение:"
+
 
 # ---------------------------------------------------------------------------
 # Category schema extraction
@@ -300,12 +314,8 @@ def discover_advertised_categories(page) -> set[str] | None:
     return slugs
 
 
-_MAIN_JS_URL_RE = re.compile(
-    r'https://media\.sberdevices\.ru/bsm-docs/[^"\s]+/main\.[a-f0-9]+\.js'
-)
-_MDX_SLUG_RE = re.compile(
-    r'"@site/docs/ru/smarthome/c2c/([a-z0-9_-]+)\.mdx"'
-)
+_MAIN_JS_URL_RE = re.compile(r'https://media\.sberdevices\.ru/bsm-docs/[^"\s]+/main\.[a-f0-9]+\.js')
+_MDX_SLUG_RE = re.compile(r'"@site/docs/ru/smarthome/c2c/([a-z0-9_-]+)\.mdx"')
 
 
 def discover_slugs_via_main_js(user_agent: str, timeout: int = 30) -> set[str] | None:
@@ -444,6 +454,52 @@ def list_function_slugs(page) -> list[str]:
     return sorted(slugs)
 
 
+def extract_enum_values(article_text: str) -> list[str]:
+    """Pull an ENUM function's accepted values out of its page text.
+
+    The vocabulary is prose, not a table::
+
+        Назначение: управляет скоростью вентилятора:
+
+        auto — скорость меняется автоматически.
+        quiet — тихий режим работы. ...
+
+        Устройства с этой функцией
+        hvac_ac — кондиционеры.
+
+    Note the last two lines: the category list that follows has the very
+    same shape, so the scan is bounded by
+    :data:`_ENUM_STOP_MARKER` — without that bound every category name
+    would be collected as an accepted value.
+
+    This vocabulary is the *authoritative* one.  The ``allowed_values``
+    block on a category page is only an illustrative example and is
+    routinely shorter: the ``hvac_air_flow_power`` example omits
+    ``quiet`` even though the function accepts it, so validating our own
+    values against the category example would reject correct devices.
+
+    Args:
+        article_text: ``innerText`` of the function page's article.
+
+    Returns:
+        Accepted values in page order, de-duplicated.  Empty when the
+        page has no vocabulary (every non-ENUM function, and the odd
+        ENUM whose page words things differently — callers must treat
+        "empty" as "unknown", never as "nothing is allowed").
+    """
+    start = article_text.find(_ENUM_START_MARKER)
+    if start == -1:
+        return []
+    end = article_text.find(_ENUM_STOP_MARKER, start)
+    section = article_text[start : end if end != -1 else len(article_text)]
+    seen: list[str] = []
+    for match in _ENUM_VALUE_RE.finditer(section):
+        value = match.group(1)
+        if value not in seen:
+            seen.append(value)
+    return seen
+
+
 def extract_function_spec(page, slug: str) -> dict | None:
     """Parse a single function page — name, type, range.
 
@@ -476,12 +532,17 @@ def extract_function_spec(page, slug: str) -> dict | None:
 
     pre_blocks: list[str] = page.eval_on_selector_all("pre", "els => els.map(e => e.innerText)")
 
-    return {
+    spec: dict = {
         "name": name,
         "type": type_name,
         "range": range_str,
         "examples": [b.strip() for b in pre_blocks if b.strip()],
     }
+    if type_name == "ENUM":
+        values = extract_enum_values(article_text)
+        if values:
+            spec["enum_values"] = values
+    return spec
 
 
 def build_used_in_categories(categories: dict[str, dict]) -> dict[str, list[str]]:

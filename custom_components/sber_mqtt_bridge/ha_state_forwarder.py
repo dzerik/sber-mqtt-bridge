@@ -75,6 +75,7 @@ class HaStateForwarder:
         on_republish_config: Callable[[], Awaitable[None]],
         create_safe_task: Callable[..., asyncio.Task],
         on_trace_state_change: Callable[[str | None, str, dict], None] | None = None,
+        on_state_settled: Callable[[str], None] | None = None,
     ) -> None:
         """Initialize the forwarder.
 
@@ -92,6 +93,12 @@ class HaStateForwarder:
                 state_dict)`` so the correlation-trace collector can attach
                 the event. No-op when ``None`` — keeps tests free of
                 DevTools wiring.
+            on_state_settled: Optional callback invoked with the *primary*
+                entity id after its state (or a linked companion's) was
+                applied.  Lets the bridge re-read the entity's
+                ``pending_confirm_delay`` — a gate arms its auto-close
+                countdown from a contact reading, and nothing else would
+                ever schedule the republish for it.  No-op when ``None``.
         """
         self._hass = hass
         self._debounce_delay = debounce_delay
@@ -101,6 +108,7 @@ class HaStateForwarder:
         self._on_republish_config = on_republish_config
         self._create_safe_task = create_safe_task
         self._on_trace_state_change = on_trace_state_change
+        self._on_state_settled = on_state_settled
 
         self._unsub_listeners: list[Callable[[], None]] = []
         self._pending_publish_ids: set[str] = set()
@@ -211,6 +219,7 @@ class HaStateForwarder:
                 primary_id,
             )
             self._create_safe_task(self._on_republish_config(), name="republish_config_linked")
+        self._notify_state_settled(primary_id)
         self._schedule_debounced_publish(primary_id)
 
     @callback
@@ -242,7 +251,25 @@ class HaStateForwarder:
                 self._on_trace_state_change(ctx_id, entity_id, ha_state_dict)
             except Exception:  # pragma: no cover — DevTools must never break forwarding
                 _LOGGER.exception("DevTools trace hook failed for %s", entity_id)
+        self._notify_state_settled(entity_id)
         self._schedule_debounced_publish(entity_id)
+
+    @callback
+    def _notify_state_settled(self, primary_id: str) -> None:
+        """Tell the bridge an entity's state was just refreshed.
+
+        Failures are contained: a deferred-publish bookkeeping error must
+        not stop the state that triggered it from reaching Sber.
+
+        Args:
+            primary_id: Entity whose state (or linked companion's) changed.
+        """
+        if self._on_state_settled is None:
+            return
+        try:
+            self._on_state_settled(primary_id)
+        except Exception:  # pragma: no cover — bookkeeping must never break forwarding
+            _LOGGER.exception("Deferred-confirm sync failed for %s", primary_id)
 
     @callback
     def _schedule_debounced_publish(self, entity_id: str) -> None:

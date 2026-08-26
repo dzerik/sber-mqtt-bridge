@@ -1994,4 +1994,5 @@ class TestGateOptionsSavedWithoutReload:
             "impulse_service": "auto",
             "contact_stale": False,
             "travel_time": 12.5,
+            "auto_close_time": 0.0,
         }

@@ -24,6 +24,16 @@ const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
  */
 const MAX_TRAVEL_TIME_SECONDS = 600;
 
+/**
+ * Upper bound the backend accepts for the gate auto-close delay, in seconds.
+ *
+ * Mirrors ``MAX_AUTO_CLOSE_TIME_SECONDS`` in ``devices/gate.py``.
+ */
+const MAX_AUTO_CLOSE_TIME_SECONDS = 3600;
+
+/** Kettle mode options, in the order the form renders them. */
+const KETTLE_MODE_KEYS = ["off_mode", "boil_mode", "heat_mode"];
+
 /** Delay between two confirmation re-reads after a save. */
 const RELOAD_INTERVAL_MS = 200;
 /** Give up waiting for the saved overrides after this long. */
@@ -41,6 +51,8 @@ class SberDetailDialog extends LitElement {
       _saveError: { type: String },
       _gateStatus: { type: String },
       _gateError: { type: String },
+      _kettleStatus: { type: String },
+      _kettleError: { type: String },
     };
   }
 
@@ -321,6 +333,8 @@ class SberDetailDialog extends LitElement {
     this._saveError = "";
     this._gateStatus = "";
     this._gateError = "";
+    this._kettleStatus = "";
+    this._kettleError = "";
   }
 
   /**
@@ -393,6 +407,8 @@ class SberDetailDialog extends LitElement {
     this._saveError = "";
     this._gateStatus = "";
     this._gateError = "";
+    this._kettleStatus = "";
+    this._kettleError = "";
     this._data = null;
     await this._fetchDetail(entityId);
   }
@@ -468,6 +484,7 @@ class SberDetailDialog extends LitElement {
       <div class="body">
         ${this._renderEditForm(d)}
         ${d.gate_options ? this._renderGateOptions(d) : ""}
+        ${d.kettle_options ? this._renderKettleOptions(d) : ""}
         ${this._renderOverview(d)}
         ${this._renderSberStates(d)}
         ${d.linked_entities?.length ? this._renderLinkedEntities(d) : ""}
@@ -665,6 +682,7 @@ class SberDetailDialog extends LitElement {
      * reports the option.  Showing it against an older backend would send
      * a 0 on the next save and silently wipe whatever was configured. */
     const hasTravelTime = g.travel_time !== undefined && g.travel_time !== null;
+    const hasAutoClose = g.auto_close_time !== undefined && g.auto_close_time !== null;
     const missingLinks = d.missing_required_links || [];
     return html`
       <div class="section">
@@ -697,6 +715,17 @@ class SberDetailDialog extends LitElement {
                 </div>
               `
             : ""}
+          ${hasAutoClose
+            ? html`
+                <label class="edit-label" for="gate-auto-close">${t(this.hass, "gate_options.auto_close_time")}</label>
+                <div>
+                  <input class="edit-input" type="number" id="gate-auto-close"
+                    min="0" max=${MAX_AUTO_CLOSE_TIME_SECONDS} step="1"
+                    .value=${String(g.auto_close_time)} />
+                  <div class="field-hint">${t(this.hass, "gate_options.auto_close_time_description")}</div>
+                </div>
+              `
+            : ""}
           <div class="edit-actions">
             <button class="edit-save" @click=${this._onSaveGateOptions}>
               \u{1F6AA} ${t(this.hass, "gate_options.save")}
@@ -711,6 +740,97 @@ class SberDetailDialog extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Render the kettle operation-mode settings.
+   *
+   * Only shown when the backend reports ``kettle_options``.  The three
+   * dropdowns are filled from the entity's own ``operation_list`` — a
+   * free-text field here would let the user save a mode the kettle does
+   * not have, which the backend then refuses.  A kettle that reports no
+   * modes at all (a plain switch, or a ``water_heater`` without an
+   * ``operation_list``) gets an explanatory note instead of dead
+   * controls: it is driven by ``turn_on`` / ``turn_off``.
+   *
+   * @param {object} d - Detail payload.
+   * @returns {import("lit").TemplateResult} Section template.
+   */
+  _renderKettleOptions(d) {
+    const k = d.kettle_options || {};
+    const modes = k.operation_list || [];
+    /* Literal keys, not `kettle_options.${key}`: the translation
+     * consistency test finds `t()` calls by source text, and a computed
+     * key would silently escape it. */
+    const labels = {
+      off_mode: t(this.hass, "kettle_options.off_mode"),
+      boil_mode: t(this.hass, "kettle_options.boil_mode"),
+      heat_mode: t(this.hass, "kettle_options.heat_mode"),
+    };
+    return html`
+      <div class="section">
+        <div class="section-title">${t(this.hass, "kettle_options.title")}</div>
+        ${modes.length
+          ? html`
+              <div class="edit-form">
+                ${KETTLE_MODE_KEYS.map((key) => {
+                  const chosen = k[key] || "";
+                  const resolved = k[`resolved_${key}`] || "";
+                  return html`
+                    <label class="edit-label" for="kettle-${key}">${labels[key]}</label>
+                    <div>
+                      <select class="edit-input" id="kettle-${key}">
+                        <option value="" ?selected=${!chosen}>${t(this.hass, "kettle_options.mode_auto")}</option>
+                        ${modes.map(
+                          (mode) => html`<option value=${mode} ?selected=${chosen === mode}>${mode}</option>`
+                        )}
+                      </select>
+                      <div class="field-hint">
+                        ${resolved
+                          ? t(this.hass, "kettle_options.resolved", { mode: resolved })
+                          : t(this.hass, "kettle_options.unresolved")}
+                      </div>
+                    </div>
+                  `;
+                })}
+                <div class="edit-actions">
+                  <button class="edit-save" @click=${this._onSaveKettleOptions}>
+                    \u{2615} ${t(this.hass, "kettle_options.save")}
+                  </button>
+                  ${this._kettleStatus
+                    ? html`<span class="save-status ${this._kettleStatus}" title=${this._kettleError || ""}>${this._kettleStatus === "ok" ? `✓ ${t(this.hass, "detail_dialog.saved")}` : `✗ ${this._kettleError || t(this.hass, "detail_dialog.error")}`}</span>`
+                    : ""}
+                </div>
+              </div>
+            `
+          : html`<div class="field-hint">${t(this.hass, "kettle_options.no_modes")}</div>`}
+      </div>
+    `;
+  }
+
+  async _onSaveKettleOptions() {
+    if (!this.hass || !this._data) return;
+    const options = {};
+    for (const key of KETTLE_MODE_KEYS) {
+      const field = this.shadowRoot.getElementById(`kettle-${key}`);
+      /* An empty selection is meaningful here (unlike the gate timers):
+       * it restores auto-detection, so it is submitted as "". */
+      if (field) options[key] = field.value;
+    }
+    try {
+      await this.hass.callWS({
+        type: "sber_mqtt_bridge/update_entity_options",
+        entity_id: this._data.entity_id,
+        options,
+      });
+      this._kettleStatus = "ok";
+      this._kettleError = "";
+      await this._fetchDetail(this._data.entity_id);
+    } catch (e) {
+      this._kettleStatus = "error";
+      this._kettleError = e.message || String(e);
+    }
+    this.requestUpdate();
   }
 
   async _onSaveGateOptions() {
@@ -732,6 +852,15 @@ class SberDetailDialog extends LitElement {
       const travel = Number(travelField.value);
       if (Number.isFinite(travel) && travel >= 0 && travel <= MAX_TRAVEL_TIME_SECONDS) {
         payload.travel_time = travel;
+      }
+    }
+    /* Same rule for the auto-close delay: an empty box means "leave it
+     * alone", not "turn the timer off". */
+    const autoCloseField = this.shadowRoot.getElementById("gate-auto-close");
+    if (autoCloseField && autoCloseField.value !== "") {
+      const autoClose = Number(autoCloseField.value);
+      if (Number.isFinite(autoClose) && autoClose >= 0 && autoClose <= MAX_AUTO_CLOSE_TIME_SECONDS) {
+        payload.auto_close_time = autoClose;
       }
     }
     try {

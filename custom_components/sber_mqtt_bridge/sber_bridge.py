@@ -31,7 +31,7 @@ from .const import (
     CONF_CONFIG_SETTLE_DELAY,
     CONF_CONFIRM_DELAY,
     CONF_DEBOUNCE_DELAY,
-    CONF_GATE_OPTIONS,
+    CONF_ENTITY_OPTIONS,
     CONF_HA_SERIAL_NUMBER,
     CONF_HUB_AUTO_PARENT,
     CONF_MAX_MQTT_PAYLOAD,
@@ -289,6 +289,7 @@ class SberBridge:
             on_republish_config=self._request_config_publish,
             create_safe_task=self._create_safe_task,
             on_trace_state_change=self._trace_on_state_change,
+            on_state_settled=self._sync_deferred_confirm,
         )
 
         # Sber protocol command dispatcher (commands, status/config request, etc.)
@@ -398,23 +399,52 @@ class SberBridge:
         Cancels a still-pending confirm in the same slot first, so a rapid
         command sequence produces exactly one confirmation per slot.  An
         entity that no longer asks for a deferred republish gets its slot
-        *cleared*: a timer armed for a movement that has since been
-        cancelled (counter-command, contact arrival, option switched off)
-        would otherwise survive for the whole travel time and fire a
-        redundant forced publish long after the fact.
+        *cleared* by :meth:`_sync_deferred_confirm`: a timer armed for a
+        movement that has since been cancelled (counter-command, contact
+        arrival, option switched off) would otherwise survive for the
+        whole travel time and fire a redundant forced publish long after
+        the fact.
 
         Args:
             entity_id: HA entity identifier that was just commanded.
         """
         self._arm_confirm(entity_id, entity_id, self._confirm_delay)
+        self._sync_deferred_confirm(entity_id, floor=self._confirm_delay)
 
+    @callback
+    def _sync_deferred_confirm(self, entity_id: str, *, floor: float = 0.0, adopt_slot: bool = False) -> None:
+        """Align the deferred republish slot with what the entity asks for.
+
+        The entity names the next moment it wants to be published again
+        through ``pending_confirm_delay`` (see
+        :class:`~devices.gate.ImpulseGateEntity`: the end of an emulated
+        travel, or the moment its board starts closing the gate on its
+        own).  Timers belong to the bridge, so this is where that wish
+        becomes a task.
+
+        Called after a Sber command *and* after every HA state change of
+        the entity or of one of its linked companions — an auto-close
+        countdown is armed by a contact sensor, not by a command, and
+        would otherwise never be scheduled.
+
+        Args:
+            entity_id: HA entity identifier to (re)schedule.
+            floor: Delays at or below this are not worth their own slot
+                because the plain confirm already covers them.
+            adopt_slot: Set when the currently running task *is* the one
+                registered in the slot (the deferred confirm re-arming
+                itself for the next phase).  The registration is dropped
+                first so :meth:`_arm_confirm` does not cancel the caller.
+        """
+        slot = f"{entity_id}{DEFERRED_CONFIRM_SLOT_SUFFIX}"
+        if adopt_slot:
+            self._confirm_tasks.pop(slot, None)
         entity = self._entities.get(entity_id)
         deferred = getattr(entity, "pending_confirm_delay", None)
-        deferred_slot = f"{entity_id}{DEFERRED_CONFIRM_SLOT_SUFFIX}"
-        if isinstance(deferred, int | float) and not isinstance(deferred, bool) and deferred > self._confirm_delay:
-            self._arm_confirm(deferred_slot, entity_id, float(deferred), background=True)
+        if isinstance(deferred, int | float) and not isinstance(deferred, bool) and deferred > floor:
+            self._arm_confirm(slot, entity_id, float(deferred), background=True)
         else:
-            self._cancel_confirm(deferred_slot)
+            self._cancel_confirm(slot)
 
     @callback
     def _cancel_confirm(self, slot: str) -> None:
@@ -654,61 +684,90 @@ class SberBridge:
         await self._publish_config()
         return existing
 
-    async def async_update_gate_options(self, entity_id: str, fields: dict[str, Any]) -> dict[str, Any]:
-        """Merge impulse-gate options for one entity and apply them live.
+    async def async_update_entity_options(self, entity_id: str, fields: dict[str, Any]) -> dict[str, Any]:
+        """Merge per-entity device options for one entity and apply them live.
 
-        Persists into ``entry.options[gate_options]`` and then pushes the
-        merged values straight into the loaded entity instead of reloading
-        the config entry: a reload tears the MQTT session down and back up,
-        and dropping the bridge for a couple of seconds because someone
-        flipped a checkbox is not a trade the user agreed to.  Same
-        approach as :meth:`async_update_redefinition`.
+        Persists into ``entry.options[CONF_ENTITY_OPTIONS]`` and then
+        pushes the merged values straight into the loaded entity instead
+        of reloading the config entry: a reload tears the MQTT session
+        down and back up, and dropping the bridge for a couple of seconds
+        because someone flipped a checkbox is not a trade the user agreed
+        to.  Same approach as :meth:`async_update_redefinition`.
 
         The entity is re-seeded from HA afterwards because some options
-        change how *existing* readings are interpreted (``invert_contact``
-        flips the meaning of the contact's last value), and both the
-        config and this entity's state are republished because the model
-        descriptor may change too (``travel_time`` adds
-        ``allowed_values.open_state``).  The config publish covers *every*
-        device on purpose: Sber reads each config payload as the complete
-        device list, so a one-device payload would make the cloud drop and
-        re-create everything else (issue #44).  Only the state publish is
-        narrowed to the edited entity.
+        change how *existing* readings are interpreted (a gate's
+        ``invert_contact`` flips the meaning of the contact's last value),
+        and both the config and this entity's state are republished
+        because the model descriptor may change too (``travel_time`` /
+        ``auto_close_time`` add ``allowed_values.open_state``).  The
+        config publish covers *every* device on purpose: Sber reads each
+        config payload as the complete device list, so a one-device
+        payload would make the cloud drop and re-create everything else
+        (issue #44).  Only the state publish is narrowed to the edited
+        entity.
+
+        Category-agnostic: which keys an entity accepts, what they mean
+        and whether a value is usable is decided by the device class
+        (``BaseEntity.ENTITY_OPTION_KEYS`` /
+        ``validate_entity_options`` / ``apply_entity_options``).
 
         Args:
-            entity_id: HA entity identifier of the gate relay.
-            fields: Partial gate-option mapping; only the keys present are
-                changed.  Validation of individual values happens in
-                :meth:`~devices.gate.ImpulseGateEntity.apply_gate_options`.
+            entity_id: HA entity identifier.
+            fields: Partial option mapping; only the keys present are
+                changed.
 
         Returns:
             The merged option dict stored for this entity.
 
         Raises:
             KeyError: If ``entity_id`` is not loaded in the bridge.
-            TypeError: If the entity is not an impulse gate.
+            TypeError: If the entity's class accepts no options.
+            ValueError: If the entity rejects one of the submitted values.
             HomeAssistantError: If the follow-up publish fails.
         """
-        from .devices.gate import ImpulseGateEntity
-
         entity = self._entities.get(entity_id)
         if entity is None:
             raise KeyError(entity_id)
-        if not isinstance(entity, ImpulseGateEntity):
-            raise TypeError(f"{entity_id} is not an impulse gate")
+        if not entity.supports_entity_options:
+            raise TypeError(f"{entity_id} ({entity.category}) has no configurable options")
+        entity.validate_entity_options(fields)
 
-        all_options: dict[str, dict] = dict(self._entry.options.get(CONF_GATE_OPTIONS, {}))
+        all_options: dict[str, dict] = dict(self._entry.options.get(CONF_ENTITY_OPTIONS, {}))
         merged: dict[str, Any] = {**all_options.get(entity_id, {}), **fields}
         all_options[entity_id] = merged
         new_options = dict(self._entry.options)
-        new_options[CONF_GATE_OPTIONS] = all_options
+        new_options[CONF_ENTITY_OPTIONS] = all_options
         self._hass.config_entries.async_update_entry(self._entry, options=new_options)
 
-        entity.apply_gate_options(merged)
+        entity.apply_entity_options(merged)
         self._refresh_entity_from_ha(entity_id)
+        # An option change both *destroys* and *creates* deadlines the
+        # entity wants to be republished at: a gate drops a running
+        # auto-close countdown whenever the delay changes (it was armed
+        # against the old value), and re-seeding from HA above can arm a
+        # fresh one.  Without this resync the slot armed for the previous
+        # value survives — up to ``MAX_AUTO_CLOSE_TIME_SECONDS``, an hour
+        # — and fires a redundant forced publish for a movement that was
+        # cancelled long before.
+        self._sync_deferred_confirm(entity_id)
         await self._publish_config()
         await self._publish_states([entity_id], force=True)
         return merged
+
+    async def async_update_gate_options(self, entity_id: str, fields: dict[str, Any]) -> dict[str, Any]:
+        """Deprecated alias of :meth:`async_update_entity_options`.
+
+        Kept because the per-entity option store shipped for impulse gates
+        first (v1.42) and this name is part of that public surface.
+
+        Args:
+            entity_id: HA entity identifier of the gate relay.
+            fields: Partial gate-option mapping.
+
+        Returns:
+            The merged option dict stored for this entity.
+        """
+        return await self.async_update_entity_options(entity_id, fields)
 
     @callback
     def _refresh_entity_from_ha(self, entity_id: str) -> None:
@@ -1190,6 +1249,8 @@ class SberBridge:
         valid_ids = set(self._enabled_entity_ids)
         self._stats.acknowledged_entities &= valid_ids
 
+        self._sync_deferred_confirms_after_load(valid_ids)
+
         # Only run repair checks after HA is fully started — during early
         # async_setup_entry many entities are still loading and linked
         # entity states are not yet available, causing false-positive
@@ -1199,6 +1260,39 @@ class SberBridge:
                 check_and_create_issues(self._hass, self),
                 name="check_and_create_issues",
             )
+
+    @callback
+    def _sync_deferred_confirms_after_load(self, valid_ids: set[str]) -> None:
+        """Register the deadlines entities arrived from the loader with.
+
+        Loading is the third way a deferred republish can come into
+        existence, next to a Sber command and an HA state change — and
+        the only one with no event behind it.  A gate whose contact
+        already reads "open" when the entry is set up arms its auto-close
+        countdown inside the loader's initial ``update_linked_data``, i.e.
+        before anything is listening.  Nothing would then turn that
+        countdown into a published ``closing``: the fabricated phase
+        would first surface on whatever unrelated publish comes next (a
+        Sber ``status_request``, a config republish, an ack-audit forced
+        publish) with no follow-up scheduled to take it back down, so the
+        Sber app would show the gate as "closing" — control button
+        blocked — until some unrelated state change happens to move it.
+        That is exactly the "HA restarted while the gate stood open" case
+        :data:`~devices.gate.GATE_OPTION_AUTO_CLOSE_TIME` exists for.
+
+        Slots belonging to entities that did not survive the reload are
+        dropped in the same pass: their timers would force a publish for
+        an entity the bridge no longer knows.
+
+        Args:
+            valid_ids: Entity ids present after the atomic swap.
+        """
+        for slot in list(self._confirm_tasks):
+            entity_id = slot.removesuffix(DEFERRED_CONFIRM_SLOT_SUFFIX)
+            if slot != entity_id and entity_id not in valid_ids:
+                self._cancel_confirm(slot)
+        for entity_id in valid_ids:
+            self._sync_deferred_confirm(entity_id)
 
     def _subscribe_ha_events(self) -> None:
         """Subscribe the :class:`HaStateForwarder` to the current entity set.
@@ -1502,8 +1596,11 @@ class SberBridge:
                 :attr:`_confirm_tasks`; defaults to ``entity_id``.
         """
         slot = slot if slot is not None else entity_id
+        deferred_slot = slot.endswith(DEFERRED_CONFIRM_SLOT_SUFFIX)
+        wait = self._confirm_delay if delay is None else delay
+        due = self._hass.loop.time() + wait
         try:
-            await asyncio.sleep(self._confirm_delay if delay is None else delay)
+            await asyncio.sleep(wait)
             entity = self._entities.get(entity_id)
             if entity is not None:
                 ha_state = self._hass.states.get(entity_id)
@@ -1517,6 +1614,20 @@ class SberBridge:
                     )
             _LOGGER.debug("Delayed state confirm for %s", entity_id)
             await self._publish_states([entity_id], force=True)
+            if deferred_slot and self._running and self._hass.loop.time() >= due:
+                # One deferred publish can uncover the next one: a gate
+                # whose auto-close countdown just elapsed publishes
+                # ``closing`` here and now needs a second republish when
+                # that phase times out.  Re-asking the entity keeps a
+                # single timer mechanism instead of growing a second one.
+                #
+                # Only once the deadline this task was armed for has
+                # really arrived, though: a confirm that woke up early
+                # would re-arm the very same deadline it has not reached
+                # yet, publish again, and spin.  And never after
+                # :meth:`async_stop` has emptied ``_confirm_tasks`` — a
+                # task registered then would outlive the entry.
+                self._sync_deferred_confirm(entity_id, adopt_slot=True)
         finally:
             # Only pop if THIS task still owns the slot. A faster follow-up
             # command may have already replaced us; we must not delete the
