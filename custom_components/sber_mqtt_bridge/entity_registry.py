@@ -27,13 +27,12 @@ from homeassistant.helpers import entity_registry as er
 
 from .const import (
     CONF_ENTITY_LINKS,
+    CONF_ENTITY_OPTIONS,
     CONF_ENTITY_TYPE_OVERRIDES,
     CONF_EXPOSED_ENTITIES,
-    CONF_GATE_OPTIONS,
 )
 from .custom_capabilities import get_custom_config
 from .devices.base_entity import BaseEntity
-from .devices.gate import ImpulseGateEntity
 from .sber_entity_map import create_sber_entity
 
 if TYPE_CHECKING:
@@ -170,7 +169,17 @@ class SberEntityLoader:
             Dict mapping entity_id to the created BaseEntity subclass.
         """
         type_overrides: dict[str, str] = self._entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {})
-        gate_options: dict[str, dict] = self._entry.options.get(CONF_GATE_OPTIONS, {})
+        # Same reasoning as in :meth:`_apply_entity_options`: the whole
+        # block is user-editable storage, so a non-mapping here must cost
+        # the saved options, not the config entry.
+        raw_entity_options = self._entry.options.get(CONF_ENTITY_OPTIONS, {})
+        entity_options: dict[str, dict] = raw_entity_options if isinstance(raw_entity_options, dict) else {}
+        if entity_options is not raw_entity_options:
+            _LOGGER.warning(
+                "Ignoring malformed %s block: expected a mapping, got %s",
+                CONF_ENTITY_OPTIONS,
+                type(raw_entity_options).__name__,
+            )
         new_entities: dict[str, BaseEntity] = {}
         entity_reg = er.async_get(self._hass)
         device_reg = dr.async_get(self._hass)
@@ -210,7 +219,7 @@ class SberEntityLoader:
 
             new_entities[entity_id] = sber_entity
             self._apply_yaml_overrides(sber_entity, entity_id, yaml_cfg)
-            self._apply_gate_options(sber_entity, gate_options.get(entity_id))
+            self._apply_entity_options(sber_entity, entity_options.get(entity_id))
             self._link_device_registry(sber_entity, entry, device_reg, area_reg)
 
             state = self._hass.states.get(entity_id)
@@ -267,22 +276,43 @@ class SberEntityLoader:
             _LOGGER.debug("YAML sber_features_remove for %s: %s", entity_id, yaml_cfg.sber_features_remove)
 
     @staticmethod
-    def _apply_gate_options(sber_entity: BaseEntity, options: dict | None) -> None:
-        """Apply per-entity impulse-gate options (``gate_options``).
+    def _apply_entity_options(sber_entity: BaseEntity, options: dict | None) -> None:
+        """Apply per-entity device options (``CONF_ENTITY_OPTIONS``).
 
         Applied in the same pass as the YAML overrides so the options are
         already in place before the initial ``fill_by_ha_state`` /
-        ``update_linked_data`` — the contact polarity must be known before
-        the first contact reading is interpreted.
+        ``update_linked_data`` — a gate's contact polarity must be known
+        before the first contact reading is interpreted.
+
+        Category-agnostic on purpose: what the keys mean is the device
+        class's business (``BaseEntity.apply_entity_options``), and a
+        class that declares no options ignores the call.
+
+        The value is type-checked here rather than trusted: it comes from
+        ``.storage/core.config_entries``, which a user can hand-edit and a
+        downgrade can leave in an older shape.  Device classes are lenient
+        about *keys* but all of them index the mapping, so a string or a
+        number would raise out of the loader's per-entity loop — which has
+        no ``try`` around this call — and abort the whole config entry
+        setup, taking every other device out of Sber with it.  Now that
+        every option-bearing category funnels through this one call, that
+        is one guard for all of them.
 
         Args:
             sber_entity: Freshly created Sber entity.
             options: Option dict for this entity, or ``None`` when the
                 user configured none.
         """
-        if not options or not isinstance(sber_entity, ImpulseGateEntity):
+        if not options:
             return
-        sber_entity.apply_gate_options(options)
+        if not isinstance(options, dict):
+            _LOGGER.warning(
+                "Ignoring malformed per-entity options for %s: expected a mapping, got %s",
+                sber_entity.entity_id,
+                type(options).__name__,
+            )
+            return
+        sber_entity.apply_entity_options(options)
 
     @staticmethod
     def _link_device_registry(

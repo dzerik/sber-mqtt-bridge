@@ -60,23 +60,59 @@ travel is the job of the opt-in :data:`GATE_OPTION_TRAVEL_TIME` motion
 emulation, not of this window."""
 
 GATE_OPTION_INVERT_CONTACT = "invert_contact"
-"""``gate_options`` key flipping the polarity of the linked reed contact."""
+"""Entity-option key flipping the polarity of the linked reed contact."""
 
 GATE_OPTION_IMPULSE_SERVICE = "impulse_service"
-"""``gate_options`` key choosing the HA service used to pulse the relay."""
+"""Entity-option key choosing the HA service used to pulse the relay."""
 
 GATE_OPTION_TRAVEL_TIME = "travel_time"
-"""``gate_options`` key holding the leaf travel time in seconds.
+"""Entity-option key holding the leaf travel time in seconds.
 
 ``0`` / ``None`` (the default) disables the motion emulation entirely and
 keeps the historical behaviour: the published ``open_state`` only ever
 switches between ``open`` and ``close``, driven by the contact alone."""
+
+GATE_OPTION_AUTO_CLOSE_TIME = "auto_close_time"
+"""Entity-option key holding the gate board's auto-close delay, in seconds.
+
+``0`` / ``None`` (the default) means "the board does not auto-close" and
+keeps the behaviour byte-for-byte as it was before the option existed.
+See :meth:`ImpulseGateEntity.auto_close_time` for the semantics."""
 
 MAX_TRAVEL_TIME_SECONDS = 600.0
 """Upper bound accepted for :data:`GATE_OPTION_TRAVEL_TIME` (10 minutes).
 
 A hand-edited config with a wild value (or a UI sending milliseconds)
 would otherwise pin the gate in a fake ``opening`` state for hours."""
+
+MAX_AUTO_CLOSE_TIME_SECONDS = 3600.0
+"""Upper bound accepted for :data:`GATE_OPTION_AUTO_CLOSE_TIME` (1 hour).
+
+Deliberately larger than :data:`MAX_TRAVEL_TIME_SECONDS`: a leaf that
+takes ten minutes to travel does not exist, but a board configured to
+close the gate a few minutes after it was opened absolutely does.  An
+hour is where "the board auto-closes" stops being a plausible reading of
+the setting."""
+
+ASSUMED_CLOSE_TRAVEL_SECONDS = 30.0
+"""Fallback deadline for the auto-close ``closing`` phase, in seconds.
+
+Used only when :data:`GATE_OPTION_AUTO_CLOSE_TIME` is on while
+:data:`GATE_OPTION_TRAVEL_TIME` is left at ``0``, i.e. the user told us
+*when* the board closes the gate but not *how long* that takes.  The
+module's own estimate for a leaf is 15-25 s (see
+:data:`IMPULSE_COOLDOWN_SECONDS`), so 30 s covers a slow one with margin
+while still bounding how long a fabricated ``closing`` can survive
+without the contact confirming it.
+
+A leaf slower than this is *reported as open again while it is still
+closing*: :meth:`ImpulseGateEntity._expire_travel_if_due` falls back to
+the last known position (with a warning), which un-blocks the button in
+the Sber app mid-motion.  There is no way to guess better — the option's
+premise is that nothing about the close is observable — so the gate
+form's ``auto_close_time`` description tells the user to set
+:data:`GATE_OPTION_TRAVEL_TIME` alongside it, which replaces this
+constant with their own measurement."""
 
 TRAVEL_CONFIRM_MARGIN_SECONDS = 0.5
 """Extra delay added to the deadline republish requested from the bridge.
@@ -192,11 +228,25 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
     confirmation, which logs a warning and falls back to the last known
     position.  With the option off (the default) nothing about the device
     changes: same features, same ``allowed_values``, same ``model.id``.
+
+    The second opt-in, :data:`GATE_OPTION_AUTO_CLOSE_TIME`, mirrors a
+    setting that lives on the gate board itself (see
+    :meth:`auto_close_time`).  Both are off by default.
     """
 
     LINKABLE_ROLES = GATE_LINK_ROLES
 
     REQUIRED_LINK_ROLES: ClassVar[tuple[str, ...]] = ("open_state",)
+
+    ENTITY_OPTION_KEYS: ClassVar[tuple[str, ...]] = (
+        GATE_OPTION_INVERT_CONTACT,
+        GATE_OPTION_IMPULSE_SERVICE,
+        GATE_OPTION_TRAVEL_TIME,
+        GATE_OPTION_AUTO_CLOSE_TIME,
+    )
+
+    ENTITY_OPTIONS_BLOCK: ClassVar[str] = "gate_options"
+    """Historical block name — the panel's gate form reads ``gate_options``."""
 
     ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = BATTERY_SIGNAL_ATTR_SPECS_PRESERVE
     """Signal strength is preserved across primary refreshes.
@@ -228,6 +278,18 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
         self._travel_time: float = 0.0
         self._travel_direction: str | None = None
         self._travel_deadline: float | None = None
+        self._travel_window: float = 0.0
+        """Length of the window the current emulation was started with.
+
+        Not always :attr:`travel_time`: the auto-close ``closing`` phase
+        falls back to :data:`ASSUMED_CLOSE_TRAVEL_SECONDS` when no travel
+        time is configured, and the expiry warning must name the deadline
+        that actually elapsed."""
+        # Auto-close emulation (opt-in, see ``auto_close_time``).  The
+        # deadline is armed by the contact reporting an *open* gate and is
+        # None whenever no countdown is running.
+        self._auto_close_time: float = 0.0
+        self._auto_close_deadline: float | None = None
         # Anti-bounce window (seconds) between two impulses.
         self.impulse_cooldown: float = IMPULSE_COOLDOWN_SECONDS
         # Injectable monotonic clock — tests replace it; the command logic
@@ -236,13 +298,14 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
 
     # -- user options -------------------------------------------------
 
-    def apply_gate_options(self, options: dict) -> None:
+    def apply_entity_options(self, options: dict) -> None:
         """Apply per-entity gate options from ``entry.options``.
 
         Args:
             options: Mapping with optional ``invert_contact`` (bool),
-                ``impulse_service`` (one of :data:`IMPULSE_SERVICE_OPTIONS`)
-                and ``travel_time`` (seconds, see :meth:`travel_time`)
+                ``impulse_service`` (one of :data:`IMPULSE_SERVICE_OPTIONS`),
+                ``travel_time`` (seconds, see :meth:`travel_time`) and
+                ``auto_close_time`` (seconds, see :meth:`auto_close_time`)
                 keys.  Unknown keys and invalid values are ignored, so a
                 hand-edited config cannot break entity loading.
         """
@@ -256,13 +319,48 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
             self._impulse_service = service
         if GATE_OPTION_TRAVEL_TIME in options:
             self._apply_travel_time(options[GATE_OPTION_TRAVEL_TIME])
+        if GATE_OPTION_AUTO_CLOSE_TIME in options:
+            self._apply_auto_close_time(options[GATE_OPTION_AUTO_CLOSE_TIME])
         _LOGGER.debug(
-            "Gate options for %s: invert_contact=%s impulse_service=%s travel_time=%s",
+            "Gate options for %s: invert_contact=%s impulse_service=%s travel_time=%s auto_close_time=%s",
             self.entity_id,
             self._invert_contact,
             self._impulse_service,
             self._travel_time,
+            self._auto_close_time,
         )
+
+    def apply_gate_options(self, options: dict) -> None:
+        """Deprecated alias of :meth:`apply_entity_options`.
+
+        Kept because the option store predates the generic mechanism and
+        this name is part of the v1.42 public surface.
+
+        Args:
+            options: See :meth:`apply_entity_options`.
+        """
+        self.apply_entity_options(options)
+
+    def entity_options_state(self) -> dict[str, object]:
+        """Return the gate option block rendered by the panel.
+
+        Every key the panel's gate form reads must be present: the form
+        submits all of its fields at once, so a control left without a
+        value would reset the stored option the next time the user toggles
+        its neighbour.  ``contact_stale`` is read-only status, not an
+        option — it rides along because the same form displays it.
+
+        Returns:
+            ``invert_contact`` / ``impulse_service`` / ``travel_time`` /
+            ``auto_close_time`` plus the ``contact_stale`` indicator.
+        """
+        return {
+            GATE_OPTION_INVERT_CONTACT: self._invert_contact,
+            GATE_OPTION_IMPULSE_SERVICE: self._impulse_service,
+            "contact_stale": self._contact_stale,
+            GATE_OPTION_TRAVEL_TIME: self._travel_time,
+            GATE_OPTION_AUTO_CLOSE_TIME: self._auto_close_time,
+        }
 
     def _apply_travel_time(self, raw: object) -> None:
         """Validate and store the ``travel_time`` option.
@@ -274,24 +372,57 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
         state.
 
         Args:
-            raw: Value read from ``gate_options['travel_time']``.
+            raw: Value read from the entity options' ``travel_time``.
+        """
+        value = self._parse_seconds_option(raw, GATE_OPTION_TRAVEL_TIME, MAX_TRAVEL_TIME_SECONDS)
+        if value is not None:
+            self._set_travel_time(value)
+
+    def _apply_auto_close_time(self, raw: object) -> None:
+        """Validate and store the ``auto_close_time`` option.
+
+        Same tolerance rules as :meth:`_apply_travel_time`; ``None`` and
+        ``0`` disable the countdown.
+
+        Args:
+            raw: Value read from the entity options' ``auto_close_time``.
+        """
+        value = self._parse_seconds_option(raw, GATE_OPTION_AUTO_CLOSE_TIME, MAX_AUTO_CLOSE_TIME_SECONDS)
+        if value is not None:
+            self._set_auto_close_time(value)
+
+    def _parse_seconds_option(self, raw: object, name: str, maximum: float) -> float | None:
+        """Coerce a "seconds" option to a float inside ``[0, maximum]``.
+
+        ``None`` reads as ``0`` ("feature off").  A ``bool`` is refused
+        explicitly: it is an ``int`` subclass, so ``True`` would silently
+        become one second of travel.
+
+        Args:
+            raw: Raw value from the stored options.
+            name: Option name, for log messages.
+            maximum: Inclusive upper bound.
+
+        Returns:
+            The validated value, or ``None`` when the option must be left
+            untouched (unusable input).
         """
         if raw is None:
-            self._set_travel_time(0.0)
-            return
+            return 0.0
         if isinstance(raw, bool) or not isinstance(raw, int | float):
-            _LOGGER.debug("Gate %s: ignoring non-numeric travel_time %r", self.entity_id, raw)
-            return
+            _LOGGER.debug("Gate %s: ignoring non-numeric %s %r", self.entity_id, name, raw)
+            return None
         value = float(raw)
-        if not 0.0 <= value <= MAX_TRAVEL_TIME_SECONDS:
+        if not 0.0 <= value <= maximum:
             _LOGGER.warning(
-                "Gate %s: travel_time %.1fs is out of range (0-%.0fs) — option ignored",
+                "Gate %s: %s %.1fs is out of range (0-%.0fs) — option ignored",
                 self.entity_id,
+                name,
                 value,
-                MAX_TRAVEL_TIME_SECONDS,
+                maximum,
             )
-            return
-        self._set_travel_time(value)
+            return None
+        return value
 
     def _set_travel_time(self, value: float) -> None:
         """Store a validated travel time, cancelling emulation when disabled.
@@ -302,6 +433,21 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
         self._travel_time = value
         if value <= 0.0:
             self._cancel_travel("travel_time disabled")
+
+    def _set_auto_close_time(self, value: float) -> None:
+        """Store a validated auto-close delay, cancelling the countdown when off.
+
+        A running countdown is dropped whenever the value changes: it was
+        armed against the old delay, and keeping it would close the gate
+        in Sber at a moment that matches neither setting.  The contact
+        re-arms it on the next opening.
+
+        Args:
+            value: Auto-close delay in seconds; ``0`` disables it.
+        """
+        if value != self._auto_close_time:
+            self._cancel_auto_close("auto_close_time changed")
+        self._auto_close_time = value
 
     @property
     def invert_contact(self) -> bool:
@@ -317,6 +463,36 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
     def travel_time(self) -> float:
         """Configured leaf travel time in seconds (``0`` = emulation off)."""
         return self._travel_time
+
+    @property
+    def auto_close_time(self) -> float:
+        """Delay after which the gate board closes the leaf on its own.
+
+        ``0`` (the default) means the board has no such timer and nothing
+        is emulated.  A positive value is a *user-entered mirror* of a
+        setting that lives on the gate controller: the bridge has no way
+        to read it, and no way to observe the closing impulse the board
+        sends to the motor.
+
+        The countdown starts from the moment the **contact** reports the
+        gate open — never from a command — precisely because the board's
+        own timer starts when the leaf opens, whoever opened it: the Sber
+        app, a 433 MHz remote, a GSM call to the controller, or a hand on
+        the button.  Modelling it from our commands would leave every
+        gate opened by a remote stuck at ``open`` in the Sber app.
+        """
+        return self._auto_close_time
+
+    @property
+    def _emulates_motion(self) -> bool:
+        """True when this gate may publish ``opening`` / ``closing`` at all.
+
+        Either opt-in feature is enough, and both must be reflected in
+        ``allowed_values.open_state``: an ``auto_close_time`` gate with no
+        ``travel_time`` still publishes ``closing``, and an undeclared
+        value is dropped by Sber without a word (issue #44).
+        """
+        return self._travel_time > 0.0 or self._auto_close_time > 0.0
 
     @property
     def contact_stale(self) -> bool:
@@ -335,29 +511,122 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
         """Direction currently emulated, or ``None`` when the leaf is at rest.
 
         One of :data:`OPEN_STATE_OPENING` / :data:`OPEN_STATE_CLOSING`.
-        Reading this settles an expired deadline first, so the value never
-        outlives :attr:`travel_time`.
+        Reading this settles every due deadline first (an elapsed
+        auto-close countdown starts a ``closing`` phase, an elapsed travel
+        ends one), so the value never outlives its window.
         """
-        self._expire_travel_if_due()
+        self._settle_timers()
         return self._travel_direction
 
     @property
     def pending_confirm_delay(self) -> float | None:
         """Seconds after which the bridge should republish this gate's state.
 
-        Read by ``SberBridge.schedule_confirm`` right after a command: the
-        emulated ``opening`` / ``closing`` value has to be replaced by a
-        real one when the travel deadline passes, and only the bridge owns
-        timers.  ``None`` means "nothing to schedule" — the default,
-        travel-emulation-off case.
+        Read by ``SberBridge`` after a command *and* after every state
+        change of this gate or its contact: an emulated ``opening`` /
+        ``closing`` value has to be replaced by a real one when its
+        deadline passes, and an armed auto-close countdown has to turn
+        into a published ``closing`` when it elapses.  Only the bridge
+        owns timers, so the entity can do no more than name the next
+        moment it wants to be looked at.  ``None`` means "nothing to
+        schedule" — the default, both-options-off case.
 
         Returns:
-            Remaining travel time plus :data:`TRAVEL_CONFIRM_MARGIN_SECONDS`,
-            or ``None`` when no motion is being emulated.
+            Seconds until the next deadline plus
+            :data:`TRAVEL_CONFIRM_MARGIN_SECONDS`, or ``None`` when
+            neither an emulated movement nor an auto-close countdown is
+            pending.
         """
+        self._settle_timers()
+        if self._auto_close_deadline is not None:
+            return max(0.0, self._auto_close_deadline - self._now()) + TRAVEL_CONFIRM_MARGIN_SECONDS
         if self._travel_direction is None or self._travel_deadline is None:
             return None
         return max(0.0, self._travel_deadline - self._now()) + TRAVEL_CONFIRM_MARGIN_SECONDS
+
+    def _settle_timers(self) -> None:
+        """Advance both emulations to what the clock says they should be.
+
+        Called from every read of the published position and from the
+        command path, so no emulation can survive its deadline even if the
+        bridge's republish never runs (entity unloaded, MQTT down).  Order
+        matters: an elapsed auto-close countdown *creates* the ``closing``
+        phase, which the travel check then has to leave alone until its
+        own deadline.
+        """
+        self._begin_auto_close_if_due()
+        self._expire_travel_if_due()
+
+    def _arm_auto_close(self) -> None:
+        """Start the auto-close countdown after the contact reported "open".
+
+        No-op while the feature is off, which keeps the default behaviour
+        byte-for-byte identical to the pre-feature one.
+
+        Called only for a *new* open reading (see
+        :meth:`update_linked_data`): a contact that merely repeats "still
+        open" — a Zigbee sensor reporting its battery, an MQTT binding
+        with ``force_update`` — must not push the deadline away, because
+        the board's own timer is not restarted by any of that either.
+        """
+        if self._auto_close_time <= 0.0:
+            return
+        self._auto_close_deadline = self._now() + self._auto_close_time
+        _LOGGER.debug(
+            "Gate %s: auto-close countdown armed for %.1fs",
+            self.entity_id,
+            self._auto_close_time,
+        )
+
+    def _cancel_auto_close(self, reason: str) -> None:
+        """Drop a running auto-close countdown.
+
+        Args:
+            reason: Short human-readable cause, logged at debug level.
+        """
+        if self._auto_close_deadline is None:
+            return
+        _LOGGER.debug("Gate %s: auto-close countdown cancelled — %s", self.entity_id, reason)
+        self._auto_close_deadline = None
+
+    def _begin_auto_close_if_due(self) -> None:
+        """Turn an elapsed auto-close countdown into an emulated ``closing``.
+
+        At this point the board is assumed to have started closing the
+        leaf on its own.  Nothing observable happened — that is the whole
+        premise of the option — so the phase is bounded like any other
+        fabricated movement: by :attr:`travel_time` when the user
+        configured one, otherwise by
+        :data:`ASSUMED_CLOSE_TRAVEL_SECONDS`.  The contact still wins the
+        moment it speaks.
+        """
+        if self._auto_close_deadline is None or self._now() < self._auto_close_deadline:
+            return
+        self._auto_close_deadline = None
+        if self._travel_direction is not None:
+            # Something is already being emulated (an impulse landed in the
+            # meantime); it is closer to the truth than this countdown.
+            return
+        window = self._travel_time if self._travel_time > 0.0 else ASSUMED_CLOSE_TRAVEL_SECONDS
+        self._begin_travel(OPEN_STATE_CLOSING, window)
+        _LOGGER.debug(
+            "Gate %s: auto-close delay elapsed — publishing '%s' for up to %.1fs",
+            self.entity_id,
+            OPEN_STATE_CLOSING,
+            window,
+        )
+
+    def _begin_travel(self, direction: str, window: float) -> None:
+        """Start emulating a movement bounded by ``window`` seconds.
+
+        Args:
+            direction: :data:`OPEN_STATE_OPENING` or :data:`OPEN_STATE_CLOSING`.
+            window: How long the fabricated value may live without the
+                contact confirming it.
+        """
+        self._travel_direction = direction
+        self._travel_window = window
+        self._travel_deadline = self._now() + window
 
     def _start_travel(self) -> None:
         """Arm the motion emulation right after an impulse was issued.
@@ -387,8 +656,7 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
                 self._contact_stale,
             )
             return
-        self._travel_direction = OPEN_STATE_CLOSING if self._open else OPEN_STATE_OPENING
-        self._travel_deadline = self._now() + self._travel_time
+        self._begin_travel(OPEN_STATE_CLOSING if self._open else OPEN_STATE_OPENING, self._travel_time)
         _LOGGER.debug(
             "Gate %s: emulating %s for %.1fs after the impulse",
             self.entity_id,
@@ -431,7 +699,7 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
             "falling back to the last known position '%s'",
             self.entity_id,
             self._travel_direction,
-            self._travel_time,
+            self._travel_window,
             OPEN_STATE_OPEN if self._open else OPEN_STATE_CLOSE,
         )
         self._travel_direction = None
@@ -493,6 +761,14 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
         A gate that really is stuck reports nothing at all, and is settled
         by the travel deadline with a warning — not by this method.
 
+        The same "new knowledge only" rule drives the auto-close
+        countdown (opt-in :attr:`auto_close_time`): a fresh **open**
+        reading arms it — whoever opened the gate, remote and GSM call
+        included — a fresh **closed** reading or a drop-out drops it, and
+        a reading that repeats the current position leaves it alone.
+        Re-arming on every repeat would push the deadline away forever on
+        a chatty sensor, while the board's timer keeps running regardless.
+
         Args:
             role: Link role name.
             ha_state: HA state dict of the linked entity.
@@ -504,6 +780,7 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
         if raw in (None, STATE_UNKNOWN, STATE_UNAVAILABLE):
             # Hold the last known position — see :attr:`contact_stale`.
             self._cancel_travel("contact sensor dropped out")
+            self._cancel_auto_close("contact sensor dropped out")
             self._contact_stale = True
             return
         was_known = self._contact_seen and not self._contact_stale
@@ -513,18 +790,23 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
         self._contact_stale = False
         if not was_known or self._open != was_open:
             self._cancel_travel("contact sensor reported a new position")
+            if self._open:
+                self._arm_auto_close()
+            else:
+                self._cancel_auto_close("contact sensor reported a closed gate")
 
     @property
     def _open_state_value(self) -> str:
         """Sber ``open_state`` enum value to publish.
 
-        While a movement is being emulated (opt-in ``travel_time``) the
-        direction wins over the last known position — that is the whole
-        point of the emulation.  Otherwise falls back to ``close`` when no
-        contact is linked at all: claiming an unknown gate is open is the
-        dangerous direction of the guess.
+        While a movement is being emulated — after an impulse with
+        ``travel_time`` on, or once the ``auto_close_time`` countdown has
+        elapsed — the direction wins over the last known position; that is
+        the whole point of the emulation.  Otherwise falls back to
+        ``close`` when no contact is linked at all: claiming an unknown
+        gate is open is the dangerous direction of the guess.
         """
-        self._expire_travel_if_due()
+        self._settle_timers()
         if self._travel_direction is not None:
             return self._travel_direction
         if not self._has_open_state_link and not self._missing_link_logged:
@@ -594,14 +876,16 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
         the gate" voice command would be accepted by Sber and then do
         nothing.  The spec explicitly allows shortening the ENUM list.
 
-        ``open_state`` is declared **only** while the travel emulation is
-        on, and then with the two transient values it can publish.  Sber
-        silently ignores a state value the device never declared (the
-        root cause behind issue #44), so ``opening`` / ``closing`` and
-        their declaration must appear and disappear together.  Leaving
-        the key out while the feature is off keeps the model descriptor —
-        and therefore the capability digest behind ``model.id`` — exactly
-        as it was before the feature existed.
+        ``open_state`` is declared **only** while an emulation that can
+        publish a transient value is on — ``travel_time`` or
+        ``auto_close_time``, either of them is enough — and then with the
+        two transient values it can publish.  Sber silently ignores a
+        state value the device never declared (the root cause behind
+        issue #44), so ``opening`` / ``closing`` and their declaration
+        must appear and disappear together.  Leaving the key out while
+        both features are off keeps the model descriptor — and therefore
+        the capability digest behind ``model.id`` — exactly as it was
+        before they existed.
 
         Returns:
             Allowed-values map for the Sber model descriptor.
@@ -613,7 +897,7 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
                 "type": SberValueType.ENUM.value,
                 "enum_values": {"values": [OPEN_STATE_OPEN, OPEN_STATE_CLOSE]},
             }
-        if self._travel_time > 0.0 and SberFeature.OPEN_STATE.value in features:
+        if self._emulates_motion and SberFeature.OPEN_STATE.value in features:
             allowed[SberFeature.OPEN_STATE.value] = {
                 "type": SberValueType.ENUM.value,
                 "enum_values": {"values": list(TRAVEL_OPEN_STATE_VALUES)},
@@ -650,11 +934,27 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
         Sber sends a *directed* command (``open`` / ``close``) while the
         hardware only has one button, so the direction is enforced here:
 
-        * the gate is *travelling* (emulated, opt-in ``travel_time``) in
-          the requested direction → no service call: it is already going
-          there, and a second pulse would stop it mid-way.  A command in
-          the opposite direction does pulse — physically that stops or
-          reverses the leaf, which is exactly what the user asked for.
+        * the gate is *travelling* in the requested direction → no service
+          call: it is already going there, and a second pulse would stop
+          it mid-way.  A command in the opposite direction does pulse —
+          physically that stops or reverses the leaf, which is exactly
+          what the user asked for.
+
+          Both emulated movements count as travelling — the one started
+          by our own impulse (``travel_time``) and the ``closing``
+          started by the ``auto_close_time`` countdown.  The second is a
+          guess, but the position guard below is no better placed to
+          overrule it: a reed contact mounted at the *open* position
+          keeps reading "open" throughout the first part of a close
+          travel (same reason the emulation exists at all, see
+          :meth:`update_linked_data`), so ``self._open`` being ``True``
+          is not evidence that the leaf is standing still.  Letting the
+          guard win here would turn "open the gate" during a board
+          auto-close into a no-op *while the leaf keeps closing* —
+          removing the user's only way to stop it, in precisely the
+          "a car is in the gateway" situation the guard was written for.
+
+
         * the gate is at rest and the requested direction already matches
           the known position → no service call at all, just an
           acknowledging republish.  Without this guard "open the gate" on
@@ -666,6 +966,14 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
           gate from Sber at all.
         * a second command inside :attr:`impulse_cooldown` → acknowledged
           without a pulse (anti-bounce).
+
+        A command from Sber also stops any running auto-close countdown,
+        including one that leads to no impulse at all: the countdown is a
+        *guess* about a board setting nobody can read back, and once the
+        user has taken the wheel from the app, fabricating a ``closing``
+        state on top of that guess is the wrong risk to take.  The price
+        is that the gate then stays at ``open`` until the contact reports
+        a full close/open cycle again — the safe direction.
 
         Values other than ``open`` / ``close`` (notably ``stop``, which is
         not declared in ``allowed_values``) are ignored.
@@ -685,7 +993,8 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
             _LOGGER.debug("Gate %s: unsupported open_set value %r — ignored", self.entity_id, action)
             return []
 
-        self._expire_travel_if_due()
+        self._settle_timers()
+        self._cancel_auto_close("command received from Sber")
         travelling = self._travel_direction
         if travelling is not None:
             if (action == OPEN_STATE_OPEN) == (travelling == OPEN_STATE_OPENING):

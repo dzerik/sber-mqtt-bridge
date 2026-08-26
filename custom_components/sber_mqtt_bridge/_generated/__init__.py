@@ -11,10 +11,12 @@ Spec generated at: 2026-07-03T14:23:03.048208+00:00
 from __future__ import annotations
 
 from .category_features import CATEGORY_REFERENCE_FEATURES
+from .conditional_features import CATEGORY_CONDITIONAL_FEATURES
 from .feature_types import FEATURE_TYPES
 from .obligatory_features import CATEGORY_OBLIGATORY_FEATURES
 
 __all__ = [
+    "CATEGORY_CONDITIONAL_FEATURES",
     "CATEGORY_OBLIGATORY_FEATURES",
     "CATEGORY_REFERENCE_FEATURES",
     "FEATURE_TYPES",

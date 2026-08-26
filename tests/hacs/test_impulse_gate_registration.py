@@ -1112,12 +1112,13 @@ class TestDeviceDetailGateSection:
         return entity
 
     async def test_detail_exposes_exact_gate_option_block(self):
-        """Ключи блока — РОВНО те четыре, что читает панель.
+        """Ключи блока — РОВНО те пять, что читает панель.
 
         Лишний ключ панель молча проигнорирует, а недостающий приведёт к
         неопределённому состоянию контрола (переключатель без значения).
-        ``travel_time`` добавлен вместе с эмуляцией хода створки: панель
-        рисует поле только при `g.travel_time !== undefined`, а форма
+        ``travel_time`` добавлен вместе с эмуляцией хода створки, а
+        ``auto_close_time`` — вместе с таймером автозакрытия: панель
+        рисует каждое поле только при `g.<ключ> !== undefined`, а форма
         отправляет все поля разом — без ключа контрол не появится вовсе.
         """
         detail = await self._detail(self._make_gate(), links={"open_state": CONTACT_ID})
@@ -1127,6 +1128,7 @@ class TestDeviceDetailGateSection:
             "impulse_service": "auto",
             "contact_stale": False,
             "travel_time": 0.0,
+            "auto_close_time": 0.0,
         }
 
     async def test_detail_reflects_saved_options(self):

@@ -136,22 +136,32 @@ SBER_GLOBAL_CONFIG_TOPIC = "sberdevices/v1/__config"
 CONF_ENTITY_LINKS = "entity_links"
 """Options key for entity linking config: {primary_entity_id: {role: linked_entity_id}}."""
 
-CONF_GATE_OPTIONS = "gate_options"
-"""Options key for per-entity impulse-gate settings (issue #53).
+CONF_ENTITY_OPTIONS = "gate_options"
+"""Options key for per-entity device settings.
 
-Shape::
+Shape — ``entity_id → {option: value}``::
 
-    {"switch.gate": {"invert_contact": False, "impulse_service": "auto", "travel_time": 0}}
+    {
+        "switch.gate": {"invert_contact": False, "impulse_service": "auto",
+                        "travel_time": 0, "auto_close_time": 0},
+        "water_heater.kettle": {"boil_mode": "Boil", "heat_mode": "Heat"},
+    }
 
-``invert_contact`` flips the polarity of the linked reed contact (``on``
-means *open* by default), ``impulse_service`` picks the HA service used
-to pulse a ``switch`` relay (``auto`` → ``toggle``), ``travel_time`` is
-how long (seconds) the leaf needs to travel — ``0`` (the default) keeps
-the movement emulation off, any positive value makes the gate publish
-``opening`` / ``closing`` between the impulse and the contact's
-confirmation.  Only ``ImpulseGateEntity`` reads it; entries for other
-entities are ignored.
+Which keys are meaningful is decided by the device class alone (see
+``BaseEntity.ENTITY_OPTION_KEYS``); everything between the config entry
+and the entity — loader, bridge, WebSocket commands, export/import — is
+category-agnostic.  Entries for entities whose class declares no options
+are ignored.
+
+**The literal key is ``"gate_options"`` on purpose.**  The store shipped
+in v1.42 for impulse gates only (issue #53) and was generalised in
+v1.47; renaming it would orphan the settings of every user who already
+configured a gate, and a migration buys nothing but risk.  Read the name
+as historical, not as a scope limit.
 """
+
+CONF_GATE_OPTIONS = CONF_ENTITY_OPTIONS
+"""Legacy alias of :data:`CONF_ENTITY_OPTIONS` (same key, gate-era name)."""
 
 # NOTE: the list of HA domains exportable to Sber lives in
 # ``sber_entity_map.SUPPORTED_DOMAINS`` — it is derived from

@@ -14,7 +14,20 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 
 from ..const import CONF_MAX_MQTT_PAYLOAD, DOMAIN, SETTINGS_DEFAULTS
-from ..devices.gate import MAX_TRAVEL_TIME_SECONDS
+from ..devices.gate import (
+    GATE_OPTION_AUTO_CLOSE_TIME,
+    GATE_OPTION_IMPULSE_SERVICE,
+    GATE_OPTION_INVERT_CONTACT,
+    GATE_OPTION_TRAVEL_TIME,
+    IMPULSE_SERVICE_OPTIONS,
+    MAX_AUTO_CLOSE_TIME_SECONDS,
+    MAX_TRAVEL_TIME_SECONDS,
+)
+from ..devices.kettle import (
+    KETTLE_OPTION_BOIL_MODE,
+    KETTLE_OPTION_HEAT_MODE,
+    KETTLE_OPTION_OFF_MODE,
+)
 from ..sber_entity_map import OVERRIDABLE_CATEGORIES as OVERRIDABLE_CATEGORIES
 
 if TYPE_CHECKING:
@@ -102,6 +115,53 @@ Shared by ``update_gate_options`` and the ``import`` payload schema so
 both entry points enforce the same bounds *and* the same ``bool``
 rejection — a value that survives one path but not the other would make
 an exported config fail to import back."""
+
+WS_AUTO_CLOSE_TIME = vol.All(
+    _reject_bool,
+    vol.Coerce(float),
+    vol.Range(min=0, max=MAX_AUTO_CLOSE_TIME_SECONDS),
+)
+"""Validator for the impulse gate's ``auto_close_time`` option.
+
+Same shape as :data:`WS_TRAVEL_TIME` with the wider bound of
+:data:`~devices.gate.MAX_AUTO_CLOSE_TIME_SECONDS`: a board can be set to
+close the gate several minutes after it opened, which is far longer than
+any leaf takes to travel."""
+
+WS_OPERATION_MODE = vol.Any("", None, str)
+"""Validator for a kettle operation-mode option.
+
+Only the *shape* is checked here — an empty string (or ``None``) clears
+the setting, anything else must be a string.  Whether the string names a
+mode the kettle actually offers depends on its live ``operation_list``
+and is therefore checked by the entity itself
+(``KettleEntity.validate_entity_options``)."""
+
+ENTITY_OPTION_VALIDATORS: dict[str, Any] = {
+    GATE_OPTION_INVERT_CONTACT: bool,
+    GATE_OPTION_IMPULSE_SERVICE: vol.In(IMPULSE_SERVICE_OPTIONS),
+    GATE_OPTION_TRAVEL_TIME: WS_TRAVEL_TIME,
+    GATE_OPTION_AUTO_CLOSE_TIME: WS_AUTO_CLOSE_TIME,
+    KETTLE_OPTION_OFF_MODE: WS_OPERATION_MODE,
+    KETTLE_OPTION_BOIL_MODE: WS_OPERATION_MODE,
+    KETTLE_OPTION_HEAT_MODE: WS_OPERATION_MODE,
+}
+"""Type/range validator per per-entity option key, across all categories.
+
+The single place where the *wire* format of an entity option is pinned
+down.  Both entry points that can write into
+``entry.options[CONF_ENTITY_OPTIONS]`` — the ``update_entity_options``
+command and the ``import`` payload — validate through it, so a value
+accepted by one can never be rejected by the other (an exported config
+that fails to import back was a real bug in the gate-only version).
+
+Whether an option *applies* to a given entity, and whether its value
+makes sense for that particular device, is the device class's business
+(``BaseEntity.validate_entity_options``); this map only guards the
+config entry against structurally impossible values."""
+
+ENTITY_OPTIONS_SCHEMA = vol.Schema({vol.Optional(key): value for key, value in ENTITY_OPTION_VALIDATORS.items()})
+"""Schema for one entity's option mapping (unknown keys are rejected)."""
 
 
 def get_config_entry(hass: HomeAssistant) -> ConfigEntry | None:

@@ -393,6 +393,84 @@ class BaseEntity(ABC):
     ``missing_required_role``).
     """
 
+    ENTITY_OPTION_KEYS: ClassVar[tuple[str, ...]] = ()
+    """Per-entity user option keys this device class understands.
+
+    Empty for every class whose behaviour is fully derived from the HA
+    entity itself.  A non-empty tuple opts the class into the generic
+    per-entity options mechanism: the values are persisted in
+    ``entry.options[CONF_ENTITY_OPTIONS]`` keyed by entity id, applied at
+    load time by :class:`~entity_registry.SberEntityLoader`, edited live
+    through the ``update_entity_options`` WebSocket command, reported to
+    the panel inside ``device_detail`` and carried by export / import.
+
+    The mechanism is deliberately *class-driven*: nothing outside the
+    device class knows what an option means, so adding one to a new
+    category needs no change in the loader, the bridge, the WS layer or
+    the config round-trip.
+    """
+
+    ENTITY_OPTIONS_BLOCK: ClassVar[str] = "entity_options"
+    """Key under which ``device_detail`` reports :meth:`entity_options_state`.
+
+    Per class rather than global because the panel renders a *different
+    form* per option set, and because
+    :class:`~devices.gate.ImpulseGateEntity` shipped its block as
+    ``gate_options`` in v1.42 — renaming it would break every panel that
+    is still cached in a browser.
+    """
+
+    @property
+    def supports_entity_options(self) -> bool:
+        """Whether this device class accepts per-entity user options."""
+        return bool(self.ENTITY_OPTION_KEYS)
+
+    def apply_entity_options(self, options: dict) -> None:  # noqa: B027 — intentional concrete no-op, not abstract
+        """Apply persisted per-entity options (default: nothing to apply).
+
+        Implementations are deliberately *lenient*: unknown keys and
+        invalid values are ignored rather than raising, because this runs
+        on the entity-loading path where a hand-edited (or downgraded)
+        config must never take the whole integration down.  Strict
+        checking of user input belongs to :meth:`validate_entity_options`.
+
+        Args:
+            options: Mapping of :attr:`ENTITY_OPTION_KEYS` to values; only
+                the keys present are applied.
+        """
+
+    def validate_entity_options(self, options: dict) -> None:
+        """Validate user-submitted option values (raises on bad input).
+
+        Called by the ``update_entity_options`` WebSocket command *before*
+        anything is persisted, so the user gets a readable message instead
+        of a silently ignored setting.  Subclasses override to add
+        value-level checks and are expected to call ``super()`` first.
+
+        Args:
+            options: Mapping submitted by the panel.
+
+        Raises:
+            ValueError: With a human-readable message when the mapping
+                contains a key this class does not accept.
+        """
+        unknown = sorted(set(options) - set(self.ENTITY_OPTION_KEYS))
+        if unknown:
+            raise ValueError(
+                f"{self.entity_id}: unknown option(s) {', '.join(unknown)}; "
+                f"accepted: {', '.join(self.ENTITY_OPTION_KEYS) or '(none)'}"
+            )
+
+    def entity_options_state(self) -> dict[str, object]:
+        """Return the option block the panel renders for this entity.
+
+        Returns:
+            Mapping of the current option values (plus any read-only
+            context the form needs), or an empty dict for a class without
+            options — ``device_detail`` then omits the block entirely.
+        """
+        return {}
+
     def register_link(self, role: str, linked_entity_id: str) -> None:
         """Register a linked companion entity for the given role.
 

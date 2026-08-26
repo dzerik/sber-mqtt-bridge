@@ -73,7 +73,10 @@ export const EN_FALLBACK = {
   "gate_options.impulse_service_turn_on": "switch.turn_on",
   "gate_options.travel_time": "Leaf travel time (seconds)",
   "gate_options.travel_time_description":
-    "Time the gate needs to travel end to end. 0 disables it: the position then changes only when the contact sensor reports. With a value set, the gate reports \"opening\" / \"closing\" right after the impulse until the sensor confirms.",
+    "Time the gate needs to travel end to end. 0 disables it: the position then changes only when the contact sensor reports. With a value set, the gate reports \"opening\" / \"closing\" right after the impulse — and for that whole time the Sber app blocks its control button in both directions, so a movement cannot be interrupted from the app until the timer runs out.",
+  "gate_options.auto_close_time": "Auto-close delay (seconds)",
+  "gate_options.auto_close_time_description":
+    "Enter the same delay your gate board uses to close the leaf after it was opened — the bridge cannot read that setting itself. 0 disables it. The countdown starts when the contact sensor reports the gate open, no matter who opened it: the app, a remote or a GSM call. When it runs out the gate reports \"closing\" until the sensor says otherwise, and the Sber app blocks its control button while that lasts. Set the leaf travel time as well: without it that \"closing\" is assumed to last 30 seconds, and a slower leaf is reported as open — with an active button — while it is still moving.",
   "gate_options.contact_stale":
     "The contact sensor is unavailable — the last known position is shown",
   "gate_options.missing_required_link_warning":
@@ -81,6 +84,19 @@ export const EN_FALLBACK = {
   "gate_options.save": "Save gate options",
   "gate_options.missing_required_role":
     "Link the gate position sensor (a binary sensor with device class garage door, door or opening) before adding this device",
+
+  // --- kettle operation modes ---
+  "kettle_options.title": "Kettle operation modes",
+  "kettle_options.off_mode": '"Off" mode',
+  "kettle_options.boil_mode": '"Boil" mode',
+  "kettle_options.heat_mode": '"Heat to setpoint" mode',
+  "kettle_options.mode_auto": "Detect automatically",
+  "kettle_options.resolved": "In use: {mode}",
+  "kettle_options.unresolved":
+    "Not detected — the bridge falls back to turning the kettle on and off",
+  "kettle_options.no_modes":
+    "This kettle reports no operation modes, so the bridge switches it on and off directly.",
+  "kettle_options.save": "Save kettle options",
 
   // --- device detail dialog ---
   "detail_dialog.loading": "Loading…",
