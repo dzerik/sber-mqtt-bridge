@@ -222,6 +222,85 @@ never appear in a publish (see the Sber page for ``open_set``: "Не
     return "\n".join(lines)
 
 
+def _parse_range(raw: str) -> tuple[float, float] | None:
+    """Turn a documented ``"min, max"`` range into a pair of numbers.
+
+    Args:
+        raw: Range string exactly as the function page words it.
+
+    Returns:
+        ``(min, max)`` or ``None`` when the string is not a plain pair —
+        an unparsable range must disable the check, never guess a bound.
+    """
+    parts = [p.strip() for p in str(raw).split(",")]
+    if len(parts) != 2:
+        return None
+    try:
+        low, high = float(parts[0]), float(parts[1])
+    except ValueError:
+        return None
+    return (low, high) if low <= high else None
+
+
+def render_reference_values(spec: dict) -> str:
+    """Render reference_values.py content."""
+    header = HEADER.format(source=spec["source"], generated_at=spec["generated_at"]).rstrip()
+    functions = spec["functions"]
+
+    lines = [header, "", "FEATURE_ENUM_VALUES: dict[str, frozenset[str]] = {"]
+    for name in sorted(functions):
+        values = functions[name].get("enum_values")
+        if values:
+            formatted = ", ".join(f'"{v}"' for v in sorted(values))
+            lines.append(f'    "{name}": frozenset({{{formatted}}}),')
+    lines.append("}")
+    lines.append(
+        dedent(
+            '''"""Every value an ENUM feature accepts, per the function\'s own page.
+
+This is the authoritative vocabulary, and deliberately NOT the
+``allowed_values`` block of a category page: that block is an
+illustrative example and is routinely shorter.  ``hvac_air_flow_power``
+is the proof — its category examples omit ``quiet``, which the function
+page lists and real air purifiers use, so validating against the example
+would reject correct devices.
+
+A feature absent from this table has no known vocabulary (every
+non-ENUM one, plus the two command-only ENUMs whose pages word things
+differently).  Absent means *unknown*, never *nothing allowed* — callers
+must skip the check rather than reject."""
+            ''',
+        ).strip()
+    )
+
+    lines += ["", "", "FEATURE_RANGES: dict[str, tuple[float, float]] = {"]
+    for name in sorted(functions):
+        raw = functions[name].get("range")
+        if not raw:
+            continue
+        bounds = _parse_range(raw)
+        if bounds is None:
+            continue
+        low, high = bounds
+        lines.append(f'    "{name}": ({low!r}, {high!r}),')
+    lines.append("}")
+    lines.append(
+        dedent(
+            '''"""Documented numeric bounds of a feature, inclusive.
+
+Sber states these on the function page ("Тип данных: INTEGER(0, 100)").
+A value outside the range is not something the cloud is promised to
+handle, so publishing one is worth surfacing — but only as a warning:
+the bound describes the *function*, and a device legitimately idling
+below it (a socket reporting 0 W against a documented 10 W floor) is
+common enough that an error would be noise."""
+            ''',
+        ).strip()
+    )
+    lines.append("")
+    return "\n".join(lines)
+
+
 def render_init(spec: dict) -> str:
     """Render __init__.py content."""
     header = HEADER.format(source=spec["source"], generated_at=spec["generated_at"]).rstrip()
@@ -232,11 +311,14 @@ def render_init(spec: dict) -> str:
         from .conditional_features import CATEGORY_CONDITIONAL_FEATURES
         from .feature_types import FEATURE_TYPES
         from .obligatory_features import CATEGORY_OBLIGATORY_FEATURES
+        from .reference_values import FEATURE_ENUM_VALUES, FEATURE_RANGES
 
         __all__ = [
             "CATEGORY_CONDITIONAL_FEATURES",
             "CATEGORY_OBLIGATORY_FEATURES",
             "CATEGORY_REFERENCE_FEATURES",
+            "FEATURE_ENUM_VALUES",
+            "FEATURE_RANGES",
             "FEATURE_TYPES",
             "SPEC_GENERATED_AT",
             "SPEC_SOURCE",
@@ -312,6 +394,7 @@ TARGETS: tuple[tuple[str, str], ...] = (
     ("category_features.py", "render_category_features"),
     ("obligatory_features.py", "render_obligatory_features"),
     ("conditional_features.py", "render_conditional_features"),
+    ("reference_values.py", "render_reference_values"),
     ("__init__.py", "render_init"),
 )
 
@@ -336,6 +419,7 @@ def main(argv: list[str] | None = None) -> int:
         "render_category_features": render_category_features,
         "render_obligatory_features": render_obligatory_features,
         "render_conditional_features": render_conditional_features,
+        "render_reference_values": render_reference_values,
         "render_init": render_init,
     }
 

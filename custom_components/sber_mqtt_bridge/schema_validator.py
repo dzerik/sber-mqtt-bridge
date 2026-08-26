@@ -12,6 +12,13 @@ spec (see ``_generated/``) and surfaces four kinds of issue:
   fatal as the above, and checked against the *declared features*
   rather than the states — command-only members such as ``open_set``
   never appear in a publish.
+* **unknown_enum_value** — an ENUM value outside the vocabulary the
+  function's own page documents (``source: "HDMI 1"`` where Sber knows
+  only ``hdmi1``).  The cloud cannot route a value it does not know.
+* **out_of_range** — a numeric value outside the function's documented
+  bounds.  A warning, not an error: the bound describes the function,
+  and a device idling below it (a socket at 0 W against a 10 W floor)
+  is common enough that an error would be noise.
 * **unknown_for_category** — a feature key that isn't in the Sber
   reference set for this category.  Often tolerated today but an
   easy future breakage.
@@ -47,12 +54,15 @@ from ._generated.category_features import CATEGORY_REFERENCE_FEATURES
 from ._generated.conditional_features import CATEGORY_CONDITIONAL_FEATURES
 from ._generated.feature_types import FEATURE_TYPES
 from ._generated.obligatory_features import CATEGORY_OBLIGATORY_FEATURES
+from ._generated.reference_values import FEATURE_ENUM_VALUES, FEATURE_RANGES
 
 _LOGGER = logging.getLogger(__name__)
 
 IssueType = Literal[
     "missing_obligatory",
     "missing_conditional",
+    "unknown_enum_value",
+    "out_of_range",
     "unknown_for_category",
     "type_mismatch",
     "not_declared",
@@ -62,6 +72,8 @@ Severity = Literal["error", "warning", "info"]
 _SEVERITY: dict[IssueType, Severity] = {
     "missing_obligatory": "error",
     "missing_conditional": "error",
+    "unknown_enum_value": "error",
+    "out_of_range": "warning",
     "unknown_for_category": "warning",
     "type_mismatch": "error",
     "not_declared": "info",
@@ -92,6 +104,31 @@ def _value_type(value: Any) -> str | None:
         t = value.get("type")
         if isinstance(t, str):
             return t
+    return None
+
+
+def _numeric_payload(value: Any) -> float | None:
+    """Extract the number from an INTEGER / FLOAT value dict.
+
+    Sber sends integers as *strings* (``{"integer_value": "42"}``), so
+    this deliberately accepts both, and returns ``None`` for anything it
+    cannot read as a number — an unreadable value is the ``type_mismatch``
+    check's business, not this one's.
+
+    Args:
+        value: Sber value dict.
+
+    Returns:
+        The number, or ``None`` when there is nothing numeric to read.
+    """
+    if not isinstance(value, dict):
+        return None
+    for key in ("integer_value", "float_value"):
+        if key in value:
+            try:
+                return float(value[key])
+            except (TypeError, ValueError):
+                return None
     return None
 
 
@@ -195,6 +232,48 @@ def validate_publish(
                     key=key,
                     description=(f"Feature '{key}' sent as {actual_type}, spec requires {expected}."),
                     details={"expected": expected, "actual": actual_type},
+                )
+            )
+
+        # --- value outside the feature's documented vocabulary -------------
+        vocabulary = FEATURE_ENUM_VALUES.get(key)
+        if vocabulary and actual_type == "ENUM":
+            sent = val.get("enum_value") if isinstance(val, dict) else None
+            if isinstance(sent, str) and sent not in vocabulary:
+                issues.append(
+                    ValidationIssue(
+                        ts=now,
+                        entity_id=entity_id,
+                        category=category or "",
+                        type="unknown_enum_value",
+                        severity=_SEVERITY["unknown_enum_value"],
+                        key=key,
+                        description=(
+                            f"Feature '{key}' sent value '{sent}', which is not "
+                            "one of the values Sber documents for it. The cloud "
+                            "cannot route a value it does not know."
+                        ),
+                        details={"sent": sent, "allowed": sorted(vocabulary)},
+                    )
+                )
+
+        # --- numeric value outside the documented range --------------------
+        bounds = FEATURE_RANGES.get(key)
+        number = _numeric_payload(val) if bounds else None
+        if bounds is not None and number is not None and not (bounds[0] <= number <= bounds[1]):
+            issues.append(
+                ValidationIssue(
+                    ts=now,
+                    entity_id=entity_id,
+                    category=category or "",
+                    type="out_of_range",
+                    severity=_SEVERITY["out_of_range"],
+                    key=key,
+                    description=(
+                        f"Feature '{key}' sent {number:g}, outside the documented "
+                        f"range {bounds[0]:g}…{bounds[1]:g}. Sber may clip or drop it."
+                    ),
+                    details={"sent": number, "min": bounds[0], "max": bounds[1]},
                 )
             )
 
