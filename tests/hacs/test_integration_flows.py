@@ -964,7 +964,12 @@ class TestTvFlows:
     """TV entity command flows."""
 
     async def test_tv_volume_source_in_one_command(self):
-        """volume_int + source in one command produces volume_set + select_source."""
+        """volume_int + source in one command produces volume_set + select_source.
+
+        The source arrives in Sber's own vocabulary (``hdmi1``) and is
+        translated back to the HA input label before the service call —
+        ``media_player.select_source`` accepts nothing else.
+        """
         hass = _make_hass()
         bridge = _make_bridge(
             hass,
@@ -973,18 +978,23 @@ class TestTvFlows:
             "playing",
             {
                 "volume_level": 0.5,
-                "source_list": ["HDMI", "TV"],
+                "source_list": ["HDMI 1", "TV"],
                 "source": "TV",
             },
         )
-        hass.states.get = MagicMock(return_value=_mock_ha_state("playing", {"volume_level": 0.3, "source": "HDMI"}))
+        hass.states.get = MagicMock(
+            return_value=_mock_ha_state(
+                "playing",
+                {"volume_level": 0.3, "source": "HDMI 1", "source_list": ["HDMI 1", "TV"]},
+            )
+        )
 
         payload = _sber_cmd_payload(
             {
                 "media_player.tv": {
                     "states": [
                         {"key": "volume_int", "value": {"type": "INTEGER", "integer_value": 30}},
-                        {"key": "source", "value": {"type": "ENUM", "enum_value": "HDMI"}},
+                        {"key": "source", "value": {"type": "ENUM", "enum_value": "hdmi1"}},
                     ],
                 },
             }
@@ -1096,7 +1106,12 @@ class TestVacuumFlows:
     """Vacuum cleaner entity command flows."""
 
     async def test_vacuum_full_lifecycle(self):
-        """Start -> cleaning status -> return_to_base -> go_home status."""
+        """Start -> cleaning status -> return_to_base -> returning_to_dock status.
+
+        ``go_home`` was expected here and is not one of the four values
+        the ``vacuum_cleaner_status`` page documents (``cleaning,
+        docked, pause, returning_to_dock``).
+        """
         hass = _make_hass()
         bridge = _make_bridge(
             hass,
@@ -1172,13 +1187,15 @@ class TestVacuumFlows:
         return_calls = [c for c in calls if c.kwargs.get("service") == "return_to_base"]
         assert len(return_calls) == 1
 
-        # Verify "go_home" status (NOT "returning"!)
+        # Verify "returning_to_dock" status (NOT the HA "returning"!)
         payloads = _get_published_payloads(bridge)
         assert len(payloads) >= 1
         device_states = payloads[-1]["devices"]["vacuum.robo"]["states"]
         status_val = _find_state_value(device_states, "vacuum_cleaner_status")
         assert status_val is not None
-        assert status_val["enum_value"] == "go_home", "Sber expects 'go_home', not 'returning'"
+        assert status_val["enum_value"] == "returning_to_dock", (
+            "Sber expects 'returning_to_dock', not the HA 'returning'"
+        )
 
 
 # ---------------------------------------------------------------------------

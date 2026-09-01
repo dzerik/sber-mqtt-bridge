@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any
@@ -22,6 +22,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Event, HomeAssistant, callback
 
+from .cloud_device_registry import OPTIONS_KEY as CLOUD_KNOWN_OPTIONS_KEY
 from .cloud_device_registry import CloudDeviceRegistry
 from .command_dispatcher import DispatcherDeps, SberCommandDispatcher
 from .config_publish_gate import ConfigPublishGate
@@ -127,6 +128,29 @@ class BridgeStats:
 
     acknowledged_entities: set[str] = field(default_factory=set)
     """Entity IDs that Sber has acknowledged (via status_request or command)."""
+
+    collectively_acked_entities: set[str] = field(default_factory=set)
+    """Subset of :attr:`acknowledged_entities` marked *without* being named.
+
+    A ``status_request`` carrying no device list means "send me the state
+    of everything you have".  It is a real acknowledgement — the cloud is
+    talking to this hub — but it is a **collective** one: it names nobody,
+    so it cannot vouch for any individual device.
+
+    Keeping the two strengths apart is what lets the same signal answer two
+    different questions honestly.  "Confirmed this session" (the panel
+    counter) legitimately counts a collective ack, while the
+    silent-rejection alarm
+    (:attr:`~SberBridge.never_confirmed_entities`) must not: a device Sber
+    silently rejected is still covered by "state of everything", so folding
+    the two together made the alarm unable to fire at all — the user saw
+    "confirmed: 36 / never confirmed: 0" on a bridge whose registry knew
+    nothing (issue #57).
+
+    An id leaves this set as soon as the cloud names it individually (a
+    command, or a ``status_request`` listing it): the weak mark is then
+    superseded by real per-device evidence.
+    """
 
     last_error_detail: str = ""
     """Human-readable detail of the last error message from Sber cloud."""
@@ -304,6 +328,7 @@ class SberBridge:
                 get_entities=lambda: self._entities,
                 get_enabled_entity_ids=lambda: self._enabled_entity_ids,
                 schedule_confirm=self.schedule_confirm,
+                note_cloud_reported=self._cloud_devices.note_cloud_reported,
                 refresh_repair_issues=self.refresh_repair_issues,
             )
         )
@@ -657,6 +682,49 @@ class SberBridge:
         known = self._cloud_devices.known
         return [eid for eid in self._enabled_entity_ids if eid in known]
 
+    @callback
+    def forget_cloud_devices(self, entity_ids: Iterable[str]) -> None:
+        """Drop entity ids from the persisted "cloud holds it" registry.
+
+        Called when the user un-exposes entities.  Normally the next config
+        publish mirrors the shorter list on its own, but it cannot when the
+        shorter list is *empty*: a publish carrying no device is refused as
+        evidence (see
+        :meth:`~cloud_device_registry.CloudDeviceRegistry.note_published`),
+        so "remove everything" would otherwise leave the registry claiming
+        devices nobody exposes any more.
+
+        Args:
+            entity_ids: Entity ids the user removed from the bridge.
+        """
+        self._cloud_devices.forget(entity_ids)
+
+    @property
+    def cloud_device_registry_state(self) -> dict[str, Any]:
+        """Return the raw cloud-device registry state, for diagnostics.
+
+        Deliberately unfiltered and paired with what is on disk: when the
+        panel reports "known to Sber: 0" the question is *which* of the two
+        is empty — the live set, the persisted key, or neither (in which
+        case the panel is at fault).  Answering that from a diagnostics
+        download is the whole point; issue #57 was diagnosed by guesswork
+        because none of this was in the dump.
+
+        Returns:
+            Mapping with the in-memory set (``known``), the value persisted
+            in ``ConfigEntry.options`` (``persisted``), the exposed subset
+            the panel shows (``known_exposed``), and whether a config
+            publish has succeeded since this bridge came up.
+        """
+        persisted = self._entry.options.get(CLOUD_KNOWN_OPTIONS_KEY) or []
+        return {
+            "known": sorted(self._cloud_devices.known),
+            "persisted": sorted(str(eid) for eid in persisted),
+            "known_exposed": self.cloud_known_entities,
+            "never_confirmed": self.never_confirmed_entities,
+            "config_published_this_session": self._publisher.last_config_publish_time is not None,
+        }
+
     @property
     def never_confirmed_entities(self) -> list[str]:
         """Return exposed entities the cloud has never been seen to know.
@@ -666,10 +734,17 @@ class SberBridge:
         after every restart, so it is the list worth alerting on: a device
         published repeatedly that the cloud never once asks about is the
         signature of a silent rejection.
+
+        Only **named** evidence counts here.  A bare ``status_request``
+        acknowledges every exposed entity collectively (see
+        :attr:`SberStats.collectively_acked_entities`), and counting that
+        as per-device confirmation disarmed the alarm permanently: a
+        silently rejected device is still covered by "send me the state of
+        everything", so it looked confirmed forever (issue #57).
         """
         known = self._cloud_devices.known
-        acknowledged = self._stats.acknowledged_entities
-        return [eid for eid in self._enabled_entity_ids if eid not in known and eid not in acknowledged]
+        named = self._stats.acknowledged_entities - self._stats.collectively_acked_entities
+        return [eid for eid in self._enabled_entity_ids if eid not in known and eid not in named]
 
     @property
     def entities_missing_required_links(self) -> dict[str, list[str]]:
@@ -1451,7 +1526,19 @@ class SberBridge:
         # devices up makes the cloud drop and later re-create them, losing
         # their room (issue #44).  Bounded by the gate's hard cap.
         await self._config_gate.wait_until_ready()
-        await self._config_gate.flush_now()
+        if not await self._config_gate.flush_now():
+            # The handshake used to continue in silence here: it subscribed,
+            # served commands and looked healthy while Sber had never
+            # received the device list — and the registry, fed only by a
+            # *successful* publish, stayed empty for the whole session.  The
+            # user saw nothing but "known to Sber: 0" (issue #57).  Say so,
+            # and ask the gate for another attempt: a single dropped packet
+            # must not cost the session its configuration.
+            _LOGGER.error(
+                "Initial device config did NOT reach Sber — the cloud has not received the device list. "
+                "Retrying; check the errors above for the transport failure."
+            )
+            self._config_gate.request("initial config publish failed")
         await self._publish_states(force=True)
 
     async def _subscribe_down_topics(self, client: aiomqtt.Client) -> None:
@@ -1683,12 +1770,27 @@ class SberBridge:
         The request names the devices the cloud holds — direct evidence,
         recorded before dispatching so a restart cannot publish a list that
         drops one of them (issue #44).
+
+        A request that names *nobody* ("state of every device") is weaker
+        evidence, but it used to be thrown away entirely — the session
+        marked all exposed entities acknowledged while the persistent
+        registry learned nothing, so a bridge whose config publish had
+        failed reported "known to Sber: 0" for its whole life (issue #57).
+        It is handed to
+        :meth:`~cloud_device_registry.CloudDeviceRegistry.note_cloud_active`,
+        which uses it only to seed an empty registry.  The candidates are
+        the exposed entities that have state: an entity without state was
+        never serialized into a config payload, so the cloud cannot be
+        holding it.
         """
         from .sber_protocol import parse_sber_status_request
 
         requested = parse_sber_status_request(payload)
         if requested:
             self._cloud_devices.note_cloud_reported(requested)
+        else:
+            ready = self._ready_entity_ids()
+            self._cloud_devices.note_cloud_active([eid for eid in self._enabled_entity_ids if eid in ready])
         await self._command_dispatcher.handle_status_request(payload)
 
     async def _handle_sber_config_request(self) -> None:
@@ -1738,6 +1840,11 @@ class SberBridge:
         """Delegate to :meth:`SberPublisher.publish_states`."""
         await self._publisher.publish_states(entity_ids, force=force)
 
-    async def _publish_config(self, entity_ids: list[str] | None = None, *, force: bool = False) -> None:
-        """Delegate to :meth:`SberPublisher.publish_config`."""
-        await self._publisher.publish_config(entity_ids, force=force)
+    async def _publish_config(self, entity_ids: list[str] | None = None, *, force: bool = False) -> bool:
+        """Delegate to :meth:`SberPublisher.publish_config`.
+
+        Returns:
+            True when Sber has the current descriptor, False when the
+            publish did not reach the broker.
+        """
+        return await self._publisher.publish_config(entity_ids, force=force)

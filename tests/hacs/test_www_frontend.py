@@ -30,6 +30,7 @@ rather than a paraphrase of it.
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import shutil
@@ -2817,3 +2818,101 @@ class TestPayloadDumpsAreNotSilentlyCropped:
         assert out["oneLine"] == {"lines": 1, "truncatable": False, "whole": True}, (
             "a single very long line is not collapsible — it must be wrapped by CSS, not clipped"
         )
+
+
+# --------------------------------------------------------------------------- #
+# The panel must forward every counter the backend sends
+# --------------------------------------------------------------------------- #
+
+
+def _ws_devices_result_keys() -> set[str]:
+    """Return the keys ``websocket_api/status.ws_get_devices`` sends.
+
+    Read out of the source with :mod:`ast` rather than by calling the
+    handler, so the contract is checked without standing up a bridge.
+
+    Returns:
+        Literal key names of the dict passed to ``connection.send_result``.
+    """
+    source = (
+        Path(__file__).resolve().parents[2] / "custom_components" / "sber_mqtt_bridge" / "websocket_api" / "status.py"
+    )
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    handler = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "ws_get_devices"
+    )
+    for node in ast.walk(handler):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "send_result"
+            and len(node.args) == 2
+            and isinstance(node.args[1], ast.Dict)
+        ):
+            return {k.value for k in node.args[1].keys if isinstance(k, ast.Constant)}
+    raise AssertionError("ws_get_devices no longer calls send_result with a dict literal")
+
+
+class TestDeviceCountersReachThePanel:
+    """Every key the ``devices`` endpoint sends must survive into the panel.
+
+    ``_fetchAll`` used to hand-copy four named keys out of the result into
+    ``_devicesExtra``.  When the backend gained ``cloud_known_count``,
+    ``never_confirmed_count`` and ``never_confirmed``, the copy was not
+    extended — so the consumers read ``undefined ?? 0`` and the panel
+    displayed a hard zero no matter what the bridge knew.
+
+    That is the whole of the issue #57 report: «Всего выставлено: 36 /
+    Известно Сберу: 0 / Подтверждено в этой сессии: 36 / Ни разу не
+    подтверждено: 0» — the two copied counters correct, the two dropped
+    ones zero, on a bridge whose registry was fully populated.
+    """
+
+    def test_every_backend_key_is_consumed_or_forwarded(self):
+        """The panel must not silently drop a counter the backend sends."""
+        produced = _ws_devices_result_keys()
+        assert "cloud_known_count" in produced, "backend contract changed — update this test"
+        fetch_all = re.search(r"async _fetchAll\(\) \{.*?\n  \}", _read("sber-panel.js"), re.S)
+        assert fetch_all, "_fetchAll not found in sber-panel.js"
+        body = fetch_all.group(0)
+        assert "...extra" in body or "...devResult" in body, (
+            "_fetchAll must spread the result into _devicesExtra; enumerating keys by hand "
+            "is what dropped cloud_known_count / never_confirmed_count and produced issue #57"
+        )
+
+    def test_consumed_keys_all_exist_on_the_backend(self):
+        """No component may read an ``extra.*`` key nothing produces."""
+        produced = _ws_devices_result_keys()
+        consumed: set[str] = set()
+        for path in _js_modules():
+            text = path.read_text(encoding="utf-8")
+            consumed |= set(re.findall(r"\bextra\.(\w+)", text))
+            consumed |= set(re.findall(r"\b_devicesExtra\.(\w+)", text))
+        missing = consumed - produced
+        assert not missing, f"panel reads keys the devices endpoint never sends: {sorted(missing)}"
+
+    @requires_node
+    def test_fetch_all_forwards_the_counters(self, tmp_path):
+        """Execute the shipped ``_fetchAll`` against a stubbed backend."""
+        produced = sorted(_ws_devices_result_keys())
+        body = re.search(r"async _fetchAll\(\) \{.*?\n  \}", _read("sber-panel.js"), re.S).group(0)
+        payload = {key: (["x"] if key.endswith(("ed", "confirmed")) else 7) for key in produced}
+        payload["devices"] = [{"entity_id": "light.lamp"}]
+        driver = (
+            "const panel = {\n"
+            "  _devices: [], _devicesExtra: {}, _status: null, _error: '',\n"
+            f"  hass: {{ callWS: async () => ({json.dumps(payload)}) }},\n"
+            f"  {body},\n"
+            "};\n"
+            "await panel._fetchAll();\n"
+            "console.log(JSON.stringify({ extra: panel._devicesExtra, devices: panel._devices }));\n"
+        )
+        out = _run_node(tmp_path, driver)
+        for key in produced:
+            if key == "devices":
+                continue
+            assert key in out["extra"], f"_fetchAll dropped {key!r} — the issue #57 defect"
+        assert out["devices"] == [{"entity_id": "light.lamp"}]
+        assert "devices" not in out["extra"], "the device list must not be duplicated into _devicesExtra"

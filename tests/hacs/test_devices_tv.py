@@ -101,7 +101,9 @@ class TestTvToSberCurrentState(unittest.TestCase):
         mute = next(s for s in states if s["key"] == "mute")
         self.assertFalse(mute["value"]["bool_value"])
         source = next(s for s in states if s["key"] == "source")
-        self.assertEqual(source["value"]["enum_value"], "HDMI 1")
+        # Sber knows hdmi1/hdmi2/hdmi3/tv/av/content/screencast — never the
+        # HA input label, so "HDMI 1" is published as "hdmi1".
+        self.assertEqual(source["value"]["enum_value"], "hdmi1")
 
     def test_source_not_published_without_source_list(self):
         """Without ``source_list`` the ``source`` feature is not declared.
@@ -178,8 +180,16 @@ class TestTvProcessCmd(unittest.TestCase):
         self.assertTrue(result[0]["url"]["service_data"]["is_volume_muted"])
 
     def test_cmd_select_source(self):
-        entity = self._make_entity("playing")
-        result = entity.process_cmd({"states": [{"key": "source", "value": {"type": "ENUM", "enum_value": "HDMI 2"}}]})
+        """A documented Sber input is translated back to the HA label.
+
+        The command used to be asserted with ``"HDMI 2"`` — a value Sber
+        cannot send: its ``source`` vocabulary is ``hdmi1, hdmi2, hdmi3,
+        tv, av, content, screencast, +, -``.  What it does send is
+        ``hdmi2``, and ``media_player.select_source`` only accepts a name
+        from ``source_list``.
+        """
+        entity = self._make_entity("playing", source_list=["HDMI 1", "HDMI 2"])
+        result = entity.process_cmd({"states": [{"key": "source", "value": {"type": "ENUM", "enum_value": "hdmi2"}}]})
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service"], "select_source")
         self.assertEqual(result[0]["url"]["service_data"]["source"], "HDMI 2")
@@ -314,13 +324,18 @@ class TestTvAllowedValues(unittest.TestCase):
         self.assertNotIn("allowed_values", result["model"])
 
     def test_source_allowed_values_with_list(self):
-        """TV with source_list must only have source in allowed_values."""
+        """TV with source_list declares the Sber values, not the HA labels.
+
+        The app renders exactly what is declared and echoes it back as a
+        command, so ``"HDMI 1"`` (outside Sber's ``source`` vocabulary)
+        would be a control that cannot work.
+        """
         entity = TvEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5, source_list=["HDMI 1", "TV"]))
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
         self.assertEqual(list(allowed.keys()), ["source"])
-        self.assertEqual(allowed["source"]["enum_values"]["values"], ["HDMI 1", "TV"])
+        self.assertEqual(allowed["source"]["enum_values"]["values"], ["hdmi1", "tv"])
 
 
 class TestTvNewFeatures(unittest.TestCase):
@@ -457,3 +472,60 @@ class TestTvProcessCmdNewKeys(unittest.TestCase):
         entity = self._make_entity()
         result = entity.process_cmd({"states": [{"key": "custom_key", "value": {"type": "ENUM", "enum_value": ""}}]})
         self.assertEqual(len(result), 0)
+
+
+class TestSourceListSurvivesAnEmptyRefresh(unittest.TestCase):
+    """A momentarily blank ``source_list`` must not disarm the TV.
+
+    ``MediaPlayerEntity.capability_attributes`` adds ``source_list`` only
+    ``if (source_list := self.source_list)``, so an empty list removes the
+    attribute outright.  Core integrations produce exactly that
+    transiently: ``braviatv`` clears the list at the top of every update
+    and returns early while the TV is off, and ``apple_tv`` fills it only
+    after a fetch that can fail.
+
+    Rebuilding the translation table from such a blank used to erase it,
+    after which every ``source`` command the cloud sent was dropped — the
+    Sber app kept rendering the HDMI button and it silently stopped doing
+    anything.  No republish repairs that, so the list is kept instead.
+    """
+
+    HDMI1_CMD = {"states": [{"key": "source", "value": {"type": "ENUM", "enum_value": "hdmi1"}}]}
+
+    def _tv_that_lost_its_list(self, second_state):
+        """Fill a TV with two inputs, then re-fill it with ``second_state``."""
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("playing", source="HDMI 1", source_list=["HDMI 1", "TV"]))
+        entity.fill_by_ha_state(second_state)
+        return entity
+
+    def test_command_survives_an_empty_source_list(self):
+        """An empty list is a gap in the data, not a TV that lost its inputs."""
+        entity = self._tv_that_lost_its_list(_make_ha_state("playing", source_list=[]))
+        result = entity.process_cmd(self.HDMI1_CMD)
+        self.assertEqual(len(result), 1, "the source command was silently dropped")
+        self.assertEqual(result[0]["url"]["service_data"]["source"], "HDMI 1")
+
+    def test_command_survives_a_missing_source_list(self):
+        """The attribute vanishing entirely is the same gap."""
+        entity = self._tv_that_lost_its_list(_make_ha_state("playing"))
+        result = entity.process_cmd(self.HDMI1_CMD)
+        self.assertEqual(len(result), 1, "the source command was silently dropped")
+        self.assertEqual(result[0]["url"]["service_data"]["source"], "HDMI 1")
+
+    def test_allowed_values_do_not_churn(self):
+        """``allowed_values`` drives ``model.id`` — it must not flap.
+
+        A narrower republish makes Sber re-register the device, which
+        costs the user the room they assigned it (issue #44).
+        """
+        entity = self._tv_that_lost_its_list(_make_ha_state("playing"))
+        allowed = entity.create_allowed_values_list()
+        self.assertEqual(allowed["source"]["enum_values"]["values"], ["hdmi1", "tv"])
+
+    def test_a_real_new_list_still_replaces_the_old_one(self):
+        """Preservation must not freeze the mapping: a real list wins."""
+        entity = self._tv_that_lost_its_list(_make_ha_state("playing", source_list=["AV"]))
+        allowed = entity.create_allowed_values_list()
+        self.assertEqual(allowed["source"]["enum_values"]["values"], ["av"])
+        self.assertEqual(entity.process_cmd(self.HDMI1_CMD), [], "a dropped input must stop resolving")

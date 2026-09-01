@@ -507,12 +507,24 @@ class TestVacuumCleanerCompliance:
         assert "vacuum_cleaner_command" in features
         assert "vacuum_cleaner_status" in features
 
-    def test_features_include_program_when_fan_speed_list(self):
-        """Vacuum must expose vacuum_cleaner_program when fan_speed_list is available."""
+    def test_features_include_program_when_modes_are_documented(self):
+        """Vacuum exposes vacuum_cleaner_program for modes Sber documents.
+
+        The list used to be ``low/medium/high`` — suction levels, none of
+        which is one of the documented routes ``perimeter, spot, smart,
+        random_route``, so declaring the feature for them advertised a
+        control the cloud could not route.
+        """
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state(fan_speed_list=["low", "medium", "high"], fan_speed="low"))
+        entity.fill_by_ha_state(self._make_ha_state(fan_speed_list=["Spot", "Smart"], fan_speed="Spot"))
         features = entity.get_final_features_list()
         assert "vacuum_cleaner_program" in features
+
+    def test_features_exclude_program_for_undocumented_modes(self):
+        """Suction levels denote no Sber route, so no program is declared."""
+        entity = VacuumCleanerEntity(self.ENTITY_DATA)
+        entity.fill_by_ha_state(self._make_ha_state(fan_speed_list=["low", "medium", "high"], fan_speed="low"))
+        assert "vacuum_cleaner_program" not in entity.get_final_features_list()
 
     def test_features_exclude_program_when_no_fan_speed(self):
         """Vacuum must NOT expose vacuum_cleaner_program when fan_speed_list is empty."""
@@ -555,15 +567,21 @@ class TestVacuumCleanerCompliance:
         "ha_state,expected_sber_status",
         [
             ("cleaning", "cleaning"),
-            ("returning", "go_home"),
-            ("docked", "standby"),
-            ("paused", "standby"),
-            ("idle", "standby"),
-            ("error", "error"),
+            ("returning", "returning_to_dock"),
+            ("docked", "docked"),
+            ("paused", "pause"),
+            ("idle", "pause"),
+            ("error", "pause"),
         ],
     )
     def test_ha_state_to_sber_status_mapping(self, ha_state, expected_sber_status):
-        """HA vacuum states must map to correct Sber status values."""
+        """HA vacuum states must map onto Sber's four documented values.
+
+        ``go_home``, ``standby`` and ``error`` were asserted here before
+        and appear nowhere in the ``vacuum_cleaner_status`` vocabulary
+        (``cleaning, docked, pause, returning_to_dock``); ``idle`` and
+        ``error`` have no counterpart at all and degrade to ``pause``.
+        """
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state(ha_state))
         states = entity.to_sber_current_state()["vacuum.robo"]["states"]
@@ -579,14 +597,14 @@ class TestVacuumCleanerCompliance:
         batt = _find_state(states, "battery_percentage")
         assert batt["value"]["integer_value"] == "42"
 
-    def test_current_state_fan_speed_enum(self):
-        """vacuum_cleaner_program must be ENUM when fan_speed is set."""
+    def test_current_state_program_enum(self):
+        """vacuum_cleaner_program must be ENUM carrying the Sber route name."""
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state(fan_speed="medium", fan_speed_list=["low", "medium", "high"]))
+        entity.fill_by_ha_state(self._make_ha_state(fan_speed="Smart", fan_speed_list=["Spot", "Smart"]))
         states = entity.to_sber_current_state()["vacuum.robo"]["states"]
         _assert_enum_value_is_string(states, "vacuum_cleaner_program")
         prog = _find_state(states, "vacuum_cleaner_program")
-        assert prog["value"]["enum_value"] == "medium"
+        assert prog["value"]["enum_value"] == "smart"
 
     def test_current_state_cleaning_type_enum(self):
         """vacuum_cleaner_cleaning_type must be ENUM when cleaning_type is set."""
@@ -598,14 +616,19 @@ class TestVacuumCleanerCompliance:
         assert ct["value"]["enum_value"] == "wet"
 
     def test_allowed_values_command_enum(self):
-        """Allowed values for vacuum_cleaner_command must include start/stop/pause/return_to_dock."""
+        """Allowed values for vacuum_cleaner_command are exactly the documented four.
+
+        ``stop`` used to be declared and is not in the vocabulary
+        ``start, resume, pause, return_to_dock`` — a button the cloud
+        would never press — while ``resume`` was missing.
+        """
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
         assert "vacuum_cleaner_command" in allowed
         vals = allowed["vacuum_cleaner_command"]["enum_values"]["values"]
-        assert set(vals) == {"start", "stop", "pause", "return_to_dock"}
+        assert set(vals) == {"start", "resume", "pause", "return_to_dock"}
 
     def test_status_not_in_allowed_values(self):
         """vacuum_cleaner_status is read-only — must NOT be in allowed_values."""
@@ -615,15 +638,20 @@ class TestVacuumCleanerCompliance:
         allowed = result["model"]["allowed_values"]
         assert "vacuum_cleaner_status" not in allowed
 
-    def test_allowed_values_program_when_fan_speeds(self):
-        """Allowed values for vacuum_cleaner_program must list fan speeds."""
+    def test_allowed_values_program_lists_sber_routes(self):
+        """Allowed values for vacuum_cleaner_program are Sber routes, not HA labels.
+
+        ``silent/standard/turbo`` was asserted here; the cloud renders
+        what is declared and echoes it back, so only a documented route
+        can ever work.
+        """
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state(fan_speed_list=["silent", "standard", "turbo"]))
+        entity.fill_by_ha_state(self._make_ha_state(fan_speed_list=["Edge", "Spot", "Turbo"]))
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
         assert "vacuum_cleaner_program" in allowed
         vals = allowed["vacuum_cleaner_program"]["enum_values"]["values"]
-        assert vals == ["silent", "standard", "turbo"]
+        assert vals == ["perimeter", "spot"]
 
     def test_cleaning_type_not_in_allowed_values(self):
         """vacuum_cleaner_cleaning_type is read-only — must NOT be in allowed_values."""
@@ -637,7 +665,7 @@ class TestVacuumCleanerCompliance:
         "cmd_value,expected_service",
         [
             ("start", "start"),
-            ("stop", "stop"),
+            ("resume", "start"),
             ("pause", "pause"),
             ("return_to_dock", "return_to_base"),
         ],
@@ -654,15 +682,21 @@ class TestVacuumCleanerCompliance:
         assert result[0]["url"]["service"] == expected_service
 
     def test_cmd_vacuum_program_maps_to_set_fan_speed(self):
-        """vacuum_cleaner_program ENUM must map to vacuum.set_fan_speed."""
+        """vacuum_cleaner_program ENUM must map back to the HA mode label.
+
+        ``turbo`` was used here as both the command and the forwarded
+        fan speed; Sber only ever sends one of ``perimeter, spot, smart,
+        random_route``, and ``vacuum.set_fan_speed`` only accepts a
+        member of ``fan_speed_list``.
+        """
         entity = VacuumCleanerEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state())
+        entity.fill_by_ha_state(self._make_ha_state(fan_speed_list=["Spot", "Smart"]))
         result = entity.process_cmd(
-            {"states": [{"key": "vacuum_cleaner_program", "value": {"type": "ENUM", "enum_value": "turbo"}}]}
+            {"states": [{"key": "vacuum_cleaner_program", "value": {"type": "ENUM", "enum_value": "smart"}}]}
         )
         assert len(result) == 1
         assert result[0]["url"]["service"] == "set_fan_speed"
-        assert result[0]["url"]["service_data"]["fan_speed"] == "turbo"
+        assert result[0]["url"]["service_data"]["fan_speed"] == "Smart"
 
     def test_cmd_unknown_command_ignored(self):
         """Unknown vacuum_cleaner_command value must be ignored."""

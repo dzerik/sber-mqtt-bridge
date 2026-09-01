@@ -32,7 +32,7 @@ from homeassistant.exceptions import (
 from .sber_protocol import parse_sber_command, parse_sber_status_request
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterable
 
     from homeassistant.core import HomeAssistant
 
@@ -74,6 +74,16 @@ class DispatcherDeps:
 
     schedule_confirm: Callable[[str], None]
     """Asks the bridge to (re)arm the delayed state confirm for one entity."""
+
+    note_cloud_reported: Callable[[Iterable[str]], None]
+    """Records entity ids the cloud named, into the persistent registry.
+
+    A command addressed to a device is the strongest evidence the protocol
+    offers — Sber does not command a device it does not hold — and it used
+    to be thrown away: only the in-memory session mark was set, so a
+    restart forgot it.  A bridge driven purely by voice and app commands
+    therefore learned nothing that survived (issue #57).
+    """
 
     refresh_repair_issues: Callable[[], None]
     """Asks the bridge to recompute its HA repair-issue set."""
@@ -218,6 +228,20 @@ class SberCommandDispatcher:
             await deps.publisher.publish_command_echo(valid_devices)
 
         self._schedule_confirms(commanded_ids)
+
+        # Named, per-device evidence, and the strongest the protocol has:
+        # Sber does not send a command to a device it does not hold.  It
+        # goes to the *persistent* registry, not just the session mark —
+        # a bridge the cloud only ever drives by voice or app command used
+        # to forget every one of them on restart and report "known to
+        # Sber: 0" while working perfectly (issue #57).  Only ids the
+        # bridge actually knows are recorded: a command for a stale id
+        # would otherwise hold the publish gate open forever on an entity
+        # that no longer exists in HA.
+        if commanded_ids:
+            for eid in commanded_ids:
+                deps.stats.collectively_acked_entities.discard(eid)
+            deps.note_cloud_reported(commanded_ids)
 
         # Receiving any command is positive evidence that Sber accepted at
         # least one entity — re-evaluate the silent-rejection issue so a
@@ -395,15 +419,27 @@ class SberCommandDispatcher:
                 await deps.publisher.publish_config()
 
         if requested_ids:
+            # Named evidence: the cloud listed these devices itself, so it
+            # holds them.  Promote any weak collective mark they carried.
             for eid in requested_ids:
                 deps.stats.acknowledged_entities.add(eid)
+                deps.stats.collectively_acked_entities.discard(eid)
             _LOGGER.info(
                 "Sber status request for %d specific entities: %s",
                 len(requested_ids),
                 requested_ids,
             )
         else:
+            # Collective evidence: "state of everything" names nobody, so
+            # it must not vouch for any individual device.  Recorded as a
+            # weak mark alongside the acknowledgement so the panel counter
+            # stays truthful while the silent-rejection alarm keeps working
+            # (issue #57) — anything already known by name keeps its
+            # stronger standing.
             enabled_ids = deps.get_enabled_entity_ids()
+            deps.stats.collectively_acked_entities.update(
+                eid for eid in enabled_ids if eid not in deps.stats.acknowledged_entities
+            )
             deps.stats.acknowledged_entities.update(enabled_ids)
             _LOGGER.info(
                 "Sber status request for ALL entities (%d)",
@@ -419,7 +455,15 @@ class SberCommandDispatcher:
         self._refresh_repair_issues()
 
     async def handle_config_request(self) -> None:
-        """Handle config request from Sber cloud — send device list."""
+        """Handle config request from Sber cloud — send device list.
+
+        Forced past the unchanged-payload check.  The cloud asked us a
+        direct question, and answering it with silence because the answer
+        has not changed is wrong twice over: Sber gets nothing (it asks
+        precisely when its own copy is in doubt), and the publish that
+        records what the cloud holds never happens — leaving the registry
+        empty for the whole session with no second chance (issue #57).
+        """
         deps = self._deps
         deps.stats.config_requests += 1
         deps.ack_audit.acknowledge()
@@ -427,7 +471,7 @@ class SberCommandDispatcher:
             "Sber config request received (will publish %d entities)",
             len(deps.get_enabled_entity_ids()),
         )
-        await deps.publisher.publish_config()
+        await deps.publisher.publish_config(force=True)
 
     def handle_error(self, payload: bytes) -> None:
         """Handle error message from Sber cloud.

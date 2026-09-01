@@ -1273,3 +1273,59 @@ class TestConfigPublishRecordsTheDevices:
         await hass.async_block_till_done()
 
         assert bridge.cloud_known_entities == filled
+
+
+class TestBareStatusRequestUpdatesThePanel:
+    """«Состояние всех устройств» обязано поднять счётчик в самой панели.
+
+    Затравку реестра из безымянного ``status_request`` (issue #57)
+    проверяют юнит-тесты ``test_cloud_known_paths.py``, но только до
+    внутреннего множества и опций. Панель читает другое — результат
+    WS-команды ``devices`` — и до сих пор ни один тест не связывал эти
+    два конца: мост, у которого затравка работает, но счётчик собирается
+    из чего-то ещё, прошёл бы всю проверку, а пользователь по-прежнему
+    видел бы «Известно Сберу: 0».
+
+    Здесь стенд полный: настоящий HA, настоящий сокет, настоящий мост.
+    Запрос приходит через штатный входящий конвейер, а ответ читается
+    ровно той командой, которую шлёт панель.
+    """
+
+    async def test_bare_status_request_raises_the_known_count(
+        self,
+        hass: HomeAssistant,
+        entry: MockConfigEntry,
+        transport: RecordingTransport,
+        admin: Any,
+    ) -> None:
+        """Счётчик панели и опции записи обязаны согласованно вырасти.
+
+        Именно эту картину описал пользователь: облако опрашивает хаб,
+        устройства работают, а столбец «Известно Сберу» стоит в нуле.
+        Проверяется весь путь — от ``down/status_request`` без списка до
+        числа в ответе WS — и то, что в опциях оказались ТЕ ЖЕ
+        идентификаторы, иначе следующий запуск снова покажет ноль.
+        """
+        bridge = entry.runtime_data.bridge
+        exposed = list(bridge.enabled_entity_ids)
+        assert exposed, "фикстура обязана выставить хотя бы одну сущность"
+
+        before = await ok(admin, "devices")
+        assert before["cloud_known_count"] == 0, "до запроса облако ничего не подтверждало"
+        assert all(not device["cloud_known"] for device in before["devices"])
+
+        result = await bridge.async_inject_sber_message("status_request", json.dumps({"devices": []}))
+        assert result["handled"] is True, "мост не разобрал status_request"
+        await hass.async_block_till_done()
+
+        after = await ok(admin, "devices")
+        assert after["cloud_known_count"] == len(exposed), (
+            "панель по-прежнему показывает «Известно Сберу: 0» после опроса от Сбера"
+        )
+        assert [device["entity_id"] for device in after["devices"] if device["cloud_known"]] == exposed
+        assert entry.options.get(OPTIONS_KEY) == sorted(exposed), (
+            "счётчик поднялся только в памяти — после перезапуска он снова обнулится"
+        )
+
+        status = await ok(admin, "status")
+        assert status["cloud_known"] == exposed
