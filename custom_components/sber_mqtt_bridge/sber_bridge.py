@@ -626,8 +626,50 @@ class SberBridge:
 
     @property
     def unacknowledged_entities(self) -> list[str]:
-        """Return entity IDs that were published but not yet acknowledged by Sber."""
+        """Return entity IDs Sber has not spoken about **in this session**.
+
+        Note what this is *not*: evidence that the cloud rejected the
+        device.  The acknowledgement mark is set when Sber sends a command
+        or a ``status_request`` for the entity, and it lives in memory, so
+        every restart empties it.  The cloud has no idea we restarted and
+        no reason to speak up immediately — it will ask for state when the
+        user opens the Salute app, issues a voice command, or its own poll
+        comes round.  Right after a restart this list therefore contains
+        *everything*, which says nothing about registration (issue #57).
+
+        Use :attr:`never_confirmed_entities` for "something is actually
+        wrong"; this property answers the narrower question of what has
+        been confirmed since the bridge came up.
+        """
         return [eid for eid in self._enabled_entity_ids if eid not in self._stats.acknowledged_entities]
+
+    @property
+    def cloud_known_entities(self) -> list[str]:
+        """Return exposed entity IDs the cloud is believed to hold.
+
+        Backed by :class:`~cloud_device_registry.CloudDeviceRegistry`,
+        which persists into ``ConfigEntry.options`` and therefore survives
+        a restart.  This is the closest thing to "the cloud accepted it"
+        that the protocol allows: there is no way to *ask* Sber what it
+        holds — we only publish on ``up/config`` / ``up/status`` and learn
+        from the ids it names in ``down/status_request``.
+        """
+        known = self._cloud_devices.known
+        return [eid for eid in self._enabled_entity_ids if eid in known]
+
+    @property
+    def never_confirmed_entities(self) -> list[str]:
+        """Return exposed entities the cloud has never been seen to know.
+
+        Neither confirmed in this session nor remembered from an earlier
+        one.  Unlike :attr:`unacknowledged_entities` this does not light up
+        after every restart, so it is the list worth alerting on: a device
+        published repeatedly that the cloud never once asks about is the
+        signature of a silent rejection.
+        """
+        known = self._cloud_devices.known
+        acknowledged = self._stats.acknowledged_entities
+        return [eid for eid in self._enabled_entity_ids if eid not in known and eid not in acknowledged]
 
     @property
     def entities_missing_required_links(self) -> dict[str, list[str]]:

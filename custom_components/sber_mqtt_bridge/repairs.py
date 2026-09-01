@@ -207,7 +207,12 @@ def _check_unacknowledged_entities(hass: HomeAssistant, bridge: SberBridge) -> N
     """
     options = bridge.config_entry.options
     enabled = bool(options.get(CONF_SILENT_REJECTION_ALERTS, SETTINGS_DEFAULTS[CONF_SILENT_REJECTION_ALERTS]))
-    unack = bridge.unacknowledged_entities
+    # Deliberately NOT `unacknowledged_entities`: that mark is per-session
+    # and holds everything for a while after every Home Assistant restart,
+    # which turned this alert into a guaranteed false positive and is a
+    # large part of why it ships disabled (issue #57).  An entity the
+    # cloud has never once been seen to know is the real signal.
+    unack = bridge.never_confirmed_entities
     if enabled and unack and bridge.is_connected:
         async_create_issue(
             hass,
