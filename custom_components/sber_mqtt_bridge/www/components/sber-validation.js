@@ -22,6 +22,7 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 
 /** Hard cap on the live issue timeline (live batches are unbounded —
  * the backend ring buffer only trims the initial snapshot). */
@@ -143,17 +144,22 @@ class SberValidation extends LitElement {
     return { errors, warnings, infos };
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+  }
+
   render() {
     const { errors, warnings, infos } = this._counts();
     return html`
       <div class="section">
         <div class="section-header">
-          <h2>Schema Validation</h2>
+          <h2>${t(this.hass, "validation.title")}</h2>
           <div class="btn-group">
             <button class="btn-danger"
               ?disabled=${this._recent.length === 0}
               @click=${this._clear}>
-              Clear
+              ${t(this.hass, "validation.clear")}
             </button>
           </div>
         </div>
@@ -164,7 +170,7 @@ class SberValidation extends LitElement {
           <span class="hint">Every outbound publish is checked against the auto-generated Sber spec.</span>
         </div>
         ${this._error ? html`<div class="error-text">${this._error}</div>` : ""}
-        <div class="tabs" role="tablist" aria-label="Validation views">
+        <div class="tabs" role="tablist" aria-label="${t(this.hass, 'validation.views')}">
           <button class="tab ${this._tab === "by_entity" ? "active" : ""}"
             role="tab"
             aria-selected=${this._tab === "by_entity" ? "true" : "false"}
@@ -186,17 +192,17 @@ class SberValidation extends LitElement {
   _renderByEntity() {
     const entities = Object.keys(this._byEntity).sort();
     if (entities.length === 0) {
-      return html`<div class="empty">No publishes validated yet.</div>`;
+      return html`<div class="empty">${t(this.hass, "validation.none_yet")}</div>`;
     }
     return html`
       <table class="issue-table">
         <thead>
           <tr>
-            <th class="col-entity">Entity</th>
+            <th class="col-entity">${t(this.hass, "validation.col_entity")}</th>
             <th class="col-sev"></th>
-            <th class="col-type">Issue</th>
-            <th class="col-key">Feature</th>
-            <th class="col-desc">Description</th>
+            <th class="col-type">${t(this.hass, "validation.col_issue")}</th>
+            <th class="col-key">${t(this.hass, "validation.col_feature")}</th>
+            <th class="col-desc">${t(this.hass, "validation.col_desc")}</th>
           </tr>
         </thead>
         <tbody>
@@ -207,7 +213,7 @@ class SberValidation extends LitElement {
                 <tr class="clean">
                   <td class="entity">${eid}</td>
                   <td class="sev"><span class="badge badge-clean">clean</span></td>
-                  <td colspan="3">No issues</td>
+                  <td colspan="3">${t(this.hass, "validation.no_issues")}</td>
                 </tr>
               `];
             }
@@ -229,18 +235,18 @@ class SberValidation extends LitElement {
   _renderTimeline() {
     const rows = [...this._recent].reverse();
     if (rows.length === 0) {
-      return html`<div class="empty">No issues yet.</div>`;
+      return html`<div class="empty">${t(this.hass, "validation.no_issues_yet")}</div>`;
     }
     return html`
       <table class="issue-table">
         <thead>
           <tr>
-            <th class="col-time">Time</th>
-            <th class="col-entity">Entity</th>
+            <th class="col-time">${t(this.hass, "validation.col_time")}</th>
+            <th class="col-entity">${t(this.hass, "validation.col_entity")}</th>
             <th class="col-sev"></th>
-            <th class="col-type">Issue</th>
-            <th class="col-key">Feature</th>
-            <th class="col-desc">Description</th>
+            <th class="col-type">${t(this.hass, "validation.col_issue")}</th>
+            <th class="col-key">${t(this.hass, "validation.col_feature")}</th>
+            <th class="col-desc">${t(this.hass, "validation.col_desc")}</th>
           </tr>
         </thead>
         <tbody>

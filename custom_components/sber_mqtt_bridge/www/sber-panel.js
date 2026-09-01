@@ -31,10 +31,11 @@ await Promise.all([
 
 const { LitElement, html, css } = await import(`./lit-base.js${_q}`);
 const { messageBus } = await import(`./message-bus.js${_q}`);
-const { ensurePanelTranslations } = await import(`./localize.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`./localize.js${_q}`);
 
 /** Tab labels, index-aligned with the ``_tab`` state value. */
-const TABS = ["Devices", "Status", "DevTools", "Settings"];
+/** Tab keys; the visible label comes from `config_panel.tab.<key>`. */
+const TABS = ["devices", "status", "devtools", "settings"];
 
 /* Mutating WS commands (add / remove / override / import) return as soon as
  * the config entry is patched; the reload that rebuilds the exposed device
@@ -182,7 +183,7 @@ class SberMqttPanel extends LitElement {
    */
   _reportUnconfirmed(what) {
     if (!this._error) {
-      this._error = `${what} was accepted but the bridge did not confirm it — press Refresh.`;
+      this._error = t(this.hass, "panel.unconfirmed", { action: what });
     }
   }
 
@@ -207,7 +208,7 @@ class SberMqttPanel extends LitElement {
       });
       const removed = new Set(entityIds);
       const ok = await this._refreshUntil((devices) => devices.every((d) => !removed.has(d.entity_id)));
-      if (!ok) this._reportUnconfirmed("Removal");
+      if (!ok) this._reportUnconfirmed(t(this.hass, "panel.action_removal"));
     } catch (e) {
       this._error = e.message || String(e);
     } finally {
@@ -254,7 +255,7 @@ class SberMqttPanel extends LitElement {
       const ok = await this._refreshUntil(
         (devices, extra) => devices.length === 0 && (extra.total ?? 0) === 0
       );
-      if (!ok) this._reportUnconfirmed("Clear all");
+      if (!ok) this._reportUnconfirmed(t(this.hass, "panel.action_clear_all"));
     } catch (e) {
       this._error = e.message || String(e);
     } finally {
@@ -302,7 +303,7 @@ class SberMqttPanel extends LitElement {
       const result = await this.hass.callWS({ type: "sber_mqtt_bridge/auto_link_all" });
       if (result.linked_count === 0) {
         await this._fetchAll();
-        this._showToast("No new links found — all devices already linked or no siblings", "info");
+        this._showToast(t(this.hass, "panel.no_new_links"), "info");
         return;
       }
       const ok = await this._refreshUntil((devices) => this._countLinks(devices) !== linksBefore);
@@ -313,7 +314,7 @@ class SberMqttPanel extends LitElement {
         ok ? "success" : "info"
       );
     } catch (e) {
-      this._showToast("Auto-link failed: " + (e.message || e), "error");
+      this._showToast(t(this.hass, "panel.auto_link_failed", { reason: e.message || e }), "error");
     } finally {
       this._loading = false;
     }
@@ -346,9 +347,9 @@ class SberMqttPanel extends LitElement {
       a.download = "sber_mqtt_bridge_config.json";
       a.click();
       URL.revokeObjectURL(url);
-      this._showToast("Config exported", "success");
+      this._showToast(t(this.hass, "panel.exported"), "success");
     } catch (e) {
-      this._showToast("Export failed: " + (e.message || e), "error");
+      this._showToast(t(this.hass, "panel.export_failed", { reason: e.message || e }), "error");
     }
   }
 
@@ -376,7 +377,7 @@ class SberMqttPanel extends LitElement {
         confirmed ? "success" : "info"
       );
     } catch (e) {
-      this._showToast("Import failed: " + (e.message || e), "error");
+      this._showToast(t(this.hass, "panel.import_failed", { reason: e.message || e }), "error");
     } finally {
       this._loading = false;
     }
@@ -408,7 +409,7 @@ class SberMqttPanel extends LitElement {
     }
     this._showToast(
       confirmed
-        ? "Entity links updated"
+        ? t(this.hass, "panel.links_updated")
         : "Links saved, but the bridge still reports the old ones — press Refresh",
       confirmed ? "success" : "info"
     );
@@ -420,9 +421,9 @@ class SberMqttPanel extends LitElement {
         type: "sber_mqtt_bridge/publish_one_status",
         entity_id: e.detail.entityId,
       });
-      this._showToast("Synced: " + e.detail.entityId, "success");
+      this._showToast(t(this.hass, "panel.synced", { entity: e.detail.entityId }), "success");
     } catch (err) {
-      this._showToast("Sync failed: " + (err.message || err), "error");
+      this._showToast(t(this.hass, "panel.sync_failed", { reason: err.message || err }), "error");
     }
   }
 
@@ -473,7 +474,7 @@ class SberMqttPanel extends LitElement {
         );
       }
     } catch (err) {
-      this._showToast("Refresh after add failed: " + (err.message || err), "error");
+      this._showToast(t(this.hass, "panel.refresh_failed", { reason: err.message || err }), "error");
     } finally {
       this._loading = false;
     }
@@ -645,6 +646,7 @@ class SberMqttPanel extends LitElement {
 
       <div class="toolbar-wrapper">
         <sber-toolbar
+          .hass=${this.hass}
           .connected=${connected}
           .phase=${this._status?.phase || "disconnected"}
           .totalDevices=${this._devicesExtra.total ?? 0}
@@ -664,7 +666,7 @@ class SberMqttPanel extends LitElement {
         ></sber-toolbar>
       </div>
 
-      <div class="tabs" role="tablist" aria-label="Sber MQTT Bridge sections">
+      <div class="tabs" role="tablist" aria-label="${t(this.hass, 'panel.sections')}">
         ${TABS.map(
           (label, i) => html`
             <div
@@ -677,7 +679,7 @@ class SberMqttPanel extends LitElement {
               @click=${() => this._selectTab(i)}
               @keydown=${(e) => this._onTabKeydown(e, i)}
             >
-              ${label}
+              ${t(this.hass, `tab.${label}`)}
             </div>
           `
         )}
@@ -702,10 +704,10 @@ class SberMqttPanel extends LitElement {
       <sber-link-dialog
         .hass=${this.hass}
         @links-saved=${this._onLinksSaved}
-        @links-error=${(e) => this._showToast("Link failed: " + e.detail.message, "error")}
+        @links-error=${(e) => this._showToast(t(this.hass, "panel.link_failed", { reason: e.detail.message }), "error")}
       ></sber-link-dialog>
 
-      <sber-toast></sber-toast>
+      <sber-toast .hass=${this.hass}></sber-toast>
     `;
   }
 
@@ -733,13 +735,13 @@ class SberMqttPanel extends LitElement {
 
     return html`
       <div class="card">
-        <h2>Connection</h2>
-        <sber-status-card .connected=${connected} .phase=${s?.phase || "disconnected"}></sber-status-card>
+        <h2>${t(this.hass, "panel.connection")}</h2>
+        <sber-status-card .hass=${this.hass} .connected=${connected} .phase=${s?.phase || "disconnected"}></sber-status-card>
       </div>
 
       <div class="card">
-        <h2>Statistics</h2>
-        <sber-stats-grid .status=${s}></sber-stats-grid>
+        <h2>${t(this.hass, "panel.statistics")}</h2>
+        <sber-stats-grid .hass=${this.hass} .status=${s}></sber-stats-grid>
       </div>
     `;
   }

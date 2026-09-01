@@ -502,17 +502,17 @@ class SberDetailDialog extends LitElement {
       <div class="section">
         <div class="section-title">${t(this.hass, "detail_dialog.overview")}</div>
         <div class="grid">
-          <span class="label">Entity ID</span>
+          <span class="label">${t(this.hass, "detail_dialog.entity_id")}</span>
           <span class="value"><code>${d.entity_id}</code></span>
-          <span class="label">Sber Category</span>
+          <span class="label">${t(this.hass, "detail_dialog.category")}</span>
           <span class="value"><code>${d.sber_category}</code></span>
           <span class="label">HA State</span>
           <span class="value">${d.ha_state ?? "\u2014"}</span>
-          <span class="label">Status</span>
+          <span class="label">${t(this.hass, "detail_dialog.status")}</span>
           <span class="value"><span class="badge ${statusClass}">${statusText}</span></span>
           <span class="label">Room</span>
           <span class="value">${d.room || "\u2014"}</span>
-          <span class="label">Features</span>
+          <span class="label">${t(this.hass, "detail_dialog.features")}</span>
           <span class="value">${(d.features || []).map((f) => html`<span class="feature-tag">${f}</span>`)}</span>
         </div>
       </div>
@@ -521,12 +521,12 @@ class SberDetailDialog extends LitElement {
 
   _renderSberStates(d) {
     const states = d.sber_states || [];
-    if (!states.length) return html`<div class="section"><div class="section-title">${t(this.hass, "detail_dialog.sber_states")}</div><span style="color:var(--secondary-text-color);font-size:13px">No state data</span></div>`;
+    if (!states.length) return html`<div class="section"><div class="section-title">${t(this.hass, "detail_dialog.sber_states")}</div><span style="color:var(--secondary-text-color);font-size:13px">${t(this.hass, "detail_dialog.no_states")}</span></div>`;
     return html`
       <div class="section">
         <div class="section-title">${t(this.hass, "detail_dialog.sber_states")}</div>
         <table class="state-table">
-          <tr><th>Key</th><th>Type</th><th>Value</th></tr>
+          <tr><th>${t(this.hass, "detail_dialog.col_key")}</th><th>${t(this.hass, "detail_dialog.col_type")}</th><th>${t(this.hass, "detail_dialog.col_value")}</th></tr>
           ${states.map((s) => {
             const v = s.value || {};
             const displayVal = v.bool_value !== undefined ? String(v.bool_value)
@@ -569,23 +569,23 @@ class SberDetailDialog extends LitElement {
       <div class="section">
         <div class="section-title">${t(this.hass, "detail_dialog.model_config")}</div>
         <div class="grid">
-          <span class="label">Model ID</span>
+          <span class="label">${t(this.hass, "detail_dialog.model_id")}</span>
           <span class="value"><code>${model.id || "\u2014"}</code></span>
-          <span class="label">Manufacturer</span>
+          <span class="label">${t(this.hass, "detail_dialog.manufacturer")}</span>
           <span class="value">${model.manufacturer || "\u2014"}</span>
-          <span class="label">Model</span>
+          <span class="label">${t(this.hass, "detail_dialog.model")}</span>
           <span class="value">${model.model || "\u2014"}</span>
         </div>
         ${Object.keys(av).length ? html`
           <div style="margin-top:8px">
-            <div class="section-title" style="margin-bottom:4px">Allowed Values</div>
-            <sber-json-block label="Allowed Values" .value=${av}></sber-json-block>
+            <div class="section-title" style="margin-bottom:4px">${t(this.hass, "detail_dialog.allowed_values")}</div>
+            <sber-json-block .hass=${this.hass} label="Allowed Values" .value=${av}></sber-json-block>
           </div>
         ` : ""}
         ${Object.keys(deps).length ? html`
           <div style="margin-top:8px">
-            <div class="section-title" style="margin-bottom:4px">Dependencies</div>
-            <sber-json-block label="Dependencies" .value=${deps}></sber-json-block>
+            <div class="section-title" style="margin-bottom:4px">${t(this.hass, "detail_dialog.dependencies")}</div>
+            <sber-json-block .hass=${this.hass} label="Dependencies" .value=${deps}></sber-json-block>
           </div>
         ` : ""}
       </div>
@@ -600,7 +600,7 @@ class SberDetailDialog extends LitElement {
       <div class="section">
         <div class="section-title">${t(this.hass, "detail_dialog.ha_attributes")}</div>
         <table class="state-table">
-          <tr><th>Attribute</th><th>Value</th></tr>
+          <tr><th>${t(this.hass, "detail_dialog.col_attribute")}</th><th>${t(this.hass, "detail_dialog.col_value")}</th></tr>
           ${keys.map((k) => {
             const v = attrs[k];
             const display = typeof v === "object" ? JSON.stringify(v) : String(v);
@@ -617,11 +617,11 @@ class SberDetailDialog extends LitElement {
       <div class="section">
         <div class="section-title">${t(this.hass, "detail_dialog.device_registry")}</div>
         <div class="grid">
-          <span class="label">Device Name</span>
+          <span class="label">${t(this.hass, "detail_dialog.device_name")}</span>
           <span class="value">${di.name || "\u2014"}</span>
-          <span class="label">Manufacturer</span>
+          <span class="label">${t(this.hass, "detail_dialog.manufacturer")}</span>
           <span class="value">${di.manufacturer || "\u2014"}</span>
-          <span class="label">Model</span>
+          <span class="label">${t(this.hass, "detail_dialog.model")}</span>
           <span class="value">${di.model || "\u2014"}</span>
           <span class="label">SW Version</span>
           <span class="value">${di.sw_version || "\u2014"}</span>
@@ -640,21 +640,21 @@ class SberDetailDialog extends LitElement {
       <div class="section">
         <div class="section-title">${t(this.hass, "detail_dialog.override")}</div>
         <div class="edit-form">
-          <label class="edit-label" for="edit-name">Name</label>
+          <label class="edit-label" for="edit-name">${t(this.hass, "detail_dialog.edit_name")}</label>
           <input class="edit-input" type="text" id="edit-name"
             .value=${r.name || d.name || ""}
             placeholder=${d.name || d.entity_id} />
-          <label class="edit-label" for="edit-room">Room</label>
+          <label class="edit-label" for="edit-room">${t(this.hass, "detail_dialog.edit_room")}</label>
           <input class="edit-input" type="text" id="edit-room"
             .value=${r.room || d.room || ""}
-            placeholder=${d.room || "Room name"} />
-          <label class="edit-label" for="edit-home">Home</label>
+            placeholder=${d.room || t(this.hass, "detail_dialog.room_placeholder")} />
+          <label class="edit-label" for="edit-home">${t(this.hass, "detail_dialog.edit_home")}</label>
           <input class="edit-input" type="text" id="edit-home"
             .value=${r.home || ""}
-            placeholder="Home name" />
+            placeholder=${t(this.hass, "detail_dialog.home_placeholder")} />
           <div class="edit-actions">
             <button class="edit-save" @click=${this._onSave}>
-              \u{1F4BE} Save & Re-publish
+              \u{1F4BE} ${t(this.hass, "detail_dialog.save_republish")}
             </button>
             ${this._saveStatus ? html`<span class="save-status ${this._saveStatus}" title=${this._saveError || ""}>${this._saveStatus === "ok" ? `\u2713 ${t(this.hass, "detail_dialog.saved")}` : `\u2717 ${this._saveError || t(this.hass, "detail_dialog.error")}`}</span>` : ""}
           </div>

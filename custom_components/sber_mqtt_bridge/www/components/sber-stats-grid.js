@@ -9,6 +9,7 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 
 function formatUptime(seconds) {
   if (seconds == null) return "\u2014";
@@ -27,6 +28,8 @@ function formatUptime(seconds) {
 class SberStatsGrid extends LitElement {
   static get properties() {
     return {
+      /** Home Assistant object — carries `localize` for the panel strings. */
+      hass: { type: Object },
       status: { type: Object },
     };
   }
@@ -80,10 +83,15 @@ class SberStatsGrid extends LitElement {
     `;
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+  }
+
   render() {
     const s = this.status;
     if (!s) {
-      return html`<div style="text-align:center;padding:24px;color:var(--secondary-text-color)">Loading status...</div>`;
+      return html`<div style="text-align:center;padding:24px;color:var(--secondary-text-color)">${t(this.hass, "stats.loading")}</div>`;
     }
 
     const stats = s.stats || {};
@@ -96,51 +104,51 @@ class SberStatsGrid extends LitElement {
     return html`
       <div class="stats-grid">
         <div class="stat-item">
-          <span class="stat-label">Uptime</span>
+          <span class="stat-label">${t(this.hass, "stats.uptime")}</span>
           <span class="stat-value">${formatUptime(stats.connection_uptime_seconds)}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Messages received</span>
+          <span class="stat-label">${t(this.hass, "stats.messages_received")}</span>
           <span class="stat-value">${stats.messages_received ?? 0}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Messages sent</span>
+          <span class="stat-label">${t(this.hass, "stats.messages_sent")}</span>
           <span class="stat-value">${stats.messages_sent ?? 0}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Commands</span>
+          <span class="stat-label">${t(this.hass, "stats.commands")}</span>
           <span class="stat-value">${stats.commands_received ?? 0}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Config requests</span>
+          <span class="stat-label">${t(this.hass, "stats.config_requests")}</span>
           <span class="stat-value">${stats.config_requests ?? 0}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Status requests</span>
+          <span class="stat-label">${t(this.hass, "stats.status_requests")}</span>
           <span class="stat-value">${stats.status_requests ?? 0}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Sber errors</span>
+          <span class="stat-label">${t(this.hass, "stats.sber_errors")}</span>
           <span class="stat-value">${stats.errors_from_sber ?? 0}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Publish errors</span>
+          <span class="stat-label">${t(this.hass, "stats.publish_errors")}</span>
           <span class="stat-value">${stats.publish_errors ?? 0}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Reconnects</span>
+          <span class="stat-label">${t(this.hass, "stats.reconnects")}</span>
           <span class="stat-value">${stats.reconnect_count ?? 0}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Entities exposed</span>
+          <span class="stat-label">${t(this.hass, "stats.entities_exposed")}</span>
           <span class="stat-value">${s.entities_count ?? 0}</span>
         </div>
         <div class="stat-item">
           <span
             class="stat-label"
-            title="Devices the Sber cloud has never once asked about. Survives restarts, so a device listed here is genuinely not getting through."
+            title="${t(this.hass, 'stats.never_confirmed_hint')}"
           >
-            Never confirmed
+            ${t(this.hass, "stats.never_confirmed")}
           </span>
           <span class="stat-value">${unack.length}</span>
         </div>
@@ -149,7 +157,7 @@ class SberStatsGrid extends LitElement {
       ${unack.length > 0
         ? html`
             <div class="unack-section">
-              <h3>Never confirmed by Sber</h3>
+              <h3>${t(this.hass, "stats.never_confirmed_title")}</h3>
               <div class="unack-list">
                 ${unack.map((e) => html`<div><code>${e}</code></div>`)}
               </div>

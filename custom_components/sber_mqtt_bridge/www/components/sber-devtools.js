@@ -15,6 +15,7 @@ const _q = new URL(import.meta.url).search;
 await import(`./sber-json-block.js${_q}`);
 
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { messageBus } = await import(`../message-bus.js${_q}`);
 const { copyText } = await import(`../utils.js${_q}`);
 const { codeSurfaceStyles } = await import(`../shared-styles.js${_q}`);
@@ -161,7 +162,7 @@ class SberDevtools extends LitElement {
     this._sendingConfig = true;
     try {
       await this.hass.callWS({ type: "sber_mqtt_bridge/send_raw_config", payload: this._configEditable });
-      this._toast("Config sent to Sber", "success");
+      this._toast(t(this.hass, "devtools.config_sent"), "success");
     } catch (e) {
       this._toast("Send failed: " + (e.message || e), "error");
     } finally {
@@ -173,7 +174,7 @@ class SberDevtools extends LitElement {
     this._sendingStates = true;
     try {
       await this.hass.callWS({ type: "sber_mqtt_bridge/send_raw_state", payload: this._statesEditable });
-      this._toast("States sent to Sber", "success");
+      this._toast(t(this.hass, "devtools.states_sent"), "success");
     } catch (e) {
       this._toast("Send failed: " + (e.message || e), "error");
     } finally {
@@ -197,9 +198,9 @@ class SberDevtools extends LitElement {
    * @param {string} text - Text to copy.
    * @param {string} [label] - Success message.
    */
-  async _copy(text, label = "Copied to clipboard") {
+  async _copy(text, label = null) {
     const ok = await copyText(text);
-    this._toast(ok ? label : "Copy failed", ok ? "success" : "error");
+    this._toast(ok ? label || t(this.hass, "devtools.copied") : t(this.hass, "devtools.copy_failed"), ok ? "success" : "error");
   }
 
   _toast(message, type) {
@@ -459,6 +460,11 @@ class SberDevtools extends LitElement {
 
   /* ---------- render ---------- */
 
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+  }
+
   render() {
     return html`
       ${this._renderConfigSection()}
@@ -483,18 +489,18 @@ class SberDevtools extends LitElement {
             role="button"
             tabindex="0"
             aria-expanded=${this._configOpen ? "true" : "false"}
-            aria-label="Toggle Raw Config Payload"
+            aria-label="${t(this.hass, 'devtools.raw_config')}"
             @click=${() => { this._configOpen = !this._configOpen; }}
             @keydown=${(e) => this._onKeyActivate(e, () => { this._configOpen = !this._configOpen; })}
           >
             <span class="collapse-icon ${this._configOpen ? "open" : ""}">&#9654;</span>
-            <h2>Raw Config Payload</h2>
+            <h2>${t(this.hass, "devtools.raw_config")}</h2>
           </div>
           <div class="btn-group">
             <button class="btn-primary"
               ?disabled=${this._configLoading}
               @click=${this._loadConfig}>
-              ${this._configLoading ? "Loading..." : "Load Config"}
+              ${this._configLoading ? t(this.hass, "devtools.loading") : t(this.hass, "devtools.load_config")}
             </button>
             ${this._configPayload ? html`
               <button class="btn-secondary"
@@ -506,21 +512,21 @@ class SberDevtools extends LitElement {
         </div>
         ${this._configError ? html`<div class="error-text">${this._configError}</div>` : ""}
         ${this._configOpen ? html`
-          <sber-json-block
-            label="Raw config payload"
+          <sber-json-block .hass=${this.hass}
+            label="${t(this.hass, 'devtools.raw_config')}"
             hide-copy
-            placeholder="Click the button above to load data..."
+            placeholder="${t(this.hass, 'devtools.load_hint')}"
             .value=${this._configPayload}
           ></sber-json-block>
           <textarea class="json-editor code-surface"
             .value=${this._configEditable}
             @input=${(e) => { this._configEditable = e.target.value; }}
-            placeholder="Edit JSON and click Send to publish to Sber..."></textarea>
+            placeholder="${t(this.hass, 'devtools.edit_hint')}"></textarea>
           <div class="send-bar">
             <button class="btn-danger"
               ?disabled=${this._sendingConfig || !this._configEditable}
               @click=${this._sendConfig}>
-              ${this._sendingConfig ? "Sending..." : "Send Config to Sber"}
+              ${this._sendingConfig ? t(this.hass, "devtools.sending") : t(this.hass, "devtools.send_config")}
             </button>
           </div>
         ` : ""}
@@ -537,18 +543,18 @@ class SberDevtools extends LitElement {
             role="button"
             tabindex="0"
             aria-expanded=${this._statesOpen ? "true" : "false"}
-            aria-label="Toggle Raw State Payload"
+            aria-label="${t(this.hass, 'devtools.raw_states')}"
             @click=${() => { this._statesOpen = !this._statesOpen; }}
             @keydown=${(e) => this._onKeyActivate(e, () => { this._statesOpen = !this._statesOpen; })}
           >
             <span class="collapse-icon ${this._statesOpen ? "open" : ""}">&#9654;</span>
-            <h2>Raw State Payload</h2>
+            <h2>${t(this.hass, "devtools.raw_states")}</h2>
           </div>
           <div class="btn-group">
             <button class="btn-primary"
               ?disabled=${this._statesLoading}
               @click=${this._loadStates}>
-              ${this._statesLoading ? "Loading..." : "Load States"}
+              ${this._statesLoading ? t(this.hass, "devtools.loading") : t(this.hass, "devtools.load_states")}
             </button>
             ${this._statesPayload ? html`
               <button class="btn-secondary"
@@ -560,16 +566,16 @@ class SberDevtools extends LitElement {
         </div>
         ${this._statesError ? html`<div class="error-text">${this._statesError}</div>` : ""}
         ${this._statesOpen ? html`
-          <sber-json-block
+          <sber-json-block .hass=${this.hass}
             label="Raw state payload"
             hide-copy
-            placeholder="Click the button above to load data..."
+            placeholder="${t(this.hass, 'devtools.load_hint')}"
             .value=${this._statesPayload}
           ></sber-json-block>
           <textarea class="json-editor code-surface"
             .value=${this._statesEditable}
             @input=${(e) => { this._statesEditable = e.target.value; }}
-            placeholder="Edit JSON and click Send to publish to Sber..."></textarea>
+            placeholder="${t(this.hass, 'devtools.edit_hint')}"></textarea>
           <div class="send-bar">
             <button class="btn-danger"
               ?disabled=${this._sendingStates || !this._statesEditable}
@@ -588,15 +594,15 @@ class SberDevtools extends LitElement {
     return html`
       <div class="section">
         <div class="section-header">
-          <h2>MQTT Message Log</h2>
+          <h2>${t(this.hass, "devtools.message_log")}</h2>
           <div class="btn-group">
             <button class="btn-secondary" @click=${this._fetchLog}>
-              Refresh
+              ${t(this.hass, "devtools.refresh")}
             </button>
             <button class="btn-danger"
               ?disabled=${this._messages.length === 0}
               @click=${this._clearLog}>
-              Clear Log
+              ${t(this.hass, "devtools.clear_log")}
             </button>
           </div>
         </div>
@@ -608,10 +614,10 @@ class SberDevtools extends LitElement {
               <table class="log-table">
                 <thead>
                   <tr>
-                    <th>Time</th>
-                    <th>Dir</th>
-                    <th>Topic</th>
-                    <th>Payload</th>
+                    <th>${t(this.hass, "devtools.col_time")}</th>
+                    <th>${t(this.hass, "devtools.col_dir")}</th>
+                    <th>${t(this.hass, "devtools.col_topic")}</th>
+                    <th>${t(this.hass, "devtools.col_payload")}</th>
                   </tr>
                 </thead>
                 <tbody>

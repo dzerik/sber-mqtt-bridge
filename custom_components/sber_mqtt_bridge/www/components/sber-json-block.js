@@ -25,6 +25,7 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { buttonStyles, codeSurfaceStyles } = await import(`../shared-styles.js${_q}`);
 const { copyText } = await import(`../utils.js${_q}`);
 
@@ -43,6 +44,8 @@ const COPY_FEEDBACK_MS = 2500;
 class SberJsonBlock extends LitElement {
   static get properties() {
     return {
+      /** Home Assistant object — carries `localize` for the panel strings. */
+      hass: { type: Object },
       /** Object (pretty-printed here) or an already formatted string. */
       value: { attribute: false },
       /** Accessible name of the block, e.g. "Allowed Values". */
@@ -139,7 +142,7 @@ class SberJsonBlock extends LitElement {
    */
   async _copy() {
     const ok = await copyText(this.text);
-    this._setCopyState(ok ? "Copied" : "Copy failed");
+    this._setCopyState(ok ? t(this.hass, "json.copied") : t(this.hass, "json.copy_failed"));
   }
 
   /**
@@ -165,9 +168,14 @@ class SberJsonBlock extends LitElement {
     }
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+  }
+
   render() {
     if (!this.text) {
-      return html`<div class="empty">${this.placeholder || "No data"}</div>`;
+      return html`<div class="empty">${this.placeholder || t(this.hass, "json.no_data")}</div>`;
     }
     const hidden = this.hiddenLineCount;
     return html`
@@ -182,11 +190,11 @@ class SberJsonBlock extends LitElement {
               aria-expanded=${this._expanded ? "true" : "false"}
               aria-controls="code"
               @click=${this._toggle}
-            >${this._expanded ? "Collapse" : `Show all ${this.lineCount} lines`}</button>`
+            >${this._expanded ? t(this.hass, "json.collapse") : t(this.hass, "json.expand", { lines: this.lineCount })}</button>`
           : ""}
         ${this.hideCopy
           ? ""
-          : html`<button class="btn btn-secondary" @click=${this._copy}>Copy JSON</button>`}
+          : html`<button class="btn btn-secondary" @click=${this._copy}>${t(this.hass, "json.copy")}</button>`}
         ${hidden
           ? html`<span class="clip-note">${hidden} more ${hidden === 1 ? "line" : "lines"} hidden</span>`
           : ""}

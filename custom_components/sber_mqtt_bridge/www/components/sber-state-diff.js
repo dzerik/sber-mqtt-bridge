@@ -17,6 +17,7 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 
 /** Hard cap on the live diff buffer (live appends are unbounded on the
  * wire — the backend ring buffer only trims the initial snapshot). */
@@ -129,12 +130,17 @@ class SberStateDiff extends LitElement {
     return JSON.stringify(v);
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+  }
+
   render() {
     const rows = [...this._diffs].reverse();
     return html`
       <div class="section">
         <div class="section-header">
-          <h2>State Diffs</h2>
+          <h2>${t(this.hass, "diff.title")}</h2>
           <div class="btn-group">
             <button class="btn-danger"
               ?disabled=${this._diffs.length === 0}

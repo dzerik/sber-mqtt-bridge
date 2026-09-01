@@ -10,61 +10,62 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 
 /** Setting definitions with metadata for rendering. */
 const SETTING_DEFS = [
   {
-    group: "Connection",
-    note: "Changes take effect on next reconnect",
+    group: "connection",
+    note: "connection",
     fields: [
-      { key: "reconnect_interval_min", label: "Min reconnect interval (s)", min: 1, max: 60, step: 1, type: "number" },
-      { key: "reconnect_interval_max", label: "Max reconnect interval (s)", min: 30, max: 3600, step: 10, type: "number" },
-      { key: "sber_verify_ssl", label: "Verify SSL certificate", type: "toggle" },
+      { key: "reconnect_interval_min", min: 1, max: 60, step: 1, type: "number" },
+      { key: "reconnect_interval_max", min: 30, max: 3600, step: 10, type: "number" },
+      { key: "sber_verify_ssl", type: "toggle" },
     ],
   },
   {
-    group: "Performance",
-    note: "Applied immediately",
+    group: "performance",
+    note: "performance",
     fields: [
-      { key: "debounce_delay", label: "State publish debounce (s)", min: 0.05, max: 5.0, step: 0.05, type: "number" },
-      { key: "max_mqtt_payload_size", label: "Max MQTT payload (bytes)", min: 100000, max: 10000000, step: 100000, type: "number" },
+      { key: "debounce_delay", min: 0.05, max: 5.0, step: 0.05, type: "number" },
+      { key: "max_mqtt_payload_size", min: 100000, max: 10000000, step: 100000, type: "number" },
     ],
   },
   {
-    group: "Device sync",
-    note: "Sber reads every config publish as the COMPLETE device list, so one that omits a device makes the cloud drop it and re-register it later in the hub's room. The bridge therefore waits for devices to load before publishing. Raise the settle delay if you have battery-powered Zigbee sensors that wake up slowly.",
+    group: "device_sync",
+    note: "device_sync",
     fields: [
-      { key: "config_settle_delay", label: "Config settle delay (s)", min: 0, max: 300, step: 1, type: "number" },
-      { key: "config_max_wait", label: "Max wait for devices (s)", min: 1, max: 900, step: 10, type: "number" },
+      { key: "config_settle_delay", min: 0, max: 300, step: 1, type: "number" },
+      { key: "config_max_wait", min: 1, max: 900, step: 10, type: "number" },
     ],
   },
   {
-    group: "Commands",
-    note: "Applied immediately",
+    group: "commands",
+    note: "commands",
     fields: [
-      { key: "confirm_delay", label: "Delayed state confirmation (s)", min: 0, max: 60, step: 0.5, type: "number" },
-      { key: "ack_audit_delay", label: "Silent-rejection audit delay (s)", min: 1, max: 3600, step: 10, type: "number" },
+      { key: "confirm_delay", min: 0, max: 60, step: 0.5, type: "number" },
+      { key: "ack_audit_delay", min: 1, max: 3600, step: 10, type: "number" },
     ],
   },
   {
-    group: "Debug",
-    note: "Applied immediately",
+    group: "debug",
+    note: "debug",
     fields: [
-      { key: "message_log_size", label: "MQTT message log buffer", min: 10, max: 500, step: 10, type: "number" },
+      { key: "message_log_size", min: 10, max: 500, step: 10, type: "number" },
     ],
   },
   {
-    group: "Loop detection",
-    note: "Adds a per-HA marker to partner_meta.ha_serial_number on every published device. Sister integrations that mirror Sber devices back into HA use it to detect import loops. Disabled by default.",
+    group: "loop_detection",
+    note: "loop_detection",
     fields: [
-      { key: "ha_serial_number_enabled", label: "Emit ha_serial_number marker", type: "toggle" },
+      { key: "ha_serial_number_enabled", type: "toggle" },
     ],
   },
   {
-    group: "Diagnostics",
-    note: "Surfaces post-publish silent-rejection audits as HA repair tiles. Off by default — Sber may legitimately not call status_request for hours after accepting a device, producing false positives. Audit data stays visible in the panel and WARN log either way.",
+    group: "diagnostics",
+    note: "diagnostics",
     fields: [
-      { key: "silent_rejection_alerts", label: "Show silent-rejection repair tile", type: "toggle" },
+      { key: "silent_rejection_alerts", type: "toggle" },
     ],
   },
 ];
@@ -113,7 +114,7 @@ class SberSettings extends LitElement {
       this._hub = statusRes.hub || null;
       this._dirty = false;
     } catch (e) {
-      this._toast("Failed to load settings: " + (e.message || e), "error");
+      this._toast(t(this.hass, "settings.load_failed", { reason: e.message || e }), "error");
     } finally {
       this._loading = false;
     }
@@ -127,9 +128,9 @@ class SberSettings extends LitElement {
         settings: this._settings,
       });
       this._dirty = false;
-      this._toast("Settings saved", "success");
+      this._toast(t(this.hass, "settings.saved"), "success");
     } catch (e) {
-      this._toast("Save failed: " + (e.message || e), "error");
+      this._toast(t(this.hass, "settings.save_failed", { reason: e.message || e }), "error");
     } finally {
       this._saving = false;
     }
@@ -285,46 +286,51 @@ class SberSettings extends LitElement {
     `;
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+  }
+
   render() {
     if (this._loading) {
-      return html`<div class="loading">Loading settings...</div>`;
+      return html`<div class="loading">${t(this.hass, "settings.loading")}</div>`;
     }
 
     return html`
       ${this._hub ? html`
         <div class="card">
-          <h3>Hub Device</h3>
+          <h3>${t(this.hass, "settings.hub_title")}</h3>
           <div class="note">Root device for Sber hierarchy (read-only, from HA config)</div>
           <div class="field">
-            <label>Name</label>
+            <label>${t(this.hass, "settings.hub_name")}</label>
             <span class="ro-value">${this._hub.name}</span>
           </div>
           <div class="field">
-            <label>Home</label>
+            <label>${t(this.hass, "settings.hub_home")}</label>
             <span class="ro-value">${this._hub.home || "—"}</span>
           </div>
           <div class="field">
-            <label>Room</label>
+            <label>${t(this.hass, "settings.hub_room")}</label>
             <span class="ro-value">${this._hub.room || "—"}</span>
           </div>
           <div class="field">
-            <label>Version</label>
+            <label>${t(this.hass, "settings.hub_version")}</label>
             <span class="ro-value">${this._hub.version}</span>
           </div>
           <div class="field">
-            <label>Online</label>
+            <label>${t(this.hass, "settings.hub_online")}</label>
             <span class="ro-value" style="color: ${this._hub.is_online ? "var(--success-color, #4caf50)" : "var(--error-color, #f44336)"}">
               ${this._hub.is_online ? "Yes" : "No"}
             </span>
           </div>
           <div class="field">
-            <label>Children</label>
+            <label>${t(this.hass, "settings.hub_children")}</label>
             <span class="ro-value">${this._hub.children_count} devices</span>
           </div>
           <div class="field">
-            <label>Auto-assign parent_id</label>
+            <label>${t(this.hass, "settings.hub_auto_parent")}</label>
             <label class="toggle">
-              <input type="checkbox" aria-label="Auto-assign parent_id"
+              <input type="checkbox" aria-label="${t(this.hass, 'settings.hub_auto_parent')}"
                 .checked=${!!this._settings.hub_auto_parent_id}
                 @change=${(e) => this._onInput("hub_auto_parent_id", e.target.checked)}>
               <span class="slider"></span>
@@ -335,8 +341,8 @@ class SberSettings extends LitElement {
 
       ${SETTING_DEFS.map(group => html`
         <div class="card">
-          <h3>${group.group}</h3>
-          <div class="note">${group.note}</div>
+          <h3>${t(this.hass, `settings.group.${group.group}`)}</h3>
+          <div class="note">${t(this.hass, `settings.note.${group.note}`)}</div>
           ${group.fields.map(f => this._renderField(f))}
         </div>
       `)}
@@ -349,7 +355,7 @@ class SberSettings extends LitElement {
           Reload
         </button>
         <button class="btn-primary" @click=${this._saveSettings} ?disabled=${!this._dirty || this._saving}>
-          ${this._saving ? "Saving..." : "Save"}
+          ${this._saving ? t(this.hass, "settings.saving") : t(this.hass, "settings.save")}
         </button>
       </div>
     `;
@@ -360,9 +366,9 @@ class SberSettings extends LitElement {
     if (f.type === "toggle") {
       return html`
         <div class="field">
-          <label>${f.label}</label>
+          <label>${t(this.hass, `settings.field.${f.key}`)}</label>
           <label class="toggle">
-            <input type="checkbox" aria-label=${f.label} .checked=${!!value}
+            <input type="checkbox" aria-label=${t(this.hass, `settings.field.${f.key}`)} .checked=${!!value}
               @change=${(e) => this._onInput(f.key, e.target.checked)}>
             <span class="slider"></span>
           </label>
@@ -371,9 +377,9 @@ class SberSettings extends LitElement {
     }
     return html`
       <div class="field">
-        <label>${f.label}</label>
+        <label>${t(this.hass, `settings.field.${f.key}`)}</label>
         <input type="number"
-          aria-label=${f.label}
+          aria-label=${t(this.hass, `settings.field.${f.key}`)}
           .value=${value ?? ""}
           min=${f.min} max=${f.max} step=${f.step}
           @input=${(e) => this._onInput(f.key, Number(e.target.value))}>

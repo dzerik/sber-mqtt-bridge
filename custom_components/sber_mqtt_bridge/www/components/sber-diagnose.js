@@ -19,6 +19,7 @@ const _q = new URL(import.meta.url).search;
 await import(`./sber-json-block.js${_q}`);
 
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { copyText } = await import(`../utils.js${_q}`);
 
 const VERDICT_LABEL = {
@@ -52,7 +53,7 @@ class SberDiagnose extends LitElement {
     if (this._loading) return;
     this._error = "";
     if (!this._entityId.trim()) {
-      this._error = "Enter an entity_id to diagnose.";
+      this._error = t(this.hass, "diagnose.enter_entity");
       return;
     }
     this._loading = true;
@@ -75,17 +76,22 @@ class SberDiagnose extends LitElement {
       const ok = await copyText(JSON.stringify(this._report, null, 2));
       /* Always reassign: leaving the previous failure on screen makes a
        * later successful copy look broken. */
-      this._error = ok ? "" : "Copy failed — clipboard unavailable";
+      this._error = ok ? "" : t(this.hass, "diagnose.copy_failed");
     } catch (e) {
       this._error = `Copy failed: ${e.message || e}`;
     }
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
   }
 
   render() {
     return html`
       <div class="section">
         <div class="section-header">
-          <h2>Why isn't it working?</h2>
+          <h2>${t(this.hass, "diagnose.title")}</h2>
         </div>
         <div class="hint">
           Runs every diagnostic rule the bridge knows against one entity — loaded, linked, enabled, acknowledged, validated, recent traces — and returns a verdict with actionable next steps.
@@ -93,8 +99,8 @@ class SberDiagnose extends LitElement {
         <div class="form-row">
           <input
             type="text"
-            aria-label="Entity ID to diagnose"
-            placeholder="entity_id (e.g. light.kitchen)"
+            aria-label="${t(this.hass, 'diagnose.entity_label')}"
+            placeholder="${t(this.hass, 'diagnose.entity_placeholder')}"
             .value=${this._entityId}
             @input=${(e) => { this._entityId = e.target.value; }}
             @keydown=${(e) => { if (e.key === "Enter") this._run(); }}
@@ -102,10 +108,10 @@ class SberDiagnose extends LitElement {
           <button class="btn-primary"
             ?disabled=${this._loading}
             @click=${this._run}>
-            ${this._loading ? "Running..." : "Diagnose"}
+            ${this._loading ? t(this.hass, "diagnose.running") : t(this.hass, "diagnose.run")}
           </button>
           ${this._report ? html`
-            <button class="btn-secondary" @click=${this._copyReport}>Copy report</button>
+            <button class="btn-secondary" @click=${this._copyReport}>${t(this.hass, "diagnose.copy_report")}</button>
           ` : ""}
         </div>
         ${this._error ? html`<div class="error-text">${this._error}</div>` : ""}
@@ -130,7 +136,7 @@ class SberDiagnose extends LitElement {
               <span class="finding-code">${f.code}</span>
             </div>
             <div class="finding-detail">${f.detail}</div>
-            ${f.action ? html`<div class="finding-action"><strong>Action:</strong> ${f.action}</div>` : ""}
+            ${f.action ? html`<div class="finding-action"><strong>${t(this.hass, "diagnose.action")}</strong> ${f.action}</div>` : ""}
           </div>
         `)}
       </div>
@@ -139,7 +145,7 @@ class SberDiagnose extends LitElement {
         role="button"
         tabindex="0"
         aria-expanded=${this._rawOpen ? "true" : "false"}
-        aria-label="Toggle raw summary"
+        aria-label="${t(this.hass, 'diagnose.toggle_raw')}"
         @click=${() => { this._rawOpen = !this._rawOpen; }}
         @keydown=${(e) => {
           if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
@@ -151,7 +157,7 @@ class SberDiagnose extends LitElement {
         Raw summary
       </div>
       ${this._rawOpen
-        ? html`<sber-json-block label="Raw summary" hide-copy .value=${r.summary}></sber-json-block>`
+        ? html`<sber-json-block .hass=${this.hass} label="${t(this.hass, 'diagnose.raw_summary')}" hide-copy .value=${r.summary}></sber-json-block>`
         : ""}
     `;
   }

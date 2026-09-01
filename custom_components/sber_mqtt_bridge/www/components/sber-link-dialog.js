@@ -11,6 +11,7 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { deepActiveElement } = await import(`../utils.js${_q}`);
 const { dialogStyles, buttonStyles } = await import(`../shared-styles.js${_q}`);
 
@@ -108,7 +109,7 @@ class SberLinkDialog extends LitElement {
       this._selected = sel;
     } catch (e) {
       this._candidates = [];
-      this._error = e.message || "Failed to load candidates";
+      this._error = e.message || t(this.hass, "link.load_failed");
     } finally {
       this._loading = false;
     }
@@ -177,7 +178,7 @@ class SberLinkDialog extends LitElement {
       <div class="candidate-row ${!c.compatible ? 'incompatible' : ''}">
         <input
           type="checkbox"
-          aria-label="Link ${c.friendly_name || c.entity_id}"
+          aria-label="${t(this.hass, 'link.link_entity', { entity: c.friendly_name || c.entity_id })}"
           .checked=${!!this._selected[c.entity_id]}
           ?disabled=${!c.compatible}
           @change=${() => this._toggle(c.entity_id)}
@@ -193,16 +194,16 @@ class SberLinkDialog extends LitElement {
   }
 
   _renderCandidates() {
-    if (this._loading) return html`<div class="empty">Loading...</div>`;
+    if (this._loading) return html`<div class="empty">${t(this.hass, "link.loading")}</div>`;
     if (this._error) return html`<div class="empty error-text">${this._error}</div>`;
-    if (this._candidates.length === 0) return html`<div class="empty">No compatible entities found.</div>`;
+    if (this._candidates.length === 0) return html`<div class="empty">${t(this.hass, "link.none")}</div>`;
 
     const sameDevice = this._candidates.filter(c => c.same_device);
     const otherDevices = this._candidates.filter(c => !c.same_device);
 
     return html`
       ${sameDevice.length > 0 ? html`
-        <div class="section-label">Same device</div>
+        <div class="section-label">${t(this.hass, "link.same_device")}</div>
         ${sameDevice.map(c => this._renderCandidateRow(c))}
       ` : ""}
       ${otherDevices.length > 0 ? html`
@@ -268,8 +269,8 @@ class SberLinkDialog extends LitElement {
           tabindex="-1"
         >
           <div class="dialog-header">
-            <h2 id="link-dialog-title">Link Entities</h2>
-            <button class="close-btn" aria-label="Close dialog" @click=${this.hide}>\u2715</button>
+            <h2 id="link-dialog-title">${t(this.hass, "link.title")}</h2>
+            <button class="close-btn" aria-label="${t(this.hass, 'link.close')}" @click=${this.hide}>\u2715</button>
           </div>
 
           <div class="body">
@@ -282,9 +283,9 @@ class SberLinkDialog extends LitElement {
           </div>
 
           <div class="dialog-footer">
-            <button class="btn btn-secondary" @click=${this.hide}>Cancel</button>
+            <button class="btn btn-secondary" @click=${this.hide}>${t(this.hass, "toolbar.cancel")}</button>
             <button class="btn btn-primary" ?disabled=${this._saving} @click=${this._save}>
-              ${this._saving ? "Saving..." : `Save${selectedCount > 0 ? ` (${selectedCount})` : ""}`}
+              ${this._saving ? t(this.hass, "link.saving") : selectedCount > 0 ? t(this.hass, "link.save_count", { count: selectedCount }) : t(this.hass, "link.save")}
             </button>
           </div>
         </div>

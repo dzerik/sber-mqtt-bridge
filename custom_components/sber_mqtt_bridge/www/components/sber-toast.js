@@ -18,6 +18,8 @@ const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 class SberToast extends LitElement {
   static get properties() {
     return {
+      /** Home Assistant object — carries `localize` for the panel strings. */
+      hass: { type: Object },
       _message: { type: String },
       _type: { type: String },
       _visible: { type: Boolean },
