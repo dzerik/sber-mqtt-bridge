@@ -420,6 +420,7 @@ class TestDispatcherIsIndependentlyConstructible:
             "get_entities": lambda: bridge._entities,
             "get_enabled_entity_ids": lambda: bridge._enabled_entity_ids,
             "schedule_confirm": lambda _eid: None,
+            "note_cloud_reported": lambda _ids: None,
             "refresh_repair_issues": lambda: None,
         }
         return DispatcherDeps(**{**base, **overrides})

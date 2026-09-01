@@ -51,10 +51,17 @@ def bridge(monkeypatch: pytest.MonkeyPatch) -> Any:
     obj._enabled_entity_ids = [LAMP, PUMP]
 
     class _Stats:
-        """Only the field the properties read."""
+        """Only the fields the properties read.
+
+        ``collectively_acked_entities`` holds the ids acknowledged without
+        being named (a ``status_request`` with no device list); the alarm
+        subtracts it from the acknowledgement set so a collective signal
+        cannot vouch for an individual device.
+        """
 
         def __init__(self) -> None:
             self.acknowledged_entities: set[str] = set()
+            self.collectively_acked_entities: set[str] = set()
 
     class _CloudDevices:
         """Stand-in for the persisted registry."""

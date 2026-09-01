@@ -35,9 +35,15 @@ class TestVacuumCreate(unittest.TestCase):
         self.assertIn("vacuum_cleaner_command", features)
         self.assertIn("vacuum_cleaner_status", features)
 
-    def test_features_list_with_fan_speed(self):
+    def test_features_list_with_mappable_modes(self):
+        """``vacuum_cleaner_program`` appears only for modes Sber documents.
+
+        Sber's vocabulary is ``perimeter, spot, smart, random_route``;
+        HA suction names ("quiet"/"turbo") denote none of them, so the
+        list here is one the cloud can actually route.
+        """
         entity = VacuumCleanerEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(fan_speed="standard", fan_speed_list=["quiet", "standard", "turbo"]))
+        entity.fill_by_ha_state(_make_ha_state(fan_speed="Spot", fan_speed_list=["Spot", "Smart"]))
         features = entity.get_final_features_list()
         self.assertIn("vacuum_cleaner_program", features)
 
@@ -57,14 +63,20 @@ class TestVacuumFillState(unittest.TestCase):
         self.assertEqual(entity._status, "cleaning")
 
     def test_returning_status(self):
+        """HA ``returning`` is Sber ``returning_to_dock``.
+
+        ``go_home`` was asserted here before and is not a value the
+        ``vacuum_cleaner_status`` page documents at all.
+        """
         entity = VacuumCleanerEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("returning"))
-        self.assertEqual(entity._status, "go_home")
+        self.assertEqual(entity._status, "returning_to_dock")
 
-    def test_unknown_state_defaults_standby(self):
+    def test_unknown_state_defaults_docked(self):
+        """An uninterpretable HA state degrades to the resting value."""
         entity = VacuumCleanerEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("some_unknown"))
-        self.assertEqual(entity._status, "standby")
+        self.assertEqual(entity._status, "docked")
 
     def test_battery_level(self):
         entity = VacuumCleanerEntity(ENTITY_DATA)
@@ -81,8 +93,8 @@ class TestVacuumToSberCurrentState(unittest.TestCase):
             _make_ha_state(
                 "cleaning",
                 battery_level=70,
-                fan_speed="turbo",
-                fan_speed_list=["quiet", "standard", "turbo"],
+                fan_speed="Spot",
+                fan_speed_list=["Spot", "Smart"],
             )
         )
         result = entity.to_sber_current_state()
@@ -92,7 +104,7 @@ class TestVacuumToSberCurrentState(unittest.TestCase):
         battery = next(s for s in states if s["key"] == "battery_percentage")
         self.assertEqual(battery["value"]["integer_value"], "70")
         program = next(s for s in states if s["key"] == "vacuum_cleaner_program")
-        self.assertEqual(program["value"]["enum_value"], "turbo")
+        self.assertEqual(program["value"]["enum_value"], "spot")
 
     def test_program_not_published_without_fan_speed_list(self):
         """Without ``fan_speed_list`` the ``vacuum_cleaner_program`` feature is undeclared.
@@ -140,12 +152,19 @@ class TestVacuumProcessCmd(unittest.TestCase):
         self.assertEqual(result[0]["url"]["service"], "start")
         self.assertEqual(result[0]["url"]["domain"], "vacuum")
 
-    def test_cmd_stop(self):
-        entity = self._make_entity("cleaning")
+    def test_cmd_resume(self):
+        """``resume`` continues a paused job through ``vacuum.start``.
+
+        It replaces the old ``stop`` case: ``stop`` is not one of the
+        four values (``start, resume, pause, return_to_dock``) the
+        ``vacuum_cleaner_command`` page documents, so the cloud never
+        sends it, while ``resume`` used to be silently dropped.
+        """
+        entity = self._make_entity("paused")
         result = entity.process_cmd(
-            {"states": [{"key": "vacuum_cleaner_command", "value": {"type": "ENUM", "enum_value": "stop"}}]}
+            {"states": [{"key": "vacuum_cleaner_command", "value": {"type": "ENUM", "enum_value": "resume"}}]}
         )
-        self.assertEqual(result[0]["url"]["service"], "stop")
+        self.assertEqual(result[0]["url"]["service"], "start")
 
     def test_cmd_pause(self):
         entity = self._make_entity("cleaning")
@@ -162,13 +181,14 @@ class TestVacuumProcessCmd(unittest.TestCase):
         self.assertEqual(result[0]["url"]["service"], "return_to_base")
 
     def test_cmd_set_fan_speed(self):
-        entity = self._make_entity("cleaning")
+        """A Sber route name is translated back to the HA mode label."""
+        entity = self._make_entity("cleaning", fan_speed_list=["Spot", "Smart"])
         result = entity.process_cmd(
-            {"states": [{"key": "vacuum_cleaner_program", "value": {"type": "ENUM", "enum_value": "turbo"}}]}
+            {"states": [{"key": "vacuum_cleaner_program", "value": {"type": "ENUM", "enum_value": "spot"}}]}
         )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"]["service"], "set_fan_speed")
-        self.assertEqual(result[0]["url"]["service_data"]["fan_speed"], "turbo")
+        self.assertEqual(result[0]["url"]["service_data"]["fan_speed"], "Spot")
 
     def test_cmd_unknown_command_ignored(self):
         entity = self._make_entity()
@@ -187,14 +207,25 @@ class TestVacuumAllowedValues(unittest.TestCase):
     """Test allowed values in to_sber_state."""
 
     def test_allowed_values_commands(self):
+        """Only documented values are declared, in Sber's own spelling.
+
+        ``vacuum_cleaner_command`` no longer offers ``stop`` (absent from
+        the documented ``start, resume, pause, return_to_dock``), and the
+        program list carries the Sber routes rather than the HA labels
+        they were derived from.
+        """
         entity = VacuumCleanerEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state(fan_speed_list=["quiet", "standard", "turbo"]))
+        entity.fill_by_ha_state(_make_ha_state(fan_speed_list=["Spot", "Smart"]))
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
         self.assertIn("vacuum_cleaner_command", allowed)
         self.assertNotIn("vacuum_cleaner_status", allowed)  # read-only, not in allowed_values
+        self.assertEqual(
+            sorted(allowed["vacuum_cleaner_command"]["enum_values"]["values"]),
+            ["pause", "resume", "return_to_dock", "start"],
+        )
         self.assertIn("vacuum_cleaner_program", allowed)
-        self.assertEqual(allowed["vacuum_cleaner_program"]["enum_values"]["values"], ["quiet", "standard", "turbo"])
+        self.assertEqual(allowed["vacuum_cleaner_program"]["enum_values"]["values"], ["spot", "smart"])
 
 
 class TestVacuumBatteryLink(unittest.TestCase):
@@ -271,3 +302,36 @@ class TestVacuumBatteryLink(unittest.TestCase):
         self.assertNotIn("battery_percentage", features)
         states = entity.to_sber_current_state()["vacuum.roborock"]["states"]
         self.assertNotIn("battery_percentage", [s["key"] for s in states])
+
+
+class TestFanSpeedListSurvivesAnEmptyRefresh(unittest.TestCase):
+    """A momentarily blank ``fan_speed_list`` must not disarm the vacuum.
+
+    Same shape as the TV's ``source_list``: an integration that reports no
+    modes for one refresh used to erase the program translation table, so
+    every ``vacuum_cleaner_program`` command was silently dropped and the
+    published ``allowed_values`` narrowed — churning ``model.id`` and
+    costing the user the assigned room (issue #44).
+    """
+
+    SPOT_CMD = {"states": [{"key": "vacuum_cleaner_program", "value": {"type": "ENUM", "enum_value": "spot"}}]}
+
+    def _vacuum_that_lost_its_list(self, second_state):
+        """Fill a vacuum with two modes, then re-fill it with ``second_state``."""
+        entity = VacuumCleanerEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("cleaning", fan_speed="Spot", fan_speed_list=["Spot", "Smart"]))
+        entity.fill_by_ha_state(second_state)
+        return entity
+
+    def test_command_survives_a_missing_fan_speed_list(self):
+        """The attribute vanishing is a gap in the data, not a lost capability."""
+        entity = self._vacuum_that_lost_its_list(_make_ha_state("cleaning"))
+        result = entity.process_cmd(self.SPOT_CMD)
+        self.assertEqual(len(result), 1, "the program command was silently dropped")
+        self.assertEqual(result[0]["url"]["service_data"]["fan_speed"], "Spot")
+
+    def test_allowed_values_do_not_churn(self):
+        """``allowed_values`` drives ``model.id`` — it must not flap."""
+        entity = self._vacuum_that_lost_its_list(_make_ha_state("cleaning", fan_speed_list=[]))
+        allowed = entity.to_sber_state()["model"]["allowed_values"]
+        self.assertEqual(allowed["vacuum_cleaner_program"]["enum_values"]["values"], ["spot", "smart"])

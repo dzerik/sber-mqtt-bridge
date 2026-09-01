@@ -71,5 +71,11 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: SberBri
             "entities_missing_required_links": bridge.entities_missing_required_links,
             "stats": bridge.stats,
         },
+        # Its own block, not just a key buried in ``options``: "known to
+        # Sber: 0" on a working bridge (issue #57) is answered by comparing
+        # the live set, the persisted one and whether a config publish has
+        # succeeded this session — three facts that were nowhere in the
+        # dump, so the report could only be chased by guesswork.
+        "cloud_device_registry": bridge.cloud_device_registry_state,
         "entities": _build_entity_diagnostics(bridge),
     }

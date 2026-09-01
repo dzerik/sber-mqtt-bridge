@@ -159,7 +159,18 @@ class SberPublisher:
             await deps.publish(topic, payload)
         except (aiomqtt.MqttError, RuntimeError):
             deps.stats.publish_errors += 1
-            _LOGGER.exception("Error publishing %s to Sber", error_context)
+            # Topic and size are part of the message on purpose: a failed
+            # config publish is invisible otherwise (the bridge carries on,
+            # subscribes and serves commands), and "known to Sber: 0" on a
+            # working bridge was the only symptom the user could see —
+            # issue #57.  The size distinguishes a broker packet-limit
+            # rejection from a dropped session.
+            _LOGGER.exception(
+                "Error publishing %s to Sber on %s (%d bytes)",
+                error_context,
+                topic,
+                len(payload),
+            )
             return False
         deps.stats.messages_sent += 1
         deps.log_message("out", topic, payload)
@@ -248,6 +259,41 @@ class SberPublisher:
         if not isinstance(devices, dict):  # pragma: no cover — builder always emits a dict
             return set()
         return {eid for eid in devices if eid != "root"}
+
+    @staticmethod
+    def _config_payload_device_ids(payload: str) -> list[str]:
+        """Return the device IDs that actually made it into a config payload.
+
+        ``build_devices_list_json`` drops entities in three ways — no state
+        yet, a serialization error, per-device validation refusal — so the
+        requested list is *not* what the cloud receives.  Only the survivors
+        may be recorded as cloud-known: claiming a device the cloud never
+        got makes the publish gate hold every later config back waiting for
+        a device Sber does not have (issue #44), and inflates the panel's
+        "known to Sber" count (issue #57).  Mirrors
+        :meth:`_payload_device_ids`, which does the same job for states.
+
+        Args:
+            payload: The serialized config payload.
+
+        Returns:
+            IDs present in ``devices`` (excluding the synthetic hub), in
+            payload order.
+        """
+        try:
+            devices = json.loads(payload)["devices"]
+        except (ValueError, TypeError, KeyError):  # pragma: no cover — builder always emits valid JSON
+            return []
+        if not isinstance(devices, list):  # pragma: no cover — builder always emits a list
+            return []
+        ids: list[str] = []
+        for device in devices:
+            if not isinstance(device, dict):  # pragma: no cover — builder always emits dicts
+                continue
+            device_id = device.get("id")
+            if isinstance(device_id, str) and device_id and device_id != "root":
+                ids.append(device_id)
+        return ids
 
     async def publish_command_echo(self, devices: dict[str, dict]) -> None:
         """Publish immediate echo of a received Sber command as fast ack.
@@ -378,7 +424,7 @@ class SberPublisher:
                 entity.mark_state_published(snapshot=snapshot)
         self._record_devtools(topic, payload, ids_to_publish)
 
-    async def publish_config(self, entity_ids: list[str] | None = None, *, force: bool = False) -> None:
+    async def publish_config(self, entity_ids: list[str] | None = None, *, force: bool = False) -> bool:
         """Publish device descriptor on ``up/config``.
 
         Skips the publish when the payload is byte-identical to the previous
@@ -391,13 +437,22 @@ class SberPublisher:
             entity_ids: Specific entity IDs to publish, or ``None`` for all
                 enabled entities.
 
+        Returns:
+            True when the cloud is up to date — either a payload went out
+            or the identical one already had.  False when the descriptor
+            did **not** reach Sber: no transport, or the publish raised.
+            The caller has to know: a silently failed config publish leaves
+            the cloud without the device list while the bridge happily
+            subscribes and serves commands, which is exactly how issue #57
+            presented (working devices, empty "known to Sber").
+
         Stores ``_last_config_publish_time`` on success, hands control back
         to the bridge via ``on_config_published`` (which arms the ack
         audit), and emits the DevTools log entry.
         """
         deps = self._deps
         if not deps.is_connected():
-            return
+            return False
 
         ids_to_publish = entity_ids or deps.get_enabled_entity_ids()
         ctx = deps.get_config_context()
@@ -424,7 +479,7 @@ class SberPublisher:
             # coalescing gate), and re-sending the same device list only makes
             # the cloud re-evaluate a configuration that did not change.
             _LOGGER.debug("Config unchanged since last publish — skipping")
-            return
+            return True
         _LOGGER.debug(
             "Publishing config to %s (%d bytes): %s",
             topic,
@@ -432,13 +487,29 @@ class SberPublisher:
             payload,
         )
         if not await self._publish_logged(topic, payload, "config"):
-            return
+            return False
         self._last_config_publish_time = time.monotonic()
         self._last_config_payload = payload
+        # What the cloud received, not what we asked for: entities without
+        # state and entities the validator refused never made it into the
+        # payload, and must not be remembered as cloud-known.
+        published_ids = self._config_payload_device_ids(payload)
         _LOGGER.info(
             "Published device config to Sber (%d entities): %s",
-            len(ids_to_publish),
-            ", ".join(ids_to_publish),
+            len(published_ids),
+            ", ".join(published_ids),
         )
+        # Entities the validator refused already got their own warning
+        # above; what is left here never had state, so the payload builder
+        # skipped it silently.  Say which, so "the panel counts fewer
+        # devices than I exposed" has an answer in the log.
+        skipped = set(ids_to_publish) - set(published_ids) - set(invalid_ids)
+        if skipped:
+            _LOGGER.info(
+                "%d exposed device(s) had no state and stayed out of the config: %s",
+                len(skipped),
+                ", ".join(sorted(skipped)),
+            )
 
-        deps.on_config_published(list(ids_to_publish))
+        deps.on_config_published(published_ids)
+        return True

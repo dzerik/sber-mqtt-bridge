@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import pytest
 
+from custom_components.sber_mqtt_bridge._generated.reference_values import FEATURE_ENUM_VALUES
 from custom_components.sber_mqtt_bridge.devices.climate import (
     HA_TO_SBER_SWING,
     HA_TO_SBER_WORK_MODE,
@@ -38,34 +39,62 @@ from custom_components.sber_mqtt_bridge.devices.vacuum_cleaner import (
 # Documented Sber C2C enum value sets
 # ---------------------------------------------------------------------------
 
-SBER_HVAC_AIR_FLOW_DIRECTION = {"auto", "horizontal", "no", "rotation", "swing", "vertical"}
+# Every constant below is *bound* to the generated spec rather than
+# retyped.  A hand-written copy is a second source of truth that silently
+# goes stale: the sets for ``vacuum_cleaner_status``, ``hvac_work_mode``
+# and ``sensor_sensitive`` had each drifted, and because the compliance
+# tests asserted "produced value ∈ my copy", they certified the very
+# values the cloud cannot route ('go_home', 'quiet', 'auto').
+SBER_HVAC_AIR_FLOW_DIRECTION = FEATURE_ENUM_VALUES["hvac_air_flow_direction"]
 """Sber docs: hvac_air_flow_direction allowed values."""
 
-SBER_VACUUM_CLEANER_STATUS = {"cleaning", "charging", "standby", "go_home", "error"}
-"""Sber docs: vacuum_cleaner_status allowed values."""
+SBER_VACUUM_CLEANER_STATUS = FEATURE_ENUM_VALUES["vacuum_cleaner_status"]
+"""Sber docs: vacuum_cleaner_status allowed values.
 
-SBER_DIRECTION = {"up", "down", "left", "right", "ok"}
-"""Sber docs: direction allowed values for TV remote."""
+Taken from the generated spec rather than retyped: the hand-written set
+that used to live here ({"cleaning", "charging", "standby", "go_home",
+"error"}) came from an older revision of the docs and let the vacuum ship
+four values the cloud cannot route.  The function's own page documents
+exactly ``cleaning, docked, pause, returning_to_dock``."""
 
-SBER_SIGNAL_STRENGTH = {"low", "medium", "high"}
+SBER_DIRECTION = FEATURE_ENUM_VALUES["direction"] | {"ok"}
+"""Values ``TvEntity`` accepts on the inbound ``direction`` command.
+
+The documented vocabulary is ``down, left, right, up`` only; ``ok`` is a
+*tolerated alias*, kept because accepting a key the cloud is not
+documented to send costs nothing while refusing one it does send loses
+the button.  It is deliberately added on top of the spec rather than
+typed into it, so the documented half cannot drift unnoticed.  Nothing
+publishes ``direction`` — it is inbound-only — so the extra value never
+reaches Sber."""
+
+SBER_SIGNAL_STRENGTH = FEATURE_ENUM_VALUES["signal_strength"]
 """Sber docs: signal_strength allowed values."""
 
-SBER_SENSOR_SENSITIVE = {"auto", "high", "low"}
-"""Sber docs: sensor_sensitive allowed values."""
+SBER_SENSOR_SENSITIVE = FEATURE_ENUM_VALUES["sensor_sensitive"]
+"""Sber docs: sensor_sensitive allowed values.
 
-SBER_BUTTON_EVENT = {"click", "double_click", "long_press"}
+The retyped set here was ``{"auto", "high", "low"}`` — inverted against
+the spec on both ends: ``auto`` is not documented and ``medium`` is."""
+
+SBER_BUTTON_EVENT = FEATURE_ENUM_VALUES["button_event"]
 """Sber docs: button_event allowed values (HA input_boolean can only produce click/double_click)."""
 
-SBER_TEMP_UNIT_VIEW = {"c", "f"}
+SBER_TEMP_UNIT_VIEW = FEATURE_ENUM_VALUES["temp_unit_view"]
 """Sber docs: temp_unit_view allowed values."""
 
-SBER_OPEN_STATE = {"open", "close", "opening", "closing"}
+SBER_OPEN_STATE = FEATURE_ENUM_VALUES["open_state"]
 """Sber docs: open_state allowed values."""
 
-SBER_HVAC_WORK_MODE = {"cooling", "heating", "ventilation", "dehumidification", "auto", "eco", "turbo", "quiet"}
-"""Sber docs: hvac_work_mode allowed values."""
+SBER_HVAC_WORK_MODE = FEATURE_ENUM_VALUES["hvac_work_mode"]
+"""Sber docs: hvac_work_mode allowed values.
 
-SBER_LIGHT_MODE = {"white", "colour"}
+The retyped set here declared ``quiet`` (which belongs to
+``hvac_air_flow_power``) and omitted five real values, so it certified
+``climate.py`` as compliant while it published a value the cloud cannot
+route."""
+
+SBER_LIGHT_MODE = FEATURE_ENUM_VALUES["light_mode"]
 """Sber docs: light_mode allowed values."""
 
 
@@ -196,21 +225,26 @@ class TestVacuumCleanerStatus:
         assert _HA_STATE_TO_SBER_STATUS["cleaning"] == "cleaning"
         assert "cleaning" in SBER_VACUUM_CLEANER_STATUS
 
-    def test_error_status_is_documented(self):
-        """'error' is a valid Sber vacuum_cleaner_status."""
-        assert _HA_STATE_TO_SBER_STATUS["error"] == "error"
-        assert "error" in SBER_VACUUM_CLEANER_STATUS
+    def test_error_state_falls_back_to_pause(self):
+        """HA 'error' has no Sber counterpart and must degrade to 'pause'.
 
-    def test_returning_maps_to_go_home(self):
-        """HA 'returning' must map to Sber 'go_home'."""
+        Sber's vocabulary cannot express a fault at all, so the mapping
+        reports the two things that are certainly true — not cleaning,
+        not on the dock.
+        """
+        assert "error" not in SBER_VACUUM_CLEANER_STATUS
+        assert _HA_STATE_TO_SBER_STATUS["error"] == "pause"
+
+    def test_returning_maps_to_returning_to_dock(self):
+        """HA 'returning' must map to Sber 'returning_to_dock'."""
         sber_val = _HA_STATE_TO_SBER_STATUS.get("returning")
-        assert sber_val == "go_home"
+        assert sber_val == "returning_to_dock"
         assert sber_val in SBER_VACUUM_CLEANER_STATUS
 
-    def test_docked_maps_to_standby(self):
-        """HA 'docked' must map to Sber 'standby'."""
+    def test_docked_maps_to_docked(self):
+        """HA 'docked' must map to Sber 'docked' — the value exists now."""
         sber_val = _HA_STATE_TO_SBER_STATUS.get("docked")
-        assert sber_val == "standby"
+        assert sber_val == "docked"
         assert sber_val in SBER_VACUUM_CLEANER_STATUS
 
     def test_entity_produces_status_in_state(self):
@@ -227,8 +261,8 @@ class TestVacuumCleanerStatus:
         status = _get_enum_value(states, "vacuum_cleaner_status")
         assert status is not None, "vacuum_cleaner_status not found in state"
 
-    def test_unknown_ha_state_defaults_to_standby(self):
-        """Unknown HA state defaults to 'standby' (Sber-documented fallback)."""
+    def test_unknown_ha_state_defaults_to_docked(self):
+        """Unknown HA state defaults to 'docked' (Sber-documented fallback)."""
         entity_id = "vacuum.robot"
         entity = VacuumCleanerEntity(_make_entity_data(entity_id))
         entity.fill_by_ha_state(
@@ -239,7 +273,7 @@ class TestVacuumCleanerStatus:
         )
         states = _get_states(entity, entity_id)
         status = _get_enum_value(states, "vacuum_cleaner_status")
-        assert status == "standby"
+        assert status == "docked"
 
 
 # ===========================================================================
@@ -370,23 +404,30 @@ class TestSignalStrength:
 
 
 class TestSensorSensitive:
-    """Verify sensor_sensitive values match Sber docs: auto, high, low."""
+    """Verify sensor_sensitive values match Sber docs: high, low, medium."""
 
     @pytest.mark.parametrize(
         "sensitivity_input,expected_sber",
         [
-            ("auto", "auto"),
             ("high", "high"),
             ("low", "low"),
-            ("medium", "auto"),
-            ("Auto", "auto"),
+            ("medium", "medium"),
             ("HIGH", "high"),
             ("Low", "low"),
-            ("Medium", "auto"),
+            ("Medium", "medium"),
         ],
     )
     def test_sensitivity_mapping(self, sensitivity_input: str, expected_sber: str):
-        """HA sensitivity attribute maps to the correct Sber sensor_sensitive value."""
+        """HA sensitivity attribute maps to the correct Sber sensor_sensitive value.
+
+        This table used to expect ``medium`` → ``auto`` and ``auto`` →
+        ``auto``, i.e. exactly inverted against the spec:
+        ``FEATURE_ENUM_VALUES["sensor_sensitive"] == {"high", "low",
+        "medium"}``.  ``medium`` is documented and was being rewritten
+        into ``auto``, which is not — so every Aqara-class sensor
+        (ZHA/zigbee2mqtt expose low/medium/high) published a value the
+        cloud cannot route.
+        """
         entity_id = "binary_sensor.motion"
         entity = MotionSensorEntity(_make_entity_data(entity_id))
         entity.fill_by_ha_state(
@@ -399,6 +440,20 @@ class TestSensorSensitive:
         actual = _get_enum_value(states, "sensor_sensitive")
         assert actual == expected_sber
         assert expected_sber in SBER_SENSOR_SENSITIVE
+
+    @pytest.mark.parametrize("undocumented_input", ["auto", "Auto", "AUTO"])
+    def test_undocumented_auto_is_dropped(self, undocumented_input: str):
+        """HA ``auto`` names no documented level, so nothing is published.
+
+        Folding it onto one of the three levels would report a
+        sensitivity the device never claimed; publishing ``auto`` itself
+        hands Sber a value outside ``sensor_sensitive``.
+        """
+        assert "auto" not in SBER_SENSOR_SENSITIVE
+        entity_id = "binary_sensor.motion"
+        entity = MotionSensorEntity(_make_entity_data(entity_id))
+        entity.fill_by_ha_state({"state": "off", "attributes": {"sensitivity": undocumented_input}})
+        assert _get_enum_value(_get_states(entity, entity_id), "sensor_sensitive") is None
 
     @pytest.mark.parametrize("invalid_value", ["very_high", "super_low", "123", "none", ""])
     def test_invalid_sensitivity_not_in_state(self, invalid_value: str):
@@ -775,8 +830,16 @@ class TestHvacWorkMode:
         assert work_mode == "turbo"
         assert work_mode in SBER_HVAC_WORK_MODE
 
-    def test_preset_sleep_produces_quiet(self):
-        """HA preset_mode='sleep' produces hvac_work_mode='quiet'."""
+    def test_preset_sleep_produces_comfortable_sleep(self):
+        """HA preset_mode='sleep' produces hvac_work_mode='comfortable_sleep'.
+
+        The assertion here used to demand ``quiet``, which this feature's
+        own page does not list: ``hvac_work_mode`` is ``air_purification,
+        auto, comfortable_sleep, cooling, dehumidification, eco,
+        fast_cooling, fast_heating, heating, self_cleaning, turbo,
+        ventilation``.  ``quiet`` belongs to ``hvac_air_flow_power``, a
+        different function — see ``FEATURE_ENUM_VALUES`` for both.
+        """
         entity_id = "climate.test_ac"
         entity = ClimateEntity(_make_entity_data(entity_id))
         entity.fill_by_ha_state(
@@ -791,8 +854,9 @@ class TestHvacWorkMode:
         )
         states = _get_states(entity, entity_id)
         work_mode = _get_enum_value(states, "hvac_work_mode")
-        assert work_mode == "quiet"
+        assert work_mode == "comfortable_sleep"
         assert work_mode in SBER_HVAC_WORK_MODE
+        assert "quiet" not in SBER_HVAC_WORK_MODE, "'quiet' is hvac_air_flow_power, not hvac_work_mode"
 
     def test_off_mode_does_not_produce_work_mode(self):
         """HA hvac_mode='off' should NOT produce hvac_work_mode state."""

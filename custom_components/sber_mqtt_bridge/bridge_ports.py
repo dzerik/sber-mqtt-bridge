@@ -55,3 +55,10 @@ class StatsPort(Protocol):
 
     acknowledged_entities: set[str]
     """Entity IDs Sber has acknowledged."""
+
+    collectively_acked_entities: set[str]
+    """Subset of the above acknowledged without being named individually.
+
+    Fed only by a ``status_request`` that carries no device list.  See
+    :attr:`~sber_bridge.SberStats.collectively_acked_entities`.
+    """

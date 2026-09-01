@@ -15,6 +15,7 @@ import logging
 from abc import abstractmethod
 from typing import ClassVar
 
+from .._generated.reference_values import FEATURE_ENUM_VALUES
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_state
 from .base_entity import SENSOR_LINK_ROLES, AttrSpec, BaseEntity
@@ -108,15 +109,35 @@ class SimpleReadOnlySensor(BatteryAndSignalLinkMixin, BaseEntity):
 
     @staticmethod
     def _parse_sensitivity(attrs: dict) -> str | None:
-        """Parse sensor sensitivity with HA → Sber value mapping."""
+        """Parse sensor sensitivity into a documented ``sensor_sensitive`` value.
+
+        Sber documents exactly ``high``, ``low`` and ``medium``
+        (:data:`FEATURE_ENUM_VALUES`), so those three pass through
+        unchanged.  The mapping used to be inverted against the spec on
+        both ends: it rewrote the documented ``medium`` into ``auto`` and
+        let ``auto`` through, and ``auto`` is not a ``sensor_sensitive``
+        value at all — the cloud cannot route it.  ``medium`` is the
+        common case, since ZHA and zigbee2mqtt expose Aqara motion and
+        door sensors as low/medium/high.
+
+        ``auto`` from HA now yields ``None``: silence is honest, whereas
+        folding it onto one of the three levels would report a
+        sensitivity the device never claimed.
+
+        Args:
+            attrs: HA state attributes.
+
+        Returns:
+            One of ``high`` / ``low`` / ``medium``, or ``None`` when the
+            attribute is absent or names nothing Sber documents.
+        """
         sensitivity = attrs.get("sensitivity") or attrs.get("motion_sensitivity")
         if sensitivity is None:
             return None
         s = str(sensitivity).lower()
-        if s not in ("auto", "high", "low", "medium"):
+        if s not in FEATURE_ENUM_VALUES["sensor_sensitive"]:
             return None
-        # Sber only accepts auto/high/low; map medium→auto
-        return {"medium": "auto"}.get(s, s)
+        return s
 
     def _build_sber_value_dict(self) -> dict:
         """Build the Sber value dict for the sensor's feature.

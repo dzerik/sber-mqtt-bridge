@@ -1264,10 +1264,15 @@ class TestTvCompliance:
         _assert_bool_value(states, "on_off", False)
 
     def test_source_enum_in_state(self):
-        """source must be ENUM in state when set."""
+        """source must be ENUM carrying the documented Sber input name.
+
+        Sber's ``source`` vocabulary is ``hdmi1, hdmi2, hdmi3, tv, av,
+        content, screencast, +, -``; the HA label "HDMI 1" was published
+        verbatim before and is not one of them.
+        """
         entity = self._make_entity(source="HDMI 1", source_list=["HDMI 1", "TV"])
         states = _get_states(entity, self.ENTITY_ID)
-        _assert_enum_value(states, "source", "HDMI 1")
+        _assert_enum_value(states, "source", "hdmi1")
 
     def test_source_absent_when_none(self):
         """source must not appear in state when not set."""
@@ -1287,11 +1292,16 @@ class TestTvCompliance:
             assert key not in allowed, f"{key} must not be in TV allowed_values"
 
     def test_allowed_values_source_enum(self):
-        """source allowed_values must list source_list entries."""
+        """source allowed_values must list the documented Sber inputs.
+
+        One entry per HA input that resolves; the HA labels themselves
+        ("HDMI 1") are outside the vocabulary and would render a control
+        the cloud cannot route.
+        """
         entity = self._make_entity(source_list=["HDMI 1", "TV", "AV"])
         allowed = entity.create_allowed_values_list()
         assert "source" in allowed
-        assert allowed["source"]["enum_values"]["values"] == ["HDMI 1", "TV", "AV"]
+        assert allowed["source"]["enum_values"]["values"] == ["hdmi1", "tv", "av"]
 
     def test_cmd_on_off_turn_on(self):
         """on_off=true must produce media_player.turn_on."""
@@ -1393,14 +1403,19 @@ class TestTvCompliance:
         assert call["service_data"]["is_volume_muted"] is True
 
     def test_cmd_source_select(self):
-        """source ENUM must produce select_source."""
+        """source ENUM must produce select_source with the HA input label.
+
+        The cloud sends ``hdmi1`` (its own vocabulary), while
+        ``media_player.select_source`` accepts only a member of
+        ``source_list`` — so the value has to be translated back.
+        """
         entity = self._make_entity(source_list=["HDMI 1", "TV"])
         result = entity.process_cmd(
             {
                 "states": [
                     {
                         "key": "source",
-                        "value": {"type": "ENUM", "enum_value": "HDMI 1"},
+                        "value": {"type": "ENUM", "enum_value": "hdmi1"},
                     }
                 ],
             }

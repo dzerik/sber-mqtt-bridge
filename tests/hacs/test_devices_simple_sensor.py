@@ -2,6 +2,7 @@
 
 import unittest
 
+from custom_components.sber_mqtt_bridge._generated.reference_values import FEATURE_ENUM_VALUES
 from custom_components.sber_mqtt_bridge.devices.motion_sensor import MotionSensorEntity
 from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
 
@@ -36,23 +37,34 @@ class TestSensorSensitiveMotion(unittest.TestCase):
         ss = next(s for s in states if s["key"] == "sensor_sensitive")
         self.assertEqual(ss["value"]["enum_value"], "high")
 
-    def test_sensitivity_auto_in_state(self):
-        """sensitivity=auto must map to sensor_sensitive=auto."""
+    def test_sensitivity_auto_is_dropped(self):
+        """sensitivity=auto publishes nothing — Sber has no such value.
+
+        This asserted ``sensor_sensitive=auto`` before.  The documented
+        vocabulary is ``FEATURE_ENUM_VALUES["sensor_sensitive"] ==
+        {"high", "low", "medium"}``; ``auto`` is not in it, so the cloud
+        cannot route it.
+        """
+        self.assertNotIn("auto", FEATURE_ENUM_VALUES["sensor_sensitive"])
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_motion_state(sensitivity="auto"))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.motion"]["states"]
-        ss = next(s for s in states if s["key"] == "sensor_sensitive")
-        self.assertEqual(ss["value"]["enum_value"], "auto")
+        states = entity.to_sber_current_state()["binary_sensor.motion"]["states"]
+        self.assertEqual([s for s in states if s["key"] == "sensor_sensitive"], [])
 
-    def test_sensitivity_medium_maps_to_auto(self):
-        """sensitivity=medium must map to sensor_sensitive=auto (Sber only supports auto/high/low)."""
+    def test_sensitivity_medium_is_published_verbatim(self):
+        """sensitivity=medium must map to sensor_sensitive=medium.
+
+        The old assertion rewrote it into ``auto`` — backwards on both
+        ends, since ``medium`` is documented and ``auto`` is not.  It is
+        the common case: ZHA and zigbee2mqtt expose Aqara motion sensors
+        as low/medium/high.
+        """
+        self.assertIn("medium", FEATURE_ENUM_VALUES["sensor_sensitive"])
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_motion_state(sensitivity="medium"))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.motion"]["states"]
+        states = entity.to_sber_current_state()["binary_sensor.motion"]["states"]
         ss = next(s for s in states if s["key"] == "sensor_sensitive")
-        self.assertEqual(ss["value"]["enum_value"], "auto")
+        self.assertEqual(ss["value"]["enum_value"], "medium")
 
     def test_sensitivity_low_in_state(self):
         """sensitivity=low must map to sensor_sensitive=low."""
@@ -124,9 +136,13 @@ class TestSensorSensitiveTemp(unittest.TestCase):
     """Test sensor_sensitive via SensorTempEntity (inherits SimpleReadOnlySensor)."""
 
     def test_sensitivity_in_features(self):
-        """SensorTempEntity with sensitivity must include sensor_sensitive."""
+        """SensorTempEntity with sensitivity must include sensor_sensitive.
+
+        The probe value was ``auto``, which the ``sensor_sensitive`` page
+        does not document; any documented level exercises the same branch.
+        """
         entity = SensorTempEntity(TEMP_DATA)
-        entity.fill_by_ha_state(_temp_state(sensitivity="auto"))
+        entity.fill_by_ha_state(_temp_state(sensitivity="medium"))
         features = entity.get_final_features_list()
         self.assertIn("sensor_sensitive", features)
 

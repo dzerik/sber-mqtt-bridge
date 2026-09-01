@@ -8,6 +8,7 @@ path and CLI scripting.  The device-centric wizard lives in
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from typing import Any
 
 import voluptuous as vol
@@ -42,6 +43,26 @@ from ._common import (  # noqa: F401 — get_bridge / get_config_entry re-export
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _forget_cloud_devices(hass: HomeAssistant, entity_ids: Iterable[str]) -> None:
+    """Drop un-exposed entities from the persisted cloud-known registry.
+
+    The registry is the floor a config publish may not go below (issue
+    #44), so an entity the user removed has to leave it — otherwise
+    "remove everything" leaves a floor made entirely of devices nobody
+    exposes any more.  A no-op while the bridge is not loaded: the
+    registry only exists as part of it, and the next publish re-derives
+    the set anyway.
+
+    Args:
+        hass: Home Assistant instance.
+        entity_ids: Entity ids being un-exposed.
+    """
+    bridge = get_bridge(hass)
+    if bridge is None:
+        return
+    bridge.forget_cloud_devices(entity_ids)
 
 
 @websocket_api.websocket_command(
@@ -110,6 +131,9 @@ async def ws_remove_entities(
         entity_options.pop(eid, None)
 
     if removed > 0:
+        _forget_cloud_devices(hass, to_remove)
+        # Built *after* the registry pruned itself, and from the live
+        # options mapping, so neither write loses the other's keys.
         new_options = dict(entry.options)
         new_options[CONF_EXPOSED_ENTITIES] = new_list
         new_options[CONF_ENTITY_TYPE_OVERRIDES] = overrides
@@ -326,6 +350,7 @@ async def ws_clear_all(
     entry: Any,
 ) -> None:
     """Remove all entities from the exposed list and clear overrides."""
+    _forget_cloud_devices(hass, entry.options.get(CONF_EXPOSED_ENTITIES, []))
     new_options = dict(entry.options)
     previous_count = len(new_options.get(CONF_EXPOSED_ENTITIES, []))
     new_options[CONF_EXPOSED_ENTITIES] = []

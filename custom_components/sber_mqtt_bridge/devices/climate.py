@@ -36,9 +36,33 @@ HA_TO_SBER_WORK_MODE: dict[str, str] = {
 """Map HA HVAC modes to Sber work mode enum values.
 
 'off' is excluded — use on_off.
-Sber also supports 'turbo' and 'quiet' work modes; these are mapped
-from HA preset_modes (boost→turbo, sleep→quiet) in _build_current_state.
+HA *presets* reach the same feature through
+:data:`PRESET_TO_SBER_WORK_MODE`.
 """
+
+PRESET_TO_SBER_WORK_MODE: dict[str, str] = {
+    "boost": "turbo",
+    "sleep": "comfortable_sleep",
+    "eco": "eco",
+}
+"""Map HA ``preset_mode`` values onto documented ``hvac_work_mode`` values.
+
+A preset is not an HVAC mode, but Sber's work-mode vocabulary covers the
+three that matter, so they are reported here rather than dropped.
+
+Every value is taken from the documented vocabulary
+(``FEATURE_ENUM_VALUES["hvac_work_mode"]``: ``air_purification, auto,
+comfortable_sleep, cooling, dehumidification, eco, fast_cooling,
+fast_heating, heating, self_cleaning, turbo, ventilation``).  ``sleep``
+and ``eco`` both used to publish ``quiet``, which belongs to a *different*
+function — ``hvac_air_flow_power`` — and is absent from this one, so the
+cloud could not route it and the app's mode control went dead.  ``eco``
+was the worse half of that bug: Sber documents ``eco`` itself, and it was
+being replaced by a value that does not exist here.
+"""
+
+SBER_WORK_MODE_TO_PRESET: dict[str, str] = {sber: ha for ha, sber in PRESET_TO_SBER_WORK_MODE.items()}
+"""Reverse of :data:`PRESET_TO_SBER_WORK_MODE`, for inbound commands."""
 
 SBER_TO_HA_WORK_MODE: dict[str, str] = {
     "cooling": "cool",
@@ -522,14 +546,20 @@ class ClimateEntity(BaseEntity):
         return []
 
     def _state_work_mode_with_presets(self) -> list:
-        """Build hvac_work_mode state entry, mapping HA presets (boost/sleep/eco) to Sber turbo/quiet."""
+        """Build the ``hvac_work_mode`` state entry.
+
+        An active HA preset takes precedence over the plain HVAC mode when
+        it names something Sber's work-mode vocabulary can express (see
+        :data:`PRESET_TO_SBER_WORK_MODE`); otherwise the HVAC mode is used.
+
+        Returns:
+            Single-element list with the state entry, or empty when the
+            device has no work mode to report.
+        """
         if not (self._supports_work_mode and self.hvac_mode and self.hvac_mode != "off"):
             return []
-        if self._preset_mode == "boost":
-            sber_mode = "turbo"
-        elif self._preset_mode in ("sleep", "eco"):
-            sber_mode = "quiet"
-        else:
+        sber_mode = PRESET_TO_SBER_WORK_MODE.get(self._preset_mode or "")
+        if sber_mode is None:
             sber_mode = HA_TO_SBER_WORK_MODE.get(self.hvac_mode)
         if not sber_mode:
             return []
@@ -673,19 +703,32 @@ class ClimateEntity(BaseEntity):
         return [self._build_service_call(domain, "set_swing_mode", self.entity_id, {"swing_mode": ha_swing})]
 
     def _cmd_work_mode(self, value: dict) -> list[dict]:
-        """Handle ``hvac_work_mode``: prefer ``set_hvac_mode``, fall back to presets."""
+        """Handle ``hvac_work_mode``: prefer ``set_hvac_mode``, fall back to presets.
+
+        A real HVAC mode is the stronger reading and is tried first: a
+        thermostat that declares an ``eco`` hvac_mode means it literally,
+        while ``eco`` can *also* arrive from the preset side.  Values with
+        no HVAC mode at all (``turbo``, ``comfortable_sleep``) fall through
+        to the preset the state side derived them from.
+
+        Args:
+            value: Sber command value dict with ``enum_value``.
+
+        Returns:
+            Single service call, or empty list when nothing on this device
+            can express the requested mode.
+        """
         sber_mode = value.get("enum_value")
         if not sber_mode:
             return []
-        # Sber turbo/quiet work modes map to HA preset_modes
-        preset = self._sber_fan_mode_to_preset(sber_mode)
         domain = self.get_entity_domain()
-        if preset is not None:
-            return [self._build_service_call(domain, "set_preset_mode", self.entity_id, {"preset_mode": preset})]
         ha_mode = SBER_TO_HA_WORK_MODE.get(sber_mode)
-        if not ha_mode or (self.hvac_modes and ha_mode not in self.hvac_modes):
-            return []
-        return [self._build_service_call(domain, "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode})]
+        if ha_mode and (not self.hvac_modes or ha_mode in self.hvac_modes):
+            return [self._build_service_call(domain, "set_hvac_mode", self.entity_id, {"hvac_mode": ha_mode})]
+        preset = SBER_WORK_MODE_TO_PRESET.get(sber_mode)
+        if preset is not None and preset in (self._preset_modes or []):
+            return [self._build_service_call(domain, "set_preset_mode", self.entity_id, {"preset_mode": preset})]
+        return []
 
     def _cmd_thermostat_mode(self, value: dict) -> list[dict]:
         sber_mode = value.get("enum_value")

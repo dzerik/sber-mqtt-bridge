@@ -4,8 +4,11 @@ Validates every outgoing state publish against the auto-generated Sber
 spec (see ``_generated/``) and surfaces four kinds of issue:
 
 * **missing_obligatory** — a feature listed in
-  :data:`CATEGORY_OBLIGATORY_FEATURES` is not present in the payload.
-  Sber silently drops the device on the first such publish.
+  :data:`CATEGORY_OBLIGATORY_FEATURES` is missing from the device model,
+  or absent from the payload while being able to carry a quiet value.
+  Sber silently drops such a device.  Event-only features
+  (:data:`EVENT_ONLY_FEATURES`) are exempt from the payload half: they
+  have no value for "nothing happened", so silence *is* the quiet state.
 * **missing_conditional** — the device declares none of an
   "at least one of" group (:data:`CATEGORY_CONDITIONAL_FEATURES`): a
   gate with no way to open, an air sensor measuring nothing.  Just as
@@ -57,6 +60,18 @@ from ._generated.obligatory_features import CATEGORY_OBLIGATORY_FEATURES
 from ._generated.reference_values import FEATURE_ENUM_VALUES, FEATURE_RANGES
 
 _LOGGER = logging.getLogger(__name__)
+
+EVENT_ONLY_FEATURES: frozenset[str] = frozenset(
+    name for name, values in FEATURE_ENUM_VALUES.items() if len(values) == 1
+)
+"""Features that can only ever report that something *happened*.
+
+Derived, not hand-listed: a documented vocabulary of exactly one value
+leaves no way to say "not happening", so silence is the quiet state.
+``pir`` is the case that matters — Sber's own page says it is "отправляется,
+когда обнаружено движение" — and requiring it in every publish reported
+every idle motion sensor as broken (issue #61) while the cloud was
+perfectly happy with them."""
 
 IssueType = Literal[
     "missing_obligatory",
@@ -162,29 +177,41 @@ def validate_publish(
     states_list = list(states)
     state_keys = {s.get("key") for s in states_list if s.get("key")}
 
+    ref = CATEGORY_REFERENCE_FEATURES.get(category) if category else None
+    declared_set = set(declared_features) if declared_features is not None else None
+
     # --- missing obligatory -------------------------------------------------
-    if category in CATEGORY_OBLIGATORY_FEATURES:
-        issues.extend(
+    # Sber's ✔︎ means "describe this feature in the device model", which is
+    # not the same as "send it in every state publish".  An event-only
+    # feature has no value for the quiet case, so its absence from a
+    # payload is how the device says "nothing happened" — demanding it
+    # every time flagged every idle motion sensor (issue #61).
+    for must in sorted(CATEGORY_OBLIGATORY_FEATURES.get(category or "", ())):
+        undeclared = declared_set is not None and must not in declared_set
+        if undeclared:
+            description = (
+                f"Obligatory feature '{must}' for category '{category}' is "
+                "missing from the device model. Sber will drop this device."
+            )
+        elif must not in state_keys and must not in EVENT_ONLY_FEATURES:
+            description = (
+                f"Obligatory feature '{must}' for category '{category}' is "
+                "absent from the publish. Sber will drop this device."
+            )
+        else:
+            continue
+        issues.append(
             ValidationIssue(
                 ts=now,
                 entity_id=entity_id,
-                category=category,
+                category=category or "",
                 type="missing_obligatory",
                 severity=_SEVERITY["missing_obligatory"],
                 key=must,
-                description=(
-                    f"Obligatory feature '{must}' for category "
-                    f"'{category}' is absent from the publish. "
-                    "Sber will drop this device."
-                ),
+                description=description,
                 details={"missing": must},
             )
-            for must in CATEGORY_OBLIGATORY_FEATURES[category]
-            if must not in state_keys
         )
-
-    ref = CATEGORY_REFERENCE_FEATURES.get(category) if category else None
-    declared_set = set(declared_features) if declared_features is not None else None
 
     # --- missing conditional group -----------------------------------------
     # Deliberately keyed on the declared features, never on the states: a

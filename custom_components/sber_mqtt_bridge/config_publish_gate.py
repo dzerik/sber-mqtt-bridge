@@ -49,7 +49,7 @@ class ConfigPublishGate:
         get_enabled_entity_ids: Callable[[], list[str]],
         get_ready_entity_ids: Callable[[], set[str]],
         get_cloud_known_ids: Callable[[], frozenset[str]],
-        publish: Callable[..., Awaitable[None]],
+        publish: Callable[..., Awaitable[bool]],
         create_task: Callable[..., asyncio.Task],
     ) -> None:
         """Initialize the gate.
@@ -68,7 +68,9 @@ class ConfigPublishGate:
                 cloud currently holds.  Only these block a publish: omitting
                 a device the cloud has is destructive, whereas a device it
                 has never seen can safely join a later payload.
-            publish: Async callback performing the real config publish.
+            publish: Async callback performing the real config publish;
+                returns True when the cloud is up to date, False when the
+                descriptor did not reach it.
             create_task: Bridge helper that schedules a task with error
                 logging.
         """
@@ -171,16 +173,21 @@ class ConfigPublishGate:
             return False
         return True
 
-    async def flush_now(self) -> None:
+    async def flush_now(self) -> bool:
         """Publish immediately, bypassing coalescing.
 
         Used by explicit user actions (panel "Re-publish", Sber
         ``config_request``) where waiting would be surprising.  Bypasses the
         unchanged-payload check too: the user asked for a publish, so one
         must actually go out.
+
+        Returns:
+            Whatever the publish callback reported — False means the
+            descriptor never reached Sber, which the caller must not
+            mistake for a completed handshake (issue #57).
         """
         self.cancel()
-        await self._publish(force=True)
+        return bool(await self._publish(force=True))
 
     def _missing_entity_ids(self) -> list[str]:
         """Return enabled entity IDs that have no state yet."""

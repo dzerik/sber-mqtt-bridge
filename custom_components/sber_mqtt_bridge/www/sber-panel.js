@@ -126,13 +126,17 @@ class SberMqttPanel extends LitElement {
         this.hass.callWS({ type: "sber_mqtt_bridge/devices" }),
         this.hass.callWS({ type: "sber_mqtt_bridge/status" }),
       ]);
-      this._devices = devResult.devices || [];
-      this._devicesExtra = {
-        total: devResult.total,
-        acknowledged_count: devResult.acknowledged_count,
-        unacknowledged_count: devResult.unacknowledged_count,
-        unacknowledged: devResult.unacknowledged || [],
-      };
+      /* Everything the backend sends *except* the device list, forwarded
+       * verbatim.  This used to hand-copy four named keys, so every counter
+       * the backend added later silently read 0 in the panel: that is the
+       * whole of issue #57 — "known to Sber: 0" on a bridge whose registry
+       * was fully populated, because `cloud_known_count`,
+       * `never_confirmed_count` and `never_confirmed` were dropped here and
+       * the consumers fell back to `?? 0`.  Spreading keeps the two sides in
+       * step by construction. */
+      const { devices: devList, ...extra } = devResult;
+      this._devices = devList || [];
+      this._devicesExtra = extra;
       this._status = statusResult;
       this._error = "";
     } catch (e) {

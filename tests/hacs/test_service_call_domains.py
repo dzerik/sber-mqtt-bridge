@@ -208,6 +208,20 @@ LIGHT_STATE: dict = {
 }
 """RGB-лампа без CCT: делает ветку ``light_mode=white`` детерминированной."""
 
+TV_STATE: dict = {
+    "state": "playing",
+    "attributes": {"source_list": ["HDMI 1", "TV"], "source": "HDMI 1"},
+}
+"""Телевизор с распознаваемыми входами: ``source`` объявляется только для тех
+подписей HA, которые ложатся на словарь Sber (``hdmi1``, ``tv``, …)."""
+
+VACUUM_STATE: dict = {
+    "state": "cleaning",
+    "attributes": {"fan_speed_list": ["Spot", "Smart"], "fan_speed": "Spot"},
+}
+"""Пылесос с режимами, которые Sber документирует: имена скоростей вентилятора
+(``turbo``) не соответствуют ни одному ``vacuum_cleaner_program``."""
+
 LIGHT_CMDS: tuple[Cmd, ...] = (
     Cmd("on_off", {"type": "BOOL", "bool_value": True}, (Expect("turn_on"),), label="on"),
     Cmd("on_off", {"type": "BOOL", "bool_value": False}, (Expect("turn_off"),), label="off"),
@@ -548,10 +562,12 @@ PROBES: tuple[Probe, ...] = (
                 {"type": "BOOL", "bool_value": True},
                 (Expect("volume_mute", {"is_volume_muted": True}),),
             ),
+            # Sber присылает своё значение (hdmi1), а HA ждёт подпись входа
+            # из ``source_list`` — отсюда обратный перевод в "HDMI 1".
             Cmd(
                 "source",
-                {"type": "ENUM", "enum_value": "HDMI1"},
-                (Expect("select_source", {"source": "HDMI1"}),),
+                {"type": "ENUM", "enum_value": "hdmi1"},
+                (Expect("select_source", {"source": "HDMI 1"}),),
             ),
             Cmd(
                 "channel_int",
@@ -568,6 +584,7 @@ PROBES: tuple[Probe, ...] = (
             Cmd("direction", {"type": "ENUM", "enum_value": "ok"}, (Expect("media_play_pause"),)),
             Cmd("custom_key", {"type": "ENUM", "enum_value": "play"}, (Expect("media_play"),)),
         ),
+        ha_state=TV_STATE,
     ),
     Probe(
         "vacuum_cleaner",
@@ -593,11 +610,20 @@ PROBES: tuple[Probe, ...] = (
                 label="dock",
             ),
             Cmd(
+                "vacuum_cleaner_command",
+                {"type": "ENUM", "enum_value": "resume"},
+                (Expect("start"),),
+                label="resume",
+            ),
+            # Sber знает только perimeter/spot/smart/random_route, а
+            # ``vacuum.set_fan_speed`` — только режимы из ``fan_speed_list``.
+            Cmd(
                 "vacuum_cleaner_program",
-                {"type": "ENUM", "enum_value": "turbo"},
-                (Expect("set_fan_speed", {"fan_speed": "turbo"}),),
+                {"type": "ENUM", "enum_value": "spot"},
+                (Expect("set_fan_speed", {"fan_speed": "Spot"}),),
             ),
         ),
+        ha_state=VACUUM_STATE,
     ),
     Probe(
         "intercom",
