@@ -22,6 +22,7 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { messageBus } = await import(`../message-bus.js${_q}`);
 
 const TOPIC_SUFFIXES = [
@@ -115,7 +116,7 @@ class SberReplay extends LitElement {
   async _inject() {
     if (this._busy) return;
     this._busy = true;
-    this._setStatus("Injecting...", "info");
+    this._setStatus(t(this.hass, "replay.injecting"), "info");
     try {
       const result = await this.hass.callWS({
         type: "sber_mqtt_bridge/inject_sber_message",
@@ -139,7 +140,7 @@ class SberReplay extends LitElement {
   async _replayOne(topic, payload) {
     if (this._busy) return;
     this._busy = true;
-    this._setStatus("Replaying...", "info");
+    this._setStatus(t(this.hass, "replay.replaying"), "info");
     try {
       const result = await this.hass.callWS({
         type: "sber_mqtt_bridge/replay_message",
@@ -169,6 +170,11 @@ class SberReplay extends LitElement {
     return s.length > n ? s.slice(0, n) + "…" : s;
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+  }
+
   render() {
     // Only incoming real traffic is replayable — replays themselves
     // should not appear in the list or users would chain replays.
@@ -180,7 +186,7 @@ class SberReplay extends LitElement {
     return html`
       <div class="section">
         <div class="section-header">
-          <h2>Replay &amp; Inject</h2>
+          <h2>${t(this.hass, "replay.title")}</h2>
         </div>
         <div class="hint">
           Feed a Sber-shaped MQTT message into the bridge without touching the broker.  Works offline; the same dispatcher, correlation trace and state diff see it.
@@ -188,10 +194,10 @@ class SberReplay extends LitElement {
         ${this._status ? html`<div class="status status-${this._statusKind}">${this._status}</div>` : ""}
 
         <div class="subsection">
-          <h3>Manual inject</h3>
+          <h3>${t(this.hass, "replay.manual")}</h3>
           <div class="form-row">
-            <label>Topic suffix</label>
-            <select aria-label="Topic suffix" .value=${this._topic} @change=${(e) => { this._topic = e.target.value; }}>
+            <label>${t(this.hass, "replay.topic")}</label>
+            <select aria-label="${t(this.hass, 'replay.topic')}" .value=${this._topic} @change=${(e) => { this._topic = e.target.value; }}>
               ${TOPIC_SUFFIXES.map((s) => html`<option value="${s}">${s}</option>`)}
             </select>
           </div>
@@ -199,12 +205,12 @@ class SberReplay extends LitElement {
             .value=${this._payload}
             spellcheck="false"
             @input=${(e) => { this._payload = e.target.value; }}
-            placeholder="Sber JSON payload..."></textarea>
+            placeholder="${t(this.hass, 'replay.payload_hint')}"></textarea>
           <div class="btn-bar">
             <button class="btn-primary"
               ?disabled=${this._busy || !this._payload.trim()}
               @click=${this._inject}>
-              ${this._busy ? "Working..." : "Inject"}
+              ${this._busy ? t(this.hass, "replay.busy") : t(this.hass, "replay.inject")}
             </button>
             <button class="btn-secondary"
               @click=${() => { this._payload = DEFAULT_PAYLOAD; }}>
@@ -214,16 +220,16 @@ class SberReplay extends LitElement {
         </div>
 
         <div class="subsection">
-          <h3>Replay from log</h3>
+          <h3>${t(this.hass, "replay.from_log")}</h3>
           ${replayable.length === 0
             ? html`<div class="empty">No incoming messages yet. Real Sber traffic will appear here.</div>`
             : html`
               <table class="replay-table">
                 <thead>
                   <tr>
-                    <th>Time</th>
-                    <th>Topic</th>
-                    <th>Payload</th>
+                    <th>${t(this.hass, "replay.col_time")}</th>
+                    <th>${t(this.hass, "replay.col_topic")}</th>
+                    <th>${t(this.hass, "replay.col_payload")}</th>
                     <th></th>
                   </tr>
                 </thead>

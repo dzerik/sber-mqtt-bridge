@@ -15,6 +15,7 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 
 const STATUS_LABEL = {
   active: "Active",
@@ -158,7 +159,7 @@ class SberTraces extends LitElement {
       return s.length > 60 ? s.slice(0, 60) + "…" : s;
     }
     if (ev.type === "silent_rejection") {
-      return "Sber did not acknowledge";
+      return t(this.hass, "traces.no_ack");
     }
     return "";
   }
@@ -191,18 +192,23 @@ class SberTraces extends LitElement {
     return groups;
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+  }
+
   render() {
     const traces = [...this._traces].reverse(); // newest first
     const groups = this._groupTraces(traces);
     return html`
       <div class="section">
         <div class="section-header">
-          <h2>Correlation Timeline</h2>
+          <h2>${t(this.hass, "traces.title")}</h2>
           <div class="btn-group">
             <button class="btn-danger"
               ?disabled=${this._traces.length === 0}
               @click=${this._clearTraces}>
-              Clear Traces
+              ${t(this.hass, "traces.clear")}
             </button>
           </div>
         </div>
@@ -247,9 +253,9 @@ class SberTraces extends LitElement {
             <thead>
               <tr>
                 <th class="col-t">t+ms</th>
-                <th class="col-type">Event</th>
-                <th class="col-entity">Entity</th>
-                <th class="col-detail">Detail</th>
+                <th class="col-type">${t(this.hass, "traces.col_event")}</th>
+                <th class="col-entity">${t(this.hass, "traces.col_entity")}</th>
+                <th class="col-detail">${t(this.hass, "traces.col_detail")}</th>
               </tr>
             </thead>
             <tbody>

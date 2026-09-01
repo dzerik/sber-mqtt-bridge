@@ -155,7 +155,7 @@ class SberWizard extends LitElement {
       this._categories = result.categories || [];
       this._categoryGroups = result.groups || [];
     } catch (err) {
-      this._error = "Failed to load categories: " + (err.message || err);
+      this._error = t(this.hass, "wizard.categories_failed", { reason: err.message || err });
       this._categories = [];
       this._categoryGroups = [];
     } finally {
@@ -175,7 +175,7 @@ class SberWizard extends LitElement {
       });
       this._devices = result.devices || [];
     } catch (err) {
-      this._error = "Failed to load devices: " + (err.message || err);
+      this._error = t(this.hass, "wizard.devices_failed", { reason: err.message || err });
     } finally {
       this._loading = false;
     }
@@ -241,7 +241,7 @@ class SberWizard extends LitElement {
   _nameAdvice(name) {
     const value = name || "";
     if (!value) {
-      return { level: "warn", text: "Empty name — Sber may reject the device" };
+      return { level: "warn", text: t(this.hass, "wizard.empty_name") };
     }
     if (value.length > 63) {
       return { level: "warn", text: `${value.length} chars (>63) — Sber may truncate or reject` };
@@ -455,8 +455,8 @@ class SberWizard extends LitElement {
           tabindex="-1"
         >
           <div class="dialog-header">
-            <h2 id="wizard-title">Add Device</h2>
-            <button class="close-btn" aria-label="Close wizard" @click=${this.hide}>\u2715</button>
+            <h2 id="wizard-title">${t(this.hass, "wizard.title")}</h2>
+            <button class="close-btn" aria-label="${t(this.hass, 'wizard.close')}" @click=${this.hide}>\u2715</button>
           </div>
           ${this._renderStepper()}
           <div class="body">
@@ -490,10 +490,10 @@ class SberWizard extends LitElement {
   /* ---------- Step 1: category grid ---------- */
   _renderStep1() {
     if (this._loading) {
-      return html`<div class="empty-state">Loading categories...</div>`;
+      return html`<div class="empty-state">${t(this.hass, "wizard.loading_categories")}</div>`;
     }
     if (!this._categories.length) {
-      return html`<div class="empty-state">No categories available</div>`;
+      return html`<div class="empty-state">${t(this.hass, "wizard.no_categories")}</div>`;
     }
     const byGroup = new Map();
     for (const group of this._categoryGroups) {
@@ -530,7 +530,7 @@ class SberWizard extends LitElement {
   /* ---------- Step 2: HA device list with inline sensors ---------- */
   _renderStep2() {
     if (this._loading) {
-      return html`<div class="empty-state">Loading devices...</div>`;
+      return html`<div class="empty-state">${t(this.hass, "wizard.loading_devices")}</div>`;
     }
     const filter = this._deviceFilter.trim().toLowerCase();
     const filtered = !filter
@@ -562,15 +562,15 @@ class SberWizard extends LitElement {
         <input
           class="filter-input"
           type="search"
-          aria-label="Search devices"
-          placeholder="Search by name, manufacturer, model, area..."
+          aria-label="${t(this.hass, 'wizard.search')}"
+          placeholder="${t(this.hass, 'wizard.search_placeholder')}"
           .value=${this._deviceFilter}
           @input=${(e) => { this._deviceFilter = e.target.value; }}
         />
       </div>
 
       ${filtered.length === 0
-        ? html`<div class="empty-state">No HA devices match this category</div>`
+        ? html`<div class="empty-state">${t(this.hass, "wizard.no_devices")}</div>`
         : html`
             <div class="device-list">
               ${filtered.map((device) => this._renderDeviceCard(device))}
@@ -647,21 +647,21 @@ class SberWizard extends LitElement {
 
         ${nativeLinks.length > 0 ? html`
           <div class="expanded-section">
-            <div class="expanded-title">Native sensors</div>
+            <div class="expanded-title">${t(this.hass, "wizard.native_sensors")}</div>
             ${nativeLinks.map((link) => this._renderLinkRow(device, link, false))}
           </div>
         ` : ""}
 
         ${compatibleLinks.length > 0 ? html`
           <div class="expanded-section">
-            <div class="expanded-title">Compatible sensors from other devices</div>
+            <div class="expanded-title">${t(this.hass, "wizard.other_sensors")}</div>
             ${compatibleLinks.map((link) => this._renderLinkRow(device, link, true))}
           </div>
         ` : ""}
 
         ${unsupported.length > 0 ? html`
           <div class="expanded-section unsupported-section">
-            <div class="expanded-title">Not usable</div>
+            <div class="expanded-title">${t(this.hass, "wizard.not_usable")}</div>
             ${unsupported.map((e) => html`
               <div class="link-row disabled">
                 <span class="link-name">🚫 ${e.friendly_name || e.entity_id}</span>
@@ -704,13 +704,13 @@ class SberWizard extends LitElement {
     return html`
       <div class="summary-block">
         <div class="summary-line"><b>HA device:</b> ${device?.name || ""}</div>
-        <div class="summary-line"><b>Sber category:</b> ${categoryLabel}</div>
+        <div class="summary-line"><b>${t(this.hass, "wizard.summary_category")}</b> ${categoryLabel}</div>
         <div class="summary-line">
-          <b>Adding:</b> ${this._pendingPrimaries.length} ${this._pendingPrimaries.length === 1 ? "device" : "devices"}${
+          <b>${t(this.hass, "wizard.adding")}</b> ${t(this.hass, "wizard.device_count", { count: this._pendingPrimaries.length })}${
             this._added.size > 0 ? html` <span class="hint-inline">(${this._added.size} already added)</span>` : ""
           }
         </div>
-        <div class="summary-line"><b>Linked sensors:</b> ${linkedCount}${
+        <div class="summary-line"><b>${t(this.hass, "wizard.summary_linked")}</b> ${linkedCount}${
           isMulti && linkedCount > 0
             ? html` <span class="hint-inline">(attached to first device only)</span>`
             : ""
@@ -740,34 +740,34 @@ class SberWizard extends LitElement {
           ? html`<div class="outcome outcome-fail" role="status">✗ Failed: ${failure.message}</div>`
           : ""}
         <div class="field">
-          <label>${isMulti ? "Name" : "Device name (for Salut voice)"}</label>
+          <label>${isMulti ? t(this.hass, "wizard.name") : t(this.hass, "wizard.name_voice")}</label>
           <input
             type="text"
-            aria-label="Sber device name"
+            aria-label="${t(this.hass, 'wizard.name')}"
             aria-describedby="name-advice-${primaryId}"
             class="${advice.level === "warn" ? "warn" : ""}"
-            placeholder="e.g. Лампа кухня"
+            placeholder="${t(this.hass, 'wizard.name_example')}"
             ?disabled=${isAdded}
             .value=${form.name}
             @input=${(e) => this._onPrimaryNameInput(primaryId, e.target.value)}
           />
           <div class="hint hint-${advice.level}" id="name-advice-${primaryId}">
-            ${advice.text || (isMulti ? "" : "Will be spoken by Salut assistant")}
+            ${advice.text || (isMulti ? "" : t(this.hass, "wizard.name_hint"))}
           </div>
         </div>
 
         <div class="field">
-          <label>Device ID</label>
-          <input type="text" aria-label="Sber device id" .value=${form.slug} readonly />
-          ${isMulti ? "" : html`<div class="hint">Transliterated slug for the Sber protocol</div>`}
+          <label>${t(this.hass, "wizard.device_id")}</label>
+          <input type="text" aria-label="${t(this.hass, 'wizard.device_id')}" .value=${form.slug} readonly />
+          ${isMulti ? "" : html`<div class="hint">${t(this.hass, "wizard.slug_hint")}</div>`}
         </div>
 
         <div class="field">
-          <label>Room (optional)</label>
+          <label>${t(this.hass, "wizard.room")}</label>
           <input
             type="text"
-            aria-label="Room"
-            placeholder="e.g. Кухня"
+            aria-label="${t(this.hass, 'wizard.room_short')}"
+            placeholder="${t(this.hass, 'wizard.room_example')}"
             .value=${form.room}
             @input=${(e) => this._onPrimaryRoomInput(primaryId, e.target.value)}
           />
@@ -790,13 +790,13 @@ class SberWizard extends LitElement {
         ? `Retry ${pending} failed`
         : pending > 1
           ? `Add ${pending} devices`
-          : "Add device";
+          : t(this.hass, "wizard.finish");
 
     return html`
       <div class="dialog-footer">
         <div>
           ${this._step > 1
-            ? html`<button class="btn btn-secondary" @click=${this._goBack}>Back</button>`
+            ? html`<button class="btn btn-secondary" @click=${this._goBack}>${t(this.hass, "wizard.back")}</button>`
             : html`<span></span>`}
         </div>
         <div>
@@ -805,7 +805,7 @@ class SberWizard extends LitElement {
                 Next
               </button>`
             : html`<button class="btn btn-success" ?disabled=${!canFinish} @click=${this._finish}>
-                ${this._loading ? "Adding..." : finishLabel}
+                ${this._loading ? t(this.hass, "wizard.adding_progress") : finishLabel}
               </button>`}
         </div>
       </div>

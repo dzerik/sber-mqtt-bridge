@@ -175,7 +175,7 @@ class SberJsonBlock extends LitElement {
 
   render() {
     if (!this.text) {
-      return html`<div class="empty">${this.placeholder || "No data"}</div>`;
+      return html`<div class="empty">${this.placeholder || t(this.hass, "json.no_data")}</div>`;
     }
     const hidden = this.hiddenLineCount;
     return html`

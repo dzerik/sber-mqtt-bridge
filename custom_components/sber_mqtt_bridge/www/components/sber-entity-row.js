@@ -344,7 +344,7 @@ class SberEntityRow extends LitElement {
       <td class="cell-check">
         <input
           type="checkbox"
-          aria-label="${t(this.hass, "row.select", { entity: d.entity_id })}"
+          aria-label="${t(this.hass, 'row.select', { entity: d.entity_id })}"
           .checked=${this.selected}
           @change=${this._onCheckChange}
         />
@@ -354,7 +354,7 @@ class SberEntityRow extends LitElement {
           class="name-link"
           role="button"
           tabindex="0"
-          aria-label="${t(this.hass, "row.details", { entity: d.name || d.entity_id })}"
+          aria-label="${t(this.hass, 'row.details', { entity: d.name || d.entity_id })}"
           @click=${this._onShowDetail}
           @keydown=${(e) => this._onKeyActivate(e, this._onShowDetail)}
         >${d.name || "\u2014"}</span>${d.linked_entities ? html` <span class="feature-tag" style="background:var(--info-color,#2196f3);color:#fff">\u{1F517} +${Object.keys(d.linked_entities).length}</span>` : ""}</td>
@@ -376,7 +376,7 @@ class SberEntityRow extends LitElement {
       <td class="cell-actions">
         <div class="actions-cell">
           <select
-            aria-label="${t(this.hass, "row.override", { entity: d.entity_id })}"
+            aria-label="${t(this.hass, 'row.override', { entity: d.entity_id })}"
             @change=${this._onOverrideChange}
           >
             ${this._categoryOptions().map(
@@ -390,13 +390,13 @@ class SberEntityRow extends LitElement {
               `
             )}
           </select>
-          <button class="icon-btn" @click=${this._onLink} title="Link entities" aria-label="Link entities ${d.entity_id}">
+          <button class="icon-btn" @click=${this._onLink} title="${t(this.hass, 'row.link')}" aria-label="${t(this.hass, 'row.link_entity', { entity: d.entity_id })}">
             \u{1F517}
           </button>
-          <button class="icon-btn sync" @click=${this._onSync} title="Sync to Sber" aria-label="Sync to Sber ${d.entity_id}">
+          <button class="icon-btn sync" @click=${this._onSync} title="${t(this.hass, 'row.sync')}" aria-label="${t(this.hass, 'row.sync_entity', { entity: d.entity_id })}">
             \u{1F504}
           </button>
-          <button class="icon-btn" @click=${this._onDelete} title="Remove entity" aria-label="Remove entity ${d.entity_id}">
+          <button class="icon-btn" @click=${this._onDelete} title="${t(this.hass, 'row.remove')}" aria-label="${t(this.hass, 'row.remove_entity', { entity: d.entity_id })}">
             \u{1F5D1}
           </button>
         </div>

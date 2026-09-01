@@ -699,6 +699,7 @@ class TestNameGateIsAdvisory:
         method = _method_source(_read("components/sber-wizard.js"), "_nameAdvice")
         driver = (
             'import { isValidSalutName } from "./utils.mjs";\n'
+            "const t = (hass, key, ph) => key;\n"
             f"const wizard = {{ {method} }};\n"
             f"const cases = {json.dumps([name for name, _ in NAME_ADVICE_CASES])};\n"
             "console.log(JSON.stringify(cases.map((c) => wizard._nameAdvice(c))));\n"
@@ -715,6 +716,7 @@ class TestNameGateIsAdvisory:
         method = _method_source(_read("components/sber-wizard.js"), "_nameAdvice")
         driver = (
             'import { isValidSalutName } from "./utils.mjs";\n'
+            "const t = (hass, key, ph) => key;\n"
             f"const wizard = {{ {method} }};\n"
             "const probes = ['', 'x', 'Лампа', 'Living Room', 'a'.repeat(200), '💡'];\n"
             "console.log(JSON.stringify(probes.map((p) => wizard._nameAdvice(p).level)));\n"
@@ -1260,6 +1262,14 @@ _PANEL_HARNESS = """
 const POLL_INTERVAL_MS = 1;
 const POLL_TIMEOUT_MS = 150;
 
+/* Mirrors www/localize.js: an unknown key comes back unchanged, and
+ * {placeholders} are filled the same way, so the shipped panel methods
+ * run here exactly as they do in the browser. */
+const t = (hass, key, ph) => {
+  const raw = key;
+  return ph ? raw + " " + JSON.stringify(ph) : raw;
+};
+
 function makePanel(snapshots, opts = {}) {
   let reads = 0;
   const panel = {
@@ -1365,7 +1375,10 @@ class TestPollPredicates:
             "console.log(JSON.stringify(report(panel)));\n",
         )
         assert out["reads"] > 1, "the panel must actually retry"
-        assert "did not confirm" in out["error"], (
+        # Проверяем выбранный КЛЮЧ, а не английскую фразу: текст переехал
+        # в файлы переводов и стережётся test_translations_consistency.
+        # Здесь важно другое — что незавершённая правка вообще доложена.
+        assert "panel.unconfirmed" in out["error"], (
             "a mutation that never became visible must be surfaced, not silently swallowed"
         )
 
@@ -1495,7 +1508,7 @@ class TestPollPredicates:
             "sensor.old -> sensor.new keeps the key count identical; a count-only "
             "predicate accepts the stale map and the dialog closes on old data"
         )
-        assert out["toasts"] == [["Entity links updated", "success"]]
+        assert out["toasts"] == [["panel.links_updated", "success"]]
 
     @requires_node
     def test_links_saved_rejects_a_stale_superset(self, tmp_path):
@@ -2447,7 +2460,10 @@ class TestPayloadDumpsAreNotSilentlyCropped:
             "delegates it to the block, never both"
         )
         if hide_copy:
-            assert re.search(r">\s*Copy", _read(path)), (
+            # Ищем ключ перевода, а не английское слово: подпись кнопки
+            # переехала в файлы переводов. Суть проверки прежняя — вид,
+            # погасивший кнопку блока, обязан предложить свою.
+            assert re.search(r"\.copy_report|>\s*Copy", _read(path)), (
                 f"{path}: suppresses the block's copy button without offering one itself"
             )
 
@@ -2459,7 +2475,11 @@ class TestPayloadDumpsAreNotSilentlyCropped:
             "a DevTools payload block starts empty — without a placeholder the "
             "user sees a blank box instead of 'Click the button above to load data'"
         )
-        assert all("load data" in match.group(1) for match in placeholders if match)
+        # Текст подсказки переехал в переводы, поэтому здесь проверяется
+        # выбранный ключ: что он существует и не пуст в обеих локалях,
+        # стережёт test_translations_consistency. Смысл теста прежний —
+        # пустой блок обязан объяснять себя, а не быть белым прямоугольником.
+        assert all("devtools.load_hint" in match.group(1) for match in placeholders if match)
 
     def test_devtools_composes_the_shared_code_surface(self):
         """The editor's monospace look now lives only in ``codeSurfaceStyles``."""
@@ -2670,7 +2690,7 @@ class TestPayloadDumpsAreNotSilentlyCropped:
         )
         assert "<pre" not in empty, "nothing to show means nothing to render as a payload"
         assert "<button" not in empty, "nothing to show means nothing to expand or copy"
-        assert "No data" in out["emptyDefault"], "a block with no placeholder still needs a word"
+        assert "json.no_data" in out["emptyDefault"], "a block with no placeholder still needs a word"
 
         hidden = out["fullLines"] - threshold
         assert f"Show all {out['fullLines']} lines" in out["collapsed"]

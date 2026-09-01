@@ -15,6 +15,7 @@ await Promise.all([
 ]);
 
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 
 /** How many times the static category registry is re-fetched after an error. */
 const MAX_CATEGORY_ATTEMPTS = 3;
@@ -385,6 +386,11 @@ class SberDeviceTable extends LitElement {
     this._selected = new Set();
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+  }
+
   render() {
     const extra = this.devicesExtra || {};
     const filtered = this._filteredDevices;
@@ -396,30 +402,30 @@ class SberDeviceTable extends LitElement {
       <div class="card">
         <div class="counters">
           <div class="counter-item">
-            <span class="stat-label">Total exposed:</span>
+            <span class="stat-label">${t(this.hass, "table.total_exposed")}</span>
             <strong>${extra.total ?? 0}</strong>
           </div>
           <div class="counter-item">
-            <span class="stat-label" title="Devices the Sber cloud is known to hold. Remembered across restarts.">
-              Known to Sber:
+            <span class="stat-label" title="${t(this.hass, 'table.known_hint')}">
+              ${t(this.hass, "table.known_to_sber")}
             </span>
             <span class="badge badge-green">${extra.cloud_known_count ?? 0}</span>
           </div>
           <div class="counter-item">
             <span
               class="stat-label"
-              title="Confirmed since this bridge started. Empty right after a Home Assistant restart — the cloud has no reason to speak up until the app asks for state."
+              title="${t(this.hass, 'table.session_hint')}"
             >
-              Confirmed this session:
+              ${t(this.hass, "table.confirmed_session")}
             </span>
             <span class="badge badge-grey">${extra.acknowledged_count ?? 0}</span>
           </div>
           <div class="counter-item">
             <span
               class="stat-label"
-              title="The cloud has never once asked about these. Unlike the counter above, this does not fill up after a restart — a device staying here is the signature of a silent rejection."
+              title="${t(this.hass, 'table.never_hint')}"
             >
-              Never confirmed:
+              ${t(this.hass, "table.never_confirmed")}
             </span>
             <span
               class="badge ${(extra.never_confirmed_count ?? 0) > 0 ? "badge-red" : "badge-grey"}"
@@ -430,7 +436,7 @@ class SberDeviceTable extends LitElement {
         </div>
         ${(extra.never_confirmed?.length ?? 0) > 0
           ? html`<div class="unack-list">
-              Never confirmed by Sber: ${extra.never_confirmed.join(", ")}
+              ${t(this.hass, "table.never_confirmed_list", { entities: extra.never_confirmed.join(", ") })}
             </div>`
           : ""}
       </div>
@@ -441,8 +447,8 @@ class SberDeviceTable extends LitElement {
           <input
             class="filter-input"
             type="search"
-            aria-label="Search devices"
-            placeholder="Search devices..."
+            aria-label="${t(this.hass, 'table.search')}"
+            placeholder="${t(this.hass, 'table.search_placeholder')}"
             .value=${this._filter}
             @input=${this._onFilterInput}
           />
@@ -460,7 +466,7 @@ class SberDeviceTable extends LitElement {
           : ""}
 
         ${filtered.length === 0
-          ? html`<div class="empty-state">No exposed devices found</div>`
+          ? html`<div class="empty-state">${t(this.hass, "table.empty")}</div>`
           : html`
               <div class="table-wrapper">
                 <table>
@@ -469,7 +475,7 @@ class SberDeviceTable extends LitElement {
                       <th class="not-sortable" style="width:40px">
                         <input
                           type="checkbox"
-                          aria-label="Select all devices"
+                          aria-label="${t(this.hass, 'table.select_all')}"
                           .checked=${allSelected}
                           @change=${this._onSelectAll}
                         />
@@ -478,70 +484,70 @@ class SberDeviceTable extends LitElement {
                         role="columnheader"
                         tabindex="0"
                         aria-sort=${this._ariaSort("entity_id")}
-                        title="Sort by Entity ID"
+                        title="${t(this.hass, 'table.sort_by', { column: t(this.hass, "table.col_entity") })}"
                         @click=${() => this._onSort("entity_id")}
                         @keydown=${(e) => this._onSortKeydown(e, "entity_id")}
                       >
-                        Entity ID
+                        ${t(this.hass, "table.col_entity")}
                         <span class="sort-arrow">${this._sortArrow("entity_id")}</span>
                       </th>
                       <th
                         role="columnheader"
                         tabindex="0"
                         aria-sort=${this._ariaSort("name")}
-                        title="Sort by Name"
+                        title="${t(this.hass, 'table.sort_by', { column: t(this.hass, "table.col_name") })}"
                         @click=${() => this._onSort("name")}
                         @keydown=${(e) => this._onSortKeydown(e, "name")}
                       >
-                        Name
+                        ${t(this.hass, "table.col_name")}
                         <span class="sort-arrow">${this._sortArrow("name")}</span>
                       </th>
                       <th
                         role="columnheader"
                         tabindex="0"
                         aria-sort=${this._ariaSort("sber_category")}
-                        title="Sort by Category"
+                        title="${t(this.hass, 'table.sort_by', { column: t(this.hass, "table.col_category") })}"
                         @click=${() => this._onSort("sber_category")}
                         @keydown=${(e) => this._onSortKeydown(e, "sber_category")}
                       >
-                        Category
+                        ${t(this.hass, "table.col_category")}
                         <span class="sort-arrow">${this._sortArrow("sber_category")}</span>
                       </th>
-                      <th class="not-sortable">Features</th>
+                      <th class="not-sortable">${t(this.hass, "table.col_features")}</th>
                       <th
                         role="columnheader"
                         tabindex="0"
                         aria-sort=${this._ariaSort("room")}
-                        title="Sort by Room"
+                        title="${t(this.hass, 'table.sort_by', { column: t(this.hass, "table.col_room") })}"
                         @click=${() => this._onSort("room")}
                         @keydown=${(e) => this._onSortKeydown(e, "room")}
                       >
-                        Room
+                        ${t(this.hass, "table.col_room")}
                         <span class="sort-arrow">${this._sortArrow("room")}</span>
                       </th>
                       <th
                         role="columnheader"
                         tabindex="0"
                         aria-sort=${this._ariaSort("state")}
-                        title="Sort by State"
+                        title="${t(this.hass, 'table.sort_by', { column: t(this.hass, "table.col_state") })}"
                         @click=${() => this._onSort("state")}
                         @keydown=${(e) => this._onSortKeydown(e, "state")}
                       >
-                        State
+                        ${t(this.hass, "table.col_state")}
                         <span class="sort-arrow">${this._sortArrow("state")}</span>
                       </th>
                       <th
                         role="columnheader"
                         tabindex="0"
                         aria-sort=${this._ariaSort("is_online")}
-                        title="Sort by Online"
+                        title="${t(this.hass, 'table.sort_by', { column: t(this.hass, "table.col_online") })}"
                         @click=${() => this._onSort("is_online")}
                         @keydown=${(e) => this._onSortKeydown(e, "is_online")}
                       >
-                        Online
+                        ${t(this.hass, "table.col_online")}
                         <span class="sort-arrow">${this._sortArrow("is_online")}</span>
                       </th>
-                      <th class="not-sortable">Actions</th>
+                      <th class="not-sortable">${t(this.hass, "table.col_actions")}</th>
                     </tr>
                   </thead>
                   <tbody>
