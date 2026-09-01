@@ -56,6 +56,7 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_mock_service
 
 import custom_components.sber_mqtt_bridge.websocket_api as ws_pkg
+from custom_components.sber_mqtt_bridge.cloud_device_registry import OPTIONS_KEY
 from custom_components.sber_mqtt_bridge.const import (
     CONF_ENTITY_LINKS,
     CONF_ENTITY_TYPE_OVERRIDES,
@@ -1200,3 +1201,75 @@ class TestCommandTableInvariants:
         await hass.async_block_till_done()
         assert not leaky, f"commands accepting undeclared keys: {leaky}"
         snapshot().assert_same_as(before, "unexpected-key sweep")
+
+
+class TestConfigPublishRecordsTheDevices:
+    """Публикация — момент, когда мост узнаёт, что держит облако.
+
+    :class:`~cloud_device_registry.CloudDeviceRegistry` — то, что делает
+    столбец «Известно Сберу» переживающим перезапуск (issue #57). Само
+    ЗАПОЛНЕНИЕ реестра не покрывал никто: тесты перезапуска подменяют
+    его заглушкой, поэтому мост, ни разу не вызвавший ``note_published``,
+    прошёл бы их все — а на живой системе столбец стоял бы в нуле.
+    """
+
+    async def test_publish_fills_both_the_view_and_the_storage(
+        self, hass: Any, entry: MockConfigEntry, transport: Any
+    ) -> None:
+        """Публикация конфигурации обязана попасть в реестр и в опции.
+
+        Панель показывает «Известно Сберу» из этого реестра, а следующий
+        запуск читает его из опций записи. Если тест упадёт, столбец
+        останется нулевым при исправно работающем мосте — устройства
+        будут выглядеть неизвестными облаку, хотя они опубликованы.
+        """
+        bridge = entry.runtime_data.bridge
+        expected = list(bridge.enabled_entity_ids)
+        assert expected, "фикстура обязана выставить хотя бы одну сущность"
+        assert bridge.cloud_known_entities == [], "до публикации реестр пуст"
+
+        await bridge._publisher.publish_config(force=True)
+        await hass.async_block_till_done()
+
+        assert bridge.cloud_known_entities == expected, "реестр не увидел опубликованные устройства"
+        assert entry.options.get(OPTIONS_KEY) == sorted(expected), (
+            "реестр не сохранён в опциях — после перезапуска он снова окажется пустым"
+        )
+
+    async def test_nothing_is_never_confirmed_after_a_publish(
+        self, hass: Any, entry: MockConfigEntry, transport: Any
+    ) -> None:
+        """Опубликованное устройство не может считаться неподтверждённым.
+
+        «Ни разу не подтверждено» — единственный счётчик, по которому
+        мост поднимает тревогу. Устройство, только что ушедшее в облако,
+        в него попадать не должно, иначе предупреждение снова станет
+        ложным, как было до issue #57.
+        """
+        bridge = entry.runtime_data.bridge
+
+        await bridge._publisher.publish_config(force=True)
+        await hass.async_block_till_done()
+
+        assert bridge.never_confirmed_entities == []
+
+    async def test_a_skipped_publish_does_not_wipe_the_registry(
+        self, hass: Any, entry: MockConfigEntry, transport: Any
+    ) -> None:
+        """Пропущенная из-за дедупликации публикация не должна стирать память.
+
+        Мост не отправляет конфигурацию, совпадающую с предыдущей
+        побайтово. Если бы он при этом всё равно перезаписывал реестр
+        пустым списком, «Известно Сберу» обнулялось бы на ровном месте.
+        """
+        bridge = entry.runtime_data.bridge
+        await bridge._publisher.publish_config(force=True)
+        await hass.async_block_till_done()
+        filled = bridge.cloud_known_entities
+        assert filled
+
+        # Второй вызов без force — payload тот же, публикация пропускается.
+        await bridge._publisher.publish_config()
+        await hass.async_block_till_done()
+
+        assert bridge.cloud_known_entities == filled
