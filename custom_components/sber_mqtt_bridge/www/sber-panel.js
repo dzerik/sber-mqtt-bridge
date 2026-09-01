@@ -651,6 +651,7 @@ class SberMqttPanel extends LitElement {
           .phase=${this._status?.phase || "disconnected"}
           .totalDevices=${this._devicesExtra.total ?? 0}
           .acknowledgedCount=${this._devicesExtra.acknowledged_count ?? 0}
+          .cloudKnownCount=${this._devicesExtra.cloud_known_count ?? 0}
           .loading=${this._loading}
           .healthScore=${this._status?.health?.score || "healthy"}
           .healthIssues=${this._status?.health?.issues || []}

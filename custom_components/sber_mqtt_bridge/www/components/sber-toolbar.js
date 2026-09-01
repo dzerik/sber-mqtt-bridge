@@ -25,6 +25,8 @@ class SberToolbar extends LitElement {
       phase: { type: String },
       totalDevices: { type: Number },
       acknowledgedCount: { type: Number },
+      /** Devices the cloud is known to hold — survives restarts. */
+      cloudKnownCount: { type: Number },
       loading: { type: Boolean },
       healthScore: { type: String },
       healthIssues: { type: Array },
@@ -38,6 +40,7 @@ class SberToolbar extends LitElement {
     this.phase = "disconnected";
     this.totalDevices = 0;
     this.acknowledgedCount = 0;
+    this.cloudKnownCount = 0;
     this.loading = false;
     this.healthScore = "healthy";
     this.healthIssues = [];
@@ -422,7 +425,7 @@ class SberToolbar extends LitElement {
       <span class="spacer"></span>
 
       <span class="counter">
-        ${t(this.hass, "toolbar.device_counter", { total: this.totalDevices, known: this.acknowledgedCount })}
+        ${t(this.hass, "toolbar.device_counter", { total: this.totalDevices, known: this.cloudKnownCount })}
       </span>
 
       <span class="status">
