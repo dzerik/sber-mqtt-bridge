@@ -396,7 +396,7 @@ class TestStatusModule:
 
         assert health["score"] == "unhealthy"
         assert "disconnected" in health["issues"]
-        assert "1 entities unacknowledged" in health["issues"]
+        assert "1 entities never confirmed by Sber" in health["issues"]
 
     async def test_status_health_is_degraded_when_connected_but_unacknowledged(
         self, admin: Any, transport: RecordingTransport
@@ -405,7 +405,30 @@ class TestStatusModule:
         health = (await ok(admin, "status"))["health"]
 
         assert health["score"] == "degraded"
-        assert health["issues"] == ["1 entities unacknowledged"]
+        assert health["issues"] == ["1 entities never confirmed by Sber"]
+
+    async def test_status_health_survives_a_restart(
+        self, admin: Any, entry: MockConfigEntry, transport: RecordingTransport
+    ) -> None:
+        """Перезапуск HA не должен портить оценку здоровья моста.
+
+        Отметка подтверждения живёт в памяти и после рестарта пуста, но
+        список устройств, о которых облако спрашивало, сохраняется в
+        настройках записи. Раньше мост считал такое состояние
+        «degraded» и писал пользователю, что устройства не приняты, —
+        ровно то, о чём сообщили в issue #57. Если тест упадёт, ложная
+        тревога вернётся после каждой перезагрузки.
+        """
+        bridge = entry.runtime_data.bridge
+        # Ровно состояние сразу после перезапуска: подтверждений в этой
+        # сессии нет, но облако про устройство спрашивало раньше.
+        bridge._stats.acknowledged_entities.clear()
+        bridge._cloud_devices.note_cloud_reported([LAMP])
+
+        health = (await ok(admin, "status"))["health"]
+
+        assert health["score"] == "healthy"
+        assert health["issues"] == []
 
     async def test_status_health_is_healthy_when_connected_and_acknowledged(
         self, admin: Any, entry: MockConfigEntry, transport: RecordingTransport

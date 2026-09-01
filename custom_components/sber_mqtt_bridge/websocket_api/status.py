@@ -58,6 +58,16 @@ async def ws_get_devices(
     acknowledged_all = bridge.stats.get("acknowledged_entities", [])
     acknowledged = [eid for eid in acknowledged_all if eid in enabled_ids]
     unacknowledged = bridge.unacknowledged_entities
+    # Survives restarts, unlike the acknowledgement mark — see
+    # SberBridge.cloud_known_entities and issue #57.
+    cloud_known = bridge.cloud_known_entities
+    never_confirmed = bridge.never_confirmed_entities
+    known_set = set(cloud_known)
+    acknowledged_set = set(acknowledged)
+    for device_data in devices:
+        eid = device_data["entity_id"]
+        device_data["cloud_known"] = eid in known_set
+        device_data["acknowledged"] = eid in acknowledged_set
 
     connection.send_result(
         msg["id"],
@@ -67,6 +77,9 @@ async def ws_get_devices(
             "acknowledged_count": len(acknowledged),
             "unacknowledged_count": len(unacknowledged),
             "unacknowledged": unacknowledged,
+            "cloud_known_count": len(cloud_known),
+            "never_confirmed_count": len(never_confirmed),
+            "never_confirmed": never_confirmed,
         },
     )
 
@@ -97,9 +110,14 @@ async def ws_get_status(
     # Compute health score
     stats = bridge.stats
     unack = bridge.unacknowledged_entities
+    # Health must not degrade just because Home Assistant restarted: the
+    # acknowledgement mark is per-session, so `unack` holds everything for
+    # a while after every boot (issue #57).  Only entities the cloud has
+    # never once been seen to know are a real problem.
+    never_confirmed = bridge.never_confirmed_entities
     issues: list[str] = []
-    if unack:
-        issues.append(f"{len(unack)} entities unacknowledged")
+    if never_confirmed:
+        issues.append(f"{len(never_confirmed)} entities never confirmed by Sber")
     if stats.get("errors_from_sber", 0) > 0:
         issues.append(f"{stats['errors_from_sber']} Sber error(s)")
     if stats.get("publish_errors", 0) > 0:
@@ -109,7 +127,7 @@ async def ws_get_status(
 
     if not bridge.is_connected:
         health_score = "unhealthy"
-    elif unack or stats.get("errors_from_sber", 0) > 0:
+    elif never_confirmed or stats.get("errors_from_sber", 0) > 0:
         health_score = "degraded"
     else:
         health_score = "healthy"
@@ -122,6 +140,8 @@ async def ws_get_status(
             "stats": stats,
             "entities_count": bridge.entities_count,
             "unacknowledged": unack,
+            "cloud_known": bridge.cloud_known_entities,
+            "never_confirmed": never_confirmed,
             "version": VERSION,
             "health": {
                 "score": health_score,

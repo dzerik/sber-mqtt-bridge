@@ -400,21 +400,37 @@ class SberDeviceTable extends LitElement {
             <strong>${extra.total ?? 0}</strong>
           </div>
           <div class="counter-item">
-            <span class="stat-label">Acknowledged:</span>
-            <span class="badge badge-green">${extra.acknowledged_count ?? 0}</span>
+            <span class="stat-label" title="Devices the Sber cloud is known to hold. Remembered across restarts.">
+              Known to Sber:
+            </span>
+            <span class="badge badge-green">${extra.cloud_known_count ?? 0}</span>
           </div>
           <div class="counter-item">
-            <span class="stat-label">Unacknowledged:</span>
             <span
-              class="badge ${(extra.unacknowledged_count ?? 0) > 0 ? "badge-red" : "badge-grey"}"
+              class="stat-label"
+              title="Confirmed since this bridge started. Empty right after a Home Assistant restart — the cloud has no reason to speak up until the app asks for state."
             >
-              ${extra.unacknowledged_count ?? 0}
+              Confirmed this session:
+            </span>
+            <span class="badge badge-grey">${extra.acknowledged_count ?? 0}</span>
+          </div>
+          <div class="counter-item">
+            <span
+              class="stat-label"
+              title="The cloud has never once asked about these. Unlike the counter above, this does not fill up after a restart — a device staying here is the signature of a silent rejection."
+            >
+              Never confirmed:
+            </span>
+            <span
+              class="badge ${(extra.never_confirmed_count ?? 0) > 0 ? "badge-red" : "badge-grey"}"
+            >
+              ${extra.never_confirmed_count ?? 0}
             </span>
           </div>
         </div>
-        ${(extra.unacknowledged?.length ?? 0) > 0
+        ${(extra.never_confirmed?.length ?? 0) > 0
           ? html`<div class="unack-list">
-              Unacknowledged: ${extra.unacknowledged.join(", ")}
+              Never confirmed by Sber: ${extra.never_confirmed.join(", ")}
             </div>`
           : ""}
       </div>

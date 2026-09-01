@@ -87,7 +87,11 @@ class SberStatsGrid extends LitElement {
     }
 
     const stats = s.stats || {};
-    const unack = s.unacknowledged || [];
+    // Not `unacknowledged`: that list holds everything for a while after
+    // every restart, because the acknowledgement mark is per-session and
+    // the cloud has no reason to speak up until something asks it for
+    // state.  Showing it as a problem was issue #57.
+    const unack = s.never_confirmed || [];
 
     return html`
       <div class="stats-grid">
@@ -132,7 +136,12 @@ class SberStatsGrid extends LitElement {
           <span class="stat-value">${s.entities_count ?? 0}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Unacknowledged</span>
+          <span
+            class="stat-label"
+            title="Devices the Sber cloud has never once asked about. Survives restarts, so a device listed here is genuinely not getting through."
+          >
+            Never confirmed
+          </span>
           <span class="stat-value">${unack.length}</span>
         </div>
       </div>
@@ -140,7 +149,7 @@ class SberStatsGrid extends LitElement {
       ${unack.length > 0
         ? html`
             <div class="unack-section">
-              <h3>Unacknowledged Entities</h3>
+              <h3>Never confirmed by Sber</h3>
               <div class="unack-list">
                 ${unack.map((e) => html`<div><code>${e}</code></div>`)}
               </div>
