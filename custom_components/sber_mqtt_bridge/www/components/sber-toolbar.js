@@ -10,12 +10,15 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { buttonStyles } = await import(`../shared-styles.js${_q}`);
 const { deepActiveElement } = await import(`../utils.js${_q}`);
 
 class SberToolbar extends LitElement {
   static get properties() {
     return {
+      /** Home Assistant object — carries `localize` for the panel strings. */
+      hass: { type: Object },
       connected: { type: Boolean },
       /** Destructive action awaiting confirmation, "" when none. */
       _confirming: { type: String },
@@ -321,11 +324,11 @@ class SberToolbar extends LitElement {
           tabindex="-1"
           @keydown=${this._onConfirmKeydown}
         >
-          <h2 id="toolbar-confirm-title">Remove ALL exposed entities?</h2>
-          <p>Every device disappears from Sber. This cannot be undone.</p>
+          <h2 id="toolbar-confirm-title">${t(this.hass, "toolbar.clear_all_title")}</h2>
+          <p>${t(this.hass, "toolbar.clear_all_warning")}</p>
           <div class="confirm-actions">
-            <button class="btn btn-secondary" @click=${this._cancelConfirm}>Cancel</button>
-            <button class="btn btn-danger" @click=${this._acceptConfirm}>Clear all</button>
+            <button class="btn btn-secondary" @click=${this._cancelConfirm}>${t(this.hass, "toolbar.cancel")}</button>
+            <button class="btn btn-danger" @click=${this._acceptConfirm}>${t(this.hass, "toolbar.clear_all")}</button>
           </div>
         </div>
       </div>
@@ -351,7 +354,7 @@ class SberToolbar extends LitElement {
           })
         );
       } catch {
-        this._toast("Import failed: file is not valid JSON", "error");
+        this._toast(t(this.hass, "toolbar.import_invalid_json"), "error");
       }
     };
     reader.readAsText(file);
@@ -363,21 +366,21 @@ class SberToolbar extends LitElement {
     return html`
       <!-- Primary action -->
       <button class="btn btn-success" @click=${() => this._dispatch("toolbar-wizard")}>
-        \u{2795} Add device
+        \u{2795} ${t(this.hass, "toolbar.add_device")}
       </button>
 
       <div class="dropdown">
         <button class="btn btn-secondary" @click=${this._toggleBulk}>
-          Maintenance \u25BE
+          ${t(this.hass, "toolbar.maintenance")} \u25BE
         </button>
         ${this._bulkOpen
           ? html`
               <div class="dropdown-menu">
                 <button class="dropdown-item" @click=${this._onAutoLink}>
-                  Auto-Link Sensors
+                  ${t(this.hass, "toolbar.auto_link")}
                 </button>
                 <button class="dropdown-item danger" @click=${this._onClearAll}>
-                  Clear All
+                  ${t(this.hass, "toolbar.clear_all")}
                 </button>
               </div>
             `
@@ -392,20 +395,20 @@ class SberToolbar extends LitElement {
         ?disabled=${this.loading}
         @click=${() => this._dispatch("toolbar-republish")}
       >
-        ${this.loading ? "Publishing..." : "\u{1F4E4} Re-publish"}
+        ${this.loading ? t(this.hass, "toolbar.publishing") : html`\u{1F4E4} ${t(this.hass, "toolbar.republish")}`}
       </button>
       <button class="btn btn-secondary" @click=${() => this._dispatch("toolbar-refresh")}>
-        \u{21BB} Refresh
+        \u{21BB} ${t(this.hass, "toolbar.refresh")}
       </button>
 
       <div class="divider"></div>
 
       <!-- Import / Export -->
       <button class="btn btn-secondary" @click=${() => this._dispatch("toolbar-export")}>
-        \u{1F4E5} Export
+        \u{1F4E5} ${t(this.hass, "toolbar.export")}
       </button>
       <button class="btn btn-secondary" @click=${this._triggerImport}>
-        \u{1F4E4} Import
+        \u{1F4E4} ${t(this.hass, "toolbar.import")}
       </button>
       <input
         type="file"
@@ -419,7 +422,7 @@ class SberToolbar extends LitElement {
       <span class="spacer"></span>
 
       <span class="counter">
-        ${this.totalDevices} devices (${this.acknowledgedCount} acknowledged)
+        ${t(this.hass, "toolbar.device_counter", { total: this.totalDevices, known: this.acknowledgedCount })}
       </span>
 
       <span class="status">
@@ -444,12 +447,15 @@ class SberToolbar extends LitElement {
   }
 
   get _phaseLabel() {
-    const m = { ready: "Connected", starting: "Starting...", connecting: "Connecting...", awaiting_ack: "Awaiting Sber...", disconnected: "Disconnected" };
-    return m[this.phase] || "Disconnected";
+    // Same vocabulary as the status card — one state, one name.
+    const known = ["ready", "starting", "connecting", "awaiting_ack", "disconnected"];
+    const phase = known.includes(this.phase) ? this.phase : "disconnected";
+    return t(this.hass, `phase.${phase}.label`);
   }
 
   connectedCallback() {
     super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
     this._outsideClickHandler = (e) => {
       if (this._bulkOpen && !this.shadowRoot.querySelector(".dropdown")?.contains(e.composedPath()[0])) {
         this._bulkOpen = false;

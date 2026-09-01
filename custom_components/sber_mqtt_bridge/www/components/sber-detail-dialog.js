@@ -579,13 +579,13 @@ class SberDetailDialog extends LitElement {
         ${Object.keys(av).length ? html`
           <div style="margin-top:8px">
             <div class="section-title" style="margin-bottom:4px">Allowed Values</div>
-            <sber-json-block label="Allowed Values" .value=${av}></sber-json-block>
+            <sber-json-block .hass=${this.hass} label="Allowed Values" .value=${av}></sber-json-block>
           </div>
         ` : ""}
         ${Object.keys(deps).length ? html`
           <div style="margin-top:8px">
             <div class="section-title" style="margin-bottom:4px">Dependencies</div>
-            <sber-json-block label="Dependencies" .value=${deps}></sber-json-block>
+            <sber-json-block .hass=${this.hass} label="Dependencies" .value=${deps}></sber-json-block>
           </div>
         ` : ""}
       </div>

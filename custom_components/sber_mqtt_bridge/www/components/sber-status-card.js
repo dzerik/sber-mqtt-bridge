@@ -10,39 +10,28 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 
-/** Phase metadata: color class, label, description. */
-const PHASES = {
-  starting: {
-    dot: "dot-yellow",
-    label: "Starting...",
-    desc: "Waiting for Home Assistant to finish loading",
-  },
-  connecting: {
-    dot: "dot-yellow",
-    label: "Connecting...",
-    desc: "Establishing MQTT connection to Sber cloud",
-  },
-  awaiting_ack: {
-    dot: "dot-orange",
-    label: "Awaiting Sber...",
-    desc: "Connected, config published — waiting for Sber to acknowledge",
-  },
-  ready: {
-    dot: "dot-green",
-    label: "Ready",
-    desc: "Fully operational — accepting commands from Sber",
-  },
-  disconnected: {
-    dot: "dot-red",
-    label: "Disconnected",
-    desc: "Not connected to Sber MQTT broker",
-  },
+/**
+ * Phase → dot colour class.
+ *
+ * Labels and descriptions are **not** here: they are user-facing text and
+ * live in the translation files under `config_panel.phase.*`, keyed by the
+ * same phase name (see ../localize.js).
+ */
+const PHASE_DOTS = {
+  starting: "dot-yellow",
+  connecting: "dot-yellow",
+  awaiting_ack: "dot-orange",
+  ready: "dot-green",
+  disconnected: "dot-red",
 };
 
 class SberStatusCard extends LitElement {
   static get properties() {
     return {
+      /** Home Assistant object — carries `localize` for the panel strings. */
+      hass: { type: Object },
       connected: { type: Boolean },
       phase: { type: String },
     };
@@ -100,15 +89,20 @@ class SberStatusCard extends LitElement {
     `;
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+  }
+
   render() {
-    const p = PHASES[this.phase] || PHASES.disconnected;
+    const phase = PHASE_DOTS[this.phase] ? this.phase : "disconnected";
     return html`
       <div class="connection-indicator">
-        <span class="dot ${p.dot}"></span>
-        ${p.label}
+        <span class="dot ${PHASE_DOTS[phase]}"></span>
+        ${t(this.hass, `phase.${phase}.label`)}
       </div>
-      ${this.phase !== "ready" && this.phase !== "disconnected"
-        ? html`<div class="phase-desc">${p.desc}</div>`
+      ${phase !== "ready" && phase !== "disconnected"
+        ? html`<div class="phase-desc">${t(this.hass, `phase.${phase}.desc`)}</div>`
         : ""}
     `;
   }

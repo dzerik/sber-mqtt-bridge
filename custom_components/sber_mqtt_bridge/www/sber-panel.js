@@ -645,6 +645,7 @@ class SberMqttPanel extends LitElement {
 
       <div class="toolbar-wrapper">
         <sber-toolbar
+          .hass=${this.hass}
           .connected=${connected}
           .phase=${this._status?.phase || "disconnected"}
           .totalDevices=${this._devicesExtra.total ?? 0}
@@ -705,7 +706,7 @@ class SberMqttPanel extends LitElement {
         @links-error=${(e) => this._showToast("Link failed: " + e.detail.message, "error")}
       ></sber-link-dialog>
 
-      <sber-toast></sber-toast>
+      <sber-toast .hass=${this.hass}></sber-toast>
     `;
   }
 
@@ -734,12 +735,12 @@ class SberMqttPanel extends LitElement {
     return html`
       <div class="card">
         <h2>Connection</h2>
-        <sber-status-card .connected=${connected} .phase=${s?.phase || "disconnected"}></sber-status-card>
+        <sber-status-card .hass=${this.hass} .connected=${connected} .phase=${s?.phase || "disconnected"}></sber-status-card>
       </div>
 
       <div class="card">
         <h2>Statistics</h2>
-        <sber-stats-grid .status=${s}></sber-stats-grid>
+        <sber-stats-grid .hass=${this.hass} .status=${s}></sber-stats-grid>
       </div>
     `;
   }

@@ -2342,6 +2342,15 @@ def _json_block_harness() -> str:
         "const copyText = async (text) => { copied.push(text); return copyOk; };\n"
         "let superCalls = 0;\n"
         "const SUPER = { disconnectedCallback() { superCalls += 1; } };\n"
+        # Mirrors www/localize.js: an unknown key comes back unchanged, so
+        # the shipped code runs here exactly as it does in the panel.
+        'const PANEL_STRINGS = { "json.copied": "Copied", "json.copy_failed": "Copy failed",\n'
+        '  "json.copy": "Copy JSON", "json.collapse": "Collapse",\n'
+        '  "json.expand": "Show all {lines} lines" };\n'
+        "const t = (hass, key, ph) => {\n"
+        "  const raw = PANEL_STRINGS[key] ?? key;\n"
+        "  return ph ? raw.replace(/\\{(\\w+)\\}/g, (m, n) => (ph[n] === undefined ? m : String(ph[n]))) : raw;\n"
+        "};\n"
         # Flatten nested templates; event handlers become a marker.
         "const fmt = (v) => {\n"
         "  if (Array.isArray(v)) return v.map(fmt).join('');\n"

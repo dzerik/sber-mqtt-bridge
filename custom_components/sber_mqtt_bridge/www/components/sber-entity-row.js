@@ -10,11 +10,14 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
+const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 
 
 class SberEntityRow extends LitElement {
   static get properties() {
     return {
+      /** Home Assistant object — carries `localize` for the panel strings. */
+      hass: { type: Object },
       device: { type: Object },
       selected: { type: Boolean, reflect: true },
       categories: { type: Array },
@@ -328,6 +331,11 @@ class SberEntityRow extends LitElement {
     }
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+  }
+
   render() {
     const d = this.device;
     if (!d || !d.entity_id) return html``;
@@ -336,7 +344,7 @@ class SberEntityRow extends LitElement {
       <td class="cell-check">
         <input
           type="checkbox"
-          aria-label="Select ${d.entity_id}"
+          aria-label="${t(this.hass, "row.select", { entity: d.entity_id })}"
           .checked=${this.selected}
           @change=${this._onCheckChange}
         />
@@ -346,7 +354,7 @@ class SberEntityRow extends LitElement {
           class="name-link"
           role="button"
           tabindex="0"
-          aria-label="Show details for ${d.name || d.entity_id}"
+          aria-label="${t(this.hass, "row.details", { entity: d.name || d.entity_id })}"
           @click=${this._onShowDetail}
           @keydown=${(e) => this._onKeyActivate(e, this._onShowDetail)}
         >${d.name || "\u2014"}</span>${d.linked_entities ? html` <span class="feature-tag" style="background:var(--info-color,#2196f3);color:#fff">\u{1F517} +${Object.keys(d.linked_entities).length}</span>` : ""}</td>
@@ -362,13 +370,13 @@ class SberEntityRow extends LitElement {
       <td class="cell-state">${d.state ?? "\u2014"}</td>
       <td class="cell-online">
         <span class="badge ${d.is_online ? "badge-green" : d.is_filled ? "badge-grey" : "badge-yellow"}">
-          ${d.is_online ? "Online" : d.is_filled ? "Offline" : "Loading\u2026"}
+          ${d.is_online ? t(this.hass, "row.online") : d.is_filled ? t(this.hass, "row.offline") : t(this.hass, "row.loading")}
         </span>
       </td>
       <td class="cell-actions">
         <div class="actions-cell">
           <select
-            aria-label="Sber category override for ${d.entity_id}"
+            aria-label="${t(this.hass, "row.override", { entity: d.entity_id })}"
             @change=${this._onOverrideChange}
           >
             ${this._categoryOptions().map(

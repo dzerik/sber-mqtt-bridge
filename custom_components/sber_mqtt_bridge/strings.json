@@ -78,6 +78,75 @@
       "device_registry": "HA Device Registry",
       "saved": "Saved",
       "error": "Error"
+    },
+    "phase": {
+      "starting": {
+        "label": "Starting…",
+        "desc": "Waiting for Home Assistant to finish loading"
+      },
+      "connecting": {
+        "label": "Connecting…",
+        "desc": "Establishing MQTT connection to Sber cloud"
+      },
+      "awaiting_ack": {
+        "label": "Awaiting Sber…",
+        "desc": "Connected, config published — waiting for Sber to acknowledge"
+      },
+      "ready": {
+        "label": "Ready",
+        "desc": "Fully operational — accepting commands from Sber"
+      },
+      "disconnected": {
+        "label": "Disconnected",
+        "desc": "Not connected to Sber MQTT broker"
+      }
+    },
+    "toolbar": {
+      "clear_all_title": "Remove ALL exposed entities?",
+      "clear_all_warning": "Every device disappears from Sber. This cannot be undone.",
+      "cancel": "Cancel",
+      "clear_all": "Clear all",
+      "import_invalid_json": "Import failed: file is not valid JSON",
+      "add_device": "Add device",
+      "maintenance": "Maintenance",
+      "auto_link": "Auto-link sensors",
+      "publishing": "Publishing…",
+      "republish": "Re-publish",
+      "refresh": "Refresh",
+      "export": "Export",
+      "import": "Import",
+      "device_counter": "{total} devices ({known} known to Sber)"
+    },
+    "stats": {
+      "uptime": "Uptime",
+      "messages_received": "Messages received",
+      "messages_sent": "Messages sent",
+      "commands": "Commands",
+      "config_requests": "Config requests",
+      "status_requests": "Status requests",
+      "sber_errors": "Sber errors",
+      "publish_errors": "Publish errors",
+      "reconnects": "Reconnects",
+      "entities_exposed": "Entities exposed",
+      "loading": "Loading status…",
+      "never_confirmed": "Never confirmed",
+      "never_confirmed_title": "Never confirmed by Sber",
+      "never_confirmed_hint": "Devices the Sber cloud has never once asked about. Survives restarts, so a device listed here is genuinely not getting through."
+    },
+    "json": {
+      "copy": "Copy JSON",
+      "copied": "Copied",
+      "copy_failed": "Copy failed",
+      "collapse": "Collapse",
+      "expand": "Show all {lines} lines"
+    },
+    "row": {
+      "online": "Online",
+      "offline": "Offline",
+      "loading": "Loading…",
+      "select": "Select {entity}",
+      "details": "Show details for {entity}",
+      "override": "Sber category override for {entity}"
     }
   },
   "options": {

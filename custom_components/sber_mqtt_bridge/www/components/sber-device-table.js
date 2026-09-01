@@ -548,6 +548,7 @@ class SberDeviceTable extends LitElement {
                     ${filtered.map(
                       (d) => html`
                         <sber-entity-row
+                          .hass=${this.hass}
                           .device=${d}
                           .categories=${this._categories}
                           .selected=${this._selected.has(d.entity_id)}

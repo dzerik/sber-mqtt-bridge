@@ -506,7 +506,7 @@ class SberDevtools extends LitElement {
         </div>
         ${this._configError ? html`<div class="error-text">${this._configError}</div>` : ""}
         ${this._configOpen ? html`
-          <sber-json-block
+          <sber-json-block .hass=${this.hass}
             label="Raw config payload"
             hide-copy
             placeholder="Click the button above to load data..."
@@ -560,7 +560,7 @@ class SberDevtools extends LitElement {
         </div>
         ${this._statesError ? html`<div class="error-text">${this._statesError}</div>` : ""}
         ${this._statesOpen ? html`
-          <sber-json-block
+          <sber-json-block .hass=${this.hass}
             label="Raw state payload"
             hide-copy
             placeholder="Click the button above to load data..."

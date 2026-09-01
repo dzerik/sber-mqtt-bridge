@@ -5,30 +5,30 @@
         "title": "Повторная аутентификация Sber MQTT Bridge",
         "description": "Введите новый пароль MQTT.",
         "data": {
-          "sber_password": "Новый MQTT пароль"
+          "sber_password": "Новый пароль MQTT"
         }
       },
       "user": {
         "title": "Sber Smart Home MQTT Bridge",
-        "description": "Введите данные MQTT интеграции Sber Smart Home.",
+        "description": "Введите данные MQTT из интеграции Sber Smart Home.",
         "data": {
-          "sber_login": "MQTT Логин",
-          "sber_password": "MQTT Пароль",
-          "sber_broker": "MQTT Брокер",
-          "sber_port": "MQTT Порт",
-          "sber_verify_ssl": "Проверять SSL сертификат"
+          "sber_login": "Логин MQTT",
+          "sber_password": "Пароль MQTT",
+          "sber_broker": "Брокер MQTT",
+          "sber_port": "Порт MQTT",
+          "sber_verify_ssl": "Проверять SSL-сертификат"
         },
         "data_description": {
           "sber_login": "Логин из проекта интеграции Sber Studio",
           "sber_password": "Пароль из проекта интеграции Sber Studio",
-          "sber_broker": "Адрес MQTT брокера Sber",
-          "sber_port": "Порт MQTT брокера Sber (по умолчанию: 8883)",
-          "sber_verify_ssl": "Отключайте только если брокер использует собственный или самоподписанный CA сертификат"
+          "sber_broker": "Адрес MQTT-брокера Сбера",
+          "sber_port": "Порт MQTT-брокера Сбера (по умолчанию 8883)",
+          "sber_verify_ssl": "Отключайте, только если брокер использует собственный или самоподписанный CA-сертификат"
         }
       }
     },
     "error": {
-      "cannot_connect": "Не удалось подключиться к MQTT брокеру Sber",
+      "cannot_connect": "Не удалось подключиться к MQTT-брокеру Сбера",
       "invalid_auth": "Неверные учётные данные MQTT",
       "unknown": "Непредвиденная ошибка"
     },
@@ -78,6 +78,75 @@
       "device_registry": "Реестр устройств Home Assistant",
       "saved": "Сохранено",
       "error": "Ошибка"
+    },
+    "phase": {
+      "starting": {
+        "label": "Запускается…",
+        "desc": "Ждём, пока Home Assistant закончит загрузку"
+      },
+      "connecting": {
+        "label": "Подключение…",
+        "desc": "Устанавливаем MQTT-соединение с облаком Сбера"
+      },
+      "awaiting_ack": {
+        "label": "Ждём Сбер…",
+        "desc": "Подключились, конфигурация отправлена — ждём подтверждения от Сбера"
+      },
+      "ready": {
+        "label": "Готов",
+        "desc": "Работает штатно — принимает команды от Сбера"
+      },
+      "disconnected": {
+        "label": "Нет связи",
+        "desc": "Соединение с MQTT-брокером Сбера не установлено"
+      }
+    },
+    "toolbar": {
+      "clear_all_title": "Убрать все выставленные устройства?",
+      "clear_all_warning": "Все устройства исчезнут из Сбера. Отменить это будет нельзя.",
+      "cancel": "Отмена",
+      "clear_all": "Убрать все",
+      "import_invalid_json": "Импорт не удался: файл не является корректным JSON",
+      "add_device": "Добавить устройство",
+      "maintenance": "Обслуживание",
+      "auto_link": "Связать датчики автоматически",
+      "publishing": "Отправка…",
+      "republish": "Отправить заново",
+      "refresh": "Обновить",
+      "export": "Экспорт",
+      "import": "Импорт",
+      "device_counter": "устройств: {total} (известно Сберу: {known})"
+    },
+    "stats": {
+      "uptime": "Время работы",
+      "messages_received": "Сообщений получено",
+      "messages_sent": "Сообщений отправлено",
+      "commands": "Команд",
+      "config_requests": "Запросов конфигурации",
+      "status_requests": "Запросов состояния",
+      "sber_errors": "Ошибок от Сбера",
+      "publish_errors": "Ошибок публикации",
+      "reconnects": "Переподключений",
+      "entities_exposed": "Выставлено сущностей",
+      "loading": "Загружаем состояние…",
+      "never_confirmed": "Ни разу не подтверждено",
+      "never_confirmed_title": "Ни разу не подтверждены Сбером",
+      "never_confirmed_hint": "Устройства, о которых облако Сбера не спрашивало ни разу. Список переживает перезапуск, поэтому попавшее сюда устройство действительно не проходит."
+    },
+    "json": {
+      "copy": "Скопировать JSON",
+      "copied": "Скопировано",
+      "copy_failed": "Не удалось скопировать",
+      "collapse": "Свернуть",
+      "expand": "Показать все строки: {lines}"
+    },
+    "row": {
+      "online": "На связи",
+      "offline": "Не на связи",
+      "loading": "Загрузка…",
+      "select": "Выбрать {entity}",
+      "details": "Подробности: {entity}",
+      "override": "Переопределение категории Sber для {entity}"
     }
   },
   "options": {
