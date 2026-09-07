@@ -6,6 +6,9 @@ from custom_components.sber_mqtt_bridge.devices.hvac_air_purifier import HvacAir
 
 ENTITY_DATA = {"entity_id": "fan.air_purifier", "name": "Air Purifier"}
 
+SET_SPEED = 1
+"""Бит ``FanEntityFeature.SET_SPEED`` — «вентилятор умеет менять скорость»."""
+
 
 def _make_ha_state(state="on", **attrs):
     return {
@@ -28,7 +31,7 @@ class TestHvacAirPurifierCreate(unittest.TestCase):
 
     def test_features_list(self):
         entity = HvacAirPurifierEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state())
+        entity.fill_by_ha_state(_make_ha_state(supported_features=SET_SPEED))
         features = entity.get_final_features_list()
         self.assertIn("online", features)
         self.assertIn("on_off", features)
@@ -148,10 +151,77 @@ class TestHvacAirPurifierAllowedValues(unittest.TestCase):
 
     def test_allowed_values_present(self):
         entity = HvacAirPurifierEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("on"))
+        entity.fill_by_ha_state(_make_ha_state("on", supported_features=SET_SPEED))
         result = entity.to_sber_state()
         allowed = result["model"]["allowed_values"]
         self.assertIn("hvac_air_flow_power", allowed)
         values = allowed["hvac_air_flow_power"]["enum_values"]["values"]
         self.assertIn("auto", values)
         self.assertIn("high", values)
+
+
+class TestHvacAirPurifierSpeedCapability(unittest.TestCase):
+    """Функция скорости объявляется только тем, кто ею управляет.
+
+    До правки ``hvac_air_flow_power`` объявлялась всем очистителям, а
+    состояние публиковалось только при известной скорости: у вентилятора
+    без ``SET_SPEED`` регулятор в приложении Сбера был, но не заполнялся
+    никогда.  Правило взято у ``hvac_fan`` — оба класса управляют одной и
+    той же HA-платформой ``fan``.
+    """
+
+    def _features(self, **attrs) -> list[str]:
+        entity = HvacAirPurifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", **attrs))
+        return entity.get_final_features_list()
+
+    def test_no_speed_support_hides_feature(self):
+        """Очиститель без управления скоростью не объявляет регулятор.
+
+        Если сломается: в приложении Сбера вернётся мёртвый регулятор
+        скорости, который никогда не показывает значение.
+        """
+        self.assertNotIn("hvac_air_flow_power", self._features())
+
+    def test_no_speed_support_hides_allowed_values(self):
+        """Без фичи не должно остаться и её ``allowed_values``.
+
+        Если сломается: дескриптор модели не пройдёт валидацию и всё
+        устройство молча пропадёт из конфигурации Sber.
+        """
+        entity = HvacAirPurifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on"))
+        self.assertEqual(entity.create_allowed_values_list(), {})
+        self.assertNotIn("allowed_values", entity.to_sber_state()["model"])
+
+    def test_set_speed_bit_declares_feature(self):
+        """Бит ``SET_SPEED`` — основной признак способности менять скорость."""
+        self.assertIn("hvac_air_flow_power", self._features(supported_features=SET_SPEED))
+
+    def test_preset_modes_declare_feature(self):
+        """Очиститель только с пресетами тоже управляет скоростью."""
+        self.assertIn("hvac_air_flow_power", self._features(preset_modes=["low", "turbo"]))
+
+    def test_percentage_attr_declares_feature(self):
+        """HA публикует ``percentage`` только при поддержке SET_SPEED."""
+        self.assertIn("hvac_air_flow_power", self._features(percentage=50))
+
+    def test_capability_survives_unavailable_state(self):
+        """Пропажа сущности не должна менять список фич.
+
+        Список фич входит в дайджест ``model.id``.  Если сломается: при
+        каждом обрыве связи очиститель будет переезжать на новую модель
+        в облаке Сбера, теряя комнату, имя и сценарии.
+        """
+        entity = HvacAirPurifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on", percentage=50, preset_modes=["low"]))
+        before = entity.get_final_features_list()
+        entity.fill_by_ha_state(_make_ha_state("unavailable"))
+        self.assertEqual(entity.get_final_features_list(), before)
+
+    def test_speed_state_absent_without_capability(self):
+        """Без способности менять скорость состояние скорости не публикуется."""
+        entity = HvacAirPurifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("on"))
+        states = entity.to_sber_current_state()["fan.air_purifier"]["states"]
+        self.assertEqual([s for s in states if s["key"] == "hvac_air_flow_power"], [])

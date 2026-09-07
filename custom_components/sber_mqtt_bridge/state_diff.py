@@ -185,13 +185,12 @@ class DiffCollector:
             new_map[key] = s.get("value")
 
         prev = self._last_by_entity.get(entity_id)
-        is_initial = prev is None
         # Record the new baseline even when the result is uninteresting —
         # otherwise we'd keep comparing against a stale prior for an
         # entity that was just re-initialised.
         self._last_by_entity[entity_id] = copy.deepcopy(new_map)
 
-        if is_initial:
+        if prev is None:
             if not self._include_initial or not new_map:
                 return None
             diff = StateDiff(

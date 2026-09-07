@@ -8,7 +8,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any
 
-import voluptuous as vol  # type: ignore[import-untyped]
+import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
@@ -28,6 +28,7 @@ from ..devices.kettle import (
     KETTLE_OPTION_HEAT_MODE,
     KETTLE_OPTION_OFF_MODE,
 )
+from ..devices.sensor_temp import SENSOR_TEMP_OPTION_TEMP_UNIT_VIEW
 from ..sber_entity_map import OVERRIDABLE_CATEGORIES as OVERRIDABLE_CATEGORIES
 
 if TYPE_CHECKING:
@@ -145,6 +146,7 @@ ENTITY_OPTION_VALIDATORS: dict[str, Any] = {
     KETTLE_OPTION_OFF_MODE: WS_OPERATION_MODE,
     KETTLE_OPTION_BOIL_MODE: WS_OPERATION_MODE,
     KETTLE_OPTION_HEAT_MODE: WS_OPERATION_MODE,
+    SENSOR_TEMP_OPTION_TEMP_UNIT_VIEW: bool,
 }
 """Type/range validator per per-entity option key, across all categories.
 
@@ -179,7 +181,8 @@ def get_bridge(hass: HomeAssistant) -> SberBridge | None:
     entry = get_config_entry(hass)
     if entry is None or not hasattr(entry, "runtime_data") or entry.runtime_data is None:
         return None
-    return entry.runtime_data.bridge
+    bridge: SberBridge = entry.runtime_data.bridge
+    return bridge
 
 
 def _make_requires(
@@ -240,7 +243,7 @@ def _make_requires(
                     return
                 await handler(hass, connection, msg, dependency)
 
-            return async_wrapped  # type: ignore[return-value]
+            return async_wrapped
 
         @wraps(handler)
         def sync_wrapped(
@@ -254,7 +257,7 @@ def _make_requires(
                 return
             handler(hass, connection, msg, dependency)
 
-        return sync_wrapped  # type: ignore[return-value]
+        return sync_wrapped
 
     return decorator
 

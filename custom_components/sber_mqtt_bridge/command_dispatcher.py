@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
     from .ack_audit import AckAudit
     from .bridge_ports import StatsPort
-    from .devices.base_entity import BaseEntity
+    from .devices.base_entity import BaseEntity, ServiceCallUrl
     from .devtools_hub import DevToolsHub
     from .redefinitions_store import RedefinitionsStore
     from .sber_publisher import SberPublisher
@@ -321,11 +321,17 @@ class SberCommandDispatcher:
         needs_state_update = False
         try:
             for result in entity.process_cmd(cmd_data):
-                cmd = result.get("url")
-                if cmd is None:
+                # ``CommandResult`` is a closed union of two TypedDicts:
+                # an ``UpdateStateResult`` asks for a re-publish and
+                # carries no service call, a ``ServiceCallResult``
+                # carries the ``url`` descriptor.  Testing membership
+                # (not just the value) is what lets the fall-through be
+                # read as a ``ServiceCallResult`` instead of the union.
+                if "update_state" in result or result.get("url") is None:
                     if result.get("update_state"):
                         needs_state_update = True
                     continue
+                cmd = result["url"]
                 await self._call_ha_service(entity_id, cmd, context)
                 deps.devtools.trace_collector.record(
                     context.id,
@@ -368,7 +374,7 @@ class SberCommandDispatcher:
         """
         self._deps.refresh_repair_issues()
 
-    async def _call_ha_service(self, entity_id: str, cmd: dict, context: Context) -> None:
+    async def _call_ha_service(self, entity_id: str, cmd: ServiceCallUrl, context: Context) -> None:
         """Invoke ``hass.services.async_call`` for a single Sber → HA call."""
         try:
             await self._deps.hass.services.async_call(

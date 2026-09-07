@@ -15,6 +15,7 @@ import logging
 from abc import abstractmethod
 from typing import ClassVar
 
+from .._generated.obligatory_features import CATEGORY_OBLIGATORY_FEATURES
 from .._generated.reference_values import FEATURE_ENUM_VALUES
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_state
@@ -168,16 +169,42 @@ class SimpleReadOnlySensor(BatteryAndSignalLinkMixin, BaseEntity):
             features.append("sensor_sensitive")
         return features
 
+    def _publishes_value_while_offline(self) -> bool:
+        """Whether the value key must be emitted even with ``online=false``.
+
+        Sber marks some features obligatory (``✔︎``) for a category —
+        ``water_leak_state``, ``doorcontact_state``, ``smoke_state``,
+        ``gas_leak_state`` — and drops a device whose publish lacks them
+        (:data:`CATEGORY_OBLIGATORY_FEATURES`).  Those keep being sent:
+        ``false`` there means "no alarm reported", which is not a
+        fabricated measurement.
+
+        Everything else (``temperature``, ``humidity``) is a *reading*,
+        and an offline sensor has none — see
+        :meth:`_build_current_state`.
+
+        Returns:
+            True when the value key is obligatory for this category.
+        """
+        return self._sber_value_key in CATEGORY_OBLIGATORY_FEATURES.get(self.category, frozenset())
+
     def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with online, value, battery, and signal keys.
+
+        The value key is omitted while the sensor is offline unless it is
+        obligatory for the category (:meth:`_publishes_value_while_offline`).
+        ``_get_sber_value`` falls back to ``0`` when the HA state is
+        ``unavailable`` / ``unknown``, and publishing that alongside
+        ``online=false`` wrote a fake 0 °C into the Sber history on every
+        Zigbee dropout (issue #63).  Sending no key at all leaves the last
+        real reading in place, which is what the sensor actually knows.
 
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
-        states = [
-            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
-            {"key": self._sber_value_key, "value": self._build_sber_value_dict()},
-        ]
+        states = [make_state(SberFeature.ONLINE, make_bool_value(self._is_online))]
+        if self._is_online or self._publishes_value_while_offline():
+            states.append({"key": self._sber_value_key, "value": self._build_sber_value_dict()})
         self._append_battery_signal_states(states)
         if self._sensor_sensitive is not None:
             states.append(make_state(SberFeature.SENSOR_SENSITIVE, make_enum_value(self._sensor_sensitive)))

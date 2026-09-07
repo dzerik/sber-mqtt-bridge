@@ -1202,7 +1202,8 @@ class SberBridge:
         length is appended so DevTools users can tell the copy is partial.
 
         Args:
-            direction: ``"in"``, ``"out"`` or ``"replay"``.
+            direction: ``"in"``, ``"out"``, ``"replay"`` or ``"error"``
+                (a handler that raised while processing the message above).
             topic: Full MQTT topic.
             payload: Decoded payload text (truncated here if oversized).
         """
@@ -1678,8 +1679,13 @@ class SberBridge:
             await handler(payload)
         except asyncio.CancelledError:
             raise
-        except Exception:  # per-handler isolation: one bad message must not break routing
+        except Exception as err:  # per-handler isolation: one bad message must not break routing
             _LOGGER.exception("Error handling MQTT message on topic %s", topic)
+            # DevTools: the arrival was logged above, the failure was not — the
+            # panel showed "command came in" and then nothing, so diagnosing it
+            # required asking the user for HA logs.  A dedicated `error`
+            # direction keeps the failure next to the message that caused it.
+            self._log_message("error", topic, f"<handler error: {type(err).__name__}: {err}>")
 
     @cached_property
     def _mqtt_dispatch(self) -> dict[str, Callable[[bytes], Any]]:

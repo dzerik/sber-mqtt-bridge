@@ -11,8 +11,16 @@ permissions:
   id-token: write
 
 jobs:
+  # Gate: the full CI workflow (lint + test matrix) must be green for the
+  # tagged commit before anything is built, signed or published.  v1.47.0
+  # shipped broken because the release path had no such gate.
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yaml
+
   release:
     name: Create Release
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

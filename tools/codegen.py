@@ -2,13 +2,16 @@
 # ruff: noqa: T201
 """Generate Sber-derived Python modules from the unified spec artifact.
 
-Reads ``tests/hacs/__snapshots__/sber_full_spec.json`` and writes three
+Reads ``tests/hacs/__snapshots__/sber_full_spec.json`` and writes the
 modules under ``custom_components/sber_mqtt_bridge/_generated/``:
 
 - ``feature_types.py``  — ``FEATURE_TYPES: dict[str, str]``
   (feature name → Sber value type)
 - ``category_features.py`` — ``CATEGORY_REFERENCE_FEATURES:
   dict[str, frozenset[str]]`` (all features Sber lists per category)
+- ``usage_modes.py`` — ``FEATURE_USAGE_MODES`` plus the three sets it
+  partitions into (command-only, event-only, state-bearing), taken from
+  the "Способ использования" line of each function page
 - ``__init__.py`` — re-exports + spec provenance constants
 
 Safety guarantees:
@@ -301,6 +304,107 @@ common enough that an error would be noise."""
     return "\n".join(lines)
 
 
+USAGE_STATE_READ_WRITE = "state_read_write"
+"""Usage mode: the feature holds state and Sber may change it."""
+
+USAGE_STATE_READ_ONLY = "state_read_only"
+"""Usage mode: the feature holds state but accepts no command."""
+
+USAGE_COMMAND_ONLY = "command_only"
+"""Usage mode: the feature carries no state, only accepts commands."""
+
+USAGE_EVENT_ONLY = "event_only"
+"""Usage mode: the feature notifies about an event and cannot be commanded."""
+
+STATE_BEARING_USAGE_MODES = frozenset({USAGE_STATE_READ_WRITE, USAGE_STATE_READ_ONLY})
+"""The two modes whose features do appear in a state publish."""
+
+
+def _usage_names(functions: dict, *modes: str) -> list[str]:
+    """Sorted names of every function classified into one of ``modes``."""
+    wanted = frozenset(modes)
+    return sorted(name for name, spec in functions.items() if spec.get("usage_mode") in wanted)
+
+
+def _render_frozenset(name: str, values: list[str], doc: str) -> list[str]:
+    """Render one ``NAME: frozenset[str] = frozenset({...})`` block + docstring."""
+    formatted = ", ".join(f'"{v}"' for v in values)
+    body = f"frozenset({{{formatted}}})" if values else "frozenset()"
+    return ["", "", f"{name}: frozenset[str] = {body}", doc]
+
+
+def render_usage_modes(spec: dict) -> str:
+    """Render usage_modes.py content."""
+    header = HEADER.format(source=spec["source"], generated_at=spec["generated_at"]).rstrip()
+    functions = spec["functions"]
+
+    lines = [header, "", "FEATURE_USAGE_MODES: dict[str, str] = {"]
+    for name in sorted(functions):
+        mode = functions[name].get("usage_mode")
+        if mode:
+            lines.append(f'    "{name}": "{mode}",')
+    lines.append("}")
+    lines.append(
+        dedent(
+            '''"""Feature name → what Sber says the feature is *for*.
+
+Straight off the "Способ использования" line of each function page,
+which words it in exactly four ways:
+
+- ``state_read_write`` — "хранит состояние устройства и может менять его"
+- ``state_read_only`` — "хранит состояние устройства, менять его не может"
+- ``command_only`` — "не хранит состояние устройства, может менять его"
+- ``event_only`` — "уведомляет о состоянии устройства, менять его не может"
+
+A feature missing from this table has a wording the scraper did not
+recognise — treat that as *unknown*, never as "no restriction"."""
+            ''',
+        ).strip()
+    )
+
+    lines += _render_frozenset(
+        "COMMAND_ONLY_FEATURES",
+        _usage_names(functions, USAGE_COMMAND_ONLY),
+        dedent(
+            '''"""Features that hold no state and exist only to accept a command.
+
+``open_set`` is the archetype: a curtain must *declare* it, yet it can
+never show up in a state publish because there is no state to report.
+Any check that walks a publish looking for declared features has to
+exempt this set, or it reports healthy devices as incomplete."""
+            ''',
+        ).strip(),
+    )
+
+    lines += _render_frozenset(
+        "EVENT_ONLY_FEATURES",
+        _usage_names(functions, USAGE_EVENT_ONLY),
+        dedent(
+            '''"""Features that only ever report that something *happened*.
+
+Sber words these as "уведомляет о состоянии устройства": ``pir`` is
+sent when motion is detected and silent otherwise, so silence is the
+quiet state rather than a missing value (issue #61)."""
+            ''',
+        ).strip(),
+    )
+
+    lines += _render_frozenset(
+        "STATE_BEARING_FEATURES",
+        _usage_names(functions, *sorted(STATE_BEARING_USAGE_MODES)),
+        dedent(
+            '''"""Features that do carry device state, readable or writable.
+
+The complement of :data:`COMMAND_ONLY_FEATURES` and
+:data:`EVENT_ONLY_FEATURES` among the classified functions — these are
+the only ones a state publish can legitimately be asked to contain."""
+            ''',
+        ).strip(),
+    )
+    lines.append("")
+    return "\n".join(lines)
+
+
 def render_init(spec: dict) -> str:
     """Render __init__.py content."""
     header = HEADER.format(source=spec["source"], generated_at=spec["generated_at"]).rstrip()
@@ -312,16 +416,26 @@ def render_init(spec: dict) -> str:
         from .feature_types import FEATURE_TYPES
         from .obligatory_features import CATEGORY_OBLIGATORY_FEATURES
         from .reference_values import FEATURE_ENUM_VALUES, FEATURE_RANGES
+        from .usage_modes import (
+            COMMAND_ONLY_FEATURES,
+            EVENT_ONLY_FEATURES,
+            FEATURE_USAGE_MODES,
+            STATE_BEARING_FEATURES,
+        )
 
         __all__ = [
             "CATEGORY_CONDITIONAL_FEATURES",
             "CATEGORY_OBLIGATORY_FEATURES",
             "CATEGORY_REFERENCE_FEATURES",
+            "COMMAND_ONLY_FEATURES",
+            "EVENT_ONLY_FEATURES",
             "FEATURE_ENUM_VALUES",
             "FEATURE_RANGES",
             "FEATURE_TYPES",
+            "FEATURE_USAGE_MODES",
             "SPEC_GENERATED_AT",
             "SPEC_SOURCE",
+            "STATE_BEARING_FEATURES",
         ]
 
         SPEC_SOURCE: str = "{source}"
@@ -395,6 +509,7 @@ TARGETS: tuple[tuple[str, str], ...] = (
     ("obligatory_features.py", "render_obligatory_features"),
     ("conditional_features.py", "render_conditional_features"),
     ("reference_values.py", "render_reference_values"),
+    ("usage_modes.py", "render_usage_modes"),
     ("__init__.py", "render_init"),
 )
 
@@ -420,6 +535,7 @@ def main(argv: list[str] | None = None) -> int:
         "render_obligatory_features": render_obligatory_features,
         "render_conditional_features": render_conditional_features,
         "render_reference_values": render_reference_values,
+        "render_usage_modes": render_usage_modes,
         "render_init": render_init,
     }
 

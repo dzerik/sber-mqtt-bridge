@@ -15,6 +15,10 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import asyncio
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,7 +55,7 @@ class ReconnectAckGuard:
         """Return True if the fallback timeout has been reached."""
         return self._awaiting and time.monotonic() >= self._deadline
 
-    def activate(self, grace_timeout: float, loop: object) -> None:
+    def activate(self, grace_timeout: float, loop: asyncio.AbstractEventLoop) -> None:
         """Activate the guard with a fallback timeout.
 
         Cancels any previous fallback timer first: on rapid reconnects

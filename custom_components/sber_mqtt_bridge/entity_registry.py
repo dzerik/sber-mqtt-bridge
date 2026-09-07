@@ -32,12 +32,14 @@ from .const import (
     CONF_EXPOSED_ENTITIES,
 )
 from .custom_capabilities import get_custom_config
-from .devices.base_entity import BaseEntity
+from .devices.base_entity import BaseEntity, DeviceData
 from .sber_entity_map import create_sber_entity
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
+
+    from .custom_capabilities import CustomConfig, EntityCustomConfig
 
 
 def _extract_mac(connections: set[tuple[str, str]] | None) -> str:
@@ -157,13 +159,13 @@ class SberEntityLoader:
     def _create_entities(
         self,
         enabled_ids: list[str],
-        custom_config: dict,
+        custom_config: CustomConfig,
     ) -> dict[str, BaseEntity]:
         """Create Sber entity objects from HA registry and fill initial state.
 
         Args:
             enabled_ids: Ordered list of entity IDs to expose.
-            custom_config: YAML custom config dict.
+            custom_config: Parsed YAML custom config.
 
         Returns:
             Dict mapping entity_id to the created BaseEntity subclass.
@@ -253,7 +255,7 @@ class SberEntityLoader:
         return new_entities
 
     @staticmethod
-    def _apply_yaml_overrides(sber_entity: BaseEntity, entity_id: str, yaml_cfg: object | None) -> None:
+    def _apply_yaml_overrides(sber_entity: BaseEntity, entity_id: str, yaml_cfg: EntityCustomConfig | None) -> None:
         """Apply YAML config overrides (name, nicknames, groups, features)."""
         if yaml_cfg is None:
             return
@@ -317,7 +319,7 @@ class SberEntityLoader:
     @staticmethod
     def _link_device_registry(
         sber_entity: BaseEntity,
-        entry: object,
+        entry: er.RegistryEntry,
         device_reg: dr.DeviceRegistry,
         area_reg: ar.AreaRegistry | None = None,
     ) -> None:
@@ -346,9 +348,12 @@ class SberEntityLoader:
             sber_entity.device_id = None
             return
         device_area = area_reg.async_get_area(device.area_id) if area_reg and device.area_id else None
-        device_data = {
+        device_data: DeviceData = {
             "id": device.id,
-            "name": device.name_by_user or device.name,
+            # ``or ""`` keeps the TypedDict contract (``name: str``) for a
+            # device the registry knows under no name at all; every reader
+            # falls back through ``or`` anyway, so "" and None behave alike.
+            "name": device.name_by_user or device.name or "",
             "area_id": device_area.name if device_area else (device.area_id or ""),
             "manufacturer": device.manufacturer or "Unknown",
             "model": device.model or "Unknown",
@@ -468,7 +473,7 @@ class SberEntityLoader:
     def _apply_room_overrides(
         redefinitions: dict[str, dict],
         enabled_ids: list[str],
-        custom_config: dict,
+        custom_config: CustomConfig,
     ) -> dict[str, dict]:
         """Merge YAML room overrides into redefinitions."""
         redefinitions = dict(redefinitions)

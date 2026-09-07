@@ -72,19 +72,40 @@ class TestKettleToSberCurrentState(unittest.TestCase):
         target = next(s for s in states if s["key"] == "kitchen_water_temperature_set")
         self.assertEqual(target["value"]["integer_value"], "100")
 
-    def test_low_water_level_heuristic(self):
+    def test_cold_full_kettle_does_not_report_low_water(self):
+        """Холодная вода — это не «воды нет».
+
+        Раньше низкий уровень выводился из температуры (< 30 °C), и полный
+        холодный чайник рапортовал Сберу пустой бак.  Если сломается:
+        пользователь снова увидит в приложении «нет воды» у полного
+        чайника и не сможет запустить кипячение сценарием.
+        """
         entity = KettleEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("idle", current_temperature=25))
-        result = entity.to_sber_current_state()
-        states = result["water_heater.kettle"]["states"]
+        entity.fill_by_ha_state(_make_ha_state("idle", current_temperature=20))
+        states = entity.to_sber_current_state()["water_heater.kettle"]["states"]
+        self.assertEqual([s for s in states if s["key"] == "kitchen_water_low_level"], [])
+
+    def test_low_water_level_from_ha_attribute(self):
+        """Признак «мало воды» публикуется только по реальным данным чайника.
+
+        Если сломается: чайник, который сам умеет сообщать о нехватке
+        воды, перестанет об этом сообщать.
+        """
+        entity = KettleEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("idle", current_temperature=90, water_low_level=True))
+        states = entity.to_sber_current_state()["water_heater.kettle"]["states"]
         low = next(s for s in states if s["key"] == "kitchen_water_low_level")
         self.assertTrue(low["value"]["bool_value"])
 
-    def test_not_low_water_level(self):
+    def test_low_water_level_false_from_ha_attribute(self):
+        """Явное «воды достаточно» тоже публикуется (False, а не пропуск).
+
+        Если сломается: индикатор воды в приложении Сбера залипнет в
+        последнем известном значении.
+        """
         entity = KettleEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("heating", current_temperature=50))
-        result = entity.to_sber_current_state()
-        states = result["water_heater.kettle"]["states"]
+        entity.fill_by_ha_state(_make_ha_state("heating", current_temperature=50, low_water=False))
+        states = entity.to_sber_current_state()["water_heater.kettle"]["states"]
         low = next(s for s in states if s["key"] == "kitchen_water_low_level")
         self.assertFalse(low["value"]["bool_value"])
 

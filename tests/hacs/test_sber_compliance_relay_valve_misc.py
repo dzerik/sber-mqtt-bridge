@@ -792,13 +792,17 @@ class TestKettleCompliance:
         _assert_bool_value_is_bool(states, "child_lock")
 
     def test_current_state_low_level_bool(self):
-        """kitchen_water_low_level must be BOOL in current state."""
+        """kitchen_water_low_level must be BOOL in current state.
+
+        Reported only from the kettle's own attribute — the temperature
+        heuristic it replaced made a cold full kettle claim an empty tank.
+        """
         entity = KettleEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state("idle", current_temperature=25))
+        entity.fill_by_ha_state(self._make_ha_state("idle", current_temperature=25, water_low_level=True))
         states = entity.to_sber_current_state()["water_heater.kettle"]["states"]
         _assert_bool_value_is_bool(states, "kitchen_water_low_level")
         low = _find_state(states, "kitchen_water_low_level")
-        assert low["value"]["bool_value"] is True  # temp < 30 => low water
+        assert low["value"]["bool_value"] is True
 
     def test_allowed_values_temperature_set(self):
         """Allowed values for kitchen_water_temperature_set must have INTEGER range."""

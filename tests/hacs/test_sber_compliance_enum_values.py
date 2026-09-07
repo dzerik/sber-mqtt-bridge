@@ -963,8 +963,13 @@ class TestLightMode:
         assert mode == "colour"
         assert mode in SBER_LIGHT_MODE
 
-    def test_no_light_mode_when_off(self):
-        """Light mode is not included when light is off."""
+    def test_light_mode_present_when_off(self):
+        """Даже выключенная лампа отдаёт light_mode с документированным значением.
+
+        Тем же payload мост отвечает на ``down/status_request``, где Sber
+        ждёт все заявленные функции.  Если тест упадёт — у выключенной
+        лампы в приложении пропадёт переключатель «белый / цветной».
+        """
         entity_id = "light.test"
         entity = LightEntity(_make_entity_data(entity_id))
         entity.fill_by_ha_state(
@@ -979,7 +984,7 @@ class TestLightMode:
         )
         states = _get_states(entity, entity_id)
         mode = _get_enum_value(states, "light_mode")
-        assert mode is None, f"light_mode should not be present when off, got '{mode}'"
+        assert mode == "white", f"light_mode must stay documented when off, got '{mode}'"
 
     def test_only_documented_values_produced(self):
         """Sweep color modes and verify only 'white' or 'colour' is produced."""

@@ -9,6 +9,11 @@ on:
   # Off-hour minute (17) keeps us out of the :00 thundering herd.
   schedule:
     - cron: "17 4 * * *"
+  # Callable from release.yaml so a tag cannot be published without the
+  # very same lint + test gate that guards main.  A tag push does NOT
+  # match the `push: branches` trigger above, so without this the release
+  # job would run on completely untested code.
+  workflow_call:
 
 permissions:
   contents: read
@@ -45,7 +50,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.13', '3.14']
+        # 3.13 dropped: HA 2026.4+ and pytest-homeassistant-custom-component
+        # 0.13.317+ require 3.14, so a 3.13 leg could only ever install an
+        # ancient HA and told us nothing about what users run.
+        python-version: ['3.14']
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

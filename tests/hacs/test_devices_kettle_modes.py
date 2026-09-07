@@ -1175,6 +1175,7 @@ def test_published_state_keys_are_exactly_the_kettle_set() -> None:
         current_temperature=55,
         temperature=80,
         water_level=70,
+        water_low_level=False,
         child_lock=True,
     )
 

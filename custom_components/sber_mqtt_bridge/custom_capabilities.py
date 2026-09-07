@@ -182,4 +182,5 @@ def get_custom_config(hass: HomeAssistant) -> CustomConfig:
     domain_data = hass.data.get(DOMAIN)
     if domain_data is None:
         return CustomConfig()
-    return domain_data.get("yaml_config", CustomConfig())
+    yaml_config: CustomConfig = domain_data.get("yaml_config", CustomConfig())
+    return yaml_config

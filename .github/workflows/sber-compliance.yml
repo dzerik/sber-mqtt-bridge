@@ -38,13 +38,31 @@ jobs:
       - name: Detect drift
         id: drift
         run: |
-          if git diff --exit-code tests/hacs/__snapshots__/sber_schemas.json; then
+          # sber_full_spec.json carries the ENUM vocabularies and numeric
+          # ranges codegen turns into FEATURE_ENUM_VALUES / FEATURE_RANGES,
+          # yet it used to be left out of this check: its `generated_at`
+          # stamp changes on every run, so a naive diff always reported
+          # drift.  `git diff -I<regex>` drops hunks whose changed lines all
+          # match, so the stamp (and the SPEC_GENERATED_AT / "Spec generated
+          # at:" lines it feeds into _generated/) is ignored while a changed
+          # vocabulary or range is still caught.
+          DRIFT_PATHS=(
+            tests/hacs/__snapshots__/sber_schemas.json
+            tests/hacs/__snapshots__/sber_full_spec.json
+            custom_components/sber_mqtt_bridge/_generated
+          )
+          IGNORE=(
+            -I '^\s*"generated_at":'
+            -I '^Spec generated at:'
+            -I '^SPEC_GENERATED_AT'
+          )
+          if git diff --exit-code --quiet "${IGNORE[@]}" -- "${DRIFT_PATHS[@]}"; then
             echo "No drift detected."
             echo "drift=false" >> "$GITHUB_OUTPUT"
           else
             echo "Drift detected in Sber schemas!"
             echo "drift=true" >> "$GITHUB_OUTPUT"
-            git diff tests/hacs/__snapshots__/sber_schemas.json | head -200
+            git diff "${IGNORE[@]}" -- "${DRIFT_PATHS[@]}" | head -300
           fi
 
       - name: Create drift PR
@@ -62,7 +80,9 @@ jobs:
             Review the diff to decide whether our device classes need
             updates (new required features, changed enum values, etc.).
 
-            - See `tests/hacs/__snapshots__/sber_schemas.json` for full diff.
+            - See `tests/hacs/__snapshots__/sber_schemas.json` and
+              `sber_full_spec.json` for the full diff, plus the regenerated
+              modules under `custom_components/sber_mqtt_bridge/_generated/`.
             - Compliance tests in `tests/hacs/test_sber_compliance_live.py`
               will fail if our code diverges from the new spec.
 

@@ -2,6 +2,7 @@
 
 import unittest
 
+from custom_components.sber_mqtt_bridge.devices.led_strip import LedStripEntity
 from custom_components.sber_mqtt_bridge.devices.light import LightEntity
 
 
@@ -202,8 +203,16 @@ class TestLightToSberCurrentState(unittest.TestCase):
         self.assertEqual(mode["value"]["enum_value"], "colour")
 
     def test_off_state(self):
-        """Off state only includes on_off=false and brightness (no color/mode states)."""
+        """В состоянии OFF публикуются все заявленные функции лампы.
+
+        Раньше выключенная лампа отдавала только on_off и яркость.  Тем же
+        payload мост отвечает на ``down/status_request``, а Sber требует,
+        чтобы в ответе присутствовали все заявленные функции устройства.
+        Если тест упадёт — выключенная лампа снова начнёт отвечать Сберу
+        обрезанным состоянием, и приложение покажет её режим/цвет пустыми.
+        """
         entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(state="on", brightness=200))
         entity.fill_by_ha_state(_make_ha_state(state="off", brightness=100))
         result = entity.to_sber_current_state()
         states = result["light.room"]["states"]
@@ -211,9 +220,9 @@ class TestLightToSberCurrentState(unittest.TestCase):
 
         on_off = next(s for s in states if s["key"] == "on_off")
         self.assertFalse(on_off["value"]["bool_value"])
-        # Off state should not include light_mode or light_colour
-        self.assertNotIn("light_mode", keys)
-        self.assertNotIn("light_colour", keys)
+        self.assertIn("light_mode", keys)
+        self.assertIn("light_colour", keys)
+        self.assertIn("light_colour_temp", keys)
 
     def test_zero_sber_brightness_excluded(self):
         """Zero sber brightness is excluded from states (requires converter output=0)."""
@@ -389,7 +398,15 @@ class TestLightProcessCmd(unittest.TestCase):
         self.assertEqual(result, [])
 
     def test_cmd_multiple_commands(self):
-        """Multiple commands in one payload are all processed."""
+        """Обе команды из одного payload доезжают до HA.
+
+        `on_off: true` и `light_brightness` дают один и тот же вызов
+        `light.turn_on`, поэтому `BaseEntity.process_cmd` сливает их в
+        ОДИН вызов с объединённым `service_data`. Если тест упадёт —
+        значит либо потерялась яркость, либо лампа сначала зажглась на
+        старой яркости и только потом переехала на новую (видимый
+        пользователю скачок), либо слияние вернуло вызов не того сервиса.
+        """
         entity = self._make_entity(state="on")
         result = entity.process_cmd(
             {
@@ -399,7 +416,9 @@ class TestLightProcessCmd(unittest.TestCase):
                 ]
             }
         )
-        self.assertEqual(len(result), 2)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"]["service"], "turn_on")
+        self.assertIn("brightness", result[0]["url"]["service_data"])
 
 
 class TestLightProcessStateChange(unittest.TestCase):
@@ -670,3 +689,190 @@ class TestWhiteModeHandling(unittest.TestCase):
         self.assertEqual(url["service"], "turn_on")
         self.assertIn("color_temp_kelvin", url["service_data"])
         self.assertNotIn("hs_color", url["service_data"])
+
+
+class TestLightIssue63(unittest.TestCase):
+    """Регрессии issue #63: белый режим, нижний край яркости, полнота состояния."""
+
+    def _make_two_mode_entity(self, color_mode="hs"):
+        """Двухрежимная лампа (CCT + цвет) в заданном текущем режиме HA."""
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="on",
+                supported_color_modes=["color_temp", "hs"],
+                color_mode=color_mode,
+                # HA обнуляет color_temp у лампы, находящейся в цветном режиме
+                color_temp=300 if color_mode == "color_temp" else None,
+                hs_color=[30.0, 80.0],
+            )
+        )
+        return entity
+
+    def test_cmd_mode_white_on_two_mode_lamp_in_colour_mode(self):
+        """Двухрежимная лампа в цветном режиме по команде «белый» уходит в CCT.
+
+        HA обнуляет ``color_temp_kelvin``, пока лампа в цветном режиме, и
+        старое условие проверяло именно текущее значение — команда падала
+        в ветку «лампа только RGB» и присылала обесцвеченный ЦВЕТ
+        (``hs_color=[0, 0]``).  Если тест упадёт — кнопка «белый» в
+        приложении Сбера снова перестанет включать настоящий белый.
+        """
+        entity = self._make_two_mode_entity(color_mode="hs")
+        result = entity.process_cmd(
+            {"states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}}]}
+        )
+        self.assertEqual(len(result), 1)
+        service_data = result[0]["url"]["service_data"]
+        self.assertIn("color_temp_kelvin", service_data)
+        self.assertNotIn("hs_color", service_data)
+
+    def test_cmd_mode_white_restores_last_known_colour_temp(self):
+        """«Белый» возвращает лампу к последней известной цветовой температуре.
+
+        Пользователь ушёл в цвет и вернулся — ожидается тот же белый, что
+        был до этого, а не произвольный.  Если тест упадёт, лампа при
+        каждом возврате в белый будет прыгать на другую температуру.
+        """
+        entity = self._make_two_mode_entity(color_mode="color_temp")
+        expected_kelvin = entity.process_cmd(
+            {"states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}}]}
+        )[0]["url"]["service_data"]["color_temp_kelvin"]
+
+        # Лампа переходит в цветной режим — HA перестаёт отдавать CCT
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="on",
+                supported_color_modes=["color_temp", "hs"],
+                color_mode="hs",
+                color_temp=None,
+                hs_color=[30.0, 80.0],
+            )
+        )
+        self.assertIsNone(entity.current_sber_color_temp)
+
+        result = entity.process_cmd(
+            {"states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}}]}
+        )
+        self.assertEqual(result[0]["url"]["service_data"]["color_temp_kelvin"], expected_kelvin)
+
+    def test_cmd_mode_white_falls_back_to_mid_range(self):
+        """Лампа, ни разу не виденная в белом, получает середину диапазона CCT.
+
+        Осмысленное нейтральное значение вместо провала в RGB-ветку.  Если
+        тест упадёт — у только что добавленной лампы «белый» опять станет
+        обесцвеченным цветом.
+        """
+        entity = self._make_two_mode_entity(color_mode="hs")
+        self.assertIsNone(entity.current_sber_color_temp)
+        service_data = entity.process_cmd(
+            {"states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}}]}
+        )[0]["url"]["service_data"]
+        # Середина шкалы Sber 0..1000 → середина диапазона майредов лампы
+        mid_mireds = entity.color_temp_converter.sber_to_ha(500)
+        self.assertEqual(service_data["color_temp_kelvin"], int(1_000_000 / mid_mireds))
+
+    def test_cmd_brightness_min_does_not_turn_lamp_off(self):
+        """Нижнее положение слайдера яркости Сбера не гасит лампу.
+
+        В HA ``brightness: 0`` означает «выключить», а минимум Sber (100)
+        конвертируется ровно в 0.  Лампа гасла, мост публиковал
+        ``light_brightness: 100``, слайдер вставал вниз — и следующее
+        касание гасило её снова.  Если тест упадёт, цикл вернётся.
+        """
+        entity = self._make_two_mode_entity()
+        for sber_value in (100, 101, 102):
+            with self.subTest(sber_value=sber_value):
+                result = entity.process_cmd(
+                    {
+                        "states": [
+                            {"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": str(sber_value)}}
+                        ]
+                    }
+                )
+                self.assertGreaterEqual(result[0]["url"]["service_data"]["brightness"], 1)
+
+    def test_state_carries_both_colour_channels_in_colour_mode(self):
+        """В цветном режиме публикуются и light_colour, и light_colour_temp.
+
+        Тем же payload мост отвечает на ``down/status_request``, где Sber
+        требует все заявленные функции.  Если тест упадёт — приложение
+        получит неполный ответ и потеряет один из каналов лампы.
+        """
+        entity = self._make_two_mode_entity(color_mode="color_temp")
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="on",
+                supported_color_modes=["color_temp", "hs"],
+                color_mode="hs",
+                color_temp=None,
+                hs_color=[120.0, 50.0],
+            )
+        )
+        keys = [s["key"] for s in entity.to_sber_current_state()["light.room"]["states"]]
+        self.assertIn("light_colour", keys)
+        self.assertIn("light_colour_temp", keys)
+        self.assertIn("light_mode", keys)
+
+    def test_cct_only_lamp_never_publishes_light_colour(self):
+        """CCT-лампа не начинает публиковать незаявленную функцию light_colour.
+
+        Полнота состояния не должна превращаться в утечку ключей, которых
+        нет в модели устройства: Sber показал бы мёртвый цветовой круг
+        (история issue #44).  Если тест упадёт — вернётся эта регрессия.
+        """
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="on",
+                supported_color_modes=["color_temp"],
+                color_mode="color_temp",
+                color_temp=300,
+            )
+        )
+        keys = [s["key"] for s in entity.to_sber_current_state()["light.room"]["states"]]
+        self.assertNotIn("light_colour", keys)
+        self.assertIn("light_colour_temp", keys)
+
+
+class TestLedStripInheritsLightFixes(unittest.TestCase):
+    """Категория led_strip наследует LightEntity — правки чинят и её."""
+
+    def _make_entity(self):
+        """Двухрежимная LED-лента в цветном режиме HA."""
+        entity = LedStripEntity({"entity_id": "light.strip", "name": "Strip"})
+        entity.fill_by_ha_state(
+            _make_ha_state(
+                state="on",
+                supported_color_modes=["color_temp", "hs"],
+                color_mode="hs",
+                color_temp=None,
+                hs_color=[30.0, 80.0],
+            )
+        )
+        return entity
+
+    def test_category_is_led_strip(self):
+        """Категория остаётся led_strip — иначе устройство перерегистрируется у Сбера."""
+        self.assertEqual(self._make_entity().category, "led_strip")
+
+    def test_cmd_mode_white_uses_colour_temp(self):
+        """У ленты «белый» тоже переводит лампу в CCT, а не в обесцвеченный цвет."""
+        service_data = self._make_entity().process_cmd(
+            {"states": [{"key": "light_mode", "value": {"type": "ENUM", "enum_value": "white"}}]}
+        )[0]["url"]["service_data"]
+        self.assertIn("color_temp_kelvin", service_data)
+        self.assertNotIn("hs_color", service_data)
+
+    def test_cmd_brightness_min_does_not_turn_strip_off(self):
+        """У ленты нижний край слайдера яркости тоже не гасит её."""
+        result = self._make_entity().process_cmd(
+            {"states": [{"key": "light_brightness", "value": {"type": "INTEGER", "integer_value": "100"}}]}
+        )
+        self.assertGreaterEqual(result[0]["url"]["service_data"]["brightness"], 1)
+
+    def test_state_carries_both_colour_channels(self):
+        """Лента отдаёт оба канала цвета — ответ на status_request полон."""
+        keys = [s["key"] for s in self._make_entity().to_sber_current_state()["light.strip"]["states"]]
+        self.assertIn("light_colour", keys)
+        self.assertIn("light_mode", keys)

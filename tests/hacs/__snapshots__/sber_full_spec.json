@@ -1133,6 +1133,8 @@
       "name": "air_pressure",
       "range": "200, 800",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_temp"
       ]
@@ -1141,6 +1143,8 @@
       "name": "alarm_mute",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_gas",
         "sensor_smoke"
@@ -1150,6 +1154,8 @@
       "name": "battery_low_power",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "curtain",
         "scenario_button",
@@ -1168,6 +1174,8 @@
       "name": "battery_percentage",
       "range": "0, 100",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "curtain",
         "scenario_button",
@@ -1192,6 +1200,8 @@
       "name": "button_10_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1205,6 +1215,8 @@
       "name": "button_1_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1218,6 +1230,8 @@
       "name": "button_2_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1231,6 +1245,8 @@
       "name": "button_3_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1244,6 +1260,8 @@
       "name": "button_4_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1257,6 +1275,8 @@
       "name": "button_5_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1270,6 +1290,8 @@
       "name": "button_6_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1283,6 +1305,8 @@
       "name": "button_7_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1296,6 +1320,8 @@
       "name": "button_8_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1309,6 +1335,8 @@
       "name": "button_9_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1322,6 +1350,8 @@
       "name": "button_bottom_left_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1335,6 +1365,8 @@
       "name": "button_bottom_right_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1348,6 +1380,8 @@
       "name": "button_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1361,6 +1395,8 @@
       "name": "button_left_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1374,6 +1410,8 @@
       "name": "button_right_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1387,6 +1425,8 @@
       "name": "button_top_left_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1400,6 +1440,8 @@
       "name": "button_top_right_event",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "scenario_button"
       ]
@@ -1412,6 +1454,8 @@
       "name": "channel",
       "range": null,
       "type": "ENUM",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "tv"
       ]
@@ -1420,6 +1464,8 @@
       "name": "channel_int",
       "range": "0, 999",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "tv"
       ]
@@ -1428,6 +1474,8 @@
       "name": "child_lock",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "kettle",
         "socket",
@@ -1438,6 +1486,8 @@
       "name": "co2",
       "range": "0, 10000",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_air"
       ]
@@ -1446,6 +1496,8 @@
       "name": "current",
       "range": "0, 30000",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "relay",
         "socket"
@@ -1464,6 +1516,8 @@
       "name": "custom_key",
       "range": null,
       "type": "ENUM",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "tv"
       ]
@@ -1478,6 +1532,8 @@
       "name": "direction",
       "range": null,
       "type": "ENUM",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "tv"
       ]
@@ -1486,6 +1542,8 @@
       "name": "doorcontact_state",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_door"
       ]
@@ -1494,6 +1552,8 @@
       "name": "gas_leak_state",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_gas"
       ]
@@ -1502,6 +1562,8 @@
       "name": "hcho_float",
       "range": "0, 1.999",
       "type": "FLOAT",
+      "usage": "хранит состояние устройства, менять его не может",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_air"
       ]
@@ -1510,6 +1572,8 @@
       "name": "humidity",
       "range": "0, 100",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "hvac_ac",
         "hvac_humidifier",
@@ -1529,6 +1593,8 @@
       "name": "hvac_air_flow_direction",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_ac"
       ]
@@ -1545,6 +1611,8 @@
       "name": "hvac_air_flow_power",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_ac",
         "hvac_air_purifier",
@@ -1557,6 +1625,8 @@
       "name": "hvac_aromatization",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_air_purifier"
       ]
@@ -1565,6 +1635,8 @@
       "name": "hvac_decontaminate",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_air_purifier"
       ]
@@ -1579,6 +1651,8 @@
       "name": "hvac_direction_set",
       "range": null,
       "type": "ENUM",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "hvac_fan"
       ]
@@ -1593,6 +1667,8 @@
       "name": "hvac_heating_rate",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_boiler",
         "hvac_underfloor_heating"
@@ -1602,6 +1678,8 @@
       "name": "hvac_humidity_set",
       "range": "30, 90",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_ac",
         "hvac_humidifier"
@@ -1611,6 +1689,8 @@
       "name": "hvac_ionization",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_ac",
         "hvac_air_purifier",
@@ -1621,6 +1701,8 @@
       "name": "hvac_night_mode",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_ac",
         "hvac_air_purifier",
@@ -1631,6 +1713,8 @@
       "name": "hvac_replace_filter",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "hvac_air_purifier",
         "hvac_humidifier"
@@ -1640,6 +1724,8 @@
       "name": "hvac_replace_ionizator",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "hvac_air_purifier",
         "hvac_humidifier"
@@ -1649,6 +1735,8 @@
       "name": "hvac_temp_set",
       "range": "5, 50",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_ac",
         "hvac_boiler",
@@ -1670,6 +1758,8 @@
       "name": "hvac_thermostat_mode",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_boiler",
         "hvac_heater",
@@ -1680,6 +1770,8 @@
       "name": "hvac_water_level",
       "range": "0, 50",
       "type": "FLOAT",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "hvac_humidifier"
       ]
@@ -1688,6 +1780,8 @@
       "name": "hvac_water_low_level",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "hvac_humidifier"
       ]
@@ -1696,6 +1790,8 @@
       "name": "hvac_water_percentage",
       "range": "0, 100",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "hvac_humidifier"
       ]
@@ -1718,6 +1814,8 @@
       "name": "hvac_work_mode",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_ac"
       ]
@@ -1726,6 +1824,8 @@
       "name": "incoming_call",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "intercom"
       ]
@@ -1734,6 +1834,8 @@
       "name": "kitchen_water_level",
       "range": "0, 50",
       "type": "FLOAT",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "kettle"
       ]
@@ -1742,6 +1844,8 @@
       "name": "kitchen_water_low_level",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "kettle"
       ]
@@ -1750,6 +1854,8 @@
       "name": "kitchen_water_temperature",
       "range": "0, 100",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "kettle"
       ]
@@ -1758,6 +1864,8 @@
       "name": "kitchen_water_temperature_set",
       "range": "0, 100",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "kettle"
       ]
@@ -1766,6 +1874,8 @@
       "name": "light_brightness",
       "range": "50,1000",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "led_strip",
         "light"
@@ -1775,6 +1885,8 @@
       "name": "light_colour",
       "range": null,
       "type": "COLOUR",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "led_strip",
         "light"
@@ -1784,6 +1896,8 @@
       "name": "light_colour_temp",
       "range": "0, 1000",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "led_strip",
         "light"
@@ -1797,6 +1911,8 @@
       "name": "light_mode",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "led_strip",
         "light"
@@ -1806,6 +1922,8 @@
       "name": "light_transmission_percentage",
       "range": "0, 100",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "window_blind"
       ]
@@ -1814,6 +1932,8 @@
       "name": "mute",
       "range": null,
       "type": "BOOL",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "tv"
       ]
@@ -1822,6 +1942,8 @@
       "name": "number",
       "range": "0, 9",
       "type": "INTEGER",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "tv"
       ]
@@ -1830,6 +1952,8 @@
       "name": "on_off",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "hvac_ac",
         "hvac_air_purifier",
@@ -1851,6 +1975,8 @@
       "name": "online",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "curtain",
         "gate",
@@ -1887,6 +2013,8 @@
       "name": "open_left_percentage",
       "range": "0, 100",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "curtain",
         "gate"
@@ -1901,6 +2029,8 @@
       "name": "open_left_set",
       "range": null,
       "type": "ENUM",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "curtain",
         "gate"
@@ -1916,6 +2046,8 @@
       "name": "open_left_state",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "curtain",
         "gate"
@@ -1925,6 +2057,8 @@
       "name": "open_percentage",
       "range": "0, 100",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "curtain",
         "gate",
@@ -1942,6 +2076,8 @@
       "name": "open_rate",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "curtain",
         "gate",
@@ -1952,6 +2088,8 @@
       "name": "open_right_percentage",
       "range": "0, 100",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "curtain",
         "gate"
@@ -1966,6 +2104,8 @@
       "name": "open_right_set",
       "range": null,
       "type": "ENUM",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "curtain",
         "gate"
@@ -1981,6 +2121,8 @@
       "name": "open_right_state",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "curtain",
         "gate"
@@ -1995,6 +2137,8 @@
       "name": "open_set",
       "range": null,
       "type": "ENUM",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "curtain",
         "gate",
@@ -2012,6 +2156,8 @@
       "name": "open_state",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "curtain",
         "gate",
@@ -2026,6 +2172,8 @@
       "name": "pir",
       "range": null,
       "type": "ENUM",
+      "usage": "уведомляет о состоянии устройства, менять его не может.",
+      "usage_mode": "event_only",
       "used_in_categories": [
         "sensor_pir"
       ]
@@ -2034,6 +2182,8 @@
       "name": "pm10",
       "range": "0, 1000",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_air"
       ]
@@ -2042,6 +2192,8 @@
       "name": "pm1_0",
       "range": "0, 500",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_air"
       ]
@@ -2050,6 +2202,8 @@
       "name": "pm2_5",
       "range": "0, 500",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_air"
       ]
@@ -2058,6 +2212,8 @@
       "name": "power",
       "range": "0, 50000",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "relay",
         "socket"
@@ -2067,6 +2223,8 @@
       "name": "reject_call",
       "range": null,
       "type": "ENUM",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "intercom"
       ]
@@ -2080,6 +2238,8 @@
       "name": "sensor_sensitive",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_door",
         "sensor_gas",
@@ -2096,6 +2256,8 @@
       "name": "signal_strength",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "curtain",
         "gate",
@@ -2115,6 +2277,8 @@
       "name": "smoke_state",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_smoke"
       ]
@@ -2134,6 +2298,8 @@
       "name": "source",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "tv"
       ]
@@ -2142,6 +2308,8 @@
       "name": "tamper_alarm",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_door"
       ]
@@ -2154,6 +2322,8 @@
       "name": "temp_unit_view",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_air",
         "sensor_temp"
@@ -2163,6 +2333,8 @@
       "name": "temperature",
       "range": "-400, 2000",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "hvac_ac",
         "hvac_boiler",
@@ -2177,6 +2349,8 @@
       "name": "tvoc_float",
       "range": "0, 9.999",
       "type": "FLOAT",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_air"
       ]
@@ -2185,6 +2359,8 @@
       "name": "unlock",
       "range": null,
       "type": "ENUM",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "intercom"
       ]
@@ -2198,6 +2374,8 @@
       "name": "vacuum_cleaner_cleaning_type",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "vacuum_cleaner"
       ]
@@ -2212,6 +2390,8 @@
       "name": "vacuum_cleaner_command",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "vacuum_cleaner"
       ]
@@ -2226,6 +2406,8 @@
       "name": "vacuum_cleaner_program",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "vacuum_cleaner"
       ]
@@ -2240,6 +2422,8 @@
       "name": "vacuum_cleaner_status",
       "range": null,
       "type": "ENUM",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "vacuum_cleaner"
       ]
@@ -2248,6 +2432,8 @@
       "name": "voltage",
       "range": "0, 5000",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "relay",
         "socket"
@@ -2261,6 +2447,8 @@
       "name": "volume",
       "range": null,
       "type": "ENUM",
+      "usage": "не хранит состояние устройства, может менять его.",
+      "usage_mode": "command_only",
       "used_in_categories": [
         "tv"
       ]
@@ -2269,6 +2457,8 @@
       "name": "volume_int",
       "range": "0, 999",
       "type": "INTEGER",
+      "usage": "хранит состояние устройства и может менять его.",
+      "usage_mode": "state_read_write",
       "used_in_categories": [
         "tv"
       ]
@@ -2277,11 +2467,13 @@
       "name": "water_leak_state",
       "range": null,
       "type": "BOOL",
+      "usage": "хранит состояние устройства, менять его не может.",
+      "usage_mode": "state_read_only",
       "used_in_categories": [
         "sensor_water_leak"
       ]
     }
   },
-  "generated_at": "2026-08-26T11:22:53.415012+00:00",
+  "generated_at": "2026-09-07T12:06:54.143165+00:00",
   "source": "https://developers.sber.ru/docs/ru/smarthome/c2c"
 }

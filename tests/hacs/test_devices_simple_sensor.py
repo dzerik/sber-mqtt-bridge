@@ -3,8 +3,10 @@
 import unittest
 
 from custom_components.sber_mqtt_bridge._generated.reference_values import FEATURE_ENUM_VALUES
+from custom_components.sber_mqtt_bridge.devices.humidity_sensor import HumiditySensorEntity
 from custom_components.sber_mqtt_bridge.devices.motion_sensor import MotionSensorEntity
 from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
+from custom_components.sber_mqtt_bridge.devices.water_leak_sensor import WaterLeakSensorEntity
 
 TEMP_DATA = {"entity_id": "sensor.temp", "name": "Temperature"}
 MOTION_DATA = {"entity_id": "binary_sensor.motion", "name": "Motion"}
@@ -152,3 +154,40 @@ class TestSensorSensitiveTemp(unittest.TestCase):
         entity.fill_by_ha_state(_temp_state())
         features = entity.get_final_features_list()
         self.assertNotIn("sensor_sensitive", features)
+
+
+class TestOfflineValuePublishing:
+    """Единое правило для всех простых датчиков при ``online=false``.
+
+    Измерение (``temperature``, ``humidity``) недоступного датчика — это
+    выдуманный ноль, его публиковать нельзя. А вот обязательные по спеку
+    Sber ключи (``water_leak_state``, ``doorcontact_state``, …) слать
+    обязано даже офлайн: без них облако выбрасывает устройство целиком
+    (``CATEGORY_OBLIGATORY_FEATURES``).
+    """
+
+    @staticmethod
+    def _keys(entity, entity_id):
+        """Вернуть множество ключей публикуемого состояния."""
+        return {s["key"] for s in entity.to_sber_current_state()[entity_id]["states"]}
+
+    def test_humidity_not_published_when_offline(self):
+        """Влажность 0 % при отвале датчика — такое же враньё, как 0 °C."""
+        entity = HumiditySensorEntity({"entity_id": "sensor.hum", "name": "Humidity"})
+        entity.fill_by_ha_state({"entity_id": "sensor.hum", "state": "55", "attributes": {}})
+        entity.fill_by_ha_state({"entity_id": "sensor.hum", "state": "unavailable", "attributes": {}})
+        keys = self._keys(entity, "sensor.hum")
+        assert "online" in keys
+        assert "humidity" not in keys
+
+    def test_obligatory_alarm_state_still_published_when_offline(self):
+        """``water_leak_state`` обязателен для категории — молчать нельзя.
+
+        Если ключ пропадёт, Sber выбросит датчик протечки из конфигурации
+        при первом же отвале, и он не вернётся до переопубликации.
+        """
+        entity = WaterLeakSensorEntity({"entity_id": "binary_sensor.leak", "name": "Leak"})
+        entity.fill_by_ha_state({"entity_id": "binary_sensor.leak", "state": "unavailable", "attributes": {}})
+        keys = self._keys(entity, "binary_sensor.leak")
+        assert "online" in keys
+        assert "water_leak_state" in keys

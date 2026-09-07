@@ -36,6 +36,11 @@ options.json
 /.mcp.json
 /.serena/
 .playwright-mcp
+# Local dump of the real home's devices (names + rooms) produced by tools/
+/tools/config.json
+
+# Local HA source tarballs used to check APIs against a released version
+/homeassistant-*.tar.gz
 
 # Internal docs (not published)
 docs/ROADMAP.md

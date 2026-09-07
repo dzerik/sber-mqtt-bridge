@@ -1,6 +1,6 @@
 [project]
 name = "sber-mqtt-bridge"
-version = "1.49.0"
+version = "1.50.0"
 description = "Sber Smart Home MQTT Bridge for Home Assistant"
 requires-python = ">=3.13"
 license = "MIT"
@@ -87,11 +87,12 @@ asyncio_mode = "auto"
 source = ["custom_components/sber_mqtt_bridge"]
 
 [tool.coverage.report]
-# Actual coverage is 87.9% (2506 tests, incl. config_flow). The gate sits
+# Actual coverage is 97.4% (~4950 tests, incl. config_flow). The gate sits
 # just below that so a real regression fails CI, while normal fluctuation
-# does not.  CLAUDE.md documents 80% as the project minimum — never lower
-# this below it; raise it as coverage grows.
-fail_under = 85
+# does not.  At 85 a regression of ~900 statements still passed green —
+# that is what this number is meant to catch.  Never lower it; raise it as
+# coverage grows.
+fail_under = 95
 show_missing = true
 exclude_lines = [
     "pragma: no cover",

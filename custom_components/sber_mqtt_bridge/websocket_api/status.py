@@ -251,18 +251,22 @@ def _section_sber_states(entity: Any) -> list[dict[str, Any]]:
     """Build the Sber current-state list; empty list on failure."""
     try:
         sber_state = entity.to_sber_current_state()
-        return sber_state.get(entity.entity_id, {}).get("states", [])
+        states: list[dict[str, Any]] = sber_state.get(entity.entity_id, {}).get("states", [])
     except (RuntimeError, TypeError, ValueError):
         return []
+    else:
+        return states
 
 
 def _section_sber_model(entity: Any) -> dict[str, Any]:
     """Build the Sber device-config model block; empty dict on failure."""
     try:
         sber_config = entity.to_sber_state()
-        return sber_config.get("model", {})
+        model: dict[str, Any] = sber_config.get("model", {})
     except (RuntimeError, TypeError, ValueError):
         return {}
+    else:
+        return model
 
 
 def _section_ha_state(hass: HomeAssistant, entity_id: str) -> dict[str, Any]:
@@ -298,7 +302,8 @@ def _section_device_info(entry: Any, device_reg: Any, area_reg: Any) -> dict[str
 def _friendly_name(linked_state: Any, linked_entry: Any, linked_id: str) -> str:
     """Resolve a friendly_name for a linked entity (3-way fallback)."""
     if linked_state is not None:
-        return linked_state.attributes.get("friendly_name", linked_id)
+        name: str = linked_state.attributes.get("friendly_name", linked_id)
+        return name
     if linked_entry is not None:
         return linked_entry.name or linked_entry.original_name or linked_id
     return linked_id

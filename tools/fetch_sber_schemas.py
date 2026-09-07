@@ -142,6 +142,42 @@ _ENUM_STOP_MARKER = "Устройства с этой функцией"
 # and the usage mode, which never carries the "value — description" shape.
 _ENUM_START_MARKER = "Назначение:"
 
+# "Способ использования: хранит состояние устройства и может менять его."
+# Always the first line of a function page, above "Назначение:".
+_USAGE_DECL_RE = re.compile(r"Способ использования:\s*([^\n]+)")
+
+USAGE_STATE_READ_WRITE = "state_read_write"
+"""Feature holds device state and Sber may change it (the common case)."""
+
+USAGE_STATE_READ_ONLY = "state_read_only"
+"""Feature holds device state but is reported only — no command accepted."""
+
+USAGE_COMMAND_ONLY = "command_only"
+"""Feature carries no state at all: it exists purely to accept a command.
+
+Such a feature must be *declared* by the device yet never appears in a
+state publish, which is exactly why the obligatory/conditional checks
+have to run against declared features rather than the payload.
+"""
+
+USAGE_EVENT_ONLY = "event_only"
+"""Feature notifies that something happened; it cannot be commanded.
+
+Only ``pir`` is worded this way today — it is sent when motion is
+detected and stays silent otherwise, so requiring it in every publish
+reports every idle motion sensor as broken (issue #61).
+"""
+
+# Sber words the usage line in exactly four ways across all 96 functions.
+# Keys are normalized (nbsp collapsed, trailing period dropped, lowercased)
+# by :func:`classify_usage` before lookup.
+_USAGE_MODES: dict[str, str] = {
+    "хранит состояние устройства и может менять его": USAGE_STATE_READ_WRITE,
+    "хранит состояние устройства, менять его не может": USAGE_STATE_READ_ONLY,
+    "не хранит состояние устройства, может менять его": USAGE_COMMAND_ONLY,
+    "уведомляет о состоянии устройства, менять его не может": USAGE_EVENT_ONLY,
+}
+
 
 # ---------------------------------------------------------------------------
 # Category schema extraction
@@ -454,6 +490,48 @@ def list_function_slugs(page) -> list[str]:
     return sorted(slugs)
 
 
+def slug_candidates(name: str) -> list[str]:
+    """URL slugs a function *might* live at, most likely first.
+
+    The canonical function name always uses underscores, while the docs
+    site is inconsistent about the slug: ``open_set`` is served at
+    ``/open_set`` but ``light_colour_temp`` at ``/light-colour-temp``.
+    With no index entry to read the real href from, both spellings have
+    to be tried.
+
+    Args:
+        name: Canonical function name (underscore form).
+
+    Returns:
+        One or two slugs; the kebab variant is omitted when the name has
+        no underscore to convert.
+    """
+    kebab = name.replace("_", "-")
+    return [name] if kebab == name else [name, kebab]
+
+
+def plan_recovery_names(discovered_slugs: list[str], known_functions: set[str]) -> list[str]:
+    """Functions the index stopped listing and that must be fetched directly.
+
+    The ``/functions`` index is the only discovery source, so a page that
+    silently drops out of it disappears from the snapshot — and with it
+    from ``FEATURE_ENUM_VALUES`` / ``FEATURE_RANGES``.  Nothing downstream
+    notices: the validator simply stops checking that feature.  Comparing
+    the discovered slugs with the previously committed catalog turns that
+    silent shrinkage into a direct re-fetch.
+
+    Args:
+        discovered_slugs: Slugs the index yielded this run.
+        known_functions: Function names from the previous snapshot.
+
+    Returns:
+        Sorted names present in the previous snapshot but not covered by
+        any discovered slug (slug dashes count as underscores).
+    """
+    covered = {slug.replace("-", "_") for slug in discovered_slugs}
+    return sorted(known_functions - covered)
+
+
 def extract_enum_values(article_text: str) -> list[str]:
     """Pull an ENUM function's accepted values out of its page text.
 
@@ -500,6 +578,61 @@ def extract_enum_values(article_text: str) -> list[str]:
     return seen
 
 
+def normalize_spaces(text: str) -> str:
+    """Collapse Sber's typographic whitespace into plain single spaces.
+
+    The docs are typeset with non-breaking spaces (``\\xa0``) and the odd
+    zero-width BOM (``\\ufeff``) sprinkled mid-sentence: ``alarm_mute``
+    reads "менять его не\\xa0может" while ``battery_low_power`` uses a
+    plain space in the very same phrase.  Comparing the raw strings would
+    split one wording into two, so every phrase is normalized first.
+
+    Args:
+        text: Raw ``innerText`` fragment as rendered by the docs site.
+
+    Returns:
+        The same text with all whitespace runs turned into single spaces
+        and the leading/trailing whitespace stripped.
+    """
+    return re.sub(r"\s+", " ", text.replace("\xa0", " ").replace("\ufeff", "")).strip()
+
+
+def classify_usage(usage: str) -> str | None:
+    """Map a "Способ использования" sentence onto one of the four modes.
+
+    Args:
+        usage: The sentence as the page words it (raw or normalized).
+
+    Returns:
+        One of :data:`USAGE_STATE_READ_WRITE`, :data:`USAGE_STATE_READ_ONLY`,
+        :data:`USAGE_COMMAND_ONLY`, :data:`USAGE_EVENT_ONLY` — or ``None``
+        when Sber reworded the sentence.  ``None`` means *unknown*, never
+        "no restriction": callers surface it as drift instead of guessing,
+        because guessing here silently mislabels a command-only feature as
+        state-bearing and the validator starts demanding a state that can
+        never arrive.
+    """
+    return _USAGE_MODES.get(normalize_spaces(usage).rstrip(" .").lower())
+
+
+def extract_usage(article_text: str) -> tuple[str | None, str | None]:
+    """Pull the usage sentence + its classification off a function page.
+
+    Args:
+        article_text: ``innerText`` of the function page's article.
+
+    Returns:
+        ``(usage, usage_mode)``.  ``usage`` is the normalized sentence,
+        ``usage_mode`` its :data:`_USAGE_MODES` classification.  Both are
+        ``None`` when the page carries no usage line at all.
+    """
+    match = _USAGE_DECL_RE.search(article_text)
+    if not match:
+        return None, None
+    usage = normalize_spaces(match.group(1))
+    return usage, classify_usage(usage)
+
+
 def extract_function_spec(page, slug: str) -> dict | None:
     """Parse a single function page — name, type, range.
 
@@ -532,10 +665,14 @@ def extract_function_spec(page, slug: str) -> dict | None:
 
     pre_blocks: list[str] = page.eval_on_selector_all("pre", "els => els.map(e => e.innerText)")
 
+    usage, usage_mode = extract_usage(article_text)
+
     spec: dict = {
         "name": name,
         "type": type_name,
         "range": range_str,
+        "usage": usage,
+        "usage_mode": usage_mode,
         "examples": [b.strip() for b in pre_blocks if b.strip()],
     }
     if type_name == "ENUM":
@@ -543,6 +680,31 @@ def extract_function_spec(page, slug: str) -> dict | None:
         if values:
             spec["enum_values"] = values
     return spec
+
+
+def report_usage_coverage(functions: dict[str, dict]) -> bool:
+    """Print how many functions carry a recognised usage mode.
+
+    Deliberately a warning and not a failure: a reworded usage sentence
+    must still let the run finish and write the snapshot, so the drift
+    check downstream can open a PR showing exactly which function lost
+    its classification.  Failing here would abort before the PR exists.
+
+    Args:
+        functions: The function catalog, after extraction.
+
+    Returns:
+        ``True`` when every function is classified, ``False`` otherwise.
+    """
+    unknown = sorted(name for name, spec in functions.items() if not spec.get("usage_mode"))
+    if not unknown:
+        print(f"OK: all {len(functions)} functions carry a recognised usage mode")
+        return True
+    print(f"WARNING: {len(unknown)} function(s) with unrecognised 'Способ использования' wording:")
+    for name in unknown:
+        print(f"  ? {name:30s} usage={functions[name].get('usage')!r}")
+    print("  Action: add the new wording to _USAGE_MODES in this file")
+    return False
 
 
 def build_used_in_categories(categories: dict[str, dict]) -> dict[str, list[str]]:
@@ -655,7 +817,30 @@ def main() -> int:
             functions[name] = spec
             print(f"OK ({spec['type']})")
 
+        # Phase 2b: the index is the only discovery source, so anything it
+        # drops would silently vanish from the catalog.  Re-fetch such pages
+        # by their slug directly (see plan_recovery_names).
+        recovery = [n for n in plan_recovery_names(function_slugs, known_functions) if n not in functions]
+        if recovery:
+            print(f"\n=== Phase 2b: {len(recovery)} known function(s) missing from the index ===")
+            for name in recovery:
+                print(f"Re-fetching {name} by slug...", end=" ", flush=True)
+                for candidate in slug_candidates(name):
+                    spec = extract_function_spec(page, candidate)
+                    if spec is not None and spec.get("type") is not None:
+                        spec = {k: v for k, v in spec.items() if k != "examples"}
+                        functions[spec["name"]] = spec
+                        print(f"OK ({spec['type']}, /{candidate})")
+                        break
+                else:
+                    print("MISSING")
+                    function_failures.append(name)
+
         browser.close()
+
+    # Phase 2c: usage-mode coverage (warning only — see report_usage_coverage).
+    print("\n=== Phase 2c: usage mode coverage ===")
+    report_usage_coverage(functions)
 
     # Phase 3: invert per-category tables into the feature → categories index
     # (see build_used_in_categories() for why this is authoritative).

@@ -112,6 +112,15 @@ class LightEntity(BaseEntity):
         self.current_color_mode: str | None = None
         self.hs_color: list[float] | None = None
 
+        # Последние известные значения каналов.  HA обнуляет атрибуты
+        # неактивного канала (в цветном режиме нет color_temp_kelvin, в
+        # состоянии off нет ни hs_color, ни brightness), а Sber ждёт в
+        # ответе на status_request все заявленные функции (issue #63).
+        self._last_hs_color: list[float] | None = None
+        self._last_ha_brightness: int = 0
+        self._last_sber_color_temp: int | None = None
+        self._last_light_mode: str | None = None
+
         self.brightness_converter = LinearConverter()
         self.brightness_converter.set_ha_limits(0, 255)
         self.brightness_converter.set_sber_limits(100, 900)
@@ -165,6 +174,29 @@ class LightEntity(BaseEntity):
             self.current_sber_color_temp = self.color_temp_converter.ha_to_sber(attrs["color_temp"])
         else:
             self.current_sber_color_temp = None
+
+        self._remember_last_known()
+
+    def _remember_last_known(self) -> None:
+        """Latch the last observed value of every light channel.
+
+        HA publishes only the attributes of the *active* channel: a lamp
+        in a colour mode reports no ``color_temp_kelvin``, and a lamp that
+        is off reports neither ``hs_color`` nor ``brightness``.  Sber, on
+        the contrary, requires a status_request answer to carry **all**
+        declared features, and both ``light_colour`` / ``light_colour_temp``
+        are documented as state-holding.  The latched values also give
+        :meth:`_cmd_mode` a meaningful colour temperature to switch to
+        while the lamp sits in a colour mode (issue #63).
+        """
+        if self.current_sber_color_temp is not None:
+            self._last_sber_color_temp = self.current_sber_color_temp
+        if isinstance(self.hs_color, (list, tuple)) and len(self.hs_color) >= 2:
+            self._last_hs_color = [self.hs_color[0], self.hs_color[1]]
+        if self._ha_brightness_raw:
+            self._last_ha_brightness = self._ha_brightness_raw
+        if self.current_color_mode is not None:
+            self._last_light_mode = "colour" if self._is_current_color_mode_colored() else "white"
 
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list based on available light capabilities.
@@ -243,11 +275,40 @@ class LightEntity(BaseEntity):
         """
         return self.current_color_mode in ("hs", "rgb", "rgbw", "rgbww", "xy")
 
+    def _last_known_colour_value(self) -> dict | None:
+        """Build the ``light_colour`` value from the last observed HA colour.
+
+        Uses the latched hue/saturation pair (see
+        :meth:`_remember_last_known`) so the colour survives both a switch
+        to the white channel and the lamp being off, where HA reports no
+        ``hs_color`` at all.
+
+        Returns:
+            A Sber ``colour_value`` payload, or ``None`` if this lamp's
+            colour has never been observed.
+        """
+        if self._last_hs_color is None:
+            return None
+        hue, saturation, value = ColorConverter.ha_to_sber_hsv(
+            self._last_hs_color[0],
+            self._last_hs_color[1],
+            self._ha_brightness_raw or self._last_ha_brightness,
+        )
+        return make_colour_value(hue, saturation, value)
+
     def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with all light attributes.
 
-        Includes online, on_off, brightness, color/color_temp, and light_mode
-        depending on the current state and color mode.
+        Every state-holding feature the lamp declares is reported on every
+        publish — ``light_colour``, ``light_colour_temp`` and ``light_mode``
+        included, and in the off state too.  Sber answers a
+        ``down/status_request`` with this very payload and requires it to
+        carry all declared functions, while HA only ever exposes the
+        currently active channel, so the latched values from
+        :meth:`_remember_last_known` fill the gaps (issue #63).  Keys the
+        lamp does not declare are dropped by
+        :meth:`~.base_entity.BaseEntity._filter_undeclared_states`, so a
+        CCT-only lamp still never publishes ``light_colour``.
 
         Per Sber C2C specification, ``integer_value`` is serialized as a string.
 
@@ -262,28 +323,15 @@ class LightEntity(BaseEntity):
         if self.current_sber_brightness != 0:
             states.append(make_state(SberFeature.LIGHT_BRIGHTNESS, make_integer_value(self.current_sber_brightness)))
 
-        if self.current_state:
-            if (
-                self._is_current_color_mode_colored()
-                and isinstance(self.hs_color, (list, tuple))
-                and len(self.hs_color) >= 2
-            ):
-                current_color_sber = ColorConverter.ha_to_sber_hsv(
-                    self.hs_color[0], self.hs_color[1], self._ha_brightness_raw
-                )
-                states.append(
-                    make_state(
-                        SberFeature.LIGHT_COLOUR,
-                        make_colour_value(current_color_sber[0], current_color_sber[1], current_color_sber[2]),
-                    )
-                )
-                states.append(make_state(SberFeature.LIGHT_MODE, make_enum_value("colour")))
-            else:
-                if self.current_sber_color_temp is not None:
-                    states.append(
-                        make_state(SberFeature.LIGHT_COLOUR_TEMP, make_integer_value(self.current_sber_color_temp))
-                    )
-                states.append(make_state(SberFeature.LIGHT_MODE, make_enum_value("white")))
+        colour_value = self._last_known_colour_value()
+        if colour_value is not None:
+            states.append(make_state(SberFeature.LIGHT_COLOUR, colour_value))
+
+        if self._last_sber_color_temp is not None:
+            states.append(make_state(SberFeature.LIGHT_COLOUR_TEMP, make_integer_value(self._last_sber_color_temp)))
+
+        mode = self._last_light_mode or ("colour" if self._is_current_color_mode_colored() else "white")
+        states.append(make_state(SberFeature.LIGHT_MODE, make_enum_value(mode)))
 
         return {self.entity_id: {"states": states}}
 
@@ -311,7 +359,11 @@ class LightEntity(BaseEntity):
         if sber_br_value is None:
             return []
         ha_br_value = self.brightness_converter.sber_to_ha(sber_br_value)
-        brightness = max(0, min(int(ha_br_value), 255))
+        # brightness=0 в HA означает «выключить» (light/__init__.py), а
+        # минимум слайдера Sber (100) конвертируется ровно в 0 — нижнее
+        # положение гасило лампу и замыкало цикл (issue #63).  Как и в
+        # _cmd_colour, держим не ниже 1.
+        brightness = max(1, min(int(ha_br_value), 255))
         return [
             self._build_service_call(self.get_entity_domain(), "turn_on", self.entity_id, {"brightness": brightness})
         ]
@@ -367,9 +419,23 @@ class LightEntity(BaseEntity):
                 ]
             return [{"update_state": True}]
         # white mode
-        if "color_temp" in self.supported_color_modes and self.current_sber_color_temp is not None:
-            # CCT-capable light — real colour temperature.
-            ha_mireds = self.color_temp_converter.sber_to_ha(self.current_sber_color_temp)
+        if "color_temp" in self.supported_color_modes:
+            # CCT-capable light — real colour temperature.  The branch is
+            # chosen by *capability* only: HA blanks color_temp_kelvin
+            # while the lamp sits in a colour mode, so also requiring a
+            # live value dropped every two-mode lamp into the RGB-only
+            # branch below and "white" arrived as a desaturated colour
+            # (issue #63).
+            sber_color_temp = self.current_sber_color_temp
+            if sber_color_temp is None:
+                # Prefer the white the user last chose; fall back to the
+                # middle of the range for a lamp never seen in white.
+                sber_color_temp = self._last_sber_color_temp
+            if sber_color_temp is None:
+                sber_color_temp = (
+                    self.color_temp_converter.sber_side_min + self.color_temp_converter.sber_side_max
+                ) // 2
+            ha_mireds = self.color_temp_converter.sber_to_ha(sber_color_temp)
             ha_kelvin = int(1_000_000 / max(ha_mireds, 1))
             return [
                 self._build_service_call(

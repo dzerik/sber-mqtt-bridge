@@ -88,13 +88,20 @@ class TestAirPressure(unittest.TestCase):
         self.assertNotIn("air_pressure", features)
 
     def test_air_pressure_in_state(self):
+        """1013 hPa публикуется как 760 мм рт. ст.
+
+        Раньше здесь ожидалось ``"1013"``: значение уезжало в облако
+        как есть, хотя Sber документирует ``air_pressure`` как
+        ``INTEGER(200, 800)`` в миллиметрах ртутного столба. Подробные
+        проверки единиц — в ``test_devices_sensor_temp.py``.
+        """
         entity = SensorTempEntity(TEMP_DATA)
         entity.fill_by_ha_state(_sensor_state(pressure=1013))
         result = entity.to_sber_current_state()
         states = result["sensor.temp"]["states"]
         ap = next(s for s in states if s["key"] == "air_pressure")
         self.assertEqual(ap["value"]["type"], "INTEGER")
-        self.assertEqual(ap["value"]["integer_value"], "1013")
+        self.assertEqual(ap["value"]["integer_value"], "760")
 
     def test_air_pressure_not_in_state_when_absent(self):
         entity = SensorTempEntity(TEMP_DATA)

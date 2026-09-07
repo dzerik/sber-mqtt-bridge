@@ -30,7 +30,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import Event, HomeAssistant, callback
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 
 if TYPE_CHECKING:
     from .devices.base_entity import BaseEntity
@@ -167,7 +167,7 @@ class HaStateForwarder:
         self._pending_since = None
 
     @callback
-    def _on_ha_state_changed(self, event: Event) -> None:
+    def _on_ha_state_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle HA state change → route to linked / primary handler."""
         entity_id = event.data["entity_id"]
         new_state = event.data.get("new_state")
@@ -223,7 +223,9 @@ class HaStateForwarder:
         self._schedule_debounced_publish(primary_id)
 
     @callback
-    def _handle_primary_state_change(self, entity_id: str, event: Event, ha_state_dict: dict) -> None:
+    def _handle_primary_state_change(
+        self, entity_id: str, event: Event[EventStateChangedData], ha_state_dict: dict
+    ) -> None:
         """Process a state change for an entity directly registered in the bridge."""
         entities = self._get_entities()
         entity = entities.get(entity_id)

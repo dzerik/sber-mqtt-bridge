@@ -216,8 +216,11 @@ class ConfigPublishGate:
         self._timer = None
         missing = self._blocking_entity_ids()
         now = self._loop.time()
-        cap_reached = self._pending_since is None or now - self._pending_since >= self._max_wait
-        if missing and not cap_reached:
+        # Bound to a local so the ``is None`` test below reads as the guard it
+        # already is: no pending burst means the cap is trivially reached.
+        pending_since = self._pending_since
+        cap_reached = pending_since is None or now - pending_since >= self._max_wait
+        if missing and pending_since is not None and not cap_reached:
             # The stream went quiet, but a device the cloud holds is still
             # absent — publishing now would drop it.  Silence is not evidence
             # that it will never arrive: a battery sensor may report minutes
@@ -227,7 +230,7 @@ class ConfigPublishGate:
                 len(missing),
                 ", ".join(sorted(missing)),
             )
-            deadline = self._pending_since + self._max_wait
+            deadline = pending_since + self._max_wait
             self._timer = self._loop.call_later(max(0.0, min(self._settle_delay, deadline - now)), self._on_timer)
             return
         if missing:

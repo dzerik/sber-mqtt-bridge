@@ -3,8 +3,11 @@
 import unittest
 
 from custom_components.sber_mqtt_bridge.devices.climate import ClimateEntity
+from custom_components.sber_mqtt_bridge.devices.hvac_boiler import HvacBoilerEntity
+from custom_components.sber_mqtt_bridge.schema_validator import validate_publish
 
 ENTITY_DATA = {"entity_id": "climate.ac", "name": "AC"}
+BOILER_DATA = {"entity_id": "water_heater.boiler", "name": "Boiler"}
 
 
 def _make_ha_state(
@@ -202,6 +205,11 @@ class TestClimateToSberCurrentState(unittest.TestCase):
         self.assertFalse(online["value"]["bool_value"])
 
     def test_no_temperature(self):
+        """Без current_temperature датчик комнаты не публикуем, а уставку — обязаны.
+
+        Если ``hvac_temp_set`` пропадёт из публикации, Сбер молча выбросит
+        кондиционер целиком (обязательная функция категории hvac_ac).
+        """
         entity = ClimateEntity(ENTITY_DATA)
         entity.fill_by_ha_state(
             {
@@ -214,7 +222,10 @@ class TestClimateToSberCurrentState(unittest.TestCase):
         states = result["climate.ac"]["states"]
         keys = [s["key"] for s in states]
         self.assertNotIn("temperature", keys)
-        self.assertNotIn("hvac_temp_set", keys)
+        self.assertIn("hvac_temp_set", keys)
+        temp_set = next(s for s in states if s["key"] == "hvac_temp_set")
+        # Комнатная температура неизвестна → нижняя граница диапазона.
+        self.assertEqual(temp_set["value"]["integer_value"], "16")
 
     def test_off_state_on_off_false(self):
         entity = ClimateEntity(ENTITY_DATA)
@@ -530,3 +541,194 @@ class TestClimateProcessStateChange(unittest.TestCase):
         entity.process_state_change(old, new)
         self.assertTrue(entity.current_state)
         self.assertEqual(entity.hvac_mode, "heat")
+
+
+class TestClimateObligatoryTempSet(unittest.TestCase):
+    """hvac_temp_set обязателен для hvac_ac — он должен быть в каждой публикации.
+
+    Если эти тесты падают, Сбер молча выбрасывает кондиционер: устройство
+    исчезает из приложения, хотя мост исправно шлёт состояния.
+    """
+
+    def _publish(self, entity):
+        """Вернуть (список ключей состояния, ошибки валидатора схемы)."""
+        features = entity.get_final_features_list()
+        states = entity.to_sber_current_state()[entity.entity_id]["states"]
+        issues = validate_publish(
+            entity_id=entity.entity_id,
+            category=entity.category,
+            states=states,
+            declared_features=features,
+        )
+        keys = [str(s["key"]) for s in states]
+        return keys, [i for i in issues if i.severity == "error"]
+
+    def test_off_climate_without_target_still_publishes_temp_set(self):
+        """Выключенный термостат отдаёт temperature=None — уставку берём из комнаты."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(state="off", temperature=None, current_temperature=21.0))
+        keys, errors = self._publish(entity)
+        self.assertIn("hvac_temp_set", keys)
+        self.assertEqual(errors, [])
+
+    def test_fan_only_without_target_temperature_is_not_dropped(self):
+        """Режим вентиляции без TARGET_TEMPERATURE тоже обязан публиковать уставку."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "climate.ac",
+                "state": "fan_only",
+                "attributes": {"current_temperature": 26.0, "hvac_modes": ["off", "fan_only"]},
+            }
+        )
+        keys, errors = self._publish(entity)
+        self.assertIn("hvac_temp_set", keys)
+        self.assertEqual(errors, [])
+
+    def test_fallback_is_clamped_into_declared_range(self):
+        """Фолбэк не должен вылезать за min/max из allowed_values."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(temperature=None, current_temperature=40.0, max_temp=32.0))
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
+        temp_set = next(s for s in states if s["key"] == "hvac_temp_set")
+        self.assertEqual(temp_set["value"]["integer_value"], "32")
+
+    def test_transient_none_keeps_known_target(self):
+        """Транзиентный state без атрибута temperature не стирает известную уставку."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(temperature=23.0))
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "climate.ac",
+                "state": "cool",
+                "attributes": {"current_temperature": 24.5},
+            }
+        )
+        self.assertEqual(entity.target_temperature, 23.0)
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
+        temp_set = next(s for s in states if s["key"] == "hvac_temp_set")
+        self.assertEqual(temp_set["value"]["integer_value"], "23")
+
+    def test_switch_to_range_replaces_preserved_target(self):
+        """Переход heat → heat_cool: показываем середину диапазона, а не старую уставку."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(state="heat", temperature=23.0))
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "climate.ac",
+                "state": "heat_cool",
+                "attributes": {"target_temp_low": 18.0, "target_temp_high": 24.0},
+            }
+        )
+        self.assertEqual(entity.target_temperature, 21.0)
+        self.assertTrue(entity._target_is_range)
+
+
+class TestClimateModeLookupIsCaseInsensitive(unittest.TestCase):
+    """Регистр в названиях режимов HA не должен убивать функцию целиком.
+
+    Много интеграций отдают ``["Auto", "Low", "High"]``. При падении этих
+    тестов управление вентилятором/шторками просто исчезает из приложения
+    Сбера, хотя в Home Assistant оно есть.
+    """
+
+    def test_capitalised_fan_modes_declare_and_publish_power(self):
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(fan_modes=["Auto", "Low", "High"], fan_mode="Low"))
+        self.assertIn("hvac_air_flow_power", entity.get_final_features_list())
+        allowed = entity.create_allowed_values_list()["hvac_air_flow_power"]
+        self.assertEqual(allowed["enum_values"]["values"], ["auto", "low", "high"])
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
+        power = next(s for s in states if s["key"] == "hvac_air_flow_power")
+        self.assertEqual(power["value"]["enum_value"], "low")
+
+    def test_command_uses_the_devices_own_spelling(self):
+        """set_fan_mode обязан нести строку ровно как её объявила интеграция."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(fan_modes=["Auto", "Low", "High"], fan_mode="Low"))
+        result = entity.process_cmd({"states": [{"key": "hvac_air_flow_power", "value": {"enum_value": "low"}}]})
+        self.assertEqual(result[0]["url"]["service_data"], {"fan_mode": "Low"})
+
+    def test_capitalised_swing_modes_declare_and_publish_direction(self):
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(swing_modes=["Off", "Vertical"], swing_mode="Vertical"))
+        self.assertIn("hvac_air_flow_direction", entity.get_final_features_list())
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
+        direction = next(s for s in states if s["key"] == "hvac_air_flow_direction")
+        self.assertEqual(direction["value"]["enum_value"], "vertical")
+        result = entity.process_cmd(
+            {"states": [{"key": "hvac_air_flow_direction", "value": {"enum_value": "vertical"}}]}
+        )
+        self.assertEqual(result[0]["url"]["service_data"], {"swing_mode": "Vertical"})
+
+    def test_capitalised_hvac_modes_declare_and_publish_work_mode(self):
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(state="Cool", hvac_modes=["Off", "Cool", "Heat"]))
+        self.assertIn("hvac_work_mode", entity.get_final_features_list())
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
+        work = next(s for s in states if s["key"] == "hvac_work_mode")
+        self.assertEqual(work["value"]["enum_value"], "cooling")
+        result = entity.process_cmd({"states": [{"key": "hvac_work_mode", "value": {"enum_value": "cooling"}}]})
+        self.assertEqual(result[0]["url"]["service_data"], {"hvac_mode": "Cool"})
+
+    def test_capitalised_off_still_means_off(self):
+        """ "Off" — это тоже выключено: режим работы публиковать нельзя."""
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(state="Off", hvac_modes=["Off", "Cool"]))
+        keys = [str(s["key"]) for s in entity.to_sber_current_state()["climate.ac"]["states"]]
+        self.assertNotIn("hvac_work_mode", keys)
+
+    def test_capitalised_presets_still_drive_night_mode(self):
+        entity = ClimateEntity(ENTITY_DATA)
+        ha = _make_ha_state()
+        ha["attributes"]["preset_modes"] = ["Boost", "Sleep"]
+        ha["attributes"]["preset_mode"] = "Sleep"
+        entity.fill_by_ha_state(ha)
+        self.assertIn("hvac_night_mode", entity.get_final_features_list())
+        states = entity.to_sber_current_state()["climate.ac"]["states"]
+        night = next(s for s in states if s["key"] == "hvac_night_mode")
+        self.assertTrue(night["value"]["bool_value"])
+
+
+class TestThermostatModeDeclaredIsPublished(unittest.TestCase):
+    """Объявленный hvac_thermostat_mode должен доезжать до состояния.
+
+    Если тест падает, у котла/обогревателя в приложении Сбера появляется
+    переключатель режима без значения — облако не может его отрисовать.
+    """
+
+    def _entity(self, state, hvac_modes):
+        entity = HvacBoilerEntity(BOILER_DATA)
+        entity.fill_by_ha_state(
+            {
+                "entity_id": "water_heater.boiler",
+                "state": state,
+                "attributes": {"current_temperature": 55, "temperature": 60, "hvac_modes": hvac_modes},
+            }
+        )
+        return entity
+
+    def test_plain_on_publishes_heating(self):
+        """water_heater отдаёт state="on" — для нагревателя это и есть 'heating'."""
+        entity = self._entity("on", ["off", "heat"])
+        features = entity.get_final_features_list()
+        states = entity.to_sber_current_state()["water_heater.boiler"]["states"]
+        keys = [str(s["key"]) for s in states]
+        self.assertIn("hvac_thermostat_mode", features)
+        self.assertIn("hvac_thermostat_mode", keys)
+        mode = next(s for s in states if s["key"] == "hvac_thermostat_mode")
+        self.assertEqual(mode["value"]["enum_value"], "heating")
+
+    def test_published_value_is_always_inside_allowed_values(self):
+        """Публиковать значение вне allowed_values нельзя — облако его не примет."""
+        entity = self._entity("on", ["off", "auto"])
+        allowed = entity.create_allowed_values_list()["hvac_thermostat_mode"]["enum_values"]["values"]
+        self.assertEqual(allowed, ["auto"])
+        keys = [str(s["key"]) for s in entity.to_sber_current_state()["water_heater.boiler"]["states"]]
+        self.assertNotIn("hvac_thermostat_mode", keys)
+
+    def test_off_publishes_nothing(self):
+        """Выключенное устройство — задокументированный компромисс: значения 'выключено' у Сбера нет."""
+        entity = self._entity("off", ["off", "heat"])
+        keys = [str(s["key"]) for s in entity.to_sber_current_state()["water_heater.boiler"]["states"]]
+        self.assertNotIn("hvac_thermostat_mode", keys)

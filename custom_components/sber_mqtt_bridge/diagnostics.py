@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import SberBridgeConfigEntry
 from .const import CONF_SBER_LOGIN, CONF_SBER_PASSWORD
+
+if TYPE_CHECKING:
+    from .sber_bridge import SberBridge
 
 TO_REDACT = {CONF_SBER_PASSWORD, CONF_SBER_LOGIN}
 """Set of config keys whose values should be redacted in diagnostics output.
@@ -19,7 +22,7 @@ attached to public GitHub issues, so it must not leak in clear text.
 """
 
 
-def _build_entity_diagnostics(bridge) -> list[dict[str, Any]]:
+def _build_entity_diagnostics(bridge: SberBridge) -> list[dict[str, Any]]:
     """Build per-entity diagnostic info.
 
     Args:

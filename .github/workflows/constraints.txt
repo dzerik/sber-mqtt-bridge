@@ -4,10 +4,24 @@
 # Adding a tool here pins its version across every CI job that uses
 # `--constraint=` against this file. Keep entries narrow and justified.
 
-# pytest-homeassistant-custom-component >= 0.13.317 requires Python >= 3.14,
-# which breaks the 3.13 leg of our matrix. 0.13.316 is the last release that
-# installs on both 3.13 and 3.14.
-pytest-homeassistant-custom-component==0.13.316
+# Pins the Home Assistant release the suite runs against (the plugin pins HA
+# exactly).  0.13.325 -> HA 2026.4.4, verified green locally: 4950 passed,
+# 0 errors.  The old 0.13.316 pin (HA 2026.2.3) existed to keep the Python
+# 3.13 leg installable; that leg is gone — HA 2026.4+ and every plugin
+# release from 0.13.317 on require Python 3.14.
+#
+# Moving further is blocked, not forgotten: from HA 2026.5.0 on, the
+# `verify_cleanup` fixture fails five to seven tests that build a MagicMock
+# `hass` with a hand-rolled `async_create_task` and never cancel what they
+# start — SberBridge._delayed_confirm survives the test (test_bridge.py,
+# test_impulse_gate_flows.py, test_gate_auto_close.py,
+# test_integration_flows.py).  Real HA tracks those tasks, so this is test
+# hygiene, not a bridge leak.  Fix those fixtures first, then this pin can
+# move to 0.13.357 (HA 2026.8.3 — what users report issues on).  HA 2026.9
+# additionally needs `dr.async_get(hass).devices.values()` in
+# test_websocket_full_stack.py replaced (mapping access is now reported as
+# deprecated) and a syrupy 5 -> 6 snapshot migration.
+pytest-homeassistant-custom-component==0.13.325
 
 # syrupy 5.x writes/reads __snapshots__/ (our committed location). syrupy 6.x
 # changes serializer behaviour; lock to 5.x until that migration is done.

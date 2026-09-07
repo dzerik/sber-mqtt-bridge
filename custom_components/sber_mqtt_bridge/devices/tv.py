@@ -21,6 +21,19 @@ _LOGGER = logging.getLogger(__name__)
 TV_CATEGORY = "tv"
 """Sber device category for TV entities."""
 
+CHANNEL_INT_MIN = 0
+"""Lowest channel number Sber's ``channel_int`` accepts."""
+
+CHANNEL_INT_MAX = 999
+"""Highest channel number Sber's ``channel_int`` accepts.
+
+``channel_int`` is documented as INTEGER(0, 999) — the only TV function
+besides ``volume_int`` / ``mute`` / ``source`` that *stores* state rather
+than only changing it, so it is published back to the cloud."""
+
+CHANNEL_MEDIA_TYPE = "channel"
+"""HA ``media_content_type`` that marks ``media_content_id`` as a channel."""
+
 SOURCE_VALUES: frozenset[str] = FEATURE_ENUM_VALUES["source"]
 """Every input Sber's ``source`` function documents.
 
@@ -146,6 +159,10 @@ class TvEntity(BaseEntity):
             field="_media_content_id",
             attr_keys=("media_content_id",),
         ),
+        AttrSpec(
+            field="_media_content_type",
+            attr_keys=("media_content_type",),
+        ),
     )
 
     def __init__(self, entity_data: dict) -> None:
@@ -161,6 +178,7 @@ class TvEntity(BaseEntity):
         self._source: str | None = None
         self._source_list: list[str] = []
         self._media_content_id: str | None = None
+        self._media_content_type: str | None = None
         self._source_to_sber: dict[str, str] = {}
         self._source_to_ha: dict[str, str] = {}
 
@@ -221,8 +239,43 @@ class TvEntity(BaseEntity):
             }
         return allowed
 
+    @property
+    def _current_channel(self) -> int | None:
+        """Channel number the TV is tuned to right now, if it reports one.
+
+        Home Assistant keeps the channel in ``media_content_id`` — a free
+        string that holds a URL, an app id or a track id just as often as
+        a channel number — so it is accepted only when both halves of the
+        HA pair agree it is a channel:
+
+        * ``media_content_type`` says ``channel`` (or is absent
+          altogether: an integration that publishes no type contradicts
+          nothing, and a bare ``"5"`` is a channel number in practice);
+        * the id parses as an integer inside Sber's documented
+          ``channel_int`` range (:data:`CHANNEL_INT_MIN` …
+          :data:`CHANNEL_INT_MAX`).
+
+        Returns:
+            Channel number, or ``None`` when this TV is not on a channel
+            we can name.
+        """
+        if self._media_content_type is not None and self._media_content_type != CHANNEL_MEDIA_TYPE:
+            return None
+        channel = _safe_int_parser(self._media_content_id)
+        if channel is None or not CHANNEL_INT_MIN <= channel <= CHANNEL_INT_MAX:
+            return None
+        return channel
+
     def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with TV attributes.
+
+        ``channel_int`` is a state-holding function, so the current
+        channel is reported whenever HA knows it (see
+        :attr:`_current_channel`).  It stays in the feature list even for
+        a TV that never reports one: the declaration is what makes the
+        Sber app render the channel control at all, ``_cmd_channel_int``
+        acts on it either way, and dropping it would re-key ``model.id``
+        for every TV already paired (issue #44).
 
         Returns:
             Dict mapping entity_id to its Sber state representation.
@@ -243,6 +296,9 @@ class TvEntity(BaseEntity):
         sber_source = self._source_to_sber.get(self._source or "")
         if sber_source:
             states.append(make_state(SberFeature.SOURCE, make_enum_value(sber_source)))
+        channel = self._current_channel
+        if channel is not None:
+            states.append(make_state(SberFeature.CHANNEL_INT, make_integer_value(channel)))
         return {self.entity_id: {"states": states}}
 
     @property

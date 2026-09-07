@@ -80,7 +80,9 @@ def _strict_int(value: Any) -> int:
     Raises:
         vol.Invalid: If the value is not an ``int``.
     """
-    if isinstance(value, bool) or not isinstance(value, int):
+    # ``not isinstance(int)`` comes first so the surviving branch narrows to
+    # ``int``; the ``bool`` test then rejects the one int subclass we refuse.
+    if not isinstance(value, int) or isinstance(value, bool):
         raise vol.Invalid("expected an integer")
     return value
 

@@ -26,6 +26,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from ._generated import (
     CATEGORY_OBLIGATORY_FEATURES,
     CATEGORY_REFERENCE_FEATURES,
+    FEATURE_ENUM_VALUES,
     FEATURE_TYPES,
 )
 
@@ -219,6 +220,41 @@ class SberDeviceModel(BaseModel):
         extra_keys = set(v.keys()) - set(features)
         if extra_keys:
             raise ValueError(f"allowed_values contains keys not in features: {extra_keys}")
+        return v
+
+    @field_validator("allowed_values")
+    @classmethod
+    def allowed_enum_values_must_be_documented(
+        cls, v: dict[str, SberAllowedValue] | None
+    ) -> dict[str, SberAllowedValue] | None:
+        """Reject ENUM ``allowed_values`` offering values Sber does not document.
+
+        The keys check above only asks *which* features carry limits; it
+        says nothing about the limits themselves, so a made-up vocabulary
+        (``source: ["HDMI 1", "Станция"]`` instead of ``["hdmi1", "tv"]``)
+        passed the gate untouched.  It is not a cosmetic error: the app
+        renders exactly what is declared and sends the same string back as
+        a command, so every such entry is a control that cannot work — and
+        Sber may reject the whole device over it.  This is the class of
+        defect that had to be fixed by hand in 1.49.0.
+
+        Checked against :data:`FEATURE_ENUM_VALUES` (the function's own
+        page, not a category example).  A feature absent from that table
+        has no known vocabulary and is skipped — absent means *unknown*,
+        never *nothing allowed*.
+        """
+        if v is None:
+            return v
+        for key, spec in v.items():
+            vocabulary = FEATURE_ENUM_VALUES.get(key)
+            if not vocabulary or spec.enum_values is None:
+                continue
+            unknown = sorted(set(spec.enum_values.values) - vocabulary)
+            if unknown:
+                raise ValueError(
+                    f"allowed_values[{key!r}] offers values Sber does not document: "
+                    f"{unknown}; documented values: {sorted(vocabulary)}"
+                )
         return v
 
 

@@ -32,7 +32,7 @@ from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_integer_value, make_state, normalize_sber_value
-from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_int_parser
+from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_bool_parser, _safe_int_parser
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,6 +47,18 @@ KETTLE_TEMPERATURE_MAX = 100
 
 KETTLE_TEMPERATURE_STEP = 10
 """Step of the Sber target-temperature slider, in °C."""
+
+WATER_LEVEL_ATTR = "water_level"
+"""HA attribute carrying the measured water level (Sber ``kitchen_water_level``)."""
+
+WATER_LOW_LEVEL_ATTRS: tuple[str, ...] = ("water_low_level", "low_water")
+"""HA attributes carrying a real "not enough water" flag, in lookup order.
+
+Both Sber water functions are read-only, so the bridge can only relay a
+measurement the kettle itself reports.  A kettle that reports neither
+attribute simply says nothing about its water — the functions stay
+declared (see :meth:`KettleEntity._create_features_list`) but carry no
+state, which is what an unknown value looks like."""
 
 MODE_DRIVEN_DOMAIN = "water_heater"
 """The only HA domain that can be driven through ``set_operation_mode``.
@@ -135,7 +147,8 @@ class KettleEntity(BaseEntity):
     - Current water temperature reading
     - Target temperature setting (60-100, step 10)
     - Child lock (read-only from HA attributes)
-    - Water level and low water level indicators
+    - Water level and low water level indicators, reported only when the
+      kettle itself measures them (:data:`WATER_LOW_LEVEL_ATTRS`)
 
     The Sber ``kettle`` spec has no notion of a "mode": the whole mapping
     from Sber's ``on_off`` + ``kitchen_water_temperature_set`` onto a
@@ -169,8 +182,13 @@ class KettleEntity(BaseEntity):
         ),
         AttrSpec(
             field="_water_level",
-            attr_keys=("water_level",),
+            attr_keys=(WATER_LEVEL_ATTR,),
             parser=_safe_int_parser,
+        ),
+        AttrSpec(
+            field="_water_low_level",
+            attr_keys=WATER_LOW_LEVEL_ATTRS,
+            parser=_safe_bool_parser,
         ),
         AttrSpec(
             field="_operation_list",
@@ -201,6 +219,7 @@ class KettleEntity(BaseEntity):
         self._target_temperature: int | None = None
         self._child_lock: bool = False
         self._water_level: int | None = None
+        self._water_low_level: bool | None = None
         self._operation_list: tuple[str, ...] = ()
         self._operation_mode: str | None = None
         self._ha_max_temperature: int | None = None
@@ -439,6 +458,13 @@ class KettleEntity(BaseEntity):
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list for kettle capabilities.
 
+        The two read-only water functions stay declared even for a kettle
+        that reports no water data of its own: the feature list is part of
+        the ``model.id`` digest, so making them conditional would move
+        every already-paired kettle onto a new Sber model (and with it
+        lose its room, name and scenarios).  They are simply left unfilled
+        in the state publish — see :meth:`_build_current_state`.
+
         Returns:
             List of Sber feature strings supported by this entity.
         """
@@ -476,6 +502,12 @@ class KettleEntity(BaseEntity):
     def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with kettle attributes.
 
+        Water level and low-water are relayed from the kettle's own
+        attributes only.  The low-water flag used to be inferred from the
+        water temperature (``< 30 °C`` meant "no water"), so a full but
+        cold kettle reported an empty tank in the Sber app — temperature
+        says nothing about how much water is in there.
+
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
@@ -487,9 +519,8 @@ class KettleEntity(BaseEntity):
             states.append(
                 make_state(SberFeature.KITCHEN_WATER_TEMPERATURE, make_integer_value(self._current_temperature))
             )
-            # Low water level heuristic: temperature below 30 indicates no/little water
-            low_level = self._current_temperature < 30
-            states.append(make_state(SberFeature.KITCHEN_WATER_LOW_LEVEL, make_bool_value(low_level)))
+        if self._water_low_level is not None:
+            states.append(make_state(SberFeature.KITCHEN_WATER_LOW_LEVEL, make_bool_value(self._water_low_level)))
         if self._water_level is not None:
             states.append(make_state(SberFeature.KITCHEN_WATER_LEVEL, make_integer_value(self._water_level)))
         if self._target_temperature is not None:

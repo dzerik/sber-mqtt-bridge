@@ -529,3 +529,73 @@ class TestSourceListSurvivesAnEmptyRefresh(unittest.TestCase):
         allowed = entity.create_allowed_values_list()
         self.assertEqual(allowed["source"]["enum_values"]["values"], ["av"])
         self.assertEqual(entity.process_cmd(self.HDMI1_CMD), [], "a dropped input must stop resolving")
+
+
+class TestTvChannelIntState(unittest.TestCase):
+    """Номер канала должен доезжать до Сбера, а не только приниматься.
+
+    ``channel_int`` — единственная «канальная» функция Sber, которая
+    хранит состояние (INTEGER 0…999); остальные (``channel``, ``number``,
+    ``direction``) командные.  Функция объявлялась всегда, но состояние не
+    публиковалось никогда, а разобранный из HA ``media_content_id`` не
+    использовался вовсе.
+    """
+
+    def _channel_state(self, **attrs):
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("playing", **attrs))
+        states = entity.to_sber_current_state()["media_player.tv"]["states"]
+        found = [s for s in states if s["key"] == "channel_int"]
+        return found[0]["value"] if found else None
+
+    def test_channel_number_is_published(self):
+        """Текущий канал уезжает в Sber как INTEGER-строка.
+
+        Если сломается: в приложении Сбера номер канала останется пустым
+        (или застрянет на старом), хотя телевизор его сообщает.
+        """
+        self.assertEqual(
+            self._channel_state(media_content_id="5", media_content_type="channel"),
+            {"type": "INTEGER", "integer_value": "5"},
+        )
+
+    def test_channel_without_media_type_is_published(self):
+        """Интеграция без ``media_content_type`` тоже даёт номер канала."""
+        self.assertEqual(
+            self._channel_state(media_content_id="12"),
+            {"type": "INTEGER", "integer_value": "12"},
+        )
+
+    def test_non_channel_media_is_not_published(self):
+        """Трек/приложение не выдаём за номер канала.
+
+        Если сломается: во время музыки Сбер покажет случайный «канал».
+        """
+        self.assertIsNone(self._channel_state(media_content_id="42", media_content_type="music"))
+
+    def test_non_numeric_content_id_is_not_published(self):
+        """URL и имена приложений — не номера каналов."""
+        self.assertIsNone(self._channel_state(media_content_id="https://example.tv/live"))
+
+    def test_out_of_range_channel_is_not_published(self):
+        """Sber документирует диапазон 0…999 — выход за него не публикуем.
+
+        Если сломается: облако отвергнет значение вне схемы, а с ним
+        может отбросить и весь пакет состояний.
+        """
+        self.assertIsNone(self._channel_state(media_content_id="1500", media_content_type="channel"))
+
+    def test_no_media_content_id_publishes_nothing(self):
+        """Телевизор, который не сообщает канал, просто молчит."""
+        self.assertIsNone(self._channel_state(volume_level=0.5))
+
+    def test_channel_int_stays_declared_without_a_channel(self):
+        """Фича остаётся в списке, даже когда канал неизвестен.
+
+        Список фич входит в дайджест ``model.id``.  Если сломается: у всех
+        уже подключённых телевизоров сменится модель в облаке Сбера, и они
+        потеряют комнату, имя и сценарии (история issue #44).
+        """
+        entity = TvEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state("playing", volume_level=0.5))
+        self.assertIn("channel_int", entity.get_final_features_list())

@@ -31,6 +31,7 @@ from homeassistant.helpers import entity_registry as er
 from .devices.base_entity import BaseEntity, LinkableRole, resolve_link_role
 from .sber_entity_map import (
     CATEGORY_DOMAIN_MAP,
+    CategorySpec,
     categories_for_domain,
     create_sber_entity,
 )
@@ -417,7 +418,7 @@ class HaDeviceGrouper:
     def _select_primary(
         self,
         device_entries: list[er.RegistryEntry],
-        spec,  # CategorySpec, avoid circular import
+        spec: CategorySpec,
     ) -> tuple[er.RegistryEntry | None, list[er.RegistryEntry]]:
         """Pick the primary entity for a device + category.
 

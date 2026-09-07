@@ -176,7 +176,15 @@ class SberPublisher:
         deps.log_message("out", topic, payload)
         return True
 
-    def _record_devtools(self, topic: str, payload: str, entity_ids: Iterable[str], *, log_suffix: str = "") -> None:
+    def _record_devtools(
+        self,
+        topic: str,
+        payload: str,
+        entity_ids: Iterable[str],
+        *,
+        log_suffix: str = "",
+        full_snapshot: bool = True,
+    ) -> None:
         """Feed the trace / diff / validation collectors after a publish.
 
         Builds the ``categories`` / ``declared_features`` maps only for the
@@ -190,6 +198,13 @@ class SberPublisher:
             entity_ids: IDs of the entities included in the payload.
             log_suffix: Suffix appended to collector failure log messages
                 (e.g. ``" (echo)"``) to keep historical log text intact.
+            full_snapshot: Whether ``payload`` carries the complete state of
+                every entity in it — true for a state publish, which is
+                built from ``to_sber_current_state``, and false for the
+                command echo, which deliberately drops the keys the command
+                made irrelevant.  Only a full snapshot may be judged for
+                completeness; see
+                :meth:`~.schema_validator.ValidationCollector.record_publish_payload`.
         """
         devtools = self._deps.devtools
         entities = self._deps.get_entities()
@@ -208,6 +223,7 @@ class SberPublisher:
                 payload,
                 categories=categories,
                 declared_features=declared,
+                check_completeness=full_snapshot,
             )
         except Exception:  # pragma: no cover — must never break publish
             _LOGGER.exception("ValidationCollector.record_publish_payload failed%s", log_suffix)
@@ -298,6 +314,15 @@ class SberPublisher:
     async def publish_command_echo(self, devices: dict[str, dict]) -> None:
         """Publish immediate echo of a received Sber command as fast ack.
 
+        The commanded values are laid over the entity's current state and
+        the result is handed to
+        :meth:`~.devices.base_entity.BaseEntity.sanitize_echo_states`,
+        which cuts it down to declared, mutually consistent keys.  Before
+        that filter existed the echo was the only publish bypassing it,
+        and it happily announced ``light_mode: white`` next to the old
+        ``light_colour`` — a state the device cannot be in, which Sber
+        then had to correct ~1.5 s later from the real state publish.
+
         Args:
             devices: ``devices`` dict from the incoming Sber command.
 
@@ -336,7 +361,10 @@ class SberPublisher:
             for key, state in cmd_states_by_key.items():
                 if key not in overridden:
                     merged.append(state)
-            echo_devices[entity_id] = {"states": merged}
+            # Only the entity knows which keys it declares and which
+            # combinations its model rules out, and the echo must not be
+            # the one publish that ignores both.
+            echo_devices[entity_id] = {"states": entity.sanitize_echo_states(merged, set(cmd_states_by_key))}
 
         if not echo_devices:
             return
@@ -346,7 +374,10 @@ class SberPublisher:
         if not await self._publish_logged(topic, payload, "command echo"):
             return
         _LOGGER.debug("Published command echo for %s: %s", list(echo_devices), payload)
-        self._record_devtools(topic, payload, echo_devices, log_suffix=" (echo)")
+        # Not a snapshot: sanitize_echo_states drops the keys the command
+        # made irrelevant, so judging this payload for completeness would
+        # warn about a perfectly healthy device on every command.
+        self._record_devtools(topic, payload, echo_devices, log_suffix=" (echo)", full_snapshot=False)
 
     async def publish_states(
         self,

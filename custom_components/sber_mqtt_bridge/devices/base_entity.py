@@ -33,6 +33,57 @@ removed it via ``sber_features_remove``, would be strictly worse than
 publishing an undeclared key, so it is always let through.
 """
 
+EXCLUSIVE_SERVICE_DATA: dict[tuple[str, str], tuple[frozenset[str], ...]] = {
+    ("light", "turn_on"): (
+        # ``vol.Exclusive`` groups of ``LIGHT_TURN_ON_SCHEMA``, verbatim.
+        frozenset(
+            {
+                "color_name",
+                "color_temp_kelvin",
+                "hs_color",
+                "profile",
+                "rgb_color",
+                "rgbw_color",
+                "rgbww_color",
+                "white",
+                "xy_color",
+            }
+        ),
+        frozenset({"brightness", "brightness_pct", "brightness_step", "brightness_step_pct"}),
+    ),
+}
+"""Service-data fields that one HA service call may not carry together.
+
+Keyed by ``(domain, service)`` because mutual exclusion is a property of
+the **HA service schema**, not of the Sber device class: whoever calls
+``light.turn_on`` is bound by the same rule.  Voluptuous rejects the whole
+call — not the offending field — when two members of a group arrive
+together, so :meth:`BaseEntity._merge_service_calls` must never build such
+a call out of two individually valid ones.  Only groups the bridge can
+actually produce are listed; add an entry when a handler starts emitting
+another exclusive pair.
+"""
+
+
+def _breaks_exclusion(domain: str, service: str, current: dict, incoming: dict) -> bool:
+    """Check whether folding ``incoming`` into ``current`` makes an illegal call.
+
+    Args:
+        domain: HA domain of the call (e.g. ``"light"``).
+        service: HA service of the call (e.g. ``"turn_on"``).
+        current: ``service_data`` already accumulated in the merge target.
+        incoming: ``service_data`` of the call being folded in.
+
+    Returns:
+        True when the union would carry two fields of one
+        :data:`EXCLUSIVE_SERVICE_DATA` group *because of* ``incoming`` —
+        the caller then keeps the two calls apart.
+    """
+    groups = EXCLUSIVE_SERVICE_DATA.get((domain, service))
+    if not groups:
+        return False
+    return any(group & set(incoming) and len(group & (set(current) | set(incoming))) > 1 for group in groups)
+
 
 class NoSnapshot:
     """Sentinel type marking an omitted ``snapshot`` argument.
@@ -941,6 +992,175 @@ class BaseEntity(ABC):
         """
         return self._filter_undeclared_states(self._build_current_state())
 
+    def sanitize_echo_states(self, states: list[dict], commanded: set[str]) -> list[dict]:
+        """Make a command-echo state list publishable.
+
+        The echo answers Sber within milliseconds, long before HA has
+        propagated anything, so it is the commanded values laid over the
+        entity's current state.  What it must never do is announce a state
+        the device cannot be in: the echo used to be the one publish that
+        bypassed :meth:`_filter_undeclared_states` and knew nothing about
+        :meth:`create_dependencies`, so a ``light_mode: white`` command
+        produced a packet carrying ``white`` together with the
+        still-current ``light_colour`` — a combination the bridge's own
+        model descriptor declares impossible.  Sber saw "done" 8-27 ms
+        after the command and the contradicting real state ~1.5 s later,
+        which is what made the app's controls flip back.
+
+        Two guards are applied here, so every device class gets them:
+
+        * undeclared keys are dropped, exactly as on the normal state
+          publish (:meth:`to_sber_current_state`);
+        * command-induced contradictions between a feature and its
+          declared selector are reconciled — see
+          :meth:`_reconcile_echo_dependencies`.
+
+        Args:
+            states: Merged echo states (baseline with the command laid
+                over it), in publish order.
+            commanded: Feature keys that came from the command itself.
+
+        Returns:
+            The filtered, reconciled ``states`` list, ready to publish.
+        """
+        declared = self._filter_undeclared_states({self.entity_id: {"states": list(states)}})
+        kept = declared.get(self.entity_id, {}).get("states", [])
+        return self._reconcile_echo_dependencies(kept, commanded)
+
+    def _reconcile_echo_dependencies(self, states: list[dict], commanded: set[str]) -> list[dict]:
+        """Resolve command-induced conflicts between a feature and its selector.
+
+        A dependency (:meth:`create_dependencies`) says "this feature only
+        applies while that one holds this value".  The echo mixes two
+        moments — the commanded keys are the future, everything else is
+        the present — so it is the one place where the two sides of a
+        dependency can disagree *because of us*:
+
+        * the command moved the **selector** (``light_mode: white``) and
+          the dependent value next to it is the pre-command one: the stale
+          key is dropped, the command wins;
+        * the command carried the **dependent** key (``light_colour``) and
+          the selector still holds its pre-command value: the selector is
+          moved to the value the dependency requires — the device is on
+          its way there by definition of the command, and echoing the old
+          mode is exactly what made the app's mode tab jump back.  Only
+          done when the descriptor leaves no choice (a single declared
+          value); an ambiguous one drops the dependent key instead.
+
+        A contradiction with **neither** side commanded is left untouched
+        on purpose: that is the entity's own steady-state payload, which
+        deliberately reports every state-holding feature on every publish
+        (issue #63), and the echo is not the place to start censoring it.
+
+        ``dependencies`` is the bridge's own extension of the Sber
+        ``model`` block — the documented structure lists only id,
+        manufacturer, model, hw_version, sw_version, description,
+        category, features and allowed_values — so it is used here purely
+        as an internal consistency rule, never as a reason to withhold a
+        key Sber asked about.
+
+        Args:
+            states: Candidate states, already filtered by
+                :meth:`_filter_undeclared_states`.
+            commanded: Feature keys that came from the command itself.
+
+        Returns:
+            The reconciled state list.
+        """
+        dependencies = self.create_dependencies()
+        if not dependencies:
+            return states
+        values: dict[str, object] = {
+            state["key"]: state.get("value", {})
+            for state in states
+            if isinstance(state, dict) and isinstance(state.get("key"), str)
+        }
+        drop: set[str] = set()
+        override: dict[str, dict] = {}
+        for key, dependency in dependencies.items():
+            selector = dependency.get("key") if isinstance(dependency, dict) else None
+            if key not in values or not isinstance(selector, str) or selector not in values:
+                continue
+            if self._dependency_satisfied(dependency, values[selector]):
+                continue
+            if selector in commanded:
+                drop.add(key)
+            elif key in commanded:
+                required = self._required_selector_value(dependency)
+                if required is None:
+                    drop.add(key)
+                else:
+                    override[selector] = required
+                    values[selector] = required
+        if not drop and not override:
+            return states
+        kept: list[dict] = []
+        for state in states:
+            key = state.get("key") if isinstance(state, dict) else None
+            if key in drop:
+                _LOGGER.debug(
+                    "Entity %s: dropping stale '%s' from the command echo — '%s' was just commanded",
+                    self.entity_id,
+                    key,
+                    dependencies[key].get("key"),
+                )
+                continue
+            if key in override:
+                _LOGGER.debug(
+                    "Entity %s: echoing '%s' as %s — required by the commanded feature it governs",
+                    self.entity_id,
+                    key,
+                    override[str(key)],
+                )
+                kept.append({**state, "value": override[str(key)]})
+                continue
+            kept.append(state)
+        return kept
+
+    @staticmethod
+    def _required_selector_value(dependency: dict) -> dict | None:
+        """Return the only value a dependency accepts, when there is one.
+
+        Args:
+            dependency: Descriptor as returned by
+                :meth:`create_dependencies`.
+
+        Returns:
+            The single declared value dict, or ``None`` when the
+            descriptor declares none or leaves a choice between several.
+        """
+        values = dependency.get("values")
+        if not isinstance(values, list) or len(values) != 1 or not isinstance(values[0], dict):
+            return None
+        return values[0]
+
+    @staticmethod
+    def _dependency_satisfied(dependency: dict, selector_value: object) -> bool:
+        """Check one declared dependency against the selector's actual value.
+
+        Args:
+            dependency: Descriptor as returned by
+                :meth:`create_dependencies` — ``{"key": ..., "values": [...]}``.
+            selector_value: The Sber value dict currently held by the
+                selector feature.
+
+        Returns:
+            True when the selector matches one of the declared values (or
+            the descriptor declares none, which constrains nothing).
+            False when the value is missing or contradicts all of them.
+        """
+        expected_values = dependency.get("values")
+        if not isinstance(expected_values, list) or not expected_values:
+            return True
+        if not isinstance(selector_value, dict):
+            return False
+        actual = normalize_sber_value(selector_value)
+        return any(
+            all(actual.get(field) == value for field, value in expected.items() if field != "type")
+            for expected in expected_values
+            if isinstance(expected, dict)
+        )
+
     def _filter_undeclared_states(self, payload: dict) -> dict:
         """Drop states whose feature key this device does not advertise.
 
@@ -1077,7 +1297,38 @@ class BaseEntity(ABC):
         Subclasses declare which Sber feature keys they handle by
         overriding :attr:`_cmd_handlers`.  The base implementation walks
         ``cmd_data["states"]``, routes each entry to its handler, and
-        returns the concatenated service-call list.
+        returns the *aggregated* service-call list.
+
+        Two things happen on top of the plain dispatch loop, and both
+        exist because of **multi-key** commands — the Sber app sends
+        ``light_mode`` and ``light_colour_temp`` in one payload when the
+        user switches a lamp to white and moves the temperature slider in
+        the same gesture:
+
+        * **Selector keys run first.**  A key that another feature
+          declares a dependency on (:meth:`create_dependencies`, e.g.
+          ``light_colour`` → ``light_mode``) is a mode selector: its
+          handler has no value of its own to apply and can only
+          synthesize one from the *pre-command* entity state, which
+          ``process_cmd`` never refreshes (that is ``fill_by_ha_state``'s
+          job, and it runs later, when HA confirms).  Running selectors
+          before the keys that carry a concrete value guarantees the
+          stale value can never be the last writer.  Without it,
+          ``{light_colour_temp: 900, light_mode: white}`` rolled the
+          just-requested temperature back to the previous one.  The
+          protection reaches exactly as far as the declarations do: a
+          device whose :meth:`create_dependencies` comes out empty — a
+          lamp whose ``light_colour`` the user removed via
+          ``sber_features_remove``, say — is dispatched in payload order
+          and can still be rolled back, which is the behaviour it had
+          before.
+        * **Calls to the same service are merged.**  Each handler used to
+          emit its own ``light.turn_on``, so one Sber command produced
+          three HA service calls, three transitions and three
+          ``state_changed`` rounds.  Results with the same ``domain`` /
+          ``service`` / ``target`` are folded into a single call whose
+          ``service_data`` is the union of the contributions — see
+          :meth:`_merge_service_calls`.
 
         Args:
             cmd_data: Command payload with 'states' list. Always a dict —
@@ -1091,14 +1342,132 @@ class BaseEntity(ABC):
         if not handlers:
             return []
         results: list[CommandResult] = []
-        for item in cmd_data.get("states", []):
+        for item in self._ordered_cmd_states(cmd_data.get("states", [])):
             handler = handlers.get(item.get("key", ""))
             if handler is None:
                 continue
             # Sber omits proto3-default fields: {"type": "INTEGER"} means 0.
             # Normalize here so every handler sees a complete value dict.
             results.extend(handler(normalize_sber_value(item.get("value", {}))))
-        return results
+        return self._merge_service_calls(results)
+
+    def _ordered_cmd_states(self, states: list) -> list:
+        """Return one command's states with selector keys moved to the front.
+
+        Stable: keys that nothing depends on keep their payload order, so
+        a device that declares no dependencies sees exactly the order Sber
+        sent.  See :meth:`process_cmd` for why selectors must go first.
+
+        Args:
+            states: The raw ``cmd_data["states"]`` list.
+
+        Returns:
+            The same items, selector keys first.  Malformed (non-dict)
+            items are passed through untouched — the dispatch loop still
+            raises on them exactly as before, and the dispatcher contains
+            the failure per entity.
+        """
+        governing = self._governing_cmd_keys()
+        if not governing:
+            return list(states)
+        return sorted(states, key=lambda s: 0 if isinstance(s, dict) and s.get("key") in governing else 1)
+
+    def _governing_cmd_keys(self) -> frozenset[str]:
+        """Return the feature keys other features declare a dependency on.
+
+        Read straight off :meth:`create_dependencies` so a device class
+        declares the relationship once, for the Sber model descriptor, and
+        both the command ordering and the echo consistency check follow
+        from it.  The flip side is that a selector is only recognised
+        while the dependency is actually declared: classes build that dict
+        from the *final* feature list, so removing the dependent feature
+        (``sber_features_remove``) also removes the selector from this set
+        and :meth:`process_cmd` falls back to plain payload order.
+
+        Returns:
+            Frozen set of selector keys (e.g. ``{"light_mode"}``); empty
+            for every device that declares no dependencies.
+        """
+        return frozenset(
+            dep["key"]
+            for dep in self.create_dependencies().values()
+            if isinstance(dep, dict) and isinstance(dep.get("key"), str) and dep["key"]
+        )
+
+    @staticmethod
+    def _merge_service_calls(results: list[CommandResult]) -> list[CommandResult]:
+        """Fold service calls that address the same HA service into one.
+
+        Two results merge when their ``domain``, ``service`` and
+        ``target`` are equal; the merged call keeps the position of the
+        first of them and its ``service_data`` is updated with each later
+        contribution (last writer wins per field, which is what the
+        sequential calls did anyway).  Non-service results
+        (:class:`UpdateStateResult`) and calls to different services pass
+        through untouched, in order.
+
+        Merging stops short of building a call HA would reject as a
+        whole: when the union would hold two fields from one
+        :data:`EXCLUSIVE_SERVICE_DATA` group (``light_mode: white`` next
+        to ``light_colour`` gives ``color_temp_kelvin`` + ``hs_color``),
+        the contribution is left as its own call and becomes the target
+        for the ones after it.  That is exactly the sequence of calls the
+        bridge made before merging existed, so the outcome stays the old
+        "last writer wins" instead of a ``vol.Invalid`` that costs the
+        user the whole command, brightness included.
+
+        The input dicts are never mutated: handlers may legitimately hand
+        back shared literals.
+
+        Args:
+            results: Raw per-handler results, in execution order.
+
+        Returns:
+            The same results with same-service calls merged.
+        """
+        merged: list[CommandResult] = []
+        positions: dict[tuple[str, str, str], int] = {}
+
+        def open_call(url: dict, signature: tuple[str, str, str]) -> None:
+            """Append ``url`` as a fresh call and make it the merge target."""
+            positions[signature] = len(merged)
+            copied: dict = dict(url)
+            data = url.get("service_data")
+            if isinstance(data, dict):
+                copied["service_data"] = dict(data)
+            merged.append({"url": copied})  # type: ignore[typeddict-item]
+
+        for result in results:
+            url = result.get("url") if isinstance(result, dict) else None
+            if not isinstance(url, dict):
+                merged.append(result)
+                continue
+            signature = (
+                str(url.get("domain")),
+                str(url.get("service")),
+                json.dumps(url.get("target") or {}, sort_keys=True, default=str),
+            )
+            first = positions.get(signature)
+            if first is None:
+                open_call(url, signature)
+                continue
+            data = url.get("service_data")
+            if not isinstance(data, dict) or not data:
+                continue
+            target_url: dict = merged[first]["url"]  # type: ignore[typeddict-item]
+            current = target_url.get("service_data")
+            if _breaks_exclusion(signature[0], signature[1], current if isinstance(current, dict) else {}, data):
+                _LOGGER.debug(
+                    "Keeping %s.%s separate: %s cannot travel with %s in one call",
+                    signature[0],
+                    signature[1],
+                    sorted(data),
+                    sorted(current or {}),
+                )
+                open_call(url, signature)
+                continue
+            target_url.setdefault("service_data", {}).update(data)
+        return merged
 
     @property
     def _cmd_handlers(self) -> dict[str, Callable[[dict], list[CommandResult]]]:
