@@ -439,17 +439,29 @@ class TestLightAllowedValues(unittest.TestCase):
     """Test create_allowed_values_list."""
 
     def test_allowed_values_xy_and_color_temp(self):
-        """Both modes produce brightness, colour, mode, and colour_temp."""
+        """Both modes produce brightness, mode, and colour_temp limits."""
         entity = LightEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(supported_color_modes=["color_temp", "xy"]))
         av = entity.create_allowed_values_list()
         self.assertIn("light_brightness", av)
-        self.assertIn("light_colour", av)
         self.assertIn("light_mode", av)
         self.assertIn("light_colour_temp", av)
         self.assertEqual(av["light_brightness"]["type"], "INTEGER")
-        self.assertEqual(av["light_colour"]["type"], "COLOUR")
         self.assertEqual(av["light_mode"]["type"], "ENUM")
+
+    def test_allowed_values_never_describe_the_colour_feature(self):
+        """У ``light_colour`` записи в ``allowed_values`` быть не должно.
+
+        Что сломается у пользователя, если тест упадёт: Sber разрешает
+        ``allowed_values`` только для FLOAT / INTEGER / ENUM
+        (c2c/allowed_values), поэтому описание цветовой функции делает
+        модель невалидной — облако вправе отвергнуть её целиком, и лампа
+        просто не появится в приложении, молча.
+        """
+        entity = LightEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(supported_color_modes=["color_temp", "xy"]))
+        self.assertIn("light_colour", entity.get_final_features_list())
+        self.assertNotIn("light_colour", entity.create_allowed_values_list())
 
     def test_allowed_values_empty_modes(self):
         """No color modes produce empty allowed values."""
@@ -487,7 +499,7 @@ class TestLightAllowedValues(unittest.TestCase):
         entity.removed_features = ["light_brightness"]
         av = entity.create_allowed_values_list()
         self.assertNotIn("light_brightness", av)
-        self.assertIn("light_colour", av)
+        self.assertIn("light_mode", av)
 
 
 class TestKelvinAttributes(unittest.TestCase):

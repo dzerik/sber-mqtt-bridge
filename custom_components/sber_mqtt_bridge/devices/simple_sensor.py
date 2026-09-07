@@ -24,6 +24,19 @@ from .battery_signal_mixin import BATTERY_SIGNAL_ATTR_SPECS_PRESERVE, BatteryAnd
 
 _LOGGER = logging.getLogger(__name__)
 
+_SENSITIVITY_CATEGORIES = frozenset({"sensor_door", "sensor_gas", "sensor_pir", "sensor_temp"})
+"""Sber categories whose page documents ``sensor_sensitive``.
+
+Everything else — ``sensor_smoke``, ``sensor_water_leak`` — has no such
+row in its "Доступные функции устройства" table.  Zigbee integrations
+expose a ``sensitivity`` attribute on those sensors all the same, and up
+to 1.50 the bridge turned it into a function of the model; a model with a
+function outside its category's table can be rejected by the cloud as a
+whole, which the user sees as a missing sensor rather than a missing
+setting.  Default data for
+:attr:`SimpleReadOnlySensor._supports_sensitivity`; subclasses override
+the flag instead of editing this set."""
+
 
 class SimpleReadOnlySensor(BatteryAndSignalLinkMixin, BaseEntity):
     """Base class for read-only sensors that expose a single Sber feature.
@@ -59,6 +72,20 @@ class SimpleReadOnlySensor(BatteryAndSignalLinkMixin, BaseEntity):
         "ENUM": "enum_value",
     }
     """Mapping from Sber value type to its JSON field name."""
+
+    @property
+    def _supports_sensitivity(self) -> bool:
+        """Whether this sensor may advertise the Sber ``sensor_sensitive`` feature.
+
+        Overridable capability flag (same pattern as ``_supports_*`` in
+        :class:`~.on_off_entity.OnOffEntity`): the default derives from the
+        category per :data:`_SENSITIVITY_CATEGORIES`, and a subclass may
+        shadow it with a plain class attribute.
+
+        Returns:
+            True if the Sber spec includes ``sensor_sensitive`` here.
+        """
+        return self.category in _SENSITIVITY_CATEGORIES
 
     @property
     def _is_online(self) -> bool:
@@ -106,7 +133,7 @@ class SimpleReadOnlySensor(BatteryAndSignalLinkMixin, BaseEntity):
         super().fill_by_ha_state(ha_state)
         attrs = ha_state.get("attributes", {})
         self._apply_attr_specs(attrs)
-        self._sensor_sensitive = self._parse_sensitivity(attrs)
+        self._sensor_sensitive = self._parse_sensitivity(attrs) if self._supports_sensitivity else None
 
     @staticmethod
     def _parse_sensitivity(attrs: dict) -> str | None:

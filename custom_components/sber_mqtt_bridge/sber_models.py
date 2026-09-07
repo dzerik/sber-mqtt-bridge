@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import json
 import logging
+import math
+from collections.abc import Callable
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
@@ -32,6 +34,33 @@ from ._generated import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Structural constants scraped from the C2C reference pages ``/value`` and
+# ``/device``.  They live in a package that a stale checkout may not have
+# yet, so each one falls back to "unknown" rather than to a guessed value:
+# an unknown bound disables its check instead of inventing a limit.
+try:  # pragma: no cover — exercised only on an out-of-date checkout
+    from ._generated import protocol_limits as _protocol_limits
+except ImportError:  # pragma: no cover
+    _protocol_limits = None  # type: ignore[assignment]
+try:  # pragma: no cover
+    from ._generated import value_envelope as _value_envelope
+except ImportError:  # pragma: no cover
+    _value_envelope = None  # type: ignore[assignment]
+
+PARTNER_META_MAX_CHARS: int | None = getattr(_protocol_limits, "PARTNER_META_MAX_CHARS", None)
+"""Character budget of ``partner_meta`` in its JSON form (VR-003).
+
+Sourced from the scrape rather than typed in by hand: the number 1024 is
+the only numeric limit in the whole C2C reference, and if Sber ever moves
+it the drift check must break a test instead of leaving a stale constant
+silently rejecting devices the cloud would accept."""
+
+COLOUR_COMPONENT_RANGES: dict[str, tuple[int, int]] = getattr(_value_envelope, "COLOUR_COMPONENT_RANGES", {})
+"""Inclusive HSV bounds of ``colour_value`` (VR-004: ``v`` starts at 100)."""
+
+VALUE_FIELD_BY_TYPE: dict[str, str] = getattr(_value_envelope, "VALUE_FIELD_BY_TYPE", {})
+"""``value.type`` → the single payload key that type may carry."""
+
 
 # ---------------------------------------------------------------------------
 # Value types
@@ -41,7 +70,8 @@ _LOGGER = logging.getLogger(__name__)
 class SberColourValue(BaseModel):
     """HSV colour value per Sber spec.
 
-    Ranges:
+    Ranges (from :data:`COLOUR_COMPONENT_RANGES`, scraped from the
+    ``value`` structure page):
         h: 0-360 (hue degrees)
         s: 0-1000 (saturation, 0.1% steps)
         v: 100-1000 (value/brightness, min 100 per Sber spec VR-004)
@@ -52,6 +82,29 @@ class SberColourValue(BaseModel):
     h: int
     s: int
     v: int
+
+    @model_validator(mode="after")
+    def components_within_documented_range(self) -> SberColourValue:
+        """Reject HSV components outside the bounds Sber documents.
+
+        The bridge maps Home Assistant's 0-255 brightness onto Sber's
+        100-1000 ``v`` by hand in ``devices/utils/color_converter.py``;
+        until now nothing tied that arithmetic to the documentation, so a
+        refactor that produced ``v = 0`` would have gone out on the wire
+        and shown the wrong colour with no warning anywhere.  Checking
+        against the scraped table also means a change upstream surfaces as
+        a failing test rather than as wrong colours on real lamps.
+
+        Raises:
+            ValueError: If a component lies outside its documented range.
+        """
+        for component, value in (("h", self.h), ("s", self.s), ("v", self.v)):
+            bounds = COLOUR_COMPONENT_RANGES.get(component)
+            if bounds is not None and not bounds[0] <= value <= bounds[1]:
+                raise ValueError(
+                    f"colour_value.{component}={value} is outside the documented range {bounds[0]}..{bounds[1]}"
+                )
+        return self
 
 
 class SberValue(BaseModel):
@@ -74,6 +127,33 @@ class SberValue(BaseModel):
     string_value: str | None = None
     enum_value: str | None = None
     colour_value: SberColourValue | None = None
+
+    @model_validator(mode="after")
+    def payload_field_matches_type(self) -> SberValue:
+        """Reject a payload carried under a key that does not fit ``type``.
+
+        ``extra="forbid"`` only stops *invented* keys; every ``*_value``
+        field is declared here, so ``{"type": "ENUM", "integer_value":
+        "3"}`` used to validate cleanly and then be dropped by the cloud,
+        which reads the field named by the type and nothing else.
+
+        A value with **no** payload field is accepted on purpose: Sber
+        serializes protobuf by proto3 rules, where a field holding its
+        type's default is omitted, so ``{"type": "BOOL"}`` is a legitimate
+        ``false`` — see :func:`normalize_sber_value` and issue #44.
+
+        Raises:
+            ValueError: If a payload field of another type is set.
+        """
+        own = VALUE_FIELD_BY_TYPE.get(self.type)
+        if own is None:
+            return self
+        foreign = sorted(
+            field for field in VALUE_FIELD_BY_TYPE.values() if field != own and getattr(self, field, None) is not None
+        )
+        if foreign:
+            raise ValueError(f"type {self.type!r} must carry {own!r}, got {', '.join(foreign)}")
+        return self
 
 
 class SberState(BaseModel):
@@ -283,9 +363,22 @@ class SberDevice(BaseModel):
     @field_validator("partner_meta")
     @classmethod
     def partner_meta_max_size(cls, v: dict | None) -> dict | None:
-        """partner_meta JSON must be under 1024 chars (VR-003)."""
-        if v is not None and len(json.dumps(v)) > 1024:
-            raise ValueError("partner_meta JSON exceeds 1024 chars (VR-003)")
+        """Enforce the ``partner_meta`` size limit Sber documents (VR-003).
+
+        The budget comes from :data:`PARTNER_META_MAX_CHARS`, which is
+        scraped from the ``device`` page rather than typed in here.  When
+        the scrape could not read it the value is ``None`` and the check is
+        skipped — unknown never means unlimited, but a validator is the
+        wrong place to guess a number the documentation did not give.
+
+        Raises:
+            ValueError: If the JSON form exceeds the documented budget.
+        """
+        if PARTNER_META_MAX_CHARS is None or v is None:
+            return v
+        size = len(json.dumps(v))
+        if size > PARTNER_META_MAX_CHARS:
+            raise ValueError(f"partner_meta JSON is {size} chars, limit is {PARTNER_META_MAX_CHARS} (VR-003)")
         return v
 
 
@@ -428,17 +521,270 @@ def make_colour_value(h: int, s: int, v: int) -> dict[str, Any]:
     return {"type": "COLOUR", "colour_value": {"h": h, "s": s, "v": v}}
 
 
+def make_float_value(value: float) -> dict[str, Any]:
+    """Create a Sber FLOAT value dict.
+
+    ``float_value`` travels as a JSON **number** — unlike
+    ``integer_value``, which Sber documents as a quoted string (see
+    :data:`~._generated.value_envelope.VALUE_FIELD_JSON_TYPES`).
+
+    Args:
+        value: Finite numeric value.
+
+    Returns:
+        Dict ready for inclusion in a Sber state payload.
+
+    Raises:
+        ValueError: If ``value`` is not a finite number.  ``nan`` and
+            ``inf`` are Python extensions to JSON, and one of them in a
+            payload costs the whole ``up/status`` message, not just the
+            device that produced it.
+    """
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as err:
+        raise ValueError(f"float_value must be a number, got {value!r}") from err
+    if not math.isfinite(number):
+        raise ValueError(f"float_value must be finite, got {value!r}")
+    return {"type": "FLOAT", "float_value": number}
+
+
+def make_string_value(value: str) -> dict[str, Any]:
+    """Create a Sber STRING value dict.
+
+    Args:
+        value: String value.
+
+    Returns:
+        Dict ready for inclusion in a Sber state payload.
+    """
+    return {"type": "STRING", "string_value": str(value)}
+
+
+def _as_int(raw: Any) -> int:
+    """Coerce a raw Python value into the integer Sber's INTEGER carries.
+
+    Args:
+        raw: Value produced by a device class (``int``, ``float``, ``bool``
+            or a numeric string such as ``"22.5"``).
+
+    Returns:
+        The value as an ``int``; fractional input is truncated the same
+        way ``devices/base_entity._safe_int_parser`` truncates it.
+
+    Raises:
+        ValueError: If ``raw`` is not numeric or is not finite.
+    """
+    if isinstance(raw, bool):
+        return int(raw)
+    if isinstance(raw, int):
+        return raw
+    try:
+        number = float(raw)
+    except (TypeError, ValueError) as err:
+        raise ValueError(f"INTEGER value must be numeric, got {raw!r}") from err
+    if not math.isfinite(number):
+        raise ValueError(f"INTEGER value must be finite, got {raw!r}")
+    return int(number)
+
+
+def _as_colour(raw: Any) -> dict[str, Any]:
+    """Coerce a raw Python value into a Sber COLOUR value dict.
+
+    Args:
+        raw: Either a mapping with ``h``/``s``/``v`` keys or a three-item
+            sequence in that order.
+
+    Returns:
+        Dict ready for inclusion in a Sber state payload.
+
+    Raises:
+        ValueError: If ``raw`` is neither shape, or a component is not
+            numeric.
+    """
+    if isinstance(raw, dict):
+        missing = sorted({"h", "s", "v"} - set(raw))
+        if missing:
+            raise ValueError(f"COLOUR value is missing {missing}, got {raw!r}")
+        return make_colour_value(_as_int(raw["h"]), _as_int(raw["s"]), _as_int(raw["v"]))
+    if isinstance(raw, list | tuple) and len(raw) == 3:
+        return make_colour_value(*(_as_int(component) for component in raw))
+    raise ValueError(f"COLOUR value must be an h/s/v mapping or a 3-item sequence, got {raw!r}")
+
+
+_VALUE_BUILDERS: dict[str, Callable[[Any], dict[str, Any]]] = {
+    "BOOL": lambda raw: make_bool_value(bool(raw)),
+    "INTEGER": lambda raw: make_integer_value(_as_int(raw)),
+    "FLOAT": make_float_value,
+    "STRING": lambda raw: make_string_value(str(raw)),
+    "ENUM": lambda raw: make_enum_value(str(raw)),
+    "COLOUR": _as_colour,
+}
+"""Sber value type → the constructor that wraps a raw value in it.
+
+One entry per key of
+:data:`~._generated.value_envelope.VALUE_FIELD_BY_TYPE`; the coverage is
+asserted by ``tests/hacs/test_sber_models_value_shape.py`` so a new type
+appearing in the documentation cannot stay unimplemented."""
+
+
+_VALUE_TYPE_FAMILY: dict[str, str] = {
+    "INTEGER": "number",
+    "FLOAT": "number",
+    "STRING": "text",
+    "ENUM": "text",
+    "BOOL": "bool",
+    "COLOUR": "colour",
+}
+"""Value type → the family whose payload can be re-wrapped losslessly.
+
+Used only by :func:`make_state` to decide whether a mistyped value can be
+salvaged.  ``INTEGER`` and ``FLOAT`` carry the same number, ``ENUM`` and
+``STRING`` the same characters; everything else would have to be invented
+(a ``BOOL`` has no meaningful ENUM spelling), and inventing it would ship
+a plausible-looking wrong value instead of a loud complaint."""
+
+
+def make_typed_value(value_type: str, raw: Any) -> dict[str, Any]:
+    """Wrap a raw Python value in the envelope of a given Sber type.
+
+    Args:
+        value_type: One of the types Sber documents for ``value.type``.
+        raw: Value to carry.
+
+    Returns:
+        Dict with ``type`` and exactly the payload key that type owns.
+
+    Raises:
+        ValueError: If the type is unknown or ``raw`` does not fit it.
+    """
+    builder = _VALUE_BUILDERS.get(str(value_type))
+    if builder is None:
+        raise ValueError(f"unknown Sber value type {value_type!r}; known: {sorted(_VALUE_BUILDERS)}")
+    return builder(raw)
+
+
+def make_value_for(feature: str, raw: Any) -> dict[str, Any]:
+    """Build the value for a feature using the type Sber documents for it.
+
+    This is the constructor device classes should reach for.  Picking the
+    envelope by hand is how ``kitchen_water_level`` — a documented FLOAT —
+    ended up published as an INTEGER for two years: the mistake is
+    invisible in review, passes every schema check the bridge had, and
+    the cloud simply never shows the value.
+
+    Args:
+        feature: Sber feature key (``SberFeature`` members work as-is).
+        raw: Plain Python value: ``bool`` for BOOL, a number for
+            INTEGER/FLOAT, a string for ENUM/STRING, an ``h``/``s``/``v``
+            mapping or triple for COLOUR.
+
+    Returns:
+        Dict ready for inclusion in a Sber state payload.
+
+    Raises:
+        ValueError: If the feature is absent from
+            :data:`~._generated.feature_types.FEATURE_TYPES` — an
+            undocumented key has no documented type, so the caller must
+            build the value explicitly — or if ``raw`` does not fit the
+            documented type.
+    """
+    documented = FEATURE_TYPES.get(str(feature))
+    if documented is None:
+        raise ValueError(
+            f"feature {str(feature)!r} is not in the documented catalogue — "
+            "build its value with an explicit make_*_value() call"
+        )
+    return make_typed_value(documented, raw)
+
+
+def _conform_to_documented_type(key: str, documented: str, value: dict[str, Any]) -> dict[str, Any]:
+    """Re-wrap a value built under the wrong type, or complain loudly.
+
+    Args:
+        key: Feature key the value belongs to.
+        documented: Type Sber documents for that feature.
+        value: Value dict as the device class built it.
+
+    Returns:
+        The value unchanged when it already matches the documentation or
+        cannot be salvaged; otherwise the same payload re-wrapped in the
+        documented envelope.
+    """
+    declared = str(value.get("type"))
+    if declared == documented:
+        return value
+    field = VALUE_FIELD_BY_TYPE.get(declared)
+    same_family = _VALUE_TYPE_FAMILY.get(declared) == _VALUE_TYPE_FAMILY.get(documented)
+    if field is not None and field in value and same_family:
+        try:
+            recast = make_typed_value(documented, value[field])
+        except ValueError:
+            recast = None
+        if recast is not None:
+            _LOGGER.error(
+                "Feature %r is documented as %s but was built as %s; republishing it as %s. "
+                "Fix the device class to use make_value_for(%r, …)",
+                key,
+                documented,
+                declared,
+                documented,
+                key,
+            )
+            return recast
+    _LOGGER.error(
+        "Feature %r is documented as %s but was built as %s and cannot be converted; "
+        "Sber will drop this value silently",
+        key,
+        documented,
+        declared,
+    )
+    return value
+
+
 def make_state(key: str, value: dict[str, Any]) -> dict[str, Any]:
     """Create a Sber state entry dict.
 
+    Every device class funnels its states through here, which makes it
+    the one place where a value can be checked against the type its
+    feature is documented with.  A mismatch is repaired when the payload
+    allows it (INTEGER ↔ FLOAT, ENUM ↔ STRING) and logged at ``ERROR``
+    either way: the wire form stays correct, and the mistake stops being
+    the kind that only shows up as "the cloud does not display this
+    value".
+
     Args:
         key: State key name.
-        value: Typed value dict (from ``make_*_value`` helpers).
+        value: Typed value dict (from :func:`make_value_for` or the
+            ``make_*_value`` helpers).
 
     Returns:
         Dict with ``key`` and ``value`` keys.
     """
+    documented = FEATURE_TYPES.get(str(key))
+    if documented is not None and isinstance(value, dict):
+        value = _conform_to_documented_type(str(key), documented, value)
     return {"key": key, "value": value}
+
+
+def make_state_for(key: str, raw: Any) -> dict[str, Any]:
+    """Create a Sber state entry, choosing the value type from the docs.
+
+    Shorthand for ``make_state(key, make_value_for(key, raw))`` — the
+    form that leaves a device class with nothing to get wrong.
+
+    Args:
+        key: Sber feature key (``SberFeature`` members work as-is).
+        raw: Plain Python value; see :func:`make_value_for`.
+
+    Returns:
+        Dict with ``key`` and ``value`` keys.
+
+    Raises:
+        ValueError: If the feature is undocumented or ``raw`` does not fit
+            its documented type.
+    """
+    return {"key": key, "value": make_value_for(key, raw)}
 
 
 # ---------------------------------------------------------------------------

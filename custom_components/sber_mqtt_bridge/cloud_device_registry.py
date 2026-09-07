@@ -24,6 +24,11 @@ Two properties of that persistence are deliberate and load-bearing (issue
   symmetrically, this registry cannot drop anybody else's;
 * the in-memory set is the source of truth while the bridge runs, so even a
   foreign write that did lose the key is repaired by the next publish.
+
+The same knowledge answers a second question, which is why
+:class:`ModelIdentityMigration` lives here: whether this installation has
+devices in the cloud at all, and therefore whether a change in how we name
+device *models* is something the user has to be told about.
 """
 
 from __future__ import annotations
@@ -31,6 +36,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry, UnknownEntry
 from homeassistant.core import HomeAssistant
 
@@ -196,3 +202,231 @@ class CloudDeviceRegistry:
             return
         if self._stopped:
             _LOGGER.debug("Persisted %d cloud-known device(s) after bridge shutdown", len(to_persist))
+
+
+MODEL_IDENTITY_REVISION = 2
+"""Generation of the ``model.id`` formula this code publishes under.
+
+Bumped whenever :meth:`~.devices.base_entity.BaseEntity._build_model_descriptor`
+starts producing a different id for the same device.  Revision 1 is
+everything up to and including 1.50.0; revision 2 adds the hardware name
+to the capability digest and stops declaring functions Sber does not
+document for the category, both of which move the digest.
+
+It marks changes to the *formula*, not to the data Home Assistant feeds
+it: a device whose ``manufacturer`` / ``model`` an integration rewrites
+gets a new id without a revision bump and therefore without a notice —
+see :meth:`~.devices.base_entity.BaseEntity._capability_digest`.
+"""
+
+OPTIONS_MODEL_REVISION_KEY = "model_identity_revision"
+"""``ConfigEntry.options`` key holding the revision this entry last published under."""
+
+MIGRATION_NOTIFICATION_ID = "sber_mqtt_bridge_model_identity"
+"""Base persistent-notification id — see :func:`migration_notification_id`."""
+
+
+def migration_notification_id(entry: ConfigEntry) -> str:
+    """Return the notification id for one config entry.
+
+    Two Sber accounts mean two config entries, each with its own device
+    registry and its own device count.  A single shared id let the second
+    entry's notice overwrite the first one's, leaving the user with a
+    number that describes only half of their installation.
+
+    Args:
+        entry: Config entry the notice is about.
+
+    Returns:
+        Notification id unique to that entry.
+    """
+    return f"{MIGRATION_NOTIFICATION_ID}_{entry.entry_id}"
+
+
+_MIGRATION_TITLE = "Sber Bridge: изменились описания моделей устройств"
+
+_MIGRATION_MESSAGE = """\
+Мост исправил описания устройств, которые отправляет в облако Сбера.
+
+**Что изменилось**
+
+* Из моделей убраны функции, которых нет в документации их категории. Это
+  `on_off` у домофона; `tamper_alarm` (сигнал о вскрытии) у датчиков дыма,
+  газа, движения и протечки; `alarm_mute` (отключение сирены) у датчика
+  протечки; `sensor_sensitive` (чувствительность) у датчиков дыма и
+  протечки; `hvac_humidity_set` (целевая влажность) у бойлера,
+  обогревателя, радиатора и тёплого пола. Модель с чужой функцией облако
+  вправе отбросить целиком, и устройство просто не появится в приложении.
+  Если вы пользовались какой-то из этих функций через приложение Сбера, в
+  Home Assistant она остаётся на месте.
+* У ламп и светодиодных лент убрана пустая запись о допустимых значениях
+  цвета: она ничего не задавала, а документация Сбера разрешает такие
+  записи только для чисел и списков значений.
+* В идентификатор модели теперь входят производитель и название железа, а
+  в описание модели — они же вместо имени конкретного устройства. Раньше
+  два разных датчика получали один идентификатор, и в приложении Сбера их
+  описания смешивались.
+
+**Что будет дальше**
+
+При ближайшей публикации конфигурации Сбер заведёт для ваших устройств
+({count} шт.) модели заново. Сами устройства, их имена и сценарии остаются
+на месте, повторное сопряжение не требуется.
+
+**Что может потребоваться от вас**
+
+Если у части устройств в приложении Сбера сбросится назначенная комната,
+назначьте её заново — это разовая операция. Уведомление можно закрыть.
+"""
+
+
+class ModelIdentityMigration:
+    """Tell the user, once, that device models are re-registering.
+
+    The bridge names a Sber *model* by a digest of what the device can
+    do (see
+    :meth:`~.devices.base_entity.BaseEntity._capability_digest`).  When
+    that formula changes, every device gets a new ``model.id`` and the
+    cloud registers new models for them on the next config publish.
+
+    **Why the migration is a notice and not a compatibility shim.**
+    Keeping the old id would keep the old model: the cloud caches a
+    model by its id and does not pick up new content published under an
+    unchanged one — the project has paid for that once already (1.39.6b3,
+    where a stale cached dependency made every colour command bounce).
+    Pinning the id would therefore preserve exactly the broken
+    descriptors this release exists to fix, and it would need a frozen
+    copy of the old feature logic to reproduce ids we never stored.  So
+    the models are re-registered and the user is told what to expect.
+
+    Whether re-registering a model also resets the room a user assigned
+    to a device is **not established**: 1.44.0 moved every ``model.id``
+    for everybody and no such regression was reported, and the protocol
+    gives a vendor no way to set a room other than the ``room`` field we
+    already send.  The notice says "if a room resets" rather than
+    promising either outcome.
+
+    A fresh installation is silent: it has nothing registered in the
+    cloud, so there is nothing to re-register and nothing to warn about.
+    An installation older than the cloud registry itself is neither
+    warned nor stamped — see :attr:`registry_has_not_answered_yet`.
+    """
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, registry: CloudDeviceRegistry) -> None:
+        """Bind the migration to one config entry.
+
+        Args:
+            hass: Home Assistant instance (used to persist and to notify).
+            entry: Config entry carrying the stored revision.
+            registry: Registry that knows whether the cloud holds devices
+                of ours.
+        """
+        self._hass = hass
+        self._entry = entry
+        self._registry = registry
+
+    @property
+    def stored_revision(self) -> int | None:
+        """Revision this entry last published under, or ``None`` if never stamped."""
+        stored = self._entry.options.get(OPTIONS_MODEL_REVISION_KEY)
+        return stored if isinstance(stored, int) and not isinstance(stored, bool) else None
+
+    @property
+    def is_up_to_date(self) -> bool:
+        """Whether the entry has already been stamped with the current revision."""
+        return self.stored_revision == MODEL_IDENTITY_REVISION
+
+    @property
+    def affects_cloud_devices(self) -> bool:
+        """Whether the cloud holds devices that will be re-registered.
+
+        An entry with an empty registry is a fresh installation, a bridge
+        that never managed to publish, or an installation that predates
+        the registry itself; the first two have no model of ours
+        cloud-side to replace, and the third is handled by
+        :attr:`registry_has_not_answered_yet` instead of here.
+        """
+        return bool(self._registry.known)
+
+    @property
+    def registry_has_not_answered_yet(self) -> bool:
+        """Whether this entry is too old for its empty registry to mean anything.
+
+        The cloud device registry (``cloud_known_devices``) arrived in
+        1.45 (#44 / #49).  An installation upgrading from anything older
+        reaches the first ``async_setup_entry`` with devices in the cloud
+        and an options mapping that has no such key at all — the registry
+        reads as empty, :attr:`affects_cloud_devices` says "nothing to
+        re-register", the entry is stamped, and by the time the first
+        publish fills the registry there is nobody left to notify.
+
+        Absence of the key together with a non-empty exposed-entity list
+        separates that case from a fresh installation, which reaches its
+        first setup straight out of the config flow with nothing exposed
+        yet.  A bridge in this state is left unstamped, so the decision
+        is retried on the next setup — the panel reloads the entry on
+        every edit, and a restart does the same — by which point the
+        registry can answer for itself.
+
+        Returns:
+            True while the verdict must be postponed.
+        """
+        if self._registry.known or OPTIONS_KEY in self._entry.options:
+            return False
+        return bool(self._entry.options.get(CONF_EXPOSED_ENTITIES))
+
+    def async_run(self) -> bool:
+        """Notify if needed, then stamp the entry with the current revision.
+
+        Idempotent: once stamped, later calls do nothing, so the notice
+        survives exactly one restart's worth of attention and does not
+        come back on every reload.  The one case that is *not* stamped is
+        :attr:`registry_has_not_answered_yet`, where stamping would spend
+        the single notice on an installation that cannot yet say whether
+        it needs one.
+
+        Returns:
+            True if the user was notified, False otherwise.
+        """
+        if self.is_up_to_date:
+            return False
+        if self.registry_has_not_answered_yet:
+            _LOGGER.debug(
+                "Model identity revision left unstamped: this entry predates the cloud device registry, "
+                "so whether the cloud holds devices of ours is not known until the first config publish"
+            )
+            return False
+        notified = self.affects_cloud_devices
+        if notified:
+            persistent_notification.async_create(
+                self._hass,
+                _MIGRATION_MESSAGE.format(count=len(self._registry.known)),
+                title=_MIGRATION_TITLE,
+                notification_id=migration_notification_id(self._entry),
+            )
+            _LOGGER.info(
+                "Model identity revision %s → %s: %d cloud device(s) will re-register their models",
+                self.stored_revision,
+                MODEL_IDENTITY_REVISION,
+                len(self._registry.known),
+            )
+        else:
+            _LOGGER.debug(
+                "Model identity revision stamped as %s without a notice: the cloud holds no devices of ours",
+                MODEL_IDENTITY_REVISION,
+            )
+        self._stamp()
+        return notified
+
+    def _stamp(self) -> None:
+        """Write the current revision into ``ConfigEntry.options``.
+
+        Merges into the live options mapping for the same reason
+        :meth:`CloudDeviceRegistry._persist` does: a concurrent writer
+        must not lose its key, and must not drop ours.
+        """
+        new_options = {**self._entry.options, OPTIONS_MODEL_REVISION_KEY: MODEL_IDENTITY_REVISION}
+        try:
+            self._hass.config_entries.async_update_entry(self._entry, options=new_options)
+        except UnknownEntry:
+            _LOGGER.debug("Config entry gone — model identity revision not persisted")

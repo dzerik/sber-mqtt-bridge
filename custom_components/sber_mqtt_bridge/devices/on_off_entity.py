@@ -55,6 +55,21 @@ class OnOffEntity(BaseEntity):
     _ha_on_state: str = "on"
     """HA state string that corresponds to 'on' (override in subclass if needed)."""
 
+    _supports_on_off: ClassVar[bool] = True
+    """Whether the Sber spec lists ``on_off`` for this subclass's category.
+
+    True for every user of this base except ``intercom``: the
+    "Доступные функции устройства" table on ``c2c/intercom`` names only
+    ``online``, ``incoming_call``, ``reject_call`` and ``unlock``.  An
+    intercom is an on/off entity in Home Assistant and reuses everything
+    else here, so the one function it may not advertise is switched off
+    by this flag rather than by forking the class.
+
+    A model carrying a function outside its category's table can be
+    rejected by the cloud as a whole, which the user sees as a device
+    that never appears in the Sber app.
+    """
+
     @property
     def _supports_child_lock(self) -> bool:
         """Whether this entity may advertise the Sber ``child_lock`` feature.
@@ -133,15 +148,19 @@ class OnOffEntity(BaseEntity):
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list including 'on_off' and optional features.
 
-        Energy and child_lock features are gated by the overridable
-        ``_supports_energy`` / ``_supports_child_lock`` flags: the Sber
-        spec declares power/voltage/current only for relay/socket and
-        ``child_lock`` only for socket-like categories (issue #44 audit).
+        ``on_off`` itself, energy and child_lock are gated by the
+        overridable ``_supports_on_off`` / ``_supports_energy`` /
+        ``_supports_child_lock`` flags: the Sber spec declares
+        power/voltage/current only for relay/socket, ``child_lock`` only
+        for socket-like categories (issue #44 audit), and ``on_off`` for
+        every category using this base except ``intercom``.
 
         Returns:
             List of Sber feature strings supported by this entity.
         """
-        features = [*super()._create_features_list(), "on_off"]
+        features = list(super()._create_features_list())
+        if self._supports_on_off:
+            features.append("on_off")
         if self._supports_energy:
             if self._power is not None:
                 features.append("power")
@@ -159,10 +178,9 @@ class OnOffEntity(BaseEntity):
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
-        states = [
-            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
-            make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
-        ]
+        states = [make_state(SberFeature.ONLINE, make_bool_value(self._is_online))]
+        if self._supports_on_off:
+            states.append(make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)))
         if self._supports_energy:
             if self._power is not None:
                 states.append(make_state(SberFeature.POWER, make_integer_value(self._power)))

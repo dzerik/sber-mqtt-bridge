@@ -12,7 +12,22 @@ modules under ``custom_components/sber_mqtt_bridge/_generated/``:
 - ``usage_modes.py`` — ``FEATURE_USAGE_MODES`` plus the three sets it
   partitions into (command-only, event-only, state-bearing), taken from
   the "Способ использования" line of each function page
+- ``value_envelope.py`` — the shape of a ``value`` object: which payload
+  key each type uses, the JSON type of each key, the HSV bounds, and the
+  types ``allowed_values`` may be declared for
+- ``protocol_limits.py`` — required fields of ``model`` / ``device`` /
+  ``state``, the 1024-character ``partner_meta`` cap, and Sber's error
+  codes
+- ``narrowing.py`` — whether a model may narrow a feature's allowed
+  values, and how
+- ``feature_labels.py`` — Sber's own Russian labels for features and
+  ENUM values
 - ``__init__.py`` — re-exports + spec provenance constants
+
+The last four are generated from the ``structures`` / ``protocol``
+sections of the spec.  Those sections are optional: a spec fetched
+before they existed still generates, with the affected tables empty.
+Empty always means *unknown*, never *unconstrained*.
 
 Safety guarantees:
 
@@ -106,6 +121,13 @@ def load_spec(path: Path) -> dict[str, Any]:
         features = schema.get("features")
         if not isinstance(features, list):
             raise SpecValidationError(f"Category {category!r} features must be a list, got {type(features)}")
+
+    # ``structures`` / ``protocol`` are newer than the rest of the spec and
+    # deliberately optional, but a *malformed* one must abort rather than
+    # quietly generate an empty limits table that reads as "no limit".
+    for key in ("structures", "protocol"):
+        if key in data and not isinstance(data[key], dict):
+            raise SpecValidationError(f"Spec {key!r} must be a dict, got {type(data[key])}")
 
     return data
 
@@ -405,6 +427,304 @@ the only ones a state publish can legitimately be asked to contain."""
     return "\n".join(lines)
 
 
+def _protocol(spec: dict) -> dict:
+    """Normative constants distilled from the structure pages (may be empty)."""
+    protocol = spec.get("protocol")
+    return protocol if isinstance(protocol, dict) else {}
+
+
+def _structure_fields(spec: dict, structure: str) -> dict[str, dict]:
+    """Field table of one structure page, or ``{}`` when it was not scraped."""
+    structures = spec.get("structures")
+    if not isinstance(structures, dict):
+        return {}
+    fields = (structures.get(structure) or {}).get("fields")
+    return fields if isinstance(fields, dict) else {}
+
+
+def _field_names(fields: dict[str, dict], flag: str) -> list[str]:
+    """Sorted field names whose ``flag`` (``obligatory``/``conditional``) is set."""
+    return sorted(name for name, meta in fields.items() if meta.get(flag))
+
+
+def render_value_envelope(spec: dict) -> str:
+    """Render value_envelope.py content."""
+    header = HEADER.format(source=spec["source"], generated_at=spec["generated_at"]).rstrip()
+    protocol = _protocol(spec)
+    value_types = list(protocol.get("value_types") or ())
+    field_types: dict[str, str] = dict(protocol.get("value_field_types") or {})
+    # "INTEGER" → "integer_value": derived from the field names the page
+    # itself lists, never from a hardcoded table, so a renamed field shows
+    # up as a missing entry instead of a wrong one.
+    field_by_type = {
+        name.removesuffix("_value").upper(): name
+        for name in sorted(field_types)
+        if name.removesuffix("_value").upper() in value_types
+    }
+    colour = {k: tuple(v) for k, v in sorted((protocol.get("colour_ranges") or {}).items())}
+    allowed_types = list(protocol.get("allowed_values_types") or ())
+
+    lines = [header, ""]
+    lines += [
+        f"VALUE_TYPES: frozenset[str] = frozenset({{{', '.join(repr(t) for t in sorted(value_types))}}})"
+        if value_types
+        else "VALUE_TYPES: frozenset[str] = frozenset()",
+        dedent(
+            '''"""Every value type the ``value`` structure may declare.
+
+Source: the ``type`` row of
+developers.sber.ru/docs/ru/smarthome/c2c/value — "Может
+принимать значение: FLOAT, INTEGER, STRING, BOOL, ENUM,
+COLOUR"."""
+'''
+        ).strip(),
+        "",
+        "",
+        "VALUE_FIELD_BY_TYPE: dict[str, str] = {",
+        *(f'    "{t}": "{f}",' for t, f in sorted(field_by_type.items())),
+        "}",
+        dedent(
+            '''"""Value type → the payload key that carries it.
+
+A ``value`` object holds exactly two keys: ``type`` and the one
+named here.  Publishing an INTEGER under ``float_value`` (or
+inventing a third key) is accepted by every check the bridge has
+today and then dropped by the cloud without a word."""
+'''
+        ).strip(),
+        "",
+        "",
+        "VALUE_FIELD_JSON_TYPES: dict[str, str] = {",
+        *(f'    "{name}": "{jtype}",' for name, jtype in sorted(field_types.items())),
+        "}",
+        dedent(
+            '''"""Payload key → the JSON type Sber documents for it.
+
+The one that matters is ``integer_value: "string"`` — Sber words
+it "целочисленное значение long, записанное в виде строки", so an
+INTEGER must go on the wire quoted.  ``float_value`` is
+``number``, which settles the contradiction in the examples: two
+function pages show a FLOAT quoted, and those examples are
+wrong."""
+'''
+        ).strip(),
+        "",
+        "",
+        "COLOUR_COMPONENT_RANGES: dict[str, tuple[int, int]] = {",
+        *(f'    "{k}": ({v[0]}, {v[1]}),' for k, v in colour.items()),
+        "}",
+        dedent(
+            '''"""Inclusive HSV bounds of ``colour_value``.
+
+Note ``v`` starts at 100, not 0 — a detail the bridge already
+honours in ``devices/utils/color_converter.py`` by hand.  Binding
+it to the scraped page means a change upstream breaks a test
+instead of breaking colour on real lamps."""
+'''
+        ).strip(),
+        "",
+        "",
+        f"ALLOWED_VALUES_TYPES: frozenset[str] = frozenset({{{', '.join(repr(t) for t in sorted(allowed_types))}}})"
+        if allowed_types
+        else "ALLOWED_VALUES_TYPES: frozenset[str] = frozenset()",
+        dedent(
+            '''"""The only types an ``allowed_values`` entry may declare.
+
+Source: developers.sber.ru/docs/ru/smarthome/c2c/allowed_values —
+"Структура может использоваться только в описании функций,
+которые принимают значения (value) в одном из следующих типов".
+COLOUR is *not* among them, so an ``allowed_values`` entry for a
+colour feature is malformed however harmless it looks."""
+'''
+        ).strip(),
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def render_protocol_limits(spec: dict) -> str:
+    """Render protocol_limits.py content."""
+    header = HEADER.format(source=spec["source"], generated_at=spec["generated_at"]).rstrip()
+    protocol = _protocol(spec)
+    model = _structure_fields(spec, "model")
+    device = _structure_fields(spec, "device")
+    state = _structure_fields(spec, "state")
+    allowed = _structure_fields(spec, "allowed_values")
+    limit = protocol.get("partner_meta_max_chars")
+    codes = {int(code): text for code, text in (protocol.get("error_codes") or {}).items()}
+
+    def frozen(name: str, values: list[str], doc: str) -> list[str]:
+        body = f"frozenset({{{', '.join(repr(v) for v in values)}}})" if values else "frozenset()"
+        return [f"{name}: frozenset[str] = {body}", doc, "", ""]
+
+    lines = [header, ""]
+    lines += frozen(
+        "MODEL_REQUIRED_FIELDS",
+        _field_names(model, "obligatory"),
+        '"""Fields the ``model`` structure marks ✔︎ obligatory.\n\nA model missing one of these is rejected whole, taking every device\nthat references it along."""',
+    )
+    lines += frozen(
+        "MODEL_FIELDS",
+        sorted(model),
+        '"""Every field the ``model`` structure documents, required or not.\n\nNote what is *not* here: ``dependencies``.  The bridge sends it, no Sber\npage mentions it, and our own models are ``extra="forbid"`` — if the\ncloud reasons the same way, that field is a silent rejection waiting to\nhappen."""',
+    )
+    lines += frozen(
+        "DEVICE_REQUIRED_FIELDS",
+        _field_names(device, "obligatory"),
+        '"""Fields the ``device`` structure marks ✔︎ obligatory.\n\nRead this one with care: the page marks **both** ``model_id`` and\n``model`` obligatory while the ``model`` row itself says "указывается,\nтолько если не задан model_id".  Both cannot hold, so this set is not\nusable as a plain "all of these must be present" check — the bridge\nsends an inline ``model`` and no ``model_id``, matching the examples on\nall 29 category pages."""',
+    )
+    lines += frozen(
+        "DEVICE_FIELDS",
+        sorted(device),
+        '"""Every field the ``device`` structure documents.\n\n``nicknames``, which the bridge sends, is absent here — same exposure as\n``dependencies`` on the model side."""',
+    )
+    lines += frozen(
+        "STATE_REQUIRED_FIELDS",
+        _field_names(state, "obligatory"),
+        '"""Fields of one ``state`` entry: ``key`` and ``value``, both required."""',
+    )
+    lines += frozen(
+        "ALLOWED_VALUES_CONDITIONAL_FIELDS",
+        _field_names(allowed, "conditional"),
+        '"""The ✔︎* rows of ``allowed_values``: exactly one of these per entry.\n\nWhich one is decided by the entry\'s ``type`` — ``integer_values`` for\nINTEGER, ``float_values`` for FLOAT, ``enum_values`` for ENUM."""',
+    )
+    lines += [
+        f"PARTNER_META_MAX_CHARS: int | None = {limit!r}",
+        dedent(
+            '''"""Maximum length of ``partner_meta`` in its JSON form.
+
+The only numeric limit in the entire C2C reference: Sber writes
+"Максимально допустимое количество символов в JSON-представлении
+объекта partner_meta — 1024".  ``None`` means the sentence stopped
+parsing, which is a scraper problem, not permission to send
+more."""
+'''
+        ).strip(),
+        "",
+        "",
+        "SBER_ERROR_CODES: dict[int, str] = {",
+        *(f'    {code}: "{codes[code]}",' for code in sorted(codes)),
+        "}",
+        dedent(
+            '''"""Error codes Sber may return, with its own wording.
+
+401 and 403 mean "the credentials are wrong"; 400 means "the
+payload is wrong"; 500/503 mean "try later".  The bridge
+currently logs the raw error body as one truncated string, so
+these three very different situations look identical to the
+user."""
+'''
+        ).strip(),
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def render_narrowing(spec: dict) -> str:
+    """Render narrowing.py content."""
+    header = HEADER.format(source=spec["source"], generated_at=spec["generated_at"]).rstrip()
+    functions = spec["functions"]
+    narrowing = {name: functions[name]["narrowing"] for name in sorted(functions) if functions[name].get("narrowing")}
+    enum_subset = sorted(n for n, mode in narrowing.items() if mode == "enum_subset")
+    range_modes = sorted(n for n, mode in narrowing.items() if mode in {"range_and_step", "range_only"})
+
+    lines = [header, "", "FEATURE_NARROWING: dict[str, str] = {"]
+    lines += [f'    "{name}": "{mode}",' for name, mode in sorted(narrowing.items())]
+    lines.append("}")
+    lines.append(
+        dedent(
+            '''"""How far a model may narrow a feature, per the feature\'s own page.
+
+Sber states it once per function, always opening with "При
+описании модели устройства":
+
+- ``enum_subset`` — "перечень … можно сократить"
+- ``range_and_step`` — "можно уменьшить диапазон … либо изменить их шаг"
+- ``range_only`` — the range may shrink; no step is mentioned
+
+A feature **absent from this table** is one whose page never
+mentions narrowing.  That is all it means: no page anywhere states
+that a feature may *not* be narrowed, so an ``allowed_values``
+entry for an unlisted feature is unconfirmed by the documentation,
+not a known violation.
+
+The direction, in contrast, is stated outright — the
+``allowed_values`` page says "диапазон можно только сократить" — so
+a bound wider than :data:`FEATURE_RANGES` contradicts the docs,
+except where Sber's own category example is wider (the reference
+``hvac_boiler`` model declares a hotter ``hvac_temp_set`` than the
+function page allows)."""
+'''
+        ).strip()
+    )
+    lines += [
+        "",
+        "",
+        f"NARROWABLE_ENUM_FEATURES: frozenset[str] = frozenset({{{', '.join(repr(n) for n in enum_subset)}}})"
+        if enum_subset
+        else "NARROWABLE_ENUM_FEATURES: frozenset[str] = frozenset()",
+        '"""ENUM features whose published vocabulary may be a subset."""',
+        "",
+        "",
+        f"NARROWABLE_RANGE_FEATURES: frozenset[str] = frozenset({{{', '.join(repr(n) for n in range_modes)}}})"
+        if range_modes
+        else "NARROWABLE_RANGE_FEATURES: frozenset[str] = frozenset()",
+        '"""Numeric features whose published range may be shrunk."""',
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def render_feature_labels(spec: dict) -> str:
+    """Render feature_labels.py content."""
+    header = HEADER.format(source=spec["source"], generated_at=spec["generated_at"]).rstrip()
+    functions = spec["functions"]
+    titles = {name: functions[name]["title_ru"] for name in sorted(functions) if functions[name].get("title_ru")}
+    enum_labels = {
+        name: functions[name]["enum_descriptions"]
+        for name in sorted(functions)
+        if functions[name].get("enum_descriptions")
+    }
+
+    lines = [header, "", "FEATURE_TITLES_RU: dict[str, str] = {"]
+    lines += [f"    {name!r}: {title!r}," for name, title in titles.items()]
+    lines.append("}")
+    lines.append(
+        dedent(
+            '''"""Feature name → Sber\'s own Russian label for it.
+
+Straight off each function page\'s heading — ``light_colour
+(цвет)``.  The panel shows protocol slugs today; these are the
+words the Salute app uses for the very same feature, so a user
+reading our wizard and their phone sees one vocabulary instead of
+two."""
+'''
+        ).strip()
+    )
+
+    lines += ["", "", "FEATURE_ENUM_LABELS: dict[str, dict[str, str]] = {"]
+    for name, labels in enum_labels.items():
+        lines.append(f"    {name!r}: {{")
+        lines += [f"        {value!r}: {text!r}," for value, text in labels.items()]
+        lines.append("    },")
+    lines.append("}")
+    lines.append(
+        dedent(
+            '''"""ENUM value → Sber\'s Russian gloss for that value.
+
+"cooling — охлаждение воздуха", "self_cleaning — самоочистка и
+сушка устройства".  Absent for the two command-only ENUMs whose
+pages carry no vocabulary at all (``reject_call``, ``unlock``):
+their single legal value appears only inside the state example,
+which is captured in the snapshot but is too thin a source to
+label from."""
+'''
+        ).strip()
+    )
+    lines.append("")
+    return "\n".join(lines)
+
+
 def render_init(spec: dict) -> str:
     """Render __init__.py content."""
     header = HEADER.format(source=spec["source"], generated_at=spec["generated_at"]).rstrip()
@@ -413,8 +733,24 @@ def render_init(spec: dict) -> str:
 
         from .category_features import CATEGORY_REFERENCE_FEATURES
         from .conditional_features import CATEGORY_CONDITIONAL_FEATURES
+        from .feature_labels import FEATURE_ENUM_LABELS, FEATURE_TITLES_RU
         from .feature_types import FEATURE_TYPES
+        from .narrowing import (
+            FEATURE_NARROWING,
+            NARROWABLE_ENUM_FEATURES,
+            NARROWABLE_RANGE_FEATURES,
+        )
         from .obligatory_features import CATEGORY_OBLIGATORY_FEATURES
+        from .protocol_limits import (
+            ALLOWED_VALUES_CONDITIONAL_FIELDS,
+            DEVICE_FIELDS,
+            DEVICE_REQUIRED_FIELDS,
+            MODEL_FIELDS,
+            MODEL_REQUIRED_FIELDS,
+            PARTNER_META_MAX_CHARS,
+            SBER_ERROR_CODES,
+            STATE_REQUIRED_FIELDS,
+        )
         from .reference_values import FEATURE_ENUM_VALUES, FEATURE_RANGES
         from .usage_modes import (
             COMMAND_ONLY_FEATURES,
@@ -422,20 +758,45 @@ def render_init(spec: dict) -> str:
             FEATURE_USAGE_MODES,
             STATE_BEARING_FEATURES,
         )
+        from .value_envelope import (
+            ALLOWED_VALUES_TYPES,
+            COLOUR_COMPONENT_RANGES,
+            VALUE_FIELD_BY_TYPE,
+            VALUE_FIELD_JSON_TYPES,
+            VALUE_TYPES,
+        )
 
         __all__ = [
+            "ALLOWED_VALUES_CONDITIONAL_FIELDS",
+            "ALLOWED_VALUES_TYPES",
             "CATEGORY_CONDITIONAL_FEATURES",
             "CATEGORY_OBLIGATORY_FEATURES",
             "CATEGORY_REFERENCE_FEATURES",
+            "COLOUR_COMPONENT_RANGES",
             "COMMAND_ONLY_FEATURES",
+            "DEVICE_FIELDS",
+            "DEVICE_REQUIRED_FIELDS",
             "EVENT_ONLY_FEATURES",
+            "FEATURE_ENUM_LABELS",
             "FEATURE_ENUM_VALUES",
+            "FEATURE_NARROWING",
             "FEATURE_RANGES",
+            "FEATURE_TITLES_RU",
             "FEATURE_TYPES",
             "FEATURE_USAGE_MODES",
+            "MODEL_FIELDS",
+            "MODEL_REQUIRED_FIELDS",
+            "NARROWABLE_ENUM_FEATURES",
+            "NARROWABLE_RANGE_FEATURES",
+            "PARTNER_META_MAX_CHARS",
+            "SBER_ERROR_CODES",
             "SPEC_GENERATED_AT",
             "SPEC_SOURCE",
             "STATE_BEARING_FEATURES",
+            "STATE_REQUIRED_FIELDS",
+            "VALUE_FIELD_BY_TYPE",
+            "VALUE_FIELD_JSON_TYPES",
+            "VALUE_TYPES",
         ]
 
         SPEC_SOURCE: str = "{source}"
@@ -510,6 +871,10 @@ TARGETS: tuple[tuple[str, str], ...] = (
     ("conditional_features.py", "render_conditional_features"),
     ("reference_values.py", "render_reference_values"),
     ("usage_modes.py", "render_usage_modes"),
+    ("value_envelope.py", "render_value_envelope"),
+    ("protocol_limits.py", "render_protocol_limits"),
+    ("narrowing.py", "render_narrowing"),
+    ("feature_labels.py", "render_feature_labels"),
     ("__init__.py", "render_init"),
 )
 
@@ -536,6 +901,10 @@ def main(argv: list[str] | None = None) -> int:
         "render_conditional_features": render_conditional_features,
         "render_reference_values": render_reference_values,
         "render_usage_modes": render_usage_modes,
+        "render_value_envelope": render_value_envelope,
+        "render_protocol_limits": render_protocol_limits,
+        "render_narrowing": render_narrowing,
+        "render_feature_labels": render_feature_labels,
         "render_init": render_init,
     }
 

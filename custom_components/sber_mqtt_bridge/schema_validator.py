@@ -32,7 +32,12 @@ The issue kinds:
 * **out_of_range** — a numeric value outside the function's documented
   bounds.  A warning, not an error: the bound describes the function,
   and a device idling below it (a socket at 0 W against a 10 W floor)
-  is common enough that an error would be noise.
+  is common enough that an error would be noise.  The bounds come from
+  :func:`_documented_bounds`, the same helper the ``allowed_values``
+  half uses, so a category whose own Sber example is wider than the
+  function page (:data:`_CATEGORY_RANGE_SANCTIONED`) is judged by one
+  rule in both scopes rather than passing the config check and failing
+  every status publish.
 * **unknown_for_category** — a feature key that isn't in the Sber
   reference set for this category.  Checked both on the keys that reach
   a state publish and on the ``features`` list the device advertises:
@@ -52,12 +57,57 @@ The issue kinds:
   :data:`FEATURE_TYPES` for that key (e.g. sending ``INTEGER`` where
   the spec declares ``BOOL``).  Reliable way to get silently rejected.
 * **not_declared** — the state's key isn't in the device's own
-  ``features`` list as published in the config, so Sber will refuse
-  to route the value.
+  ``features`` list as published in the config.  Sber's rule is
+  unconditional and repeated on all 96 function pages: "Функция должна
+  быть добавлена в описания моделей всех поддерживающих ее устройств".
+  Publishing a value for a feature the model never mentions is therefore
+  a direct violation, and the cloud has no slot to route the value into.
+* **value_shape** — the ``value`` envelope itself is malformed: no
+  ``type``, a ``type`` Sber does not define, a payload key that does not
+  belong to the declared type, or a payload carried in the wrong JSON
+  type.  The one that bites in practice is ``integer_value``: Sber
+  documents it as "целочисленное значение long, записанное **в виде
+  строки**", so ``{"type": "INTEGER", "integer_value": 42}`` looks right,
+  passes every other check here and is then dropped without a word.
+  A *missing* payload key is deliberately **not** reported — proto3
+  elides fields holding their type's default, so ``{"type": "BOOL"}``
+  legitimately means ``false`` and the command echo forwards Sber's own
+  elided values back verbatim.
+* **colour_out_of_range** — a ``colour_value`` component outside the
+  bounds the ``value`` page states (``h`` 0–360, ``s`` 0–1000, ``v``
+  **100**–1000).  Components absent from the payload are skipped for the
+  proto3 reason above.
+* **missing_required_field** — a device or model descriptor is missing a
+  field Sber marks ✔︎ obligatory.  Sber drops such a model whole, and
+  every device that references it with it.
+* **partner_meta_too_long** — ``partner_meta`` exceeds the only numeric
+  limit in the entire C2C reference (1024 characters of JSON).
+* **allowed_values_widened** — a numeric ``allowed_values`` entry offers
+  a range wider than the function's own page documents.  Sber is explicit
+  that "диапазон можно только сократить, а шаг можно установить любой",
+  so a Home Assistant entity reporting 0–100 % humidity must still
+  advertise no more than the documented 30–90.  A warning rather than an
+  error: Sber's own category examples break this rule (see
+  :data:`_CATEGORY_RANGE_SANCTIONED`), so the wording is stronger than
+  the cloud's actual behaviour.
+* **allowed_values_shape** — an ``allowed_values`` entry that cannot mean
+  what it says: a type outside FLOAT / INTEGER / ENUM carrying limits, a
+  ``*_values`` block that does not match the entry's own ``type``, or a
+  narrowing of a feature whose page never *states* that narrowing is
+  allowed.  That last one is reported as unconfirmed, not as a
+  violation — Sber writes the permission on 68 of the 96 function pages
+  and writes the prohibition on none.
+* **allowed_values_inert** — an entry that is structurally illegal but
+  overrides nothing, in practice only ``{"type": "COLOUR"}``.  Reported
+  at ``info`` on purpose: every RGB lamp the bridge has ever published
+  carries one and every one of them works, so painting them yellow would
+  cost more than the finding is worth.
 
 Each issue carries ``severity`` (``error`` / ``warning`` / ``info``),
-the ``entity_id`` and ``key``, and a short human-readable
-``description`` for DevTools to render.
+the ``entity_id`` and ``key``, an English ``description`` for logs and
+diagnostics, and the ``message_key`` / ``message_args`` pair the panel
+translates into the user's own language (see
+:data:`VALIDATION_MESSAGES`).
 
 The collector keeps two views:
 
@@ -72,11 +122,12 @@ The collector keeps two views:
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from collections import deque
 from collections.abc import Callable, Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
 from ._generated.category_features import CATEGORY_REFERENCE_FEATURES
@@ -87,6 +138,93 @@ from ._generated.reference_values import FEATURE_ENUM_VALUES, FEATURE_RANGES
 from ._generated.usage_modes import EVENT_ONLY_FEATURES, STATE_BEARING_FEATURES
 
 _LOGGER = logging.getLogger(__name__)
+
+# The four modules below are newer than the rest of ``_generated`` and are
+# rebuilt by ``tools/codegen.py`` from the structural pages of the C2C
+# reference (``/value``, ``/model``, ``/device``, ``/allowed_values``).  A
+# checkout whose ``_generated`` predates them must keep working: every
+# constant they carry falls back to an empty container, and every check
+# below treats "empty" as *unknown*, never as "nothing is allowed".  That
+# is the same rule the scraper itself follows — silence beats inventing a
+# rule out of a page that failed to load.
+try:  # pragma: no cover — exercised only on an out-of-date checkout
+    from ._generated import narrowing as _narrowing
+except ImportError:  # pragma: no cover
+    _narrowing = None  # type: ignore[assignment]
+try:  # pragma: no cover
+    from ._generated import protocol_limits as _protocol_limits
+except ImportError:  # pragma: no cover
+    _protocol_limits = None  # type: ignore[assignment]
+try:  # pragma: no cover
+    from ._generated import value_envelope as _value_envelope
+except ImportError:  # pragma: no cover
+    _value_envelope = None  # type: ignore[assignment]
+
+FEATURE_NARROWING: dict[str, str] = getattr(_narrowing, "FEATURE_NARROWING", {})
+"""Feature → how far a model may narrow it (``enum_subset`` / ``range_*``).
+
+Absent from the table means only that the function's page never states
+the values may be shortened.  Sber nowhere writes the opposite — that
+narrowing is *forbidden* — so an ``allowed_values`` entry narrowing such
+a feature is reported as **unconfirmed by the documentation**, at
+``warning``, and never as a known violation."""
+
+MODEL_REQUIRED_FIELDS: frozenset[str] = getattr(_protocol_limits, "MODEL_REQUIRED_FIELDS", frozenset())
+"""Fields the ``model`` structure marks ✔︎ obligatory."""
+
+PARTNER_META_MAX_CHARS: int | None = getattr(_protocol_limits, "PARTNER_META_MAX_CHARS", None)
+"""Character budget of ``partner_meta`` in its JSON form, or ``None`` if unknown."""
+
+VALUE_TYPES: frozenset[str] = getattr(_value_envelope, "VALUE_TYPES", frozenset())
+"""Every ``value.type`` Sber defines."""
+
+VALUE_FIELD_BY_TYPE: dict[str, str] = getattr(_value_envelope, "VALUE_FIELD_BY_TYPE", {})
+"""``value.type`` → the single payload key that carries it."""
+
+VALUE_FIELD_JSON_TYPES: dict[str, str] = getattr(_value_envelope, "VALUE_FIELD_JSON_TYPES", {})
+"""Payload key → the JSON type Sber documents for it (``integer_value`` is a *string*)."""
+
+COLOUR_COMPONENT_RANGES: dict[str, tuple[int, int]] = getattr(_value_envelope, "COLOUR_COMPONENT_RANGES", {})
+"""Inclusive bounds of the ``colour_value`` components."""
+
+ALLOWED_VALUES_TYPES: frozenset[str] = getattr(_value_envelope, "ALLOWED_VALUES_TYPES", frozenset())
+"""The only ``type`` values an ``allowed_values`` entry may declare."""
+
+_ALLOWED_VALUES_BLOCK_BY_TYPE: dict[str, str] = {
+    "ENUM": "enum_values",
+    "FLOAT": "float_values",
+    "INTEGER": "integer_values",
+}
+"""``allowed_values.type`` → the ``*_values`` block that must accompany it.
+
+Sber marks the three blocks ✔︎* — exactly one per entry, chosen by the
+entry's own ``type``.  An INTEGER entry holding ``enum_values`` declares
+nothing the cloud can read."""
+
+DEVICE_REQUIRED_FIELDS: frozenset[str] = frozenset({"id", "name", "default_name"})
+"""Device fields the bridge can demand unconditionally.
+
+Deliberately **not** :data:`_generated.protocol_limits.DEVICE_REQUIRED_FIELDS`:
+that set is taken verbatim from the page, which marks both ``model_id``
+and ``model`` obligatory while the ``model`` row says "указывается,
+только если не задан model_id".  Both cannot hold at once, so the
+either/or half is checked separately and only the three fields that carry
+no contradiction are demanded here."""
+
+_CATEGORY_RANGE_SANCTIONED: dict[tuple[str, str], tuple[float, float]] = {
+    ("hvac_boiler", "hvac_temp_set"): (5.0, 80.0),
+}
+"""Ranges Sber's own category example allows beyond the function's page.
+
+The ``hvac_temp_set`` page says ``INTEGER(5, 50)``, and then the
+``hvac_boiler`` page publishes a reference model declaring ``25…80``.
+The category example is the more specific statement for boilers — and it
+is what :class:`~.devices.hvac_boiler.HvacBoilerEntity` was built from —
+so flagging a boiler that reaches 80 °C would be reporting Sber's own
+reference device as broken.  Every entry here is re-derived from the
+scraped snapshot by ``test_schema_validator_spec_checks.py``, so a
+documentation fix upstream turns into a failing test rather than into a
+warning nobody can act on."""
 
 EVENT_SHAPED_STATE_FEATURES: frozenset[str] = frozenset(
     name for name in STATE_BEARING_FEATURES if name.startswith("button_") and name.endswith("_event")
@@ -114,6 +252,13 @@ IssueType = Literal[
     "declared_not_published",
     "type_mismatch",
     "not_declared",
+    "value_shape",
+    "colour_out_of_range",
+    "missing_required_field",
+    "partner_meta_too_long",
+    "allowed_values_widened",
+    "allowed_values_shape",
+    "allowed_values_inert",
 ]
 Severity = Literal["error", "warning", "info"]
 PayloadScope = Literal["state", "model"]
@@ -136,13 +281,40 @@ _SEVERITY: dict[IssueType, Severity] = {
     # the cloud accepts.
     "declared_not_published": "warning",
     "type_mismatch": "error",
-    "not_declared": "info",
+    # Error, not info.  Sber repeats the rule on every one of its 96
+    # function pages — "Функция должна быть добавлена в описания моделей
+    # всех поддерживающих ее устройств" — and the cloud has nowhere to put
+    # a value whose key the model never mentioned.  It cannot fire on a
+    # healthy bridge either: the publisher hands the collector the very
+    # same ``get_final_features_list()`` the payload was built from, so a
+    # finding here always means the two halves genuinely disagree.
+    "not_declared": "error",
+    "value_shape": "error",
+    "colour_out_of_range": "error",
+    "missing_required_field": "error",
+    "partner_meta_too_long": "error",
+    # Warning, not error, and the gap is Sber's own.  The rule is stated
+    # flatly on /allowed_values ("диапазон можно только сократить"), but
+    # the hvac_boiler category page then publishes a reference model that
+    # breaks it, so the documentation does not support painting a device
+    # red over this.
+    "allowed_values_widened": "warning",
+    "allowed_values_shape": "warning",
+    "allowed_values_inert": "info",
 }
 
 
 @dataclass(frozen=True)
 class ValidationIssue:
-    """One validation problem found in a publish."""
+    """One validation problem found in a publish.
+
+    ``description`` is the English sentence, kept for everything that has
+    no translation catalogue — logs, diagnostics dumps, test failures.
+    The panel renders ``message_key`` / ``message_args`` through the
+    integration's own ``config_panel`` strings instead, so a Russian user
+    reads Russian and an English one English; see
+    :data:`VALIDATION_MESSAGES`.
+    """
 
     ts: float
     entity_id: str
@@ -152,6 +324,11 @@ class ValidationIssue:
     key: str | None
     description: str
     details: dict[str, Any]
+    message_key: str = ""
+    """Key under ``config_panel.validation_issue`` naming the sentence."""
+
+    message_args: dict[str, str] = field(default_factory=dict)
+    """Ready-to-render placeholder values, identical in every language."""
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable representation."""
@@ -192,6 +369,670 @@ def _numeric_payload(value: Any) -> float | None:
     return None
 
 
+def _json_kind(payload: Any) -> str:
+    """Name the JSON type of a payload the way Sber's ``value`` page does.
+
+    ``bool`` is checked before ``int`` on purpose — in Python ``True`` is
+    an ``int``, and calling a boolean a number would let
+    ``{"type": "INTEGER", "integer_value": true}`` pass.
+
+    Args:
+        payload: The raw value read out of a ``value`` envelope.
+
+    Returns:
+        One of ``boolean`` / ``string`` / ``number`` / ``colour`` /
+        ``array`` / ``null`` / ``unknown``.  ``colour`` is the page's own
+        name for the ``{h, s, v}`` object.
+    """
+    if isinstance(payload, bool):
+        return "boolean"
+    if isinstance(payload, str):
+        return "string"
+    if isinstance(payload, int | float):
+        return "number"
+    if isinstance(payload, dict):
+        return "colour"
+    if isinstance(payload, list):
+        return "array"
+    if payload is None:
+        return "null"
+    return "unknown"
+
+
+VALIDATION_MESSAGES: dict[str, str] = {
+    "value_not_an_object": (
+        "Feature “{key}”: the value is not an object but a JSON {json_type}, so Sber cannot read it."
+    ),
+    "value_missing_type": (
+        "Feature “{key}”: the value has no “type” field, so Sber cannot tell how to read it and drops the state."
+    ),
+    "value_unknown_type": ("Feature “{key}”: value type “{declared}” is unknown to Sber. Only {allowed} are defined."),
+    "value_foreign_fields": (
+        "Feature “{key}”: the {declared} value carries foreign fields {foreign} next to the "
+        "expected “{own_field}”. Extra fields are a known cause of silent rejection."
+    ),
+    "value_wrong_json_type": (
+        "Feature “{key}”: field “{field}” is sent as a JSON {actual}, but Sber documents it as "
+        "{expected}. Such a state reaches the cloud and is silently lost."
+    ),
+    "value_integer_must_be_string": (
+        "Feature “{key}”: field “integer_value” is sent as a JSON {actual}, but Sber requires the "
+        "integer as a string (“42”, not 42). Such a state reaches the cloud and is silently lost."
+    ),
+    "colour_component_out_of_range": (
+        "Feature “{key}”: colour component {component} = {sent} is outside the documented range "
+        "{min}…{max}. Sber will show a different colour or drop the value."
+    ),
+    "allowed_values_bad_type": (
+        "Feature “{key}”: allowed_values declares type “{declared}”, but Sber only lets a model "
+        "override {permitted}. The limit will not be applied."
+    ),
+    "allowed_values_inert": (
+        "Feature “{key}”: an allowed_values entry of type “{declared}” restricts nothing — Sber "
+        "only overrides {permitted}. It does not affect the device and can be removed."
+    ),
+    "allowed_values_wrong_block": (
+        "Feature “{key}”: the entry declares type “{declared}” but carries its limits in {present} "
+        "instead of “{expected_block}”. Sber cannot read such an entry."
+    ),
+    "allowed_values_type_mismatch": (
+        "Feature “{key}”: allowed_values declares type “{declared}” while Sber types the feature "
+        "itself as “{expected}”."
+    ),
+    "allowed_values_unknown_enum": (
+        "Feature “{key}”: allowed_values offers {sent}, which is missing from Sber's vocabulary for "
+        "this feature ({allowed}). The app will draw a button that does nothing."
+    ),
+    "allowed_values_widened": (
+        "Feature “{key}”: the model declares the range {declared_min}…{declared_max} while Sber "
+        "documents {min}…{max}. A range may only be narrowed, never widened. Limit the entity in "
+        "Home Assistant or in the bridge's redefinitions."
+    ),
+    "allowed_values_narrowing_unconfirmed": (
+        "Feature “{key}”: the model shortens its allowed values, and this function's page does not "
+        "state that shortening is permitted. Sber does not forbid it in writing either — check the "
+        "model against the documentation."
+    ),
+    "obligatory_not_declared": (
+        "Feature “{key}” is obligatory for category “{category}” but is missing from the device "
+        "model. Sber drops such a device silently."
+    ),
+    "obligatory_not_published": (
+        "Feature “{key}” is obligatory for category “{category}” but carries no value in this "
+        "publish. Sber drops such a device silently."
+    ),
+    "conditional_group_missing": (
+        "Category “{category}” requires at least one of: {group}. The device declares none of them, "
+        "so Sber will drop it."
+    ),
+    "feature_unknown_for_category_model": (
+        "Feature “{key}” is advertised in the device model but is not in Sber's reference set for "
+        "category “{category}”. Remove it, or move the device to a category that has it."
+    ),
+    "declared_not_published": (
+        "Feature “{key}” is advertised in the device model but carries no value in this publish. "
+        "Sber's answer to a state query must list every advertised feature, so the app is left with "
+        "a control that never updates. Either publish a value for it or drop the feature."
+    ),
+    "type_mismatch": "Feature “{key}” sent as {actual}, spec requires {expected}.",
+    "state_unknown_enum": (
+        "Feature “{key}” sent value “{sent}”, which is not one of the values Sber documents for it. "
+        "The cloud cannot route a value it does not know."
+    ),
+    "value_out_of_range": (
+        "Feature “{key}” sent {sent}, outside the documented range {min}…{max}. Sber may clip or drop it."
+    ),
+    "feature_unknown_for_category_state": ("Feature “{key}” is not in Sber's reference set for category “{category}”."),
+    "state_not_declared": (
+        "Feature “{key}” is published but not advertised in the device's config features list. Sber "
+        "requires every supported feature to be described in the model, or the value is discarded."
+    ),
+    "device_missing_field": (
+        "The device descriptor has no obligatory field “{field}”. Sber drops such a device whole — "
+        "it will not appear in the app."
+    ),
+    "device_missing_model": (
+        "The device declares no model: it needs either the “model_id” of an already registered "
+        "model, or an inline “model” description."
+    ),
+    "model_missing_field": (
+        "The device model has no obligatory field “{field}”. Sber drops the model, and with it "
+        "every device built on it."
+    ),
+    "partner_meta_too_long": (
+        "partner_meta takes {size} JSON characters against a limit of {max}. It is the only numeric "
+        "limit in the whole Sber reference, and a device above it is not accepted."
+    ),
+}
+"""Message key → English sentence, with ``{name}`` placeholders.
+
+The one source of the English wording.  The panel does not render these
+strings: it looks the same keys up in ``config_panel.validation_issue``
+of the integration's translations, so the text follows the user's Home
+Assistant language instead of being frozen in Python (the panel itself
+has been fully localized since v1.36.0).  ``translations/en.json`` must
+therefore repeat this table verbatim, which
+``test_validation_messages_are_localized.py`` enforces key by key,
+placeholder by placeholder.
+
+Placeholder values are pre-formatted strings built at the call site
+(numbers through ``:g``, lists joined with ", "), so every language
+renders the same figures and no formatting logic has to be duplicated in
+JavaScript."""
+
+
+def _issue(
+    *,
+    now: float,
+    entity_id: str,
+    category: str | None,
+    kind: IssueType,
+    key: str | None,
+    message_key: str,
+    message_args: dict[str, str] | None = None,
+    details: dict[str, Any],
+) -> ValidationIssue:
+    """Build one :class:`ValidationIssue` with the kind's default severity.
+
+    The English ``description`` is rendered here from
+    :data:`VALIDATION_MESSAGES`, so a call site states the sentence once —
+    as a key plus its placeholder values — and the panel can translate the
+    very same pair.
+
+    Args:
+        now: Timestamp shared by every issue of one publish.
+        entity_id: HA entity id / Sber device id.
+        category: Sber category, or ``None`` when unknown.
+        kind: Issue type; also selects the severity.
+        key: Feature the finding is about, or ``None`` for device-wide ones.
+        message_key: Key into :data:`VALIDATION_MESSAGES`.
+        message_args: Pre-formatted placeholder values.
+        details: Machine-readable payload for the UI and for tests.
+
+    Returns:
+        The assembled issue.
+    """
+    args = dict(message_args or {})
+    return ValidationIssue(
+        ts=now,
+        entity_id=entity_id,
+        category=category or "",
+        type=kind,
+        severity=_SEVERITY[kind],
+        key=key,
+        description=VALIDATION_MESSAGES[message_key].format(**args),
+        message_key=message_key,
+        message_args=args,
+        details=details,
+    )
+
+
+def _value_shape_issues(
+    *,
+    now: float,
+    entity_id: str,
+    category: str | None,
+    key: str,
+    value: Any,
+) -> list[ValidationIssue]:
+    """Check one ``value`` envelope against the ``/value`` structure page.
+
+    Four things are checked, and one deliberately is not.  Checked: the
+    envelope is an object; ``type`` is present and is one Sber defines;
+    every payload key present belongs to that type; and each payload is
+    carried in the JSON type the page assigns it — the case that matters
+    being ``integer_value``, which Sber requires as a *string*.
+
+    Not checked: the *absence* of the type's payload key.  Sber serializes
+    protobuf by proto3 rules, so a field holding its type's default value
+    is omitted — ``{"type": "BOOL"}`` is a perfectly legal ``false``.  The
+    command echo forwards Sber's own command values back verbatim
+    (``sber_publisher`` merges them into the baseline before publishing),
+    so demanding the key would raise an error on every "turn it off"
+    command the bridge ever confirms.
+
+    Args:
+        now: Timestamp shared by every issue of one publish.
+        entity_id: HA entity id / Sber device id.
+        category: Sber category, or ``None``.
+        key: Feature the value belongs to.
+        value: The ``value`` object from the state entry.
+
+    Returns:
+        Issues found, newest-check-last; empty when the envelope is sound
+        or when the generated tables are unavailable.
+    """
+    if not VALUE_TYPES or not VALUE_FIELD_BY_TYPE:
+        return []
+    if not isinstance(value, dict):
+        return [
+            _issue(
+                now=now,
+                entity_id=entity_id,
+                category=category,
+                kind="value_shape",
+                key=key,
+                message_key="value_not_an_object",
+                message_args={"key": key, "json_type": _json_kind(value)},
+                details={"reason": "not_an_object", "json_type": _json_kind(value)},
+            )
+        ]
+
+    declared = value.get("type")
+    if not isinstance(declared, str) or not declared:
+        return [
+            _issue(
+                now=now,
+                entity_id=entity_id,
+                category=category,
+                kind="value_shape",
+                key=key,
+                message_key="value_missing_type",
+                message_args={"key": key},
+                details={"reason": "missing_type"},
+            )
+        ]
+    if declared not in VALUE_TYPES:
+        return [
+            _issue(
+                now=now,
+                entity_id=entity_id,
+                category=category,
+                kind="value_shape",
+                key=key,
+                message_key="value_unknown_type",
+                message_args={
+                    "key": key,
+                    "declared": declared,
+                    "allowed": ", ".join(sorted(VALUE_TYPES)),
+                },
+                details={"reason": "unknown_type", "declared": declared, "allowed": sorted(VALUE_TYPES)},
+            )
+        ]
+
+    issues: list[ValidationIssue] = []
+    own_field = VALUE_FIELD_BY_TYPE[declared]
+    foreign = sorted(k for k in value if k != "type" and k != own_field)
+    if foreign:
+        issues.append(
+            _issue(
+                now=now,
+                entity_id=entity_id,
+                category=category,
+                kind="value_shape",
+                key=key,
+                message_key="value_foreign_fields",
+                message_args={
+                    "key": key,
+                    "declared": declared,
+                    "foreign": ", ".join(foreign),
+                    "own_field": own_field,
+                },
+                details={"reason": "foreign_fields", "declared": declared, "foreign": foreign},
+            )
+        )
+
+    if own_field in value:
+        expected_json = VALUE_FIELD_JSON_TYPES.get(own_field)
+        actual_json = _json_kind(value[own_field])
+        if expected_json is not None and actual_json != expected_json:
+            issues.append(
+                _issue(
+                    now=now,
+                    entity_id=entity_id,
+                    category=category,
+                    kind="value_shape",
+                    key=key,
+                    message_key=(
+                        "value_integer_must_be_string" if own_field == "integer_value" else "value_wrong_json_type"
+                    ),
+                    message_args={
+                        "key": key,
+                        "field": own_field,
+                        "actual": actual_json,
+                        "expected": expected_json,
+                    },
+                    details={
+                        "reason": "wrong_json_type",
+                        "field": own_field,
+                        "expected": expected_json,
+                        "actual": actual_json,
+                    },
+                )
+            )
+    return issues
+
+
+def _colour_issues(
+    *,
+    now: float,
+    entity_id: str,
+    category: str | None,
+    key: str,
+    value: Any,
+) -> list[ValidationIssue]:
+    """Range-check the components of a ``colour_value``.
+
+    Only components actually present are checked — proto3 drops a zero
+    component, and issue #44 was exactly that: the colour-temperature
+    slider at its edge produced ``{"h": 0}`` with ``s`` and ``v`` elided.
+
+    Args:
+        now: Timestamp shared by every issue of one publish.
+        entity_id: HA entity id / Sber device id.
+        category: Sber category, or ``None``.
+        key: Feature the colour belongs to.
+        value: The ``value`` object from the state entry.
+
+    Returns:
+        One issue per out-of-bounds component.
+    """
+    if not COLOUR_COMPONENT_RANGES or not isinstance(value, dict):
+        return []
+    colour = value.get("colour_value")
+    if not isinstance(colour, dict):
+        return []
+    issues: list[ValidationIssue] = []
+    for component, (low, high) in sorted(COLOUR_COMPONENT_RANGES.items()):
+        raw = colour.get(component)
+        if raw is None or isinstance(raw, bool) or not isinstance(raw, int | float):
+            continue
+        if low <= raw <= high:
+            continue
+        issues.append(
+            _issue(
+                now=now,
+                entity_id=entity_id,
+                category=category,
+                kind="colour_out_of_range",
+                key=key,
+                message_key="colour_component_out_of_range",
+                message_args={
+                    "key": key,
+                    "component": component,
+                    "sent": f"{raw:g}",
+                    "min": f"{low:g}",
+                    "max": f"{high:g}",
+                },
+                details={"component": component, "sent": raw, "min": low, "max": high},
+            )
+        )
+    return issues
+
+
+def _documented_bounds(category: str | None, key: str) -> tuple[float, float] | None:
+    """Return the widest range a model of ``category`` may declare for ``key``.
+
+    Normally the function page's own range, but Sber's category examples
+    occasionally exceed it — see :data:`_CATEGORY_RANGE_SANCTIONED`, where
+    the reference boiler declares a hotter ``hvac_temp_set`` than the
+    function page allows.  For those pairs the example wins, because a
+    device copied from Sber's own reference must not be reported as
+    broken.
+
+    Args:
+        category: Sber category the model declares.
+        key: Feature name.
+
+    Returns:
+        ``(min, max)`` inclusive, or ``None`` when the feature has no
+        documented range at all.
+    """
+    sanctioned = _CATEGORY_RANGE_SANCTIONED.get((category or "", key))
+    if sanctioned is not None:
+        return sanctioned
+    return FEATURE_RANGES.get(key)
+
+
+def _allowed_values_issues(
+    *,
+    now: float,
+    entity_id: str,
+    category: str | None,
+    allowed_values: dict[str, Any],
+) -> list[ValidationIssue]:
+    """Check an ``allowed_values`` map against the rules Sber states for it.
+
+    ``allowed_values`` exists for exactly one purpose — to *narrow* what a
+    particular model accepts — and the page constrains it three ways: it
+    may only be used for FLOAT / INTEGER / ENUM features; the block inside
+    must match the entry's own ``type``; and "диапазон можно только
+    сократить, а шаг можно установить любой".  Whether a *given* feature
+    may be narrowed is stated per function page and collected in
+    :data:`FEATURE_NARROWING`; a feature missing from it is reported as
+    unconfirmed rather than forbidden, because no page states a
+    prohibition.
+
+    An entry that merely restates the full documented vocabulary or the
+    full documented range is left alone: it narrows nothing, so none of
+    the rules is engaged and reporting it would be noise on a device that
+    is behaving.
+
+    Args:
+        now: Timestamp shared by every issue of one publish.
+        entity_id: HA entity id / Sber device id.
+        category: Sber category the model declares.
+        allowed_values: The ``model.allowed_values`` map as published.
+
+    Returns:
+        Issues found across every entry.
+    """
+    issues: list[ValidationIssue] = []
+    for key, spec in sorted(allowed_values.items()):
+        if not isinstance(spec, dict):
+            continue
+        declared = spec.get("type")
+        block_name = _ALLOWED_VALUES_BLOCK_BY_TYPE.get(declared or "")
+        block = spec.get(block_name) if block_name else None
+        carries_limits = any(name in spec for name in _ALLOWED_VALUES_BLOCK_BY_TYPE.values())
+
+        # --- a type Sber never lets a model override ----------------------
+        if ALLOWED_VALUES_TYPES and declared not in ALLOWED_VALUES_TYPES:
+            permitted = ", ".join(sorted(ALLOWED_VALUES_TYPES))
+            if carries_limits:
+                issues.append(
+                    _issue(
+                        now=now,
+                        entity_id=entity_id,
+                        category=category,
+                        kind="allowed_values_shape",
+                        key=key,
+                        message_key="allowed_values_bad_type",
+                        message_args={"key": key, "declared": str(declared), "permitted": permitted},
+                        details={"declared": declared, "allowed": sorted(ALLOWED_VALUES_TYPES)},
+                    )
+                )
+            else:
+                issues.append(
+                    _issue(
+                        now=now,
+                        entity_id=entity_id,
+                        category=category,
+                        kind="allowed_values_inert",
+                        key=key,
+                        message_key="allowed_values_inert",
+                        message_args={"key": key, "declared": str(declared), "permitted": permitted},
+                        details={"declared": declared, "allowed": sorted(ALLOWED_VALUES_TYPES)},
+                    )
+                )
+            continue
+
+        # --- the block inside must match the entry's own type -------------
+        if block_name is not None and block is None and carries_limits:
+            present = sorted(n for n in _ALLOWED_VALUES_BLOCK_BY_TYPE.values() if n in spec)
+            issues.append(
+                _issue(
+                    now=now,
+                    entity_id=entity_id,
+                    category=category,
+                    kind="allowed_values_shape",
+                    key=key,
+                    message_key="allowed_values_wrong_block",
+                    message_args={
+                        "key": key,
+                        "declared": str(declared),
+                        "present": ", ".join(present),
+                        "expected_block": block_name,
+                    },
+                    details={"declared": declared, "expected_block": block_name, "present": present},
+                )
+            )
+            continue
+
+        spec_type = FEATURE_TYPES.get(key)
+        if spec_type is not None and declared != spec_type:
+            issues.append(
+                _issue(
+                    now=now,
+                    entity_id=entity_id,
+                    category=category,
+                    kind="allowed_values_shape",
+                    key=key,
+                    message_key="allowed_values_type_mismatch",
+                    message_args={"key": key, "declared": str(declared), "expected": spec_type},
+                    details={"declared": declared, "expected": spec_type},
+                )
+            )
+            continue
+
+        issues.extend(
+            _allowed_entry_issues(
+                now=now,
+                entity_id=entity_id,
+                category=category,
+                key=key,
+                declared=declared or "",
+                block=block,
+            )
+        )
+    return issues
+
+
+def _allowed_entry_issues(
+    *,
+    now: float,
+    entity_id: str,
+    category: str | None,
+    key: str,
+    declared: str,
+    block: Any,
+) -> list[ValidationIssue]:
+    """Check the limits inside one well-formed ``allowed_values`` entry.
+
+    Args:
+        now: Timestamp shared by every issue of one publish.
+        entity_id: HA entity id / Sber device id.
+        category: Sber category the model declares.
+        key: Feature the entry belongs to.
+        declared: The entry's ``type`` (already known to be permitted).
+        block: The ``*_values`` block, or ``None`` when the entry carries none.
+
+    Returns:
+        Issues about the limits themselves.
+    """
+    if not isinstance(block, dict):
+        return []
+    issues: list[ValidationIssue] = []
+    narrows = False
+
+    if declared == "ENUM":
+        offered = block.get("values")
+        vocabulary = FEATURE_ENUM_VALUES.get(key)
+        if isinstance(offered, list) and vocabulary:
+            unknown = sorted(v for v in offered if isinstance(v, str) and v not in vocabulary)
+            narrows = bool(set(vocabulary) - {v for v in offered if isinstance(v, str)})
+            if unknown:
+                issues.append(
+                    _issue(
+                        now=now,
+                        entity_id=entity_id,
+                        category=category,
+                        kind="unknown_enum_value",
+                        key=key,
+                        message_key="allowed_values_unknown_enum",
+                        message_args={
+                            "key": key,
+                            "sent": ", ".join(unknown),
+                            "allowed": ", ".join(sorted(vocabulary)),
+                        },
+                        details={"source": "allowed_values", "sent": unknown, "allowed": sorted(vocabulary)},
+                    )
+                )
+    else:
+        bounds = _documented_bounds(category, key)
+        low, high = _numeric_bounds(block)
+        narrows = bounds is not None and (
+            (low is not None and low > bounds[0]) or (high is not None and high < bounds[1])
+        )
+        if bounds is not None and (low is not None or high is not None):
+            wider_low = low is not None and low < bounds[0]
+            wider_high = high is not None and high > bounds[1]
+            if wider_low or wider_high:
+                shown_low = low if low is not None else bounds[0]
+                shown_high = high if high is not None else bounds[1]
+                issues.append(
+                    _issue(
+                        now=now,
+                        entity_id=entity_id,
+                        category=category,
+                        kind="allowed_values_widened",
+                        key=key,
+                        message_key="allowed_values_widened",
+                        message_args={
+                            "key": key,
+                            "declared_min": f"{shown_low:g}",
+                            "declared_max": f"{shown_high:g}",
+                            "min": f"{bounds[0]:g}",
+                            "max": f"{bounds[1]:g}",
+                        },
+                        details={
+                            "declared_min": low,
+                            "declared_max": high,
+                            "min": bounds[0],
+                            "max": bounds[1],
+                        },
+                    )
+                )
+
+    if narrows and FEATURE_NARROWING and key not in FEATURE_NARROWING:
+        issues.append(
+            _issue(
+                now=now,
+                entity_id=entity_id,
+                category=category,
+                kind="allowed_values_shape",
+                key=key,
+                message_key="allowed_values_narrowing_unconfirmed",
+                message_args={"key": key},
+                details={"reason": "narrowing_not_documented"},
+            )
+        )
+    return issues
+
+
+def _numeric_bounds(block: dict[str, Any]) -> tuple[float | None, float | None]:
+    """Read ``min`` / ``max`` out of an ``integer_values`` / ``float_values`` block.
+
+    Sber writes INTEGER limits as strings and FLOAT limits as numbers, so
+    both are accepted; anything unreadable comes back as ``None`` and the
+    caller skips that side rather than guessing.
+
+    Args:
+        block: The ``*_values`` block.
+
+    Returns:
+        ``(min, max)``, either of which may be ``None``.
+    """
+    parsed: list[float | None] = []
+    for name in ("min", "max"):
+        raw = block.get(name)
+        try:
+            parsed.append(float(raw))  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            parsed.append(None)
+    return parsed[0], parsed[1]
+
+
 def validate_publish(
     *,
     entity_id: str,
@@ -200,6 +1041,7 @@ def validate_publish(
     declared_features: Iterable[str] | None = None,
     scope: PayloadScope = "state",
     check_completeness: bool = False,
+    allowed_values: dict[str, Any] | None = None,
 ) -> list[ValidationIssue]:
     """Classify every issue in one device's publish snapshot.
 
@@ -226,6 +1068,10 @@ def validate_publish(
             to a state query.  It asks "is this device fully wired up?",
             which is what the DevTools panel wants and what a caller
             probing one specific rule does not.
+        allowed_values: The device's ``model.allowed_values`` map, when the
+            caller has it.  Only a config publish carries one, so it is
+            inspected in ``model`` scope alone; ``None`` skips the
+            ``allowed_values_*`` checks entirely.
 
     Returns:
         List of :class:`ValidationIssue`.  Empty list == clean publish.
@@ -248,26 +1094,20 @@ def validate_publish(
     for must in sorted(CATEGORY_OBLIGATORY_FEATURES.get(category or "", ())):
         undeclared = declared_set is not None and must not in declared_set
         if undeclared:
-            description = (
-                f"Obligatory feature '{must}' for category '{category}' is "
-                "missing from the device model. Sber will drop this device."
-            )
+            message_key = "obligatory_not_declared"
         elif not model_only and must not in state_keys and must not in EVENT_ONLY_FEATURES:
-            description = (
-                f"Obligatory feature '{must}' for category '{category}' is "
-                "absent from the publish. Sber will drop this device."
-            )
+            message_key = "obligatory_not_published"
         else:
             continue
         issues.append(
-            ValidationIssue(
-                ts=now,
+            _issue(
+                now=now,
                 entity_id=entity_id,
-                category=category or "",
-                type="missing_obligatory",
-                severity=_SEVERITY["missing_obligatory"],
+                category=category,
+                kind="missing_obligatory",
                 key=must,
-                description=description,
+                message_key=message_key,
+                message_args={"key": must, "category": category or ""},
                 details={"missing": must},
             )
         )
@@ -283,19 +1123,22 @@ def validate_publish(
     if conditional and declared_set is not None and not (conditional & declared_set):
         group = ", ".join(sorted(conditional))
         issues.append(
-            ValidationIssue(
-                ts=now,
+            _issue(
+                now=now,
                 entity_id=entity_id,
-                category=category or "",
-                type="missing_conditional",
-                severity=_SEVERITY["missing_conditional"],
+                category=category,
+                kind="missing_conditional",
                 key=None,
-                description=(
-                    f"Category '{category}' requires at least one of: {group}. "
-                    "The device declares none of them, so Sber will drop it."
-                ),
+                message_key="conditional_group_missing",
+                message_args={"category": category or "", "group": group},
                 details={"expected_any_of": sorted(conditional)},
             )
+        )
+
+    # --- limits the model declares for its own features ---------------------
+    if model_only and isinstance(allowed_values, dict) and allowed_values:
+        issues.extend(
+            _allowed_values_issues(now=now, entity_id=entity_id, category=category, allowed_values=allowed_values)
         )
 
     # --- feature advertised that the category has never heard of -----------
@@ -307,18 +1150,14 @@ def validate_publish(
     if ref is not None and declared_set is not None:
         suspects = declared_set if model_only else declared_set - state_keys
         issues.extend(
-            ValidationIssue(
-                ts=now,
+            _issue(
+                now=now,
                 entity_id=entity_id,
-                category=category or "",
-                type="unknown_for_category",
-                severity=_SEVERITY["unknown_for_category"],
+                category=category,
+                kind="unknown_for_category",
                 key=key,
-                description=(
-                    f"Feature '{key}' is advertised in the device model but is not in "
-                    f"Sber's reference set for category '{category}'. Remove it, or move "
-                    "the device to a category that has it."
-                ),
+                message_key="feature_unknown_for_category_model",
+                message_args={"key": key, "category": category or ""},
                 details={"source": "model"},
             )
             for key in sorted(suspects - ref)
@@ -337,19 +1176,14 @@ def validate_publish(
             # Adding "…and it is never published" counts one mistake twice.
             must_publish &= ref
         issues.extend(
-            ValidationIssue(
-                ts=now,
+            _issue(
+                now=now,
                 entity_id=entity_id,
-                category=category or "",
-                type="declared_not_published",
-                severity=_SEVERITY["declared_not_published"],
+                category=category,
+                kind="declared_not_published",
                 key=key,
-                description=(
-                    f"Feature '{key}' is advertised in the device model but carries no "
-                    "value in this publish. Sber's answer to a state query must list "
-                    "every advertised feature, so the app is left with a control that "
-                    "never updates. Either publish a value for it or drop the feature."
-                ),
+                message_key="declared_not_published",
+                message_args={"key": key},
                 details={"declared": key},
             )
             for key in sorted(must_publish - state_keys)
@@ -362,18 +1196,25 @@ def validate_publish(
         val = s.get("value")
         actual_type = _value_type(val)
 
+        # --- the value envelope itself -------------------------------------
+        # Runs before the semantic checks: a payload whose ``type`` is not
+        # one Sber defines, or whose integer arrived unquoted, is broken no
+        # matter what the feature tables say about the key.
+        issues.extend(_value_shape_issues(now=now, entity_id=entity_id, category=category, key=key, value=val))
+        issues.extend(_colour_issues(now=now, entity_id=entity_id, category=category, key=key, value=val))
+
         # --- type mismatch -------------------------------------------------
         expected = FEATURE_TYPES.get(key)
         if expected is not None and actual_type and actual_type != expected:
             issues.append(
-                ValidationIssue(
-                    ts=now,
+                _issue(
+                    now=now,
                     entity_id=entity_id,
-                    category=category or "",
-                    type="type_mismatch",
-                    severity=_SEVERITY["type_mismatch"],
+                    category=category,
+                    kind="type_mismatch",
                     key=key,
-                    description=(f"Feature '{key}' sent as {actual_type}, spec requires {expected}."),
+                    message_key="type_mismatch",
+                    message_args={"key": key, "actual": actual_type, "expected": expected},
                     details={"expected": expected, "actual": actual_type},
                 )
             )
@@ -384,38 +1225,39 @@ def validate_publish(
             sent = val.get("enum_value") if isinstance(val, dict) else None
             if isinstance(sent, str) and sent not in vocabulary:
                 issues.append(
-                    ValidationIssue(
-                        ts=now,
+                    _issue(
+                        now=now,
                         entity_id=entity_id,
-                        category=category or "",
-                        type="unknown_enum_value",
-                        severity=_SEVERITY["unknown_enum_value"],
+                        category=category,
+                        kind="unknown_enum_value",
                         key=key,
-                        description=(
-                            f"Feature '{key}' sent value '{sent}', which is not "
-                            "one of the values Sber documents for it. The cloud "
-                            "cannot route a value it does not know."
-                        ),
+                        message_key="state_unknown_enum",
+                        message_args={"key": key, "sent": sent},
                         details={"sent": sent, "allowed": sorted(vocabulary)},
                     )
                 )
 
         # --- numeric value outside the documented range --------------------
-        bounds = FEATURE_RANGES.get(key)
+        # Same rule the model half uses (see _documented_bounds): a boiler
+        # copied from Sber's own reference model must not be called broken
+        # in its config publish and then again in every status publish.
+        bounds = _documented_bounds(category, key)
         number = _numeric_payload(val) if bounds else None
         if bounds is not None and number is not None and not (bounds[0] <= number <= bounds[1]):
             issues.append(
-                ValidationIssue(
-                    ts=now,
+                _issue(
+                    now=now,
                     entity_id=entity_id,
-                    category=category or "",
-                    type="out_of_range",
-                    severity=_SEVERITY["out_of_range"],
+                    category=category,
+                    kind="out_of_range",
                     key=key,
-                    description=(
-                        f"Feature '{key}' sent {number:g}, outside the documented "
-                        f"range {bounds[0]:g}…{bounds[1]:g}. Sber may clip or drop it."
-                    ),
+                    message_key="value_out_of_range",
+                    message_args={
+                        "key": key,
+                        "sent": f"{number:g}",
+                        "min": f"{bounds[0]:g}",
+                        "max": f"{bounds[1]:g}",
+                    },
                     details={"sent": number, "min": bounds[0], "max": bounds[1]},
                 )
             )
@@ -423,14 +1265,14 @@ def validate_publish(
         # --- unknown for category -----------------------------------------
         if ref is not None and key not in ref:
             issues.append(
-                ValidationIssue(
-                    ts=now,
+                _issue(
+                    now=now,
                     entity_id=entity_id,
-                    category=category or "",
-                    type="unknown_for_category",
-                    severity=_SEVERITY["unknown_for_category"],
+                    category=category,
+                    kind="unknown_for_category",
                     key=key,
-                    description=(f"Feature '{key}' is not in Sber's reference set for category '{category}'."),
+                    message_key="feature_unknown_for_category_state",
+                    message_args={"key": key, "category": category or ""},
                     details={"source": "state"},
                 )
             )
@@ -438,20 +1280,123 @@ def validate_publish(
         # --- not in declared features -------------------------------------
         if declared_set is not None and key not in declared_set:
             issues.append(
-                ValidationIssue(
-                    ts=now,
+                _issue(
+                    now=now,
                     entity_id=entity_id,
-                    category=category or "",
-                    type="not_declared",
-                    severity=_SEVERITY["not_declared"],
+                    category=category,
+                    kind="not_declared",
                     key=key,
-                    description=(
-                        f"Feature '{key}' is published but not advertised in the device's config features list."
-                    ),
+                    message_key="state_not_declared",
+                    message_args={"key": key},
                     details={},
                 )
             )
 
+    return issues
+
+
+def validate_device_descriptor(descriptor: dict[str, Any]) -> list[ValidationIssue]:
+    """Validate one device entry of a config publish (``up/config``).
+
+    Covers what :func:`validate_publish` cannot see, because it looks at
+    the *envelope* around the model rather than at its feature list: the
+    fields Sber marks ✔︎ obligatory on the ``device`` and ``model``
+    structure pages, the ``partner_meta`` size limit, and the either/or
+    between ``model_id`` and an inline ``model``.  Then it hands the model
+    itself — features and ``allowed_values`` — to :func:`validate_publish`
+    in ``model`` scope.
+
+    Args:
+        descriptor: One entry of the ``devices`` list from a config
+            payload, exactly as it went on the wire.
+
+    Returns:
+        Every finding for this device, device-level ones first.
+    """
+    now = time.time()
+    device_id = descriptor.get("id")
+    entity_id = device_id if isinstance(device_id, str) and device_id else ""
+    model = descriptor.get("model")
+    model_dict = model if isinstance(model, dict) else {}
+    category = model_dict.get("category")
+    category_str = category if isinstance(category, str) else None
+
+    issues: list[ValidationIssue] = []
+
+    issues.extend(
+        _issue(
+            now=now,
+            entity_id=entity_id,
+            category=category_str,
+            kind="missing_required_field",
+            key=None,
+            message_key="device_missing_field",
+            message_args={"field": field},
+            details={"scope": "device", "field": field},
+        )
+        for field in sorted(DEVICE_REQUIRED_FIELDS)
+        if descriptor.get(field) in (None, "")
+    )
+    if not model_dict and not descriptor.get("model_id"):
+        issues.append(
+            _issue(
+                now=now,
+                entity_id=entity_id,
+                category=category_str,
+                kind="missing_required_field",
+                key=None,
+                message_key="device_missing_model",
+                details={"scope": "device", "field": "model"},
+            )
+        )
+
+    issues.extend(
+        _issue(
+            now=now,
+            entity_id=entity_id,
+            category=category_str,
+            kind="missing_required_field",
+            key=None,
+            message_key="model_missing_field",
+            message_args={"field": field},
+            details={"scope": "model", "field": field},
+        )
+        for field in sorted(MODEL_REQUIRED_FIELDS)
+        if model_dict and model_dict.get(field) in (None, "", [], {})
+    )
+
+    partner_meta = descriptor.get("partner_meta")
+    if PARTNER_META_MAX_CHARS is not None and partner_meta is not None:
+        try:
+            size = len(json.dumps(partner_meta, ensure_ascii=False))
+        except (TypeError, ValueError):
+            size = None
+        if size is not None and size > PARTNER_META_MAX_CHARS:
+            issues.append(
+                _issue(
+                    now=now,
+                    entity_id=entity_id,
+                    category=category_str,
+                    kind="partner_meta_too_long",
+                    key=None,
+                    message_key="partner_meta_too_long",
+                    message_args={"size": str(size), "max": str(PARTNER_META_MAX_CHARS)},
+                    details={"size": size, "max": PARTNER_META_MAX_CHARS},
+                )
+            )
+
+    features = model_dict.get("features")
+    allowed = model_dict.get("allowed_values")
+    issues.extend(
+        validate_publish(
+            entity_id=entity_id,
+            category=category_str,
+            states=(),
+            declared_features=features if isinstance(features, list) else None,
+            scope="model",
+            allowed_values=allowed if isinstance(allowed, dict) else None,
+        )
+    )
     return issues
 
 
@@ -607,8 +1552,6 @@ class ValidationCollector:
         """
         if isinstance(payload, str):
             try:
-                import json
-
                 data = json.loads(payload)
             except (ValueError, TypeError):
                 return {}
@@ -662,18 +1605,14 @@ class ValidationCollector:
             if not isinstance(body, dict):
                 continue
             device_id = body.get("id")
-            model = body.get("model")
-            if not isinstance(device_id, str) or not device_id or not isinstance(model, dict):
+            if not isinstance(device_id, str) or not device_id:
                 continue
-            category = model.get("category")
-            features = model.get("features")
-            issues = validate_publish(
-                entity_id=device_id,
-                category=category if isinstance(category, str) else None,
-                states=(),
-                declared_features=features if isinstance(features, list) else None,
-                scope="model",
-            )
+            # A descriptor without an inline ``model`` is deliberately let
+            # through: it is legal (Sber's either/or with ``model_id``) and
+            # :func:`validate_device_descriptor` has the checks for it.
+            # Filtering it out here would leave those checks reachable only
+            # from tests.
+            issues = validate_device_descriptor(body)
             self.record(device_id, issues, scope="model")
             result[device_id] = issues
         return result

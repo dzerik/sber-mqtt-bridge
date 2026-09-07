@@ -263,7 +263,11 @@ class TestWindowBlindToSberCurrentState(unittest.TestCase):
         self.assertNotIn("light_transmission_percentage", keys)
 
     def test_unavailable_returns_offline(self):
-        """Unavailable blind must report online=False only."""
+        """Unavailable blind must report online=False.
+
+        The obligatory ``open_state`` still rides along — see
+        ``test_covers_offline_obligatory.py`` for that contract.
+        """
         entity = WindowBlindEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state(state="unavailable"))
         result = entity.to_sber_current_state()

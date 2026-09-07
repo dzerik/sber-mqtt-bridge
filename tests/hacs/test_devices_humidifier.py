@@ -622,3 +622,56 @@ class TestWaterPercentageTelemetry(unittest.TestCase):
         result = entity.to_sber_current_state()
         keys = {s["key"] for s in result["humidifier.living_room"]["states"]}
         self.assertNotIn("hvac_water_percentage", keys)
+
+
+class TestDocumentedRangeClamping:
+    """Влажность увлажнителя не выходит за документированные Sber 30…90 %.
+
+    ``hvac_humidity_set`` документирован как ``INTEGER(30, 90)``, а
+    generic-увлажнитель HA по умолчанию объявляет 0…100 %.
+    """
+
+    @staticmethod
+    def _entity(**attrs):
+        """Собрать увлажнитель и накормить его атрибутами HA."""
+        entity = HumidifierEntity(ENTITY_DATA)
+        entity.fill_by_ha_state({"entity_id": "humidifier.room", "state": "on", "attributes": attrs})
+        return entity
+
+    @staticmethod
+    def _value(entity, key):
+        """Достать ``integer_value`` нужной функции из публикации."""
+        states = entity.to_sber_current_state()["humidifier.room"]["states"]
+        return next(s for s in states if s["key"] == key)["value"]["integer_value"]
+
+    def test_allowed_values_never_widen_the_documented_range(self):
+        """Потолок 100 % из HA сужается до документированных 90 %.
+
+        Если тест упадёт: модель объявит Сберу диапазон шире
+        документированного, хотя ``allowed_values`` разрешено только
+        сокращать. Облако вправе отвергнуть описание модели целиком —
+        увлажнитель не появится в приложении.
+        """
+        entity = self._entity(humidity=50, min_humidity=20, max_humidity=100)
+        box = entity.create_allowed_values_list()["hvac_humidity_set"]["integer_values"]
+        assert (box["min"], box["max"]) == ("30", "90")
+
+    def test_target_humidity_is_clamped_into_the_declared_range(self):
+        """Целевые 95 % уезжают как 90, а 5 % — как 30.
+
+        Если тест упадёт: в облако уйдёт значение вне собственного
+        ``allowed_values`` устройства — ползунок влажности в приложении
+        «залипает», и никакой ошибки при этом не видно.
+        """
+        assert self._value(self._entity(humidity=95, max_humidity=100), "hvac_humidity_set") == "90"
+        assert self._value(self._entity(humidity=5, min_humidity=10), "hvac_humidity_set") == "30"
+
+    def test_humidifier_without_ha_bounds_stays_inside_the_documented_range(self):
+        """Увлажнитель без ``min_humidity``/``max_humidity`` даёт 35…85.
+
+        Значения по умолчанию самого класса уже лежат внутри 30…90, и
+        сужение их не трогает. Если тест упадёт — пересечение диапазонов
+        начало резать законные границы.
+        """
+        box = self._entity(humidity=50).create_allowed_values_list()["hvac_humidity_set"]["integer_values"]
+        assert (box["min"], box["max"]) == ("35", "85")

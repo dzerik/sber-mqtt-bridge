@@ -239,8 +239,11 @@ class LightEntity(BaseEntity):
                 "type": "INTEGER",
                 "integer_values": {"min": "100", "max": "900", "step": "1"},
             }
-        if "light_colour" in features:
-            allowed_values["light_colour"] = {"type": "COLOUR"}
+        # ``light_colour`` deliberately gets no entry: Sber documents
+        # ``allowed_values`` for FLOAT / INTEGER / ENUM only
+        # (developers.sber.ru/docs/ru/smarthome/c2c/allowed_values), and a
+        # bare ``{"type": "COLOUR"}`` carries no ``*_values`` box, so it
+        # overrides nothing while making the model descriptor malformed.
         if "light_mode" in features:
             allowed_values["light_mode"] = {"type": "ENUM", "enum_values": {"values": ["white", "colour"]}}
         if "light_colour_temp" in features:

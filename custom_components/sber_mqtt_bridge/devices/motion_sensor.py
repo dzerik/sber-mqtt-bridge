@@ -21,6 +21,11 @@ class MotionSensorEntity(TamperAlarmMuteMixin, SimpleReadOnlySensor):
 
     Per Sber specification, ``pir`` uses ENUM type with value ``"pir"``
     when motion is detected. This is an event-based sensor.
+
+    The HA ``tamper`` attribute is **not** forwarded: Sber documents
+    ``tamper_alarm`` for ``sensor_door`` only, and a model carrying a
+    function outside its category's table can be rejected by the cloud as
+    a whole.
     """
 
     _sber_value_key = "pir"

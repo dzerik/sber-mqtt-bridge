@@ -244,8 +244,7 @@ class TestModelHalfIsStillEnforced:
         missing = _missing_obligatory(issues)
         assert [i.key for i in missing] == ["pir"]
         assert missing[0].severity == "error"
-        assert "missing from the device model" in missing[0].description
-        assert "absent from the publish" not in missing[0].description
+        assert missing[0].message_key == "obligatory_not_declared"
 
     def test_undeclared_and_unpublished_feature_reported_once(self) -> None:
         """Одна причина — одно замечание, без дублей.
@@ -261,7 +260,7 @@ class TestModelHalfIsStillEnforced:
         )
         missing = _missing_obligatory(issues)
         assert [i.key for i in missing] == ["on_off"]
-        assert "missing from the device model" in missing[0].description
+        assert missing[0].message_key == "obligatory_not_declared"
 
 
 class TestOrdinaryObligatoryFeaturesStillRequiredInPublish:
@@ -295,8 +294,7 @@ class TestOrdinaryObligatoryFeaturesStillRequiredInPublish:
         missing = _missing_obligatory(issues)
         assert [i.key for i in missing] == [feature]
         assert missing[0].severity == "error"
-        assert "absent from the publish" in missing[0].description
-        assert "missing from the device model" not in missing[0].description
+        assert missing[0].message_key == "obligatory_not_published"
 
 
 class TestDeclaredFeaturesNoneKeepsPublishCheck:
@@ -317,7 +315,7 @@ class TestDeclaredFeaturesNoneKeepsPublishCheck:
         )
         missing = _missing_obligatory(issues)
         assert [i.key for i in missing] == ["on_off"]
-        assert "absent from the publish" in missing[0].description
+        assert missing[0].message_key == "obligatory_not_published"
 
     def test_event_only_exemption_survives_missing_declared_features(self) -> None:
         """Без списка features покой датчика движения по-прежнему чист.

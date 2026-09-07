@@ -15,7 +15,7 @@ const _q = new URL(import.meta.url).search;
 await import(`./sber-json-block.js${_q}`);
 
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
-const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
+const { t, ensurePanelTranslations, sberErrorText } = await import(`../localize.js${_q}`);
 const { messageBus } = await import(`../message-bus.js${_q}`);
 const { copyText } = await import(`../utils.js${_q}`);
 const { codeSurfaceStyles } = await import(`../shared-styles.js${_q}`);
@@ -442,6 +442,12 @@ class SberDevtools extends LitElement {
         white-space: nowrap;
         color: var(--secondary-text-color);
       }
+      .sber-error-hint {
+        display: block;
+        white-space: normal;
+        font-size: 11px;
+        color: var(--error-color, #f44336);
+      }
 
       .empty-log {
         text-align: center;
@@ -588,6 +594,26 @@ class SberDevtools extends LitElement {
     `;
   }
 
+  /**
+   * Spell out the error code of a `down/errors` packet.
+   *
+   * The raw payload right above says `"code": 403` and nothing else;
+   * only Sber's reference says that 403 means the token was rejected —
+   * a different problem from 400 (our payload is wrong) and from 503
+   * (the cloud is down).  The backend decodes the packet
+   * (`message_logger.parse_sber_error`), this renders the meaning.
+   *
+   * @param {{code: ?number}|undefined} error - Decoded error attached to
+   *   the log entry, absent on every other topic.
+   * @returns {unknown} Lit template, or "" when the entry is not an error.
+   */
+  _renderSberError(error) {
+    if (!error) return "";
+    const meaning = sberErrorText(this.hass, error.code);
+    if (!meaning) return "";
+    return html`<span class="sber-error-hint">${error.code} \u2014 ${meaning}</span>`;
+  }
+
   _renderLogSection() {
     const messages = [...this._messages].reverse();
 
@@ -633,6 +659,7 @@ class SberDevtools extends LitElement {
                       <td class="payload-cell" title="${m.payload}">
                         ${this._truncate(m.payload)}
                         <button class="copy-btn" @click=${() => this._copy(m.payload, "Payload copied")} title="Copy payload">\u{1F4CB}</button>
+                        ${this._renderSberError(m.sber_error)}
                       </td>
                     </tr>
                   `)}

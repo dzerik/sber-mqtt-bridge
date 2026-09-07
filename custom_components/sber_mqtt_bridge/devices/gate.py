@@ -904,19 +904,48 @@ class ImpulseGateEntity(BatteryAndSignalLinkMixin, BaseEntity):
             }
         return allowed
 
+    @property
+    def _offline_open_state(self) -> str:
+        """``open_state`` to publish while the gate is unreachable.
+
+        The last known *resting* position, never a travel direction.  A
+        running emulation is deliberately ignored here: ``opening`` /
+        ``closing`` grey the control button out in the Sber app (verified
+        on live hardware), and an unreachable gate produces no HA state
+        changes to republish, so a frozen transitional value would keep
+        the gate untouchable from the app for as long as the drop-out
+        lasts.  The emulation itself is left running — the leaf may well
+        still be moving — and resumes being published the moment the
+        relay is reachable again.
+
+        With no position ever reported the answer is ``close``, for the
+        reason spelled out in :attr:`_open_state_value`: claiming an
+        unknown gate is open is the dangerous direction of the guess.
+
+        Returns:
+            :data:`OPEN_STATE_OPEN` or :data:`OPEN_STATE_CLOSE`.
+        """
+        return OPEN_STATE_OPEN if self._open else OPEN_STATE_CLOSE
+
     def _build_current_state(self) -> dict[str, dict]:
         """Build the Sber current-state payload.
 
         Both ``online`` and ``open_state`` are always present — the latter
         is obligatory for the category, and omitting it (even while
-        offline) is a known cause of silent device rejection.
+        offline) is a known cause of silent device rejection.  Offline the
+        value comes from :attr:`_offline_open_state`, which never reports
+        a movement.
 
         Returns:
             Dict mapping entity_id to its Sber state representation.
         """
+        online = self._is_online
         states = [
-            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
-            make_state(SberFeature.OPEN_STATE, make_enum_value(self._open_state_value)),
+            make_state(SberFeature.ONLINE, make_bool_value(online)),
+            make_state(
+                SberFeature.OPEN_STATE,
+                make_enum_value(self._open_state_value if online else self._offline_open_state),
+            ),
         ]
         self._append_signal_strength_state(states)
         return {self.entity_id: {"states": states}}

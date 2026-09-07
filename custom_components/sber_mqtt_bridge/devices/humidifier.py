@@ -10,6 +10,7 @@ from typing import ClassVar
 from ..sber_constants import SberFeature, SberValueType
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import ROLE_HUMIDITY, AttrSpec, BaseEntity, CommandResult, _safe_bool_parser, _safe_int_parser
+from .utils.documented_range import clamp_to_bounds, documented_integer_bounds
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -229,15 +230,29 @@ class HumidifierEntity(BaseEntity):
                 "type": "ENUM",
                 "enum_values": {"values": sber_modes},
             }
+        low, high = self._humidity_set_bounds()
         allowed["hvac_humidity_set"] = {
             "type": "INTEGER",
             "integer_values": {
-                "min": str(self._min_humidity),
-                "max": str(self._max_humidity),
+                "min": str(low),
+                "max": str(high),
                 "step": "5",
             },
         }
         return allowed
+
+    def _humidity_set_bounds(self) -> tuple[int, int]:
+        """Return the ``hvac_humidity_set`` range this entity may declare.
+
+        The HA entity's ``min_humidity`` / ``max_humidity`` intersected
+        with the documented ``INTEGER(30, 90)``: ``allowed_values`` may
+        only narrow a documented range, and HA's generic humidifier
+        defaults to 0…100.
+
+        Returns:
+            ``(min, max)`` in percent, inside the documented range.
+        """
+        return documented_integer_bounds(self.category, "hvac_humidity_set", self._min_humidity, self._max_humidity)
 
     def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with humidifier attributes.
@@ -257,7 +272,8 @@ class HumidifierEntity(BaseEntity):
         if self.current_humidity is not None:
             states.append(make_state(SberFeature.HUMIDITY, make_integer_value(round(self.current_humidity))))
         if self.target_humidity is not None:
-            states.append(make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(round(self.target_humidity))))
+            target = clamp_to_bounds(float(self.target_humidity), self._humidity_set_bounds())
+            states.append(make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(round(target))))
         if self.mode:
             sber_mode = HA_TO_SBER_HUMIDIFIER_MODE.get(self.mode.lower())
             if sber_mode is not None:

@@ -33,7 +33,49 @@
       "open_percentage",
       "open_set"
     ],
+    "conditional_any_of": [
+      [
+        "open_percentage",
+        "open_set"
+      ]
+    ],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умные шторы",
+      "groups": [
+        "Солнце",
+        "Теневые шторы"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мои шторы",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "battery_low_power": "Разряжена ли батарея или нет",
+      "battery_percentage": "Уровень заряда батареи",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "open_left_percentage": "Открывание левой половины устройства в процентах",
+      "open_left_set": "Открывание левой половины устройства",
+      "open_left_state": "Статус открывания левой стороны устройства",
+      "open_percentage": "Открывание устройства в процентах. Для устройства обязательно должен быть описан способ открытия: либо open_percentage, либо open_set, либо они оба",
+      "open_rate": "Скорость открывания устройства",
+      "open_right_percentage": "Открывание правой половины устройства в процентах",
+      "open_right_set": "Открывание правой половины устройства",
+      "open_right_state": "Статус открывания правой стороны устройства",
+      "open_set": "Открывание устройства. Для устройства обязательно должен быть описан способ открытия: либо open_set, либо open_percentage, либо они оба",
+      "open_state": "Статус открывания устройства",
+      "signal_strength": "Сила сигнала"
+    },
     "features": [
       "battery_low_power",
       "battery_percentage",
@@ -84,7 +126,47 @@
       "open_percentage",
       "open_set"
     ],
+    "conditional_any_of": [
+      [
+        "open_percentage",
+        "open_set"
+      ]
+    ],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умные ворота",
+      "groups": [
+        "Заезд",
+        "Входная группа"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мои ворота",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гараж",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "online": "Доступность устройства: офлайн или онлайн",
+      "open_left_percentage": "Открывание левой половины устройства в процентах",
+      "open_left_set": "Открывание левой половины устройства",
+      "open_left_state": "Статус открывания левой стороны устройства",
+      "open_percentage": "Открывание устройства в процентах. Для устройства обязательно должен быть описан способ открытия: либо open_percentage, либо open_set, либо они оба",
+      "open_rate": "Скорость открывания устройства",
+      "open_right_percentage": "Открывание правой половины устройства в процентах",
+      "open_right_set": "Статус открывания правой стороны устройства",
+      "open_right_state": "Открывание правой половины устройства",
+      "open_set": "Открывание устройства. Для устройства обязательно должен быть описан способ открытия: либо open_percentage, либо open_set, либо они оба",
+      "open_state": "Статус открывания устройства",
+      "signal_strength": "Сила сигнала"
+    },
     "features": [
       "online",
       "open_left_percentage",
@@ -110,7 +192,31 @@
     "allowed_values": {},
     "category": "hub",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный хаб",
+      "groups": [
+        "Управление",
+        "Освещение"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой хаб",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "online": "Доступность устройства: офлайн или онлайн"
+    },
     "features": [
       "online"
     ],
@@ -148,7 +254,41 @@
     },
     "category": "hvac_ac",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный кондиционер",
+      "groups": [
+        "Климат",
+        "Охлаждение"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой кондиционер",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "humidity": "Текущая влажность",
+      "hvac_air_flow_direction": "Направление потока воздуха",
+      "hvac_air_flow_power": "Скорость вентиляторов",
+      "hvac_humidity_set": "Влажность воздуха, которую необходимо достичь",
+      "hvac_ionization": "Режим ионизации",
+      "hvac_night_mode": "Ночной режим работы",
+      "hvac_temp_set": "Температура воздуха, которую необходимо достичь",
+      "hvac_work_mode": "Режим работы кондиционера",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "temperature": "Текущая температура"
+    },
     "features": [
       "hvac_air_flow_direction",
       "hvac_air_flow_power",
@@ -193,7 +333,39 @@
     },
     "category": "hvac_air_purifier",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный воздухоочиститель",
+      "groups": [
+        "Климат",
+        "Очистка"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой воздухоочиститель",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "hvac_air_flow_power": "Скорость вентилятора",
+      "hvac_aromatization": "Режим ароматизации воздуха",
+      "hvac_decontaminate": "Режим обеззараживания воздуха",
+      "hvac_ionization": "Режим ионизации",
+      "hvac_night_mode": "Ночной режим работы",
+      "hvac_replace_filter": "Нужно ли менять фильтр",
+      "hvac_replace_ionizator": "Нужно ли менять ионизатор",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн"
+    },
     "features": [
       "hvac_air_flow_power",
       "hvac_aromatization",
@@ -230,7 +402,36 @@
     },
     "category": "hvac_boiler",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный водонагреватель",
+      "groups": [
+        "Климат",
+        "Вода"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой водонагреватель",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "hvac_heating_rate": "Скорость нагрева",
+      "hvac_temp_set": "Температура, которую необходимо достичь",
+      "hvac_thermostat_mode": "Режим работы термостата",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "temperature": "Текущая температура"
+    },
     "features": [
       "hvac_temp_set",
       "hvac_thermostat_mode",
@@ -266,7 +467,34 @@
     },
     "category": "hvac_fan",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный вентилятор",
+      "groups": [
+        "Климат",
+        "Охлаждение"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой вентилятор",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "hvac_air_flow_power": "Скорость вентилятора",
+      "hvac_direction_set": "Направление вентилятора",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн"
+    },
     "features": [
       "hvac_air_flow_power",
       "on_off",
@@ -302,7 +530,36 @@
     },
     "category": "hvac_heater",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный обогреватель",
+      "groups": [
+        "Климат",
+        "Обогрев"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой обогреватель",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "hvac_air_flow_power": "Скорость вентилятора",
+      "hvac_temp_set": "Температура, которую необходимо достичь",
+      "hvac_thermostat_mode": "Режим работы термостата",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "temperature": "Текущая температура"
+    },
     "features": [
       "hvac_air_flow_power",
       "hvac_temp_set",
@@ -347,7 +604,42 @@
     },
     "category": "hvac_humidifier",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный увлажнитель воздуха",
+      "groups": [
+        "Климат",
+        "Очистка"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой увлажнитель воздуха",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "humidity": "Текущая влажность",
+      "hvac_air_flow_power": "Скорость вентилятора",
+      "hvac_humidity_set": "Влажность воздуха, которую необходимо достичь",
+      "hvac_ionization": "Режим ионизации",
+      "hvac_night_mode": "Ночной режим работы",
+      "hvac_replace_filter": "Нужно ли менять фильтр",
+      "hvac_replace_ionizator": "Нужно ли менять ионизатор",
+      "hvac_water_level": "Количество воды в баке в литрах",
+      "hvac_water_low_level": "Закончилась ли вода в баке",
+      "hvac_water_percentage": "Количество воды в баке в процентах",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн"
+    },
     "features": [
       "humidity",
       "hvac_air_flow_power",
@@ -385,7 +677,34 @@
     },
     "category": "hvac_radiator",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный терморегулятор",
+      "groups": [
+        "Климат",
+        "Обогрев"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой терморегулятор",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "hvac_temp_set": "Температура, которую необходимо достичь",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "temperature": "Текущая температура"
+    },
     "features": [
       "hvac_temp_set",
       "on_off",
@@ -418,7 +737,36 @@
     },
     "category": "hvac_underfloor_heating",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный теплый пол",
+      "groups": [
+        "Климат",
+        "Вода"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой теплый пол",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "hvac_heating_rate": "Скорость нагрева",
+      "hvac_temp_set": "Температура, которую необходимо достичь",
+      "hvac_thermostat_mode": "Режим работы термостата",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "temperature": "Текущая температура"
+    },
     "features": [
       "hvac_temp_set",
       "hvac_thermostat_mode",
@@ -441,7 +789,34 @@
     "allowed_values": {},
     "category": "intercom",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный домофон",
+      "groups": [
+        "Гости",
+        "Места общего пользования"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой домофон",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Подъезд",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "06 ноября 2025",
+    "feature_descriptions": {
+      "incoming_call": "Поступает ли вызов на домофон",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "reject_call": "Отклонить вызов",
+      "unlock": "Открыть замок"
+    },
     "features": [
       "incoming_call",
       "online",
@@ -474,7 +849,37 @@
     },
     "category": "kettle",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный чайник",
+      "groups": [
+        "Завтрак",
+        "Кухонные электроприборы"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой чайник",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Кухня",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "child_lock": "Блокировка от детей",
+      "kitchen_water_level": "Количество воды в устройстве в литрах",
+      "kitchen_water_low_level": "Закончилась ли вода в устройстве",
+      "kitchen_water_temperature": "Текущая температура воды в устройстве",
+      "kitchen_water_temperature_set": "Температура, до которой нужно нагреть воду",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн"
+    },
     "features": [
       "child_lock",
       "kitchen_water_level",
@@ -510,7 +915,36 @@
     },
     "category": "led_strip",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умная лента",
+      "groups": [
+        "Ночная подсветка",
+        "Окна"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.2",
+      "id": "ABCD_003",
+      "model_id": "QWERTY123",
+      "name": "Моя лента",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.7"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "light_brightness": "Яркость устройства",
+      "light_colour": "Цвет устройства",
+      "light_colour_temp": "Температура цвета устройства",
+      "light_mode": "Режим работы устройства: цветной или белый цвет",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн"
+    },
     "features": [
       "light_brightness",
       "light_colour",
@@ -546,7 +980,36 @@
     },
     "category": "light",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умная лампа",
+      "groups": [
+        "Верхний свет",
+        "Ниша"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.2",
+      "id": "ABCD_003",
+      "model_id": "QWERTY123",
+      "name": "Моя лампа",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.7"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "light_brightness": "Яркость устройства",
+      "light_colour": "Цвет устройства",
+      "light_colour_temp": "Температура цвета устройства",
+      "light_mode": "Режим работы устройства: цветной или белый цвет",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн"
+    },
     "features": [
       "light_brightness",
       "light_colour",
@@ -580,7 +1043,35 @@
     },
     "category": "relay",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умное реле",
+      "groups": [
+        "Видеотехника",
+        "Проводка"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мое реле",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "current": "Текущий ток, мА",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "power": "Текущая мощность, Вт",
+      "voltage": "Текущее напряжение, В"
+    },
     "features": [
       "current",
       "on_off",
@@ -630,7 +1121,50 @@
     },
     "category": "scenario_button",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [
+      "обязательно должна быть описана функция online, а также как минимум одна функция нажатия на кнопку."
+    ],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Сценарная кнопка",
+      "groups": [],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Моя кнопка",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "battery_low_power": "Разряжена ли батарея или нет",
+      "battery_percentage": "Уровень заряда батареи",
+      "button_10_event": "Нажатие на десятую кнопку",
+      "button_1_event": "Нажатие на первую кнопку",
+      "button_2_event": "Нажатие на вторую кнопку",
+      "button_3_event": "Нажатие на третью кнопку",
+      "button_4_event": "Нажатие на четвертую кнопку",
+      "button_5_event": "Нажатие на пятую кнопку",
+      "button_6_event": "Нажатие на шестую кнопку",
+      "button_7_event": "Нажатие на седьмую кнопку",
+      "button_8_event": "Нажатие на восьмую кнопку",
+      "button_9_event": "Нажатие на девятую кнопку",
+      "button_bottom_left_event": "Нажатие на левую нижнюю кнопку",
+      "button_bottom_right_event": "Нажатие на правую нижнюю кнопку",
+      "button_event": "Нажатие на кнопку",
+      "button_left_event": "Нажатие на левую кнопку",
+      "button_right_event": "Нажатие на правую кнопку",
+      "button_top_left_event": "Нажатие на левую верхнюю кнопку",
+      "button_top_right_event": "Нажатие на правую верхнюю кнопку",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "signal_strength": "Сила сигнала"
+    },
     "features": [
       "battery_percentag",
       "button_1_event",
@@ -670,7 +1204,51 @@
       "temperature",
       "tvoc_float"
     ],
+    "conditional_any_of": [
+      [
+        "co2",
+        "hcho_float",
+        "humidity",
+        "pm10",
+        "pm1_0",
+        "pm2_5",
+        "temperature",
+        "tvoc_float"
+      ]
+    ],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный датчик качества воздуха",
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой датчик качества воздуха",
+      "parent_id": "A_002",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Спальня",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "23 июня 2026",
+    "feature_descriptions": {
+      "battery_low_power": "Разряжена батарея или нет",
+      "battery_percentage": "Уровень заряда батареи",
+      "co2": "Текущая концентрация CO2",
+      "hcho_float": "Текущая концентрация частиц формальдегида HCHO",
+      "humidity": "Текущая влажность",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "pm10": "Текущая концентрация частиц PM10",
+      "pm1_0": "Текущая концентрация частиц PM1.0",
+      "pm2_5": "Текущая концентрация частиц PM2.5",
+      "signal_strength": "Сила сигнала",
+      "temp_unit_view": "Температурная шкала, в которой датчик выводит информацию о температуре на свой экран",
+      "temperature": "Текущая температура",
+      "tvoc_float": "Текущая концентрация частиц летучих органических соединений TVOC"
+    },
     "features": [
       "battery_low_power",
       "battery_percentage",
@@ -713,7 +1291,34 @@
     },
     "category": "sensor_door",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный датчик открытия",
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой датчик открытия",
+      "parent_id": "A_002",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "battery_low_power": "Разряжена ли батарея или нет",
+      "battery_percentage": "Уровень заряда батареи",
+      "doorcontact_state": "Показывает, разомкнуты или сомкнуты контакты датчика. Если контакты разомкнуты, значит, створки двери, окна или другой подобной конструкции открыты. Сомкнутые контакты означают, что створки закрыты",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "sensor_sensitive": "Чувствительность датчика",
+      "signal_strength": "Сила сигнала",
+      "tamper_alarm": "Сигнализация о вскрытии датчика"
+    },
     "features": [
       "battery_low_power",
       "battery_percentage",
@@ -751,7 +1356,34 @@
     },
     "category": "sensor_gas",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный датчик газа",
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой датчик газа",
+      "parent_id": "A_002",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Коридор",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "25 декабря 2025",
+    "feature_descriptions": {
+      "alarm_mute": "Выключено ли звуковое оповещение при срабатывании датчика",
+      "battery_low_power": "Разряжена ли батарея или нет",
+      "battery_percentage": "Уровень заряда батареи",
+      "gas_leak_state": "Обнаружена ли утечка газа",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "sensor_sensitive": "Чувствительность датчика",
+      "signal_strength": "Сила сигнала"
+    },
     "features": [
       "alarm_mute",
       "battery_low_power",
@@ -788,7 +1420,33 @@
     },
     "category": "sensor_pir",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный датчик движения",
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой датчик движения",
+      "parent_id": "A_002",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "battery_low_power": "Разряжена ли батарея или нет",
+      "battery_percentage": "Уровень заряда батареи",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "pir": "Обнаружено ли движение",
+      "sensor_sensitive": "Чувствительность датчика",
+      "signal_strength": "Сила сигнала"
+    },
     "features": [
       "battery_low_power",
       "battery_percentage",
@@ -824,7 +1482,33 @@
     },
     "category": "sensor_smoke",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный датчик дыма",
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой датчик дыма",
+      "parent_id": "A_002",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Коридор",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "25 декабря 2025",
+    "feature_descriptions": {
+      "alarm_mute": "Выключено ли звуковое оповещение при срабатывании датчика",
+      "battery_low_power": "Разряжена ли батарея или нет",
+      "battery_percentage": "Уровень заряда батареи",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "signal_strength": "Сила сигнала",
+      "smoke_state": "Обнаружено ли задымление"
+    },
     "features": [
       "alarm_mute",
       "battery_low_power",
@@ -866,7 +1550,41 @@
       "humidity",
       "temperature"
     ],
+    "conditional_any_of": [
+      [
+        "humidity",
+        "temperature"
+      ]
+    ],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный датчик температуры и влажности",
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой датчик температуры и влажности",
+      "parent_id": "A_002",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "air_pressure": "Текущее атмосферное давление",
+      "battery_low_power": "Разряжена ли батарея или нет",
+      "battery_percentage": "Уровень заряда батареи",
+      "humidity": "Текущая влажность. Функция обязательна для датчиков влажности и датчиков температуры и влажности. Для датчиков температуры, которые влажность не измеряют, ее указывать не нужно",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "sensor_sensitive": "Чувствительность датчика",
+      "signal_strength": "Сила сигнала",
+      "temp_unit_view": "Температурная шкала, в которой датчик сейчас выводит информацию о температуре на свой экран: °C или °F. Используйте только для датчиков с экраном, которые умеют показывать температуру в разных температурных шкалах",
+      "temperature": "Текущая температура. Функция обязательна для датчиков температуры и датчиков температуры и влажности. Для датчиков влажности, которые температуру не измеряют, ее указывать не нужно"
+    },
     "features": [
       "air_pressure",
       "battery_low_power",
@@ -903,7 +1621,32 @@
     },
     "category": "sensor_water_leak",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный датчик протечки",
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой датчик протечки",
+      "parent_id": "A_002",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Ванная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "battery_low_power": "Разряжена ли батарея или нет",
+      "battery_percentage": "Уровень заряда батареи",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "signal_strength": "Сила сигнала",
+      "water_leak_state": "Обнаружена ли протечка воды"
+    },
     "features": [
       "battery_low_power",
       "battery_percentage",
@@ -937,7 +1680,36 @@
     },
     "category": "socket",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умная розетка",
+      "groups": [
+        "Видеотехника",
+        "Звук"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Моя розетка",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "child_lock": "Блокировка кнопки питания от детей",
+      "current": "Текущий ток, мА",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "power": "Текущая мощность, Вт",
+      "voltage": "Текущее напряжение, В"
+    },
     "features": [
       "child_lock",
       "current",
@@ -984,7 +1756,41 @@
     },
     "category": "tv",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный телевизор",
+      "groups": [
+        "Видеотехника",
+        "Электроприборы"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой телевизор",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "channel": "Переключение на предыдущий или следующий канал",
+      "channel_int": "Номер канала",
+      "custom_key": "Кнопка, нажатая на пульте управления",
+      "direction": "Сдвиг курсора в нужном направлении",
+      "mute": "Бесшумный режим",
+      "number": "Нажатая на пульте цифровая кнопка",
+      "on_off": "Удаленное включение и выключение устройства",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "source": "Источник видеосигнала",
+      "volume": "Сделать тише или громче",
+      "volume_int": "Уровень громкости"
+    },
     "features": [
       "channel",
       "channel_int",
@@ -1027,7 +1833,36 @@
     },
     "category": "vacuum_cleaner",
     "conditional": [],
+    "conditional_any_of": [],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный пылесос",
+      "groups": [
+        "Уборка"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой пылесос",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "battery_percentage": "Уровень заряда батареи",
+      "child_lock": "Блокировка от детей",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "vacuum_cleaner_cleaning_type": "Тип уборки: сухая, влажная, сухая и влажная. Если пользователь не может управлять типом уборки, например, если он выбирается автоматически, исходя из надетой на пылесос насадки, тип уборки добавлять в модель устройства не нужно",
+      "vacuum_cleaner_command": "Команда управления: начать уборку, приостановить уборку, вернуться на базу, возобновить уборку. Если отдана команда уборки vacuum_cleaner_command и при этом не передано, какие программу vacuum_cleaner_program и тип уборки vacuum_cleaner_cleaning_type использовать, умный дом использует программу и тип, которые пользователь выбрал в приложении Салют или на устройстве с ассистентом Салют. Если в приложении или на устройстве ничего не предустановлено, используется программа smart: уборка в автоматическом режиме по алгоритму устройства",
+      "vacuum_cleaner_program": "Программа уборки: уборка по периметру, уборка по спирали, уборка всей доступной площади, уборка по случайному маршруту",
+      "vacuum_cleaner_status": "Статус устройства: уборка, пауза, возвращение на базу, на базе"
+    },
     "features": [
       "battery_percentage",
       "child_lock",
@@ -1067,7 +1902,42 @@
       "open_percentage",
       "open_set"
     ],
+    "conditional_any_of": [
+      [
+        "open_percentage",
+        "open_set"
+      ]
+    ],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умный кран",
+      "groups": [
+        "Вода",
+        "Безопасность"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мой кран",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Кладовая",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "battery_low_power": "Разряжена ли батарея или нет",
+      "battery_percentage": "Уровень заряда батареи",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "open_percentage": "Открывание устройства в процентах. Для устройства обязательно должен быть описан способ открытия: либо open_percentage, либо open_set, либо они оба",
+      "open_set": "Открывание устройства. Для устройства обязательно должен быть описан способ открытия: либо open_set, либо open_percentage, либо они оба",
+      "open_state": "Статус открывания устройства",
+      "signal_strength": "Сила сигнала"
+    },
     "features": [
       "battery_low_power",
       "battery_percentage",
@@ -1110,7 +1980,44 @@
       "open_percentage",
       "open_set"
     ],
+    "conditional_any_of": [
+      [
+        "open_percentage",
+        "open_set"
+      ]
+    ],
+    "conditional_unresolved": [],
     "dependencies": {},
+    "device_example": {
+      "default_name": "Умные шторы",
+      "groups": [
+        "Солнце",
+        "Теневые шторы"
+      ],
+      "home": "Мой дом",
+      "hw_version": "3.1",
+      "id": "ABCD_004",
+      "model_id": "QWERTY124",
+      "name": "Мои жалюзи",
+      "partner_meta": {
+        "internal-id": 1234,
+        "specificity": "microchip 2A"
+      },
+      "room": "Гостиная",
+      "sw_version": "5.6"
+    },
+    "doc_updated": "28 октября 2025",
+    "feature_descriptions": {
+      "battery_low_power": "Разряжена ли батарея или нет",
+      "battery_percentage": "Уровень заряда батареи",
+      "light_transmission_percentage": "Степень пропускания света (в процентах)",
+      "online": "Доступность устройства: офлайн или онлайн",
+      "open_percentage": "Открывание устройства в процентах. Для устройства обязательно должен быть описан способ открытия: либо open_percentage, либо open_set, либо они оба",
+      "open_rate": "Скорость открывания устройства",
+      "open_set": "Открывание устройства. Для устройства обязательно должен быть описан способ открытия: либо open_set, либо open_percentage, либо они оба",
+      "open_state": "Статус открывания устройства",
+      "signal_strength": "Сила сигнала"
+    },
     "features": [
       "battery_low_power",
       "battery_percentage",

@@ -876,12 +876,18 @@ class TestIntercomCompliance:
         assert result["model"]["category"] == "intercom"
 
     def test_features_list(self):
-        """Intercom must expose all required Sber features."""
+        """Домофон объявляет ровно те функции, что перечисляет ``c2c/intercom``.
+
+        ``on_off`` в этом списке нет: домофон получал его по наследству
+        от ``OnOffEntity``.  Если тест упадёт, в модель вернётся чужая
+        функция, и облако вправе не завести домофон вовсе.
+        """
         entity = IntercomEntity(self.ENTITY_DATA)
         entity.fill_by_ha_state(self._make_ha_state())
         features = entity.get_final_features_list()
-        for feat in ("online", "on_off", "incoming_call", "reject_call", "unlock"):
+        for feat in ("online", "incoming_call", "reject_call", "unlock"):
             assert feat in features, f"Missing feature: {feat}"
+        assert "on_off" not in features
 
     def test_current_state_online_bool_present(self):
         """online BOOL must be present in intercom current state."""
@@ -898,21 +904,19 @@ class TestIntercomCompliance:
         for key in ("on_off", "incoming_call", "reject_call", "unlock"):
             _assert_bool_value_is_bool(states, key)
 
-    def test_current_state_on_off_true(self):
-        """on_off must be True when HA state is 'on'."""
-        entity = IntercomEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state("on"))
-        states = entity.to_sber_current_state()["switch.intercom"]["states"]
-        on_off = _find_state(states, "on_off")
-        assert on_off["value"]["bool_value"] is True
+    def test_current_state_carries_no_on_off(self):
+        """Недокументированный ``on_off`` не публикуется ни в одном состоянии.
 
-    def test_current_state_on_off_false(self):
-        """on_off must be False when HA state is 'off'."""
+        Раньше здесь проверялось значение ``on_off`` — True для HA
+        ``on`` и False для ``off``.  Ключа, которого у категории нет,
+        облако не понимает: он либо игнорируется, либо утягивает за
+        собой весь пакет состояния.
+        """
         entity = IntercomEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state("off"))
-        states = entity.to_sber_current_state()["switch.intercom"]["states"]
-        on_off = _find_state(states, "on_off")
-        assert on_off["value"]["bool_value"] is False
+        for ha_state in ("on", "off"):
+            entity.fill_by_ha_state(self._make_ha_state(ha_state))
+            states = entity.to_sber_current_state()["switch.intercom"]["states"]
+            assert _find_state(states, "on_off") is None
 
     def test_cmd_on_off_maps_to_switch(self):
         """on_off command must target switch domain."""

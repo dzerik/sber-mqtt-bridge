@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
+from .cloud_device_registry import CloudDeviceRegistry, ModelIdentityMigration
 from .const import DOMAIN as DOMAIN
 from .custom_capabilities import parse_yaml_config
 from .sber_bridge import SberBridge
@@ -69,6 +70,26 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     return True
 
 
+def _async_migrate_model_identity(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> None:
+    """Warn once when the ``model.id`` formula has moved under an existing entry.
+
+    Run before the bridge starts, so the explanation is in front of the
+    user before the first config publish re-registers anything.  A fresh
+    installation is stamped silently — see
+    :class:`~.cloud_device_registry.ModelIdentityMigration`.
+
+    The registry is built here rather than taken from the bridge because
+    the bridge does not exist yet and because all this needs is the set
+    the config entry already carries; the instance is read-only for our
+    purposes and is dropped as soon as the check is done.
+
+    Args:
+        hass: Home Assistant core instance.
+        entry: Config entry being set up.
+    """
+    ModelIdentityMigration(hass, entry, CloudDeviceRegistry(hass, entry)).async_run()
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> bool:
     """Set up Sber MQTT Bridge from a config entry.
 
@@ -93,6 +114,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
         ConfigEntryNotReady: If frontend/WebSocket registration failed; the
             bridge is stopped first and HA retries the whole setup.
     """
+    _async_migrate_model_identity(hass, entry)
+
     bridge = SberBridge(hass, entry)
     await bridge.async_start()
 

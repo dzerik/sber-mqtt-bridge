@@ -25,7 +25,13 @@ from collections.abc import Callable
 import voluptuous as vol
 from homeassistant.components.light import LIGHT_TURN_ON_SCHEMA
 
-from custom_components.sber_mqtt_bridge.devices.base_entity import BaseEntity, CommandResult
+from custom_components.sber_mqtt_bridge.devices.base_entity import (
+    AttrSpec,
+    BaseEntity,
+    CommandResult,
+    _safe_float_parser,
+    _safe_int_parser,
+)
 
 ENTITY_DATA = {"entity_id": "light.stub", "name": "Stub"}
 
@@ -382,3 +388,324 @@ class TestEchoStateSanitizing:
         """
         echo = self._echo(_lamp(), [{"key": "hvac_work_mode", "value": {"type": "ENUM", "enum_value": "heating"}}])
         assert "hvac_work_mode" not in echo
+
+
+class _ForeignFeatureStub(BaseEntity):
+    """Устройство, которое пытается объявить функцию не своей категории.
+
+    Ровно то, что делали настоящие классы: домофон получал ``on_off``
+    по наследству от ``OnOffEntity``, датчик протечки — ``tamper_alarm``
+    от общего миксина.
+    """
+
+    def __init__(self, category: str, entity_data: dict) -> None:
+        """Создать заглушку в указанной категории Sber."""
+        super().__init__(category, entity_data)
+
+    def _create_features_list(self) -> list[str]:
+        """Объявить обязательный ``online`` и чужой ``on_off``."""
+        return [*super()._create_features_list(), "on_off"]
+
+    def _build_current_state(self) -> dict:
+        """Опубликовать обе функции — фильтр обязан снять чужую."""
+        return {
+            self.entity_id: {
+                "states": [
+                    {"key": "online", "value": {"type": "BOOL", "bool_value": True}},
+                    {"key": "on_off", "value": {"type": "BOOL", "bool_value": True}},
+                ]
+            }
+        }
+
+
+class TestFeaturesForeignToTheCategory:
+    """Ни одна категория не объявляет функцию вне своего справочника Sber.
+
+    Таблица «Доступные функции устройства» на странице категории —
+    закрытая. Функция вне её для облака не «лишняя строчка»: модель с
+    ней облако вправе отбросить целиком, молча, и пользователь увидит
+    не «кнопку, которая не работает», а исчезнувшее устройство.
+
+    Правило живёт в :class:`BaseEntity`, а не в классах устройств,
+    потому что ошибка каждый раз приезжает по наследству или из общего
+    миксина. Если эти тесты упадут, дыра снова станет
+    поклассовой — и следующая категория провалится в неё так же тихо.
+    """
+
+    def test_inherited_foreign_feature_is_dropped(self) -> None:
+        """Унаследованный ``on_off`` не попадает в объявление домофона."""
+        entity = _ForeignFeatureStub("intercom", {"entity_id": "switch.i", "name": "I"})
+        assert entity.get_final_features_list() == ["online"]
+
+    def test_dropped_feature_is_not_published_either(self) -> None:
+        """Снятая функция не уезжает и в состоянии."""
+        entity = _ForeignFeatureStub("intercom", {"entity_id": "switch.i", "name": "I"})
+        published = {s["key"] for s in entity.to_sber_current_state()["switch.i"]["states"]}
+        assert published == {"online"}
+
+    def test_declaration_still_shows_what_the_class_asked_for(self) -> None:
+        """``declared_features`` показывает объявление классов ДО фильтра.
+
+        На этом свойстве держится
+        ``TestDeclaredFeaturesBelongToTheCategory``: если оно начнёт
+        отдавать уже отфильтрованный список, тот тест станет сверять
+        фильтр с самим собой и перестанет ловить что бы то ни было —
+        ровно то состояние, в котором чужие функции жили девяти
+        категориями и не были видны.
+        """
+        entity = _ForeignFeatureStub("intercom", {"entity_id": "switch.i", "name": "I"})
+        assert sorted(entity.declared_features) == ["on_off", "online"]
+        assert entity.get_final_features_list() == ["online"]
+
+    def test_documented_feature_survives(self) -> None:
+        """Та же функция в категории, где она документирована, остаётся.
+
+        Страховка от «фильтр включили — устройства онемели»: у ``relay``
+        ``on_off`` документирован, и снимать его нельзя.
+        """
+        entity = _ForeignFeatureStub("relay", {"entity_id": "switch.r", "name": "R"})
+        assert sorted(entity.get_final_features_list()) == ["on_off", "online"]
+
+    def test_user_added_feature_is_not_filtered(self) -> None:
+        """``sber_features_add`` фильтр не трогает — только предупреждает.
+
+        Справочник категорий — выгрузка документации, и она доказуемо
+        неполна: на странице ``led_strip`` в собственном примере Sber
+        есть ``sleep_timer``, а в таблице функций, которую читает
+        генератор, его нет. Пользователь, скопировавший функцию со
+        страницы, которую он видит своими глазами, получил бы её
+        молчаливое удаление и совет убрать верную строчку.
+
+        Если тест упадёт, задокументированная в README возможность
+        ``sber_features_add`` перестанет работать для всего, чего не
+        досчитал скрапер, и обойти это будет нечем.
+        """
+        entity = _ForeignFeatureStub("relay", {"entity_id": "switch.r", "name": "R"})
+        entity.extra_features = ["sleep_timer"]
+        assert "sleep_timer" in entity.get_final_features_list()
+
+    def test_user_added_documented_feature_survives(self) -> None:
+        """Законное добавление по-прежнему работает."""
+        entity = _ForeignFeatureStub("relay", {"entity_id": "switch.r", "name": "R"})
+        entity.extra_features = ["power"]
+        assert "power" in entity.get_final_features_list()
+
+    def test_user_added_feature_survives_next_to_a_dropped_one(self) -> None:
+        """Разделение по источнику: наше снимается, пользовательское — нет.
+
+        Одна и та же публикация: класс подсунул чужой ``on_off``
+        домофону, пользователь добавил своё имя. Уехать должно только
+        второе.
+        """
+        entity = _ForeignFeatureStub("intercom", {"entity_id": "switch.i", "name": "I"})
+        entity.extra_features = ["sleep_timer"]
+        assert sorted(entity.get_final_features_list()) == ["online", "sleep_timer"]
+
+    def test_unknown_category_is_passed_through(self) -> None:
+        """Категория, которой нет в справочнике, не фильтруется.
+
+        Справочник — свидетельство того, что Sber документирует, а не
+        того, что он запрещает. Раздеть устройство из-за пробела в
+        нашей выгрузке документации было бы хуже чужого ключа.
+        """
+        entity = _ForeignFeatureStub("category_sber_never_heard_of", {"entity_id": "switch.x", "name": "X"})
+        assert sorted(entity.get_final_features_list()) == ["on_off", "online"]
+
+    def test_user_added_foreign_feature_is_warned_about(self, caplog) -> None:
+        """Про пропущенное переопределение пользователю говорят в журнале.
+
+        Это единственная разновидность, о которой человек может принять
+        решение сам, — поэтому WARNING, а не DEBUG. Функция уезжает, но
+        в журнале сказано, чем это грозит.
+        """
+        entity = _ForeignFeatureStub("relay", {"entity_id": "switch.r", "name": "R"})
+        entity.extra_features = ["sleep_timer"]
+        with caplog.at_level("WARNING"):
+            entity.get_final_features_list()
+        assert "sleep_timer" in caplog.text
+
+    def test_class_contributed_feature_is_not_warned_about(self, caplog) -> None:
+        """А про унаследованную — нет: пользователь на неё не влияет.
+
+        Список функций пересобирается на каждой публикации; предупреждать
+        о том, что человек не может изменить, значит залить журнал шумом.
+        """
+        entity = _ForeignFeatureStub("intercom", {"entity_id": "switch.i", "name": "I"})
+        with caplog.at_level("WARNING"):
+            entity.get_final_features_list()
+        assert "on_off" not in caplog.text
+
+
+class _NumericStub(BaseEntity):
+    """Устройство, читающее числовой атрибут HA через :class:`AttrSpec`.
+
+    Спека без ``parser`` — самый частый случай в проекте (значение уже
+    число, разбирать нечего) и ровно тот, через который ``NaN``
+    просачивался мимо ``_safe_float_parser``.
+    """
+
+    ATTR_SPECS = (
+        AttrSpec(field="reading", attr_keys=("reading",)),
+        AttrSpec(field="kept", attr_keys=("kept",), preserve_on_missing=True),
+    )
+
+    def __init__(self, entity_data: dict) -> None:
+        """Создать заглушку в категории ``sensor_temp``."""
+        super().__init__("sensor_temp", entity_data)
+        self.reading: float | None = None
+        self.kept: float | None = None
+
+    def fill_by_ha_state(self, ha_state: dict) -> None:
+        """Разобрать состояние HA через объявленные спеки."""
+        super().fill_by_ha_state(ha_state)
+        self._apply_attr_specs(ha_state.get("attributes", {}))
+
+    def _build_current_state(self) -> dict:
+        """Опубликовать одно значение — в тестах не используется."""
+        return {self.entity_id: {"states": []}}
+
+
+class TestNonFiniteNumbersFromHomeAssistant:
+    """``NaN`` и бесконечность из HA не должны доходить до протокола.
+
+    Они приезжают буднично: шаблонный сенсор, поделивший на ноль,
+    modbus-регистр с мусором, MQTT-полезная нагрузка ``"nan"``. Дальше
+    ``int(float('nan'))`` бросает ``ValueError``,
+    ``sber_protocol.build_states_list_json`` его глотает — и устройство
+    молча пропадает из ``up/status``. Сбер, не получив в ответе
+    объявленных функций, считает устройство неисправным: пользователь
+    видит «климат исчез», а в журнале одна строка исключения без всякой
+    связи с испорченным атрибутом. ``inf`` хуже: ``OverflowError`` этот
+    обработчик не ловит вовсе и уносит с собой всю публикацию.
+    """
+
+    def test_int_parser_rejects_nan(self) -> None:
+        """``NaN`` для целочисленного парсера — отсутствующее значение."""
+        assert _safe_int_parser(float("nan")) is None
+
+    def test_int_parser_rejects_infinity(self) -> None:
+        """Бесконечность — тоже."""
+        assert _safe_int_parser(float("inf")) is None
+        assert _safe_int_parser(float("-inf")) is None
+
+    def test_int_parser_still_reads_numbers(self) -> None:
+        """Обычные значения, включая строки, читаются как раньше."""
+        assert _safe_int_parser("22.5") == 22
+        assert _safe_int_parser(0) == 0
+        assert _safe_int_parser(-7) == -7
+
+    def test_float_parser_rejects_non_finite(self) -> None:
+        """То же для дробного парсера."""
+        assert _safe_float_parser(float("nan")) is None
+        assert _safe_float_parser(float("inf")) is None
+        assert _safe_float_parser("21.5") == 21.5
+
+    def test_attr_spec_without_parser_drops_nan(self) -> None:
+        """``NaN`` не оседает в поле устройства даже без явного парсера."""
+        entity = _NumericStub({"entity_id": "sensor.s", "name": "S"})
+        entity.fill_by_ha_state({"state": "21", "attributes": {"reading": float("nan")}})
+        assert entity.reading is None
+
+    def test_preserved_field_keeps_the_last_good_reading(self) -> None:
+        """Испорченное число не затирает последнее исправное.
+
+        Для ``preserve_on_missing`` «не число» означает то же, что
+        «атрибута нет»: связанный датчик уже прислал показание, и
+        мусор от основной сущности не должен его стирать.
+        """
+        entity = _NumericStub({"entity_id": "sensor.s", "name": "S"})
+        entity.fill_by_ha_state({"state": "21", "attributes": {"kept": 21.5}})
+        entity.fill_by_ha_state({"state": "21", "attributes": {"kept": float("nan")}})
+        assert entity.kept == 21.5
+
+
+class TestModelIdentity:
+    """``model.id`` — имя модели в облаке, и оно обязано быть точным.
+
+    Облако Sber хранит одну модель на идентификатор и сливает описания
+    всех устройств, которые её заявляют. Слишком грубый идентификатор
+    склеивает разное железо в одну карточку; слишком подробный заводит
+    новую модель на каждый чих и заставляет облако перерегистрировать
+    устройства.
+    """
+
+    @staticmethod
+    def _switch(entity_id: str, device: dict | None, name: str = "Стенд") -> _ForeignFeatureStub:
+        """Собрать заглушку категории ``relay`` с заданным HA-устройством."""
+        entity = _ForeignFeatureStub("relay", {"entity_id": entity_id, "name": name})
+        entity.linked_device = device
+        entity.fill_by_ha_state({"state": "on", "attributes": {}})
+        return entity
+
+    def test_same_hardware_shares_one_model(self) -> None:
+        """Две одинаковые железки остаются одной моделью.
+
+        В этом весь смысл слова «модель»: если тест упадёт, у
+        пользователя с десятком одинаковых реле в облаке заведётся
+        десять моделей вместо одной.
+        """
+        first = self._switch("switch.a", {"manufacturer": "Aqara", "model": "SP-EUC01"})
+        second = self._switch("switch.b", {"manufacturer": "Aqara", "model": "SP-EUC01"})
+        assert first.to_sber_state()["model"]["id"] == second.to_sber_state()["model"]["id"]
+
+    def test_different_manufacturer_splits_the_model(self) -> None:
+        """Разные производители — разные модели.
+
+        Если упадёт: в одном пакете уедут два описания под одним
+        идентификатором, и какое из них останется в облаке — не
+        определено (#63).
+        """
+        aqara = self._switch("switch.a", {"manufacturer": "Aqara", "model": "SP-EUC01"})
+        sonoff = self._switch("switch.b", {"manufacturer": "SONOFF", "model": "S26R2"})
+        assert aqara.to_sber_state()["model"]["id"] != sonoff.to_sber_state()["model"]["id"]
+
+    def test_renaming_the_entity_keeps_the_model(self) -> None:
+        """Переименование устройства не заводит новую модель.
+
+        Включать имя в идентификатор значило бы перерегистрировать модель
+        на каждое переименование — цена куда выше, чем у коллизии, ради
+        которой это делалось бы.
+        """
+        before = self._switch("switch.a", {"manufacturer": "Aqara", "model": "SP-EUC01"}, name="Чайник")
+        after = self._switch("switch.a", {"manufacturer": "Aqara", "model": "SP-EUC01"}, name="Кофеварка")
+        assert before.to_sber_state()["model"]["id"] == after.to_sber_state()["model"]["id"]
+
+    def test_entity_without_a_device_keeps_its_old_id(self) -> None:
+        """Сущность без HA-устройства не меняет идентификатор из-за правки.
+
+        Сверка с **зафиксированным** значением, а не с пересчитанным той
+        же функцией: пересчёт доказал бы только, что функция равна себе.
+        ``ad856069`` — дайджест реле с функциями ``online`` + ``on_off``
+        без ``allowed_values``, тот же, что в замороженном снимке
+        ``test_protocol_snapshots.ambr`` (``Mdl_relay_ad856069``) до этой
+        правки.
+
+        Если тест упадёт, у всех сущностей без HA-устройства (а это
+        template-сенсоры, helper'ы, всё, что заведено через YAML)
+        идентификаторы моделей сдвинутся, и Сбер перерегистрирует их без
+        всякой на то причины.
+        """
+        entity = self._switch("switch.a", None)
+        assert entity.to_sber_state()["model"]["id"] == "Mdl_relay_ad856069"
+
+    def test_hardware_reaches_the_description(self) -> None:
+        """``model.description`` описывает модель, а не конкретный прибор.
+
+        Раньше туда клали отображаемое имя сущности, и два одинаковых
+        датчика одного вендора с разными именами уезжали в одном пакете
+        под одним ``model.id`` с разным содержимым — тот же дефект #63,
+        только внутри вендора.
+        """
+        entity = self._switch("switch.a", {"manufacturer": "Aqara", "model": "SP-EUC01"}, name="Чайник")
+        assert entity.to_sber_state()["model"]["description"] == "Aqara SP-EUC01"
+
+    def test_same_hardware_gives_the_same_descriptor(self) -> None:
+        """Одинаковое железо — полностью одинаковый дескриптор модели.
+
+        Один ``model.id`` теперь означает ровно один набор полей: в
+        облаке нечему конфликтовать, какое бы из устройств ни приехало
+        первым.
+        """
+        first = self._switch("switch.a", {"manufacturer": "Aqara", "model": "SP-EUC01"}, name="Кухня")
+        second = self._switch("switch.b", {"manufacturer": "Aqara", "model": "SP-EUC01"}, name="Спальня")
+        assert first.to_sber_state()["model"] == second.to_sber_state()["model"]

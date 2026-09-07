@@ -732,3 +732,106 @@ class TestThermostatModeDeclaredIsPublished(unittest.TestCase):
         entity = self._entity("off", ["off", "heat"])
         keys = [str(s["key"]) for s in entity.to_sber_current_state()["water_heater.boiler"]["states"]]
         self.assertNotIn("hvac_thermostat_mode", keys)
+
+
+class TestDocumentedRangeClamping:
+    """Числа и границы климата не выходят за документированный Sber диапазон.
+
+    ``hvac_temp_set`` документирован как ``INTEGER(5, 50)``, а страница
+    ``allowed_values`` разрешает диапазон только **сокращать**. HA о
+    Сбере не знает: термостат бодро объявляет ``max_temp`` 75, а
+    бойлер — ``min_temp`` 0.
+    """
+
+    @staticmethod
+    def _states(entity, entity_id="climate.ac"):
+        """Вернуть список публикуемых состояний сущности."""
+        return entity.to_sber_current_state()[entity_id]["states"]
+
+    @staticmethod
+    def _value(states, key):
+        """Достать ``integer_value`` нужной функции из публикации."""
+        return next(s for s in states if s["key"] == key)["value"]["integer_value"]
+
+    def test_setpoint_above_documented_ceiling_is_clamped(self):
+        """Уставка 60 °C у обычного климата уезжает в облако как 50.
+
+        Если тест упадёт: мост снова отправит Сберу ``hvac_temp_set`` вне
+        документированных 5…50. Облако вправе обрезать такое значение или
+        выбросить весь ответ — пользователь видит кондиционер, который «не
+        принимает температуру», и ни одной ошибки в журнале.
+        """
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(temperature=60.0, min_temp=30.0, max_temp=75.0))
+        assert self._value(self._states(entity), "hvac_temp_set") == "50"
+
+    def test_allowed_values_never_widen_the_documented_range(self):
+        """``allowed_values`` сужается до 30…50, а не копирует HA-шные 30…75.
+
+        Если тест упадёт: модель объявит Сберу потолок, которого нет в
+        документации. Облако вправе отвергнуть описание модели целиком —
+        устройство просто не появится в приложении, и чинить пользователю
+        нечего.
+        """
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(min_temp=30.0, max_temp=75.0))
+        box = entity.create_allowed_values_list()["hvac_temp_set"]["integer_values"]
+        assert (box["min"], box["max"]) == ("30", "50")
+
+    def test_entity_without_setpoint_support_falls_back_inside_the_range(self):
+        """HA без ``min_temp``/``max_temp`` (нули) не даёт диапазон 0…0.
+
+        Если тест упадёт: обязательный ``hvac_temp_set`` уедет нулём при
+        документированном минимуме 5, а ``allowed_values`` объявит
+        схлопнутый диапазон — ползунок температуры в приложении
+        невозможно сдвинуть.
+        """
+        entity = ClimateEntity(ENTITY_DATA)
+        entity.fill_by_ha_state(_make_ha_state(temperature=None, current_temperature=None, min_temp=0, max_temp=0))
+        box = entity.create_allowed_values_list()["hvac_temp_set"]["integer_values"]
+        assert (box["min"], box["max"]) == ("5", "50")
+        assert self._value(self._states(entity), "hvac_temp_set") == "5"
+
+    def test_boiler_keeps_the_ceiling_sber_sanctions_for_it(self):
+        """У бойлера потолок 80 °C законен — сужать до 50 нельзя.
+
+        Страница функции даёт 5…50, но собственный пример модели Sber на
+        странице ``hvac_boiler`` объявляет 25…80, и валидатор судит бойлер
+        по нему. Если тест упадёт: клампинг и валидатор разойдутся —
+        бойлер, скопированный с эталона Sber, начнёт терять горячие
+        уставки (75 °C станет 50 °C), а пользователь — горячую воду.
+        """
+        entity = HvacBoilerEntity(BOILER_DATA)
+        entity.fill_by_ha_state(_make_ha_state(state="heat", temperature=75.0, min_temp=0, max_temp=80.0))
+        box = entity.create_allowed_values_list()["hvac_temp_set"]["integer_values"]
+        assert (box["min"], box["max"]) == ("5", "80")
+        assert self._value(self._states(entity, "water_heater.boiler"), "hvac_temp_set") == "75"
+
+    def test_boiler_without_ha_bounds_keeps_its_own_defaults(self):
+        """Бойлер без ``min_temp``/``max_temp`` в HA остаётся при своих 25…80.
+
+        Если тест упадёт: бойлер унаследует диапазон кондиционера
+        (16…32), и реальная уставка 60 °C будет опубликована как 32 —
+        приложение Сбера покажет чуть тёплую воду вместо горячей.
+        """
+        entity = HvacBoilerEntity(BOILER_DATA)
+        entity.fill_by_ha_state(
+            {"entity_id": "water_heater.boiler", "state": "heat", "attributes": {"temperature": 60.0}}
+        )
+        box = entity.create_allowed_values_list()["hvac_temp_set"]["integer_values"]
+        assert (box["min"], box["max"]) == ("25", "80")
+        assert self._value(self._states(entity, "water_heater.boiler"), "hvac_temp_set") == "60"
+
+    def test_target_humidity_is_clamped_to_documented_floor(self):
+        """Целевая влажность 0 % у климата уезжает как документированные 30 %.
+
+        Если тест упадёт: ``hvac_humidity_set`` уйдёт нулём при
+        документированных 30…90 — климат с формальным атрибутом
+        ``humidity`` = 0 (обычное дело у сплитов без увлажнения) отдаёт
+        Сберу значение, которого функция не допускает.
+        """
+        entity = ClimateEntity(ENTITY_DATA)
+        state = _make_ha_state(temperature=22.0)
+        state["attributes"]["humidity"] = 0
+        entity.fill_by_ha_state(state)
+        assert self._value(self._states(entity), "hvac_humidity_set") == "30"

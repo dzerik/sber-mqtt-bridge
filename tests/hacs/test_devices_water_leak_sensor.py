@@ -59,142 +59,57 @@ class TestWaterLeakSensorBasicState(unittest.TestCase):
         self.assertFalse(online["value"]["bool_value"])
 
 
-class TestWaterLeakTamperAlarm(unittest.TestCase):
-    """Test tamper_alarm feature in WaterLeakSensorEntity."""
+class TestWaterLeakUndocumentedFeatures(unittest.TestCase):
+    """``tamper_alarm`` и ``alarm_mute`` датчику протечки не положены.
 
-    def test_tamper_feature_present_when_true(self):
-        """Entity with tamper=True must include tamper_alarm in features."""
+    Таблица «Доступные функции устройства» на странице
+    ``c2c/sensor_water_leak`` перечисляет ровно пять функций:
+    ``online``, ``water_leak_state``, ``battery_low_power``,
+    ``battery_percentage``, ``signal_strength``.  ``tamper_alarm``
+    документирован только для ``sensor_door``, ``alarm_mute`` — только
+    для ``sensor_gas`` и ``sensor_smoke``.
+
+    Zigbee-датчики протечки (Aqara и родня) отдают в HA атрибуты
+    ``tamper`` и ``alarm_mute``, и до 1.51 мост честно перекладывал их
+    в модель.  Если эти тесты упадут, чужая функция вернётся в
+    объявление модели — а модель с функцией вне справочника категории
+    облако вправе отбросить целиком, и пользователь увидит не «нет
+    вскрытия», а исчезнувший датчик протечки.
+    """
+
+    def test_tamper_attribute_does_not_reach_the_model(self):
+        """Атрибут ``tamper`` из HA не превращается в функцию модели."""
         entity = WaterLeakSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", tamper=True))
-        features = entity.get_final_features_list()
-        self.assertIn("tamper_alarm", features)
+        self.assertNotIn("tamper_alarm", entity.get_final_features_list())
 
-    def test_tamper_feature_present_when_false(self):
-        """Entity with tamper=False must still include tamper_alarm in features."""
+    def test_alarm_mute_attribute_does_not_reach_the_model(self):
+        """Атрибут ``alarm_mute`` из HA не превращается в функцию модели."""
         entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", tamper=False))
-        features = entity.get_final_features_list()
-        self.assertIn("tamper_alarm", features)
+        entity.fill_by_ha_state(_make_ha_state("off", alarm_mute=True))
+        self.assertNotIn("alarm_mute", entity.get_final_features_list())
 
-    def test_tamper_feature_absent_without_attribute(self):
-        """Entity without tamper attribute must not include tamper_alarm."""
+    def test_neither_is_published(self):
+        """Ни одна из двух функций не уходит и в публикуемое состояние."""
         entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off"))
-        features = entity.get_final_features_list()
-        self.assertNotIn("tamper_alarm", features)
-
-    def test_tamper_true_in_state(self):
-        """tamper=True must produce tamper_alarm=True in Sber state."""
-        entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", tamper=True))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.leak"]["states"]
-        tamper = next(s for s in states if s["key"] == "tamper_alarm")
-        self.assertTrue(tamper["value"]["bool_value"])
-
-    def test_tamper_false_in_state(self):
-        """tamper=False must produce tamper_alarm=False in Sber state."""
-        entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", tamper=False))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.leak"]["states"]
-        tamper = next(s for s in states if s["key"] == "tamper_alarm")
-        self.assertFalse(tamper["value"]["bool_value"])
-
-    def test_tamper_not_in_state_when_absent(self):
-        """Without tamper attribute, tamper_alarm must not appear in Sber state."""
-        entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off"))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.leak"]["states"]
-        keys = [s["key"] for s in states]
+        entity.fill_by_ha_state(_make_ha_state("on", tamper=True, alarm_mute=False))
+        states = entity.to_sber_current_state()["binary_sensor.leak"]["states"]
+        keys = {s["key"] for s in states}
         self.assertNotIn("tamper_alarm", keys)
-
-
-class TestWaterLeakAlarmMute(unittest.TestCase):
-    """Test alarm_mute feature in WaterLeakSensorEntity."""
-
-    def test_alarm_mute_feature_present_when_false(self):
-        """Entity with alarm_mute=False must include alarm_mute in features."""
-        entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", alarm_mute=False))
-        features = entity.get_final_features_list()
-        self.assertIn("alarm_mute", features)
-
-    def test_alarm_mute_feature_present_when_true(self):
-        """Entity with alarm_mute=True must include alarm_mute in features."""
-        entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", alarm_mute=True))
-        features = entity.get_final_features_list()
-        self.assertIn("alarm_mute", features)
-
-    def test_alarm_mute_feature_absent_without_attribute(self):
-        """Entity without alarm_mute attribute must not include it."""
-        entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off"))
-        features = entity.get_final_features_list()
-        self.assertNotIn("alarm_mute", features)
-
-    def test_alarm_mute_true_in_state(self):
-        """alarm_mute=True must produce alarm_mute=True in Sber state."""
-        entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", alarm_mute=True))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.leak"]["states"]
-        am = next(s for s in states if s["key"] == "alarm_mute")
-        self.assertTrue(am["value"]["bool_value"])
-
-    def test_alarm_mute_false_in_state(self):
-        """alarm_mute=False must produce alarm_mute=False in Sber state."""
-        entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", alarm_mute=False))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.leak"]["states"]
-        am = next(s for s in states if s["key"] == "alarm_mute")
-        self.assertFalse(am["value"]["bool_value"])
-
-    def test_alarm_mute_not_in_state_when_absent(self):
-        """Without alarm_mute attribute, it must not appear in Sber state."""
-        entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off"))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.leak"]["states"]
-        keys = [s["key"] for s in states]
         self.assertNotIn("alarm_mute", keys)
 
+    def test_documented_features_survive(self):
+        """Документированное продолжает публиковаться рядом с отброшенным.
 
-class TestWaterLeakCombinedFeatures(unittest.TestCase):
-    """Test tamper_alarm and alarm_mute together."""
-
-    def test_both_features_present(self):
-        """Both tamper_alarm and alarm_mute must appear when both attributes exist."""
+        Страховка от «починили фильтр — потеряли датчик»: обязательный
+        ``water_leak_state`` обязан остаться на месте.
+        """
         entity = WaterLeakSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", tamper=True, alarm_mute=False))
-        features = entity.get_final_features_list()
-        self.assertIn("tamper_alarm", features)
-        self.assertIn("alarm_mute", features)
-
-    def test_both_in_state(self):
-        """Both features must appear in Sber current state."""
-        entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("on", tamper=True, alarm_mute=False))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.leak"]["states"]
-        keys = [s["key"] for s in states]
-        self.assertIn("tamper_alarm", keys)
-        self.assertIn("alarm_mute", keys)
-        tamper = next(s for s in states if s["key"] == "tamper_alarm")
-        self.assertTrue(tamper["value"]["bool_value"])
-        am = next(s for s in states if s["key"] == "alarm_mute")
-        self.assertFalse(am["value"]["bool_value"])
-
-    def test_only_tamper_no_alarm_mute(self):
-        """Only tamper_alarm when only tamper attribute is present."""
-        entity = WaterLeakSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", tamper=True))
-        features = entity.get_final_features_list()
-        self.assertIn("tamper_alarm", features)
-        self.assertNotIn("alarm_mute", features)
+        states = entity.to_sber_current_state()["binary_sensor.leak"]["states"]
+        keys = {s["key"] for s in states}
+        self.assertIn("water_leak_state", keys)
+        self.assertIn("online", keys)
 
 
 class TestWaterLeakProcessCmd(unittest.TestCase):

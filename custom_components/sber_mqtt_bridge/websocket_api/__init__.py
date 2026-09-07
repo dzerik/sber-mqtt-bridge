@@ -19,6 +19,7 @@ modules to keep per-file size and concerns focused:
 - ``diffs``           — state-payload diffs (DevTools #2)
 - ``replay``          — replay / inject Sber messages (DevTools #3)
 - ``validation``      — Sber schema validation issues (DevTools #4)
+- ``reference``       — documented Sber vocabulary (feature names)
 - ``diagnose``        — per-entity diagnostic advisor (DevTools #5)
 
 All public ``ws_*`` command functions are re-exported at package level
@@ -53,6 +54,7 @@ from .io_export import ws_export, ws_import, ws_update_redefinitions
 from .links import ws_auto_link_all, ws_set_entity_links
 from .log import ws_clear_message_log, ws_message_log, ws_subscribe_messages
 from .raw import ws_raw_config, ws_raw_states, ws_send_raw_config, ws_send_raw_state
+from .reference import ws_feature_labels
 from .replay import ws_inject_sber_message, ws_replay_message
 from .settings import ws_get_settings, ws_update_settings
 from .status import (
@@ -86,6 +88,7 @@ __all__ = [
     "ws_device_detail",
     "ws_diagnose_entity",
     "ws_export",
+    "ws_feature_labels",
     "ws_get_devices",
     "ws_get_settings",
     "ws_get_status",
@@ -174,6 +177,8 @@ _COMMANDS = (
     ws_subscribe_validation_issues,
     # DevTools entity diagnose (v1.36.0)
     ws_diagnose_entity,
+    # Documented Sber vocabulary for the panel (fetched once per page)
+    ws_feature_labels,
     # Settings
     ws_get_settings,
     ws_update_settings,

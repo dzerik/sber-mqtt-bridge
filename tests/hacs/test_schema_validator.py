@@ -111,9 +111,16 @@ class TestUnknownForCategory:
 
 
 class TestNotDeclared:
-    def test_state_key_outside_declared_is_info(self) -> None:
-        # User's device advertises only "online" but tries to publish
-        # "on_off" — Sber will ignore the latter.
+    def test_state_key_outside_declared_is_an_error(self) -> None:
+        """Публикация значения функции, которой нет в модели, — ошибка.
+
+        Что сломается у пользователя, если тест упадёт: Сбер требует
+        описывать в модели каждую поддерживаемую функцию, и значение по
+        необъявленному ключу ему некуда положить.  Пока это замечание
+        было «info», такая рассинхронизация модели и публикации терялась
+        среди служебных сообщений панели, а устройство в приложении
+        просто не реагировало.
+        """
         issues = validate_publish(
             entity_id="light.x",
             category="light",
@@ -122,9 +129,7 @@ class TestNotDeclared:
         )
         nots = [i for i in issues if i.type == "not_declared"]
         assert nots
-        # Info, not error — the publish may still land (e.g. during
-        # feature rollout races) but the user should know.
-        assert nots[0].severity == "info"
+        assert nots[0].severity == "error"
 
     def test_declared_keys_no_warning(self) -> None:
         issues = validate_publish(

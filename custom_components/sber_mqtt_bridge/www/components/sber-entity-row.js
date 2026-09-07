@@ -11,6 +11,7 @@
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
+const { ensureFeatureLabels, featureTitle } = await import(`../feature-labels.js${_q}`);
 
 
 class SberEntityRow extends LitElement {
@@ -334,6 +335,7 @@ class SberEntityRow extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     ensurePanelTranslations(this.hass, this);
+    ensureFeatureLabels(this.hass, this);
   }
 
   render() {
@@ -362,7 +364,11 @@ class SberEntityRow extends LitElement {
       <td class="cell-feat">
         <div class="features">
           ${(d.features || []).map(
-            (f) => html`<span class="feature-tag">${f}</span>`
+            /* The tag keeps the identifier — the column is narrow and the
+             * identifier is what the docs, the log and the validator use.
+             * The documented human name goes into the tooltip, where it
+             * costs no width. */
+            (f) => html`<span class="feature-tag" title="${featureTitle(f)}">${f}</span>`
           )}
         </div>
       </td>

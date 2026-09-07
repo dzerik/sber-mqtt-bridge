@@ -70,56 +70,42 @@ class TestSmokeSensorProcessCmd(unittest.TestCase):
         self.assertEqual(result, [])
 
 
-class TestSmokeSensorTamperAlarm(unittest.TestCase):
-    """Test tamper_alarm feature in SmokeSensorEntity."""
+class TestSmokeSensorTamperAlarmIsForeign(unittest.TestCase):
+    """``tamper_alarm`` категории ``sensor_smoke`` не положен.
 
-    def test_tamper_feature_present_when_true(self):
-        """Entity with tamper=True must include tamper_alarm in features."""
+    Таблица «Доступные функции устройства» на странице
+    ``c2c/sensor_smoke`` его не содержит: Sber документирует
+    ``tamper_alarm`` только для ``sensor_door``.  Атрибут ``tamper``
+    у Zigbee-датчика при этом есть, и до 1.51 мост перекладывал его в
+    модель.
+
+    Если тест упадёт, чужая функция вернётся в объявление модели — а
+    модель с функцией вне справочника категории облако вправе
+    отбросить целиком: пользователь потеряет не «сигнал о вскрытии»,
+    а сам датчик.
+    """
+
+    def test_tamper_attribute_does_not_reach_the_model(self):
+        """Атрибут ``tamper`` из HA не превращается в функцию модели."""
         entity = SmokeSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", tamper=True))
-        features = entity.get_final_features_list()
-        self.assertIn("tamper_alarm", features)
+        self.assertNotIn("tamper_alarm", entity.get_final_features_list())
 
-    def test_tamper_feature_present_when_false(self):
-        """Entity with tamper=False must still include tamper_alarm in features."""
+    def test_tamper_is_not_published(self):
+        """Он не уходит и в публикуемое состояние."""
         entity = SmokeSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", tamper=False))
-        features = entity.get_final_features_list()
-        self.assertIn("tamper_alarm", features)
+        entity.fill_by_ha_state(_make_ha_state("on", tamper=True))
+        states = entity.to_sber_current_state()["binary_sensor.smoke"]["states"]
+        self.assertNotIn("tamper_alarm", {s["key"] for s in states})
 
-    def test_tamper_feature_absent_without_attribute(self):
-        """Entity without tamper attribute must not include tamper_alarm."""
+    def test_documented_features_survive(self):
+        """Документированное продолжает публиковаться рядом с отброшенным."""
         entity = SmokeSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off"))
-        features = entity.get_final_features_list()
-        self.assertNotIn("tamper_alarm", features)
-
-    def test_tamper_true_in_state(self):
-        """tamper=True must produce tamper_alarm=True in Sber state."""
-        entity = SmokeSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", tamper=True))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.smoke"]["states"]
-        tamper = next(s for s in states if s["key"] == "tamper_alarm")
-        self.assertTrue(tamper["value"]["bool_value"])
-
-    def test_tamper_false_in_state(self):
-        """tamper=False must produce tamper_alarm=False in Sber state."""
-        entity = SmokeSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", tamper=False))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.smoke"]["states"]
-        tamper = next(s for s in states if s["key"] == "tamper_alarm")
-        self.assertFalse(tamper["value"]["bool_value"])
-
-    def test_tamper_not_in_state_when_absent(self):
-        """Without tamper attribute, tamper_alarm must not appear in Sber state."""
-        entity = SmokeSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off"))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.smoke"]["states"]
-        keys = [s["key"] for s in states]
-        self.assertNotIn("tamper_alarm", keys)
+        entity.fill_by_ha_state(_make_ha_state("on", tamper=True))
+        states = entity.to_sber_current_state()["binary_sensor.smoke"]["states"]
+        keys = {s["key"] for s in states}
+        self.assertIn("smoke_state", keys)
+        self.assertIn("online", keys)
 
 
 class TestSmokeSensorAlarmMute(unittest.TestCase):
@@ -157,17 +143,24 @@ class TestSmokeSensorAlarmMute(unittest.TestCase):
         am = next(s for s in states if s["key"] == "alarm_mute")
         self.assertFalse(am["value"]["bool_value"])
 
-    def test_both_tamper_and_alarm_mute(self):
-        """Both features must appear when both attributes are present."""
+    def test_alarm_mute_survives_next_to_a_dropped_tamper(self):
+        """Из пары ``tamper``/``alarm_mute`` остаётся только документированное.
+
+        Оба атрибута приходят от одного и того же Zigbee-датчика, а
+        Sber документирует для ``sensor_smoke`` только ``alarm_mute``.
+        Если тест упадёт, фильтр категории либо пропустил чужой
+        ``tamper_alarm``, либо заодно выкинул законный ``alarm_mute`` —
+        во втором случае пользователь потеряет признак отключённой
+        сирены.
+        """
         entity = SmokeSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", tamper=True, alarm_mute=False))
         features = entity.get_final_features_list()
-        self.assertIn("tamper_alarm", features)
+        self.assertNotIn("tamper_alarm", features)
         self.assertIn("alarm_mute", features)
         result = entity.to_sber_current_state()
-        states = result["binary_sensor.smoke"]["states"]
-        keys = [s["key"] for s in states]
-        self.assertIn("tamper_alarm", keys)
+        keys = [s["key"] for s in result["binary_sensor.smoke"]["states"]]
+        self.assertNotIn("tamper_alarm", keys)
         self.assertIn("alarm_mute", keys)
 
 

@@ -6,6 +6,7 @@ import logging
 from collections.abc import Callable
 from typing import ClassVar
 
+from .._generated.obligatory_features import CATEGORY_OBLIGATORY_FEATURES
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_enum_value, make_integer_value, make_state
 from .base_entity import (
@@ -20,6 +21,35 @@ from .battery_signal_mixin import BATTERY_SIGNAL_ATTR_SPECS, BatteryAndSignalLin
 
 CURTAIN_ENTITY_CATEGORY = "curtain"
 """Sber device category for curtain/cover entities."""
+
+HA_TO_SBER_OPEN_STATE: dict[str, str] = {
+    "open": "open",
+    "opening": "opening",
+    "closed": "close",
+    "closing": "closing",
+}
+"""HA cover state -> Sber ``open_state`` enum value."""
+
+TRANSITIONAL_OPEN_STATES: frozenset[str] = frozenset({"opening", "closing"})
+"""``open_state`` values that mean "the leaf is moving right now".
+
+The Sber app greys the control button out while one of these is
+published (verified on live gate hardware), so a value from this set
+must never survive into a publish that is not backed by a live HA
+state."""
+
+OFFLINE_OPEN_STATE_FALLBACK = "close"
+"""``open_state`` published for a drive that has never reported a position.
+
+``open_state`` is obligatory for ``curtain`` / ``gate`` /
+``window_blind`` (:data:`CATEGORY_OBLIGATORY_FEATURES`), so silence is
+not an option, and there is no honest third value — Sber documents only
+``open`` / ``close`` / ``opening`` / ``closing``.  Of the two stable
+ones ``close`` is the safe guess: a user acting on a wrong ``close``
+sends "open", which at worst opens an already-open gate, while a user
+acting on a wrong ``open`` sends "close" — possibly onto a car in the
+gateway.  :class:`~devices.gate.ImpulseGateEntity` already guesses the
+same way for a gate with no contact sensor linked."""
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,6 +97,7 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
         self.current_position = 0
         self._open_rate: str | None = None
         self._tilt_position: int | None = None
+        self._last_open_state: str | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Update state from Home Assistant data.
@@ -74,6 +105,9 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
         Battery level, tilt position and signal strength are parsed via
         :class:`AttrSpec`.  ``current_position`` and ``open_rate`` have
         custom fallback / mapping logic and stay imperative.
+
+        A resting position seen here is remembered for the offline
+        publish — see :meth:`_remember_open_state`.
 
         Args:
             ha_state: HA state dict with 'state' and 'attributes' keys.
@@ -83,6 +117,51 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
         self._apply_attr_specs(attrs)
         self.current_position = self._parse_current_position(attrs)
         self._open_rate = self._parse_open_rate(attrs)
+        self._remember_open_state()
+
+    def _remember_open_state(self) -> None:
+        """Latch the last *resting* ``open_state`` reported by HA.
+
+        Only stable values are latched.  ``opening`` / ``closing`` say
+        where the leaf is going, not where it is, and the Sber app blocks
+        the control button for as long as one of them is published
+        (:data:`TRANSITIONAL_OPEN_STATES`) — republishing a frozen
+        ``closing`` for a drive that has already dropped off the network
+        would take the gate out of the user's hands until HA comes back.
+        """
+        if not self._is_online:
+            return
+        value = self._compute_open_state()
+        if value in TRANSITIONAL_OPEN_STATES:
+            return
+        self._last_open_state = value
+
+    def _compute_open_state(self) -> str:
+        """Derive ``open_state`` from the live HA state and position.
+
+        Keeps ``open_state`` and ``open_percentage`` consistent: for a
+        resting cover a non-zero percentage always reads ``open`` and a
+        zero one always ``close``, whatever the HA state string says.
+
+        Returns:
+            One of ``open`` / ``close`` / ``opening`` / ``closing``.
+        """
+        sber_pos = self._convert_position(self.current_position)
+        open_state = HA_TO_SBER_OPEN_STATE.get(self.state, "close" if sber_pos == 0 else "open")
+        if open_state in TRANSITIONAL_OPEN_STATES:
+            return open_state
+        return "open" if sber_pos > 0 else "close"
+
+    def _offline_open_state(self) -> str:
+        """``open_state`` to publish while the cover is unreachable.
+
+        The last resting position, or :data:`OFFLINE_OPEN_STATE_FALLBACK`
+        when the drive has never reported one.
+
+        Returns:
+            A stable ``open_state`` enum value — never a transitional one.
+        """
+        return self._last_open_state or OFFLINE_OPEN_STATE_FALLBACK
 
     def _parse_current_position(self, attrs: dict) -> int:
         """Parse ``current_position`` with fallback based on HA state."""
@@ -238,10 +317,31 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
             }
         return allowed
 
+    def _offline_obligatory_features(self) -> frozenset[str]:
+        """Features this category must publish even with ``online=false``.
+
+        Read from the generated documentation tables rather than
+        hard-coded: a category that gains an obligatory feature upstream
+        starts keeping it offline without a code change here.
+
+        Returns:
+            Obligatory feature keys of :attr:`category`.
+        """
+        return CATEGORY_OBLIGATORY_FEATURES.get(self.category, frozenset())
+
     def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with position, open state, and signal.
 
         Per Sber C2C specification, ``integer_value`` is serialized as a string.
+
+        While the cover is unreachable only ``online=false`` and the
+        obligatory ``open_state`` go out.  ``open_state`` is obligatory
+        for ``curtain`` / ``gate`` / ``window_blind``, and Sber treats a
+        publish that omits an obligatory feature as a broken device — the
+        same reasoning that keeps alarm states flowing for offline
+        sensors.  ``open_percentage`` is *not* obligatory and is a
+        reading, so it is dropped instead of being fabricated: the cloud
+        keeps the last real percentage.
 
         Returns:
             Dict mapping entity_id to its Sber state representation.
@@ -250,6 +350,8 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
             states = [
                 make_state(SberFeature.ONLINE, make_bool_value(False)),
             ]
+            if SberFeature.OPEN_STATE.value in self._offline_obligatory_features():
+                states.append(make_state(SberFeature.OPEN_STATE, make_enum_value(self._offline_open_state())))
             return {self.entity_id: {"states": states}}
 
         states = [
@@ -259,19 +361,7 @@ class CurtainEntity(BatteryAndSignalLinkMixin, BaseEntity):
         states.append(
             make_state(SberFeature.OPEN_PERCENTAGE, make_integer_value(self._convert_position(self.current_position)))
         )
-
-        # Enforce consistency: open_state must match open_percentage
-        sber_pos = self._convert_position(self.current_position)
-        # Sber supports: open, close, opening, closing
-        state_map = {"open": "open", "opening": "opening", "closed": "close", "closing": "closing"}
-        open_state = state_map.get(self.state, "close" if sber_pos == 0 else "open")
-        # Force alignment for stable states: percentage > 0 must be 'open'; 0 must be 'close'
-        if self.state not in ("opening", "closing"):
-            if sber_pos > 0 and open_state == "close":
-                open_state = "open"
-            elif sber_pos == 0 and open_state == "open":
-                open_state = "close"
-        states.append(make_state(SberFeature.OPEN_STATE, make_enum_value(open_state)))
+        states.append(make_state(SberFeature.OPEN_STATE, make_enum_value(self._compute_open_state())))
 
         if self.category in self._BATTERY_CATEGORIES:
             self._append_battery_signal_states(states)

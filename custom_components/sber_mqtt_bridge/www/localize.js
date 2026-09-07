@@ -113,6 +113,19 @@ export const EN_FALLBACK = {
   "stats.never_confirmed": "Never confirmed",
   "stats.never_confirmed_title": "Never confirmed by Sber",
   "stats.never_confirmed_hint": "Devices the Sber cloud has never once asked about. Survives restarts, so a device listed here is genuinely not getting through.",
+  "stats.last_error": "Last error from Sber",
+  "stats.last_error_superseded":
+    "Sber has talked to the bridge since — the bridge may already be working again",
+
+  // --- Sber error codes (c2c/error, c2c/common-error) ---
+  // Wording follows Sber's own, one line per documented code; a code the
+  // reference does not list falls back to `sber_error.unknown`.
+  "sber_error.400": "request validation error",
+  "sber_error.401": "authorization error",
+  "sber_error.403": "token verification error",
+  "sber_error.500": "internal system error",
+  "sber_error.503": "server unavailable",
+  "sber_error.unknown": "error code not described in the Sber documentation",
 
   // --- json ---
   "json.copy": "Copy JSON",
@@ -309,6 +322,67 @@ export const EN_FALLBACK = {
   "validation.col_desc": "Description",
   "validation.col_time": "Time",
 
+  // --- validation issue sentences (schema_validator.VALIDATION_MESSAGES) ---
+  // Rendered through `t()` with a dynamic key, so the parity tests that
+  // scan for literal `t(this.hass, "…")` calls cannot see them; they are
+  // covered instead by tests/hacs/test_validation_messages_are_localized.py,
+  // which walks the validator's own catalogue key by key.
+  "validation_issue.allowed_values_bad_type":
+    "Feature “{key}”: allowed_values declares type “{declared}”, but Sber only lets a model override {permitted}. The limit will not be applied.",
+  "validation_issue.allowed_values_inert":
+    "Feature “{key}”: an allowed_values entry of type “{declared}” restricts nothing — Sber only overrides {permitted}. It does not affect the device and can be removed.",
+  "validation_issue.allowed_values_narrowing_unconfirmed":
+    "Feature “{key}”: the model shortens its allowed values, and this function's page does not state that shortening is permitted. Sber does not forbid it in writing either — check the model against the documentation.",
+  "validation_issue.allowed_values_type_mismatch":
+    "Feature “{key}”: allowed_values declares type “{declared}” while Sber types the feature itself as “{expected}”.",
+  "validation_issue.allowed_values_unknown_enum":
+    "Feature “{key}”: allowed_values offers {sent}, which is missing from Sber's vocabulary for this feature ({allowed}). The app will draw a button that does nothing.",
+  "validation_issue.allowed_values_widened":
+    "Feature “{key}”: the model declares the range {declared_min}…{declared_max} while Sber documents {min}…{max}. A range may only be narrowed, never widened. Limit the entity in Home Assistant or in the bridge's redefinitions.",
+  "validation_issue.allowed_values_wrong_block":
+    "Feature “{key}”: the entry declares type “{declared}” but carries its limits in {present} instead of “{expected_block}”. Sber cannot read such an entry.",
+  "validation_issue.colour_component_out_of_range":
+    "Feature “{key}”: colour component {component} = {sent} is outside the documented range {min}…{max}. Sber will show a different colour or drop the value.",
+  "validation_issue.conditional_group_missing":
+    "Category “{category}” requires at least one of: {group}. The device declares none of them, so Sber will drop it.",
+  "validation_issue.declared_not_published":
+    "Feature “{key}” is advertised in the device model but carries no value in this publish. Sber's answer to a state query must list every advertised feature, so the app is left with a control that never updates. Either publish a value for it or drop the feature.",
+  "validation_issue.device_missing_field":
+    "The device descriptor has no obligatory field “{field}”. Sber drops such a device whole — it will not appear in the app.",
+  "validation_issue.device_missing_model":
+    "The device declares no model: it needs either the “model_id” of an already registered model, or an inline “model” description.",
+  "validation_issue.feature_unknown_for_category_model":
+    "Feature “{key}” is advertised in the device model but is not in Sber's reference set for category “{category}”. Remove it, or move the device to a category that has it.",
+  "validation_issue.feature_unknown_for_category_state":
+    "Feature “{key}” is not in Sber's reference set for category “{category}”.",
+  "validation_issue.model_missing_field":
+    "The device model has no obligatory field “{field}”. Sber drops the model, and with it every device built on it.",
+  "validation_issue.obligatory_not_declared":
+    "Feature “{key}” is obligatory for category “{category}” but is missing from the device model. Sber drops such a device silently.",
+  "validation_issue.obligatory_not_published":
+    "Feature “{key}” is obligatory for category “{category}” but carries no value in this publish. Sber drops such a device silently.",
+  "validation_issue.partner_meta_too_long":
+    "partner_meta takes {size} JSON characters against a limit of {max}. It is the only numeric limit in the whole Sber reference, and a device above it is not accepted.",
+  "validation_issue.state_not_declared":
+    "Feature “{key}” is published but not advertised in the device's config features list. Sber requires every supported feature to be described in the model, or the value is discarded.",
+  "validation_issue.state_unknown_enum":
+    "Feature “{key}” sent value “{sent}”, which is not one of the values Sber documents for it. The cloud cannot route a value it does not know.",
+  "validation_issue.type_mismatch": "Feature “{key}” sent as {actual}, spec requires {expected}.",
+  "validation_issue.value_foreign_fields":
+    "Feature “{key}”: the {declared} value carries foreign fields {foreign} next to the expected “{own_field}”. Extra fields are a known cause of silent rejection.",
+  "validation_issue.value_integer_must_be_string":
+    "Feature “{key}”: field “integer_value” is sent as a JSON {actual}, but Sber requires the integer as a string (“42”, not 42). Such a state reaches the cloud and is silently lost.",
+  "validation_issue.value_missing_type":
+    "Feature “{key}”: the value has no “type” field, so Sber cannot tell how to read it and drops the state.",
+  "validation_issue.value_not_an_object":
+    "Feature “{key}”: the value is not an object but a JSON {json_type}, so Sber cannot read it.",
+  "validation_issue.value_out_of_range":
+    "Feature “{key}” sent {sent}, outside the documented range {min}…{max}. Sber may clip or drop it.",
+  "validation_issue.value_unknown_type":
+    "Feature “{key}”: value type “{declared}” is unknown to Sber. Only {allowed} are defined.",
+  "validation_issue.value_wrong_json_type":
+    "Feature “{key}”: field “{field}” is sent as a JSON {actual}, but Sber documents it as {expected}. Such a state reaches the cloud and is silently lost.",
+
   // --- traces ---
   "traces.col_event": "Event",
   "traces.col_entity": "Entity",
@@ -465,6 +539,30 @@ export function t(hass, key, placeholders) {
   if (translated) return translated;
   const fallback = EN_FALLBACK[key];
   return fallback === undefined ? key : _fill(fallback, placeholders);
+}
+
+/**
+ * Localized meaning of a Sber error code.
+ *
+ * Sber publishes five error codes and a one-line meaning for each
+ * (`c2c/error`, `c2c/common-error`), and those meanings are the only
+ * thing that separates "your credentials are wrong" (403) from "come
+ * back later" (503).  The panel used to show the bare number.
+ *
+ * A code outside the documented five is reported as such rather than
+ * guessed at: Sber may add one, and a wrong explanation is worse than
+ * an honest "not in the documentation".
+ *
+ * @param {object} hass - Home Assistant object handed to the panel.
+ * @param {number|string|null|undefined} code - Code from the error
+ *   packet.
+ * @returns {string} The meaning, or `""` when there is no code at all.
+ */
+export function sberErrorText(hass, code) {
+  if (code === null || code === undefined || code === "") return "";
+  const key = `sber_error.${code}`;
+  const text = t(hass, key);
+  return text === key ? t(hass, "sber_error.unknown") : text;
 }
 
 /**

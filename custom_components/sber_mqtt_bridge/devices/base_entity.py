@@ -10,6 +10,7 @@ import copy
 import hashlib
 import json
 import logging
+import math
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -17,6 +18,7 @@ from typing import ClassVar, TypedDict
 
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 
+from .._generated.category_features import CATEGORY_REFERENCE_FEATURES
 from ..sber_constants import SERVICE_CALL_TYPE, SERVICE_TURN_OFF, SERVICE_TURN_ON
 from ..sber_models import normalize_sber_value
 
@@ -167,23 +169,91 @@ class AttrSpec:
 
 
 def _safe_int_parser(value: object) -> int | None:
-    """AttrSpec parser: convert to int via float (handles ``"22.5"`` strings)."""
-    if value is None:
+    """AttrSpec parser: convert to int via float (handles ``"22.5"`` strings).
+
+    Args:
+        value: Raw HA attribute value.
+
+    Returns:
+        The integer part of the value, or ``None`` when it is absent or
+        not a finite number — see :func:`_safe_float_parser` for why
+        ``NaN`` and infinities count as absent.
+    """
+    parsed = _safe_float_parser(value)
+    if parsed is None:
         return None
-    try:
-        return int(float(value))
-    except (TypeError, ValueError):
-        return None
+    return int(parsed)
 
 
 def _safe_float_parser(value: object) -> float | None:
-    """AttrSpec parser: convert to float."""
+    """AttrSpec parser: convert to float, rejecting non-finite numbers.
+
+    ``float('nan')`` and ``float('inf')`` reach us from Home Assistant as
+    a matter of routine: a template sensor that divided by zero, a modbus
+    register full of garbage, an MQTT payload spelling ``"nan"``.  They
+    are honest ``float`` objects, so an unguarded ``float()`` lets them
+    through — and everything downstream then breaks in ways that are hard
+    to trace back to the attribute:
+
+    * ``int(float('nan'))`` raises ``ValueError``.  It is caught by
+      ``sber_protocol.build_states_list_json``, which drops the whole
+      device from ``up/status``; Sber expects every advertised feature in
+      that answer, so a device missing from it reads as broken.  The user
+      sees "the climate disappeared" and the log holds one traceback with
+      no mention of the attribute.
+    * ``int(float('inf'))`` raises ``OverflowError``, which that handler
+      does **not** catch — the exception escapes and takes the publish
+      with it.
+    * a ``NaN`` that survives as a float serializes to the JSON literal
+      ``NaN``, which is a Python extension rather than JSON and which the
+      broker rejects.
+
+    Treating such a value as "the attribute has no value" keeps the
+    device in the publish with its remaining features intact.
+
+    Args:
+        value: Raw HA attribute value.
+
+    Returns:
+        The value as a finite ``float``, or ``None`` when it is absent,
+        unparseable, or not finite.
+    """
     if value is None:
         return None
     try:
-        return float(value)
+        parsed = float(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return None
+    if not math.isfinite(parsed):
+        _LOGGER.debug("Ignoring non-finite attribute value %r", value)
+        return None
+    return parsed
+
+
+def _drop_non_finite(value: object) -> object:
+    """Map a non-finite ``float`` to ``None``, pass everything else through.
+
+    :class:`AttrSpec` entries whose attribute is already a number declare
+    no ``parser``, so :func:`_safe_float_parser` never sees the value and
+    a ``NaN`` coming from Home Assistant lands straight in an entity
+    field (``devices/humidifier.py`` reads ``current_humidity`` that
+    way).  It then detonates at publish time, far from its origin — see
+    :func:`_safe_float_parser` for what that costs.
+
+    Normalising it here makes "not a finite number" mean the same thing
+    as "the attribute is absent" for **every** device class at once,
+    which is also what lets ``preserve_on_missing`` keep the last good
+    reading instead of overwriting it with garbage.
+
+    Args:
+        value: Value produced by a spec's parser or converter.
+
+    Returns:
+        ``None`` for ``NaN`` / ``±Infinity``, otherwise ``value`` itself.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
 
 
 def _safe_bool_parser(value: object) -> bool | None:
@@ -589,6 +659,7 @@ class BaseEntity(ABC):
         self._previous_sber_state: dict | None = None
         self._linked_entities: dict[str, str] = {}
         self._undeclared_keys_logged: set[str] = set()
+        self._foreign_features_logged: set[str] = set()
 
         if entity_data:
             self.area_id = entity_data.get("area_id", "")
@@ -638,6 +709,7 @@ class BaseEntity(ABC):
                     parsed = spec.converter(attrs)
                 except (TypeError, ValueError, KeyError):
                     parsed = spec.default
+                parsed = _drop_non_finite(parsed)
                 if parsed is None and spec.preserve_on_missing:
                     continue
                 setattr(self, spec.field, parsed if parsed is not None else spec.default)
@@ -658,6 +730,7 @@ class BaseEntity(ABC):
                 parsed = spec.parser(raw)
             except (TypeError, ValueError):
                 parsed = spec.default
+            parsed = _drop_non_finite(parsed)
             if parsed is None and spec.preserve_on_missing:
                 continue
             setattr(self, spec.field, parsed if parsed is not None else spec.default)
@@ -736,14 +809,24 @@ class BaseEntity(ABC):
         """
         return {}
 
-    def get_final_features_list(self) -> list[str]:
-        """Return features list with user overrides applied.
+    @property
+    def declared_features(self) -> list[str]:
+        """Return what this entity declares *before* the category gate.
 
-        Removes features from ``removed_features`` and appends features
-        from ``extra_features``.  Duplicate-safe.
+        This is the device classes' own answer plus the user's
+        ``sber_features_add`` / ``sber_features_remove``, with nothing
+        removed on account of the Sber reference tables.  Nothing on the
+        wire uses it — :meth:`get_final_features_list` is what publishes —
+        but the compliance suite does, and that is the point: a test that
+        read the published list would be comparing the output of
+        :meth:`_drop_features_foreign_to_category` against the very table
+        that method filters by, and could never fail.  Reading the
+        declaration instead keeps the safety net (the runtime filter) and
+        the watchdog (the test) independent, so a class that starts
+        contributing a foreign function is still caught.
 
         Returns:
-            Final list of Sber feature names.
+            Feature names as declared, duplicates already removed.
         """
         features = self._create_features_list()
         if self.removed_features:
@@ -752,6 +835,116 @@ class BaseEntity(ABC):
             existing = set(features)
             features.extend(f for f in self.extra_features if f not in existing)
         return features
+
+    def get_final_features_list(self) -> list[str]:
+        """Return the feature list that goes on the wire.
+
+        User overrides (:attr:`extra_features` / :attr:`removed_features`)
+        are applied first, then features our own classes contributed but
+        Sber does not document for the category are dropped — see
+        :meth:`_drop_features_foreign_to_category`.
+
+        Returns:
+            Final list of Sber feature names.
+        """
+        return self._drop_features_foreign_to_category(self.declared_features)
+
+    def _drop_features_foreign_to_category(self, features: list[str]) -> list[str]:
+        """Drop features *we* declared that Sber does not document for the category.
+
+        Every category page carries a closed table of the functions it
+        has ("Доступные функции устройства"), scraped into
+        :data:`CATEGORY_REFERENCE_FEATURES`.  A function outside it is
+        not a function Sber merely ignores: the model is validated as a
+        whole, so one foreign name is a reason for the cloud to drop the
+        device — silently, with no error anywhere, leaving the user with
+        an empty space where the intercom should be.
+
+        This is a **safety net, not the fix**.  Each device class is
+        expected to declare only what its category has, and
+        ``TestDeclaredFeaturesBelongToTheCategory`` checks
+        :attr:`declared_features` — the list *before* this method — against
+        the same tables, so a class that regresses is caught by a red test
+        rather than quietly patched up here.  The net stays because the
+        mistake keeps arriving by inheritance (``intercom`` used to get
+        ``on_off`` from :class:`~.on_off_entity.OnOffEntity`) and because a
+        category added later would otherwise ship unguarded.
+
+        ``sber_features_add`` is deliberately **not** filtered.  The
+        reference tables are a scrape of the documentation, and the scrape
+        is demonstrably incomplete: the ``led_strip`` page lists
+        ``sleep_timer`` in its own reference example while the function
+        table our generator reads does not carry it.  A user copying a
+        function off the page they are looking at would then get it
+        silently removed with advice to delete a line that is correct.
+        They have the Sber app in front of them and we have a snapshot, so
+        their word wins; the log says what the risk is and the decision
+        stays theirs.
+
+        A category unknown to the reference table (an internal alias, a
+        page the scraper has not seen) is passed through unfiltered —
+        the table is evidence of what Sber documents, not of what it
+        forbids, and silently stripping a device down on missing
+        evidence would be worse than the foreign key.
+
+        Args:
+            features: Declared feature list, user overrides already applied.
+
+        Returns:
+            The same list without names our classes had no right to add.
+        """
+        reference = CATEGORY_REFERENCE_FEATURES.get(self.category)
+        if reference is None:
+            return features
+        undocumented = [name for name in features if name not in reference]
+        if not undocumented:
+            return features
+        self._log_foreign_features(undocumented)
+        kept = set(self.extra_features)
+        return [name for name in features if name in reference or name in kept]
+
+    def _log_foreign_features(self, foreign: list[str]) -> None:
+        """Report once per entity instance about each undocumented feature.
+
+        The feature list is rebuilt on every publish, so an unguarded
+        message would repeat for the life of the bridge.
+
+        The level splits by who is able to act on it.  A name the user put
+        into ``sber_features_add`` is their line of configuration and
+        their decision, so it is a warning that names the risk and lets
+        the feature through.  A name one of our device classes
+        contributed is a bug in this integration that no user setting can
+        change, and warning about it on every restart would be noise they
+        cannot silence; it is dropped and logged at debug level, and
+        ``TestDeclaredFeaturesBelongToTheCategory`` is what stops it from
+        reaching a release in the first place.
+
+        Args:
+            foreign: Feature names Sber does not document for the category.
+        """
+        fresh = [name for name in foreign if name not in self._foreign_features_logged]
+        if not fresh:
+            return
+        self._foreign_features_logged.update(fresh)
+        user_added = sorted(name for name in fresh if name in self.extra_features)
+        ours = sorted(name for name in fresh if name not in self.extra_features)
+        if user_added:
+            _LOGGER.warning(
+                "Entity %s: feature(s) %s from sber_features_add are not documented for category '%s' "
+                "in our snapshot of the Sber docs. They are published as you asked, but if the cloud "
+                "disagrees it can reject the whole device — if it disappears from the Sber app, "
+                "remove them from the redefinition.",
+                self.entity_id,
+                ", ".join(user_added),
+                self.category,
+            )
+        if ours:
+            _LOGGER.debug(
+                "Entity %s: dropping feature(s) %s — Sber does not document them for category '%s'",
+                self.entity_id,
+                ", ".join(ours),
+                self.category,
+            )
 
     def update_linked_data(self, role: str, ha_state: dict) -> None:  # noqa: B027 — intentional concrete no-op, not abstract
         """Inject state from a linked companion HA entity (default: no-op).
@@ -812,7 +1005,7 @@ class BaseEntity(ABC):
             "name": display_name,
             "default_name": self._resolve_default_name(),
             "room": device.get("area_id") or self.area_id,
-            "model": self._build_model_descriptor(device, display_name),
+            "model": self._build_model_descriptor(device),
             "hw_version": device.get("hw_version") or "1",
             "sw_version": device.get("sw_version") or "1",
         }
@@ -853,7 +1046,7 @@ class BaseEntity(ABC):
             return self.original_name or self.entity_id
         return self.entity_id
 
-    def _build_model_descriptor(self, device: DeviceData, display_name: str) -> dict:
+    def _build_model_descriptor(self, device: DeviceData) -> dict:
         """Build the ``model`` block of a Sber device descriptor.
 
         The emitted ``model.id`` is ``{ha_model_id}_{category}_{digest}``
@@ -889,12 +1082,11 @@ class BaseEntity(ABC):
 
         Args:
             device: Device registry data dict (may be empty).
-            display_name: Resolved display name for description.
 
         Returns:
             Model descriptor dict ready for ``to_sber_state`` output.
         """
-        raw_model_id = device.get("model_id", "") if self.linked_device else ""
+        raw_model_id = device.get("model_id", "") or ""
         model_id = f"{raw_model_id}_{self.category}" if raw_model_id else f"Mdl_{self.category}"
 
         features = self.get_final_features_list()
@@ -917,11 +1109,12 @@ class BaseEntity(ABC):
                     extra,
                 )
 
+        hardware = {key: str(device[key]) for key in ("manufacturer", "model") if device.get(key)}
         descriptor: dict = {
-            "id": f"{model_id}_{self._capability_digest(features, allowed)}",
+            "id": f"{model_id}_{self._capability_digest(features, allowed, hardware)}",
             "manufacturer": device.get("manufacturer") or "Unknown",
             "model": device.get("model") or "Unknown",
-            "description": display_name,
+            "description": self._model_description(hardware),
             "category": self.category,
             "features": features,
         }
@@ -932,8 +1125,42 @@ class BaseEntity(ABC):
             descriptor["dependencies"] = deps
         return descriptor
 
+    def _model_description(self, hardware: dict[str, str]) -> str:
+        """Return the ``model.description`` text — a description of the *model*.
+
+        Sber's ``model`` block describes a product, not an installation:
+        ``id`` is "часто product_id", ``manufacturer`` is the vendor and
+        ``model`` the product name.  Until 1.51 this field carried the
+        entity's **display name**, which is a property of one device and
+        already travels in ``device.name``.  Two identical sensors of the
+        same vendor named "Кухня" and "Спальня" therefore left in one
+        config payload under one ``model.id`` with two different
+        descriptions — the same collision issue #63 is about, only inside
+        a vendor instead of across vendors, and the more common of the
+        two.  Naming the model after the hardware removes it: identical
+        hardware now yields an identical descriptor, and renaming a device
+        moves nothing.
+
+        The fallback for an entity Home Assistant has no device for names
+        the bridge and the category, which is genuinely all that is known
+        about such a "model".
+
+        Args:
+            hardware: ``manufacturer`` / ``model`` as Home Assistant knows
+                them; empty when it knows neither.
+
+        Returns:
+            Human-readable model description.
+        """
+        named = [hardware[key] for key in ("manufacturer", "model") if hardware.get(key)]
+        return " ".join(named) if named else f"Home Assistant {self.category}"
+
     @staticmethod
-    def _capability_digest(features: Iterable[str], allowed_values: dict[str, dict]) -> str:
+    def _capability_digest(
+        features: Iterable[str],
+        allowed_values: dict[str, dict],
+        hardware: dict[str, str] | None = None,
+    ) -> str:
         """Return a short stable digest of a device's advertised capabilities.
 
         Two entities produce the same digest **iff** they advertise the
@@ -951,16 +1178,64 @@ class BaseEntity(ABC):
         :func:`hash` per process).  MD5 is used purely as a checksum,
         hence ``usedforsecurity=False``.
 
+        **Why the hardware name is part of it.**  Capabilities alone are
+        not enough to tell two models apart.  An Aqara ``WSDCGQ11LM`` and
+        a Sonoff ``SNZB-02`` are both temperature sensors with the same
+        feature set, so before 1.51 they hashed to the same
+        ``Mdl_sensor_temp_…`` id while carrying different
+        ``manufacturer`` and ``model`` in their descriptors — one config
+        payload declaring the same model twice, with conflicting
+        contents.  The cloud keeps one model per id, so which of the two
+        descriptions survived was undefined (issue #63).
+
+        ``manufacturer`` / ``model`` join the digest only when Home
+        Assistant actually knows them.  For an entity with no device
+        behind it the descriptor says ``Unknown`` for both, and two such
+        entities of one category with one feature set are genuinely
+        indistinguishable — adding a constant to the hash would only
+        churn their ids for nothing.
+
+        ``description`` is not listed separately because since 1.51 it is
+        a function of ``hardware`` already (see
+        :meth:`_model_description`): everything the descriptor says about
+        the model is either in the digest or derived from something that
+        is, so one id can no longer name two different descriptors.  The
+        entity's display name is what it must never contain — the user
+        renames devices at will, and re-registering a cloud model on every
+        rename would cost far more than the collision it avoids.
+
+        **The compromise this makes.**  ``manufacturer`` and ``model``
+        come from the HA device registry, and integrations rewrite them:
+        a zigbee2mqtt or ZHA database update that turns ``TS0601`` into
+        ``Moes ZTRV-…`` moves the digest, and the cloud registers a new
+        model for hardware that did not change.  That is accepted rather
+        than avoided: dropping ``model`` and keying on ``manufacturer``
+        alone would put two different products of one vendor back under a
+        single id with conflicting descriptors, which is the very defect
+        being fixed.  Such a drift is silent —
+        :data:`~.cloud_device_registry.MODEL_IDENTITY_REVISION` marks
+        changes to *this formula*, not to the data HA feeds it, so the
+        user gets no notice.  A stray re-registration is the price; the
+        notice exists for the release that moves every id at once.
+
         Args:
             features: Final feature names (order irrelevant).
             allowed_values: ``allowed_values`` map already reconciled
                 with ``features``.
+            hardware: ``manufacturer`` / ``model`` as Home Assistant
+                knows them, empty or ``None`` when it knows neither.
 
         Returns:
             8-character lowercase hex digest.
         """
+        identity: dict[str, object] = {
+            "features": sorted(set(features)),
+            "allowed_values": allowed_values,
+        }
+        if hardware:
+            identity["hardware"] = hardware
         canonical = json.dumps(
-            {"features": sorted(set(features)), "allowed_values": allowed_values},
+            identity,
             sort_keys=True,
             ensure_ascii=False,
             separators=(",", ":"),

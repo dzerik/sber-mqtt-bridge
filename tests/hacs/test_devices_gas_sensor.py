@@ -60,56 +60,42 @@ class TestGasSensorToSberCurrentState(unittest.TestCase):
         self.assertFalse(online["value"]["bool_value"])
 
 
-class TestGasSensorTamperAlarm(unittest.TestCase):
-    """Test tamper_alarm feature in GasSensorEntity."""
+class TestGasSensorTamperAlarmIsForeign(unittest.TestCase):
+    """``tamper_alarm`` категории ``sensor_gas`` не положен.
 
-    def test_tamper_feature_present_when_true(self):
-        """Entity with tamper=True must include tamper_alarm in features."""
+    Таблица «Доступные функции устройства» на странице
+    ``c2c/sensor_gas`` его не содержит: Sber документирует
+    ``tamper_alarm`` только для ``sensor_door``.  Атрибут ``tamper``
+    у Zigbee-датчика при этом есть, и до 1.51 мост перекладывал его в
+    модель.
+
+    Если тест упадёт, чужая функция вернётся в объявление модели — а
+    модель с функцией вне справочника категории облако вправе
+    отбросить целиком: пользователь потеряет не «сигнал о вскрытии»,
+    а сам датчик.
+    """
+
+    def test_tamper_attribute_does_not_reach_the_model(self):
+        """Атрибут ``tamper`` из HA не превращается в функцию модели."""
         entity = GasSensorEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("off", tamper=True))
-        features = entity.get_final_features_list()
-        self.assertIn("tamper_alarm", features)
+        self.assertNotIn("tamper_alarm", entity.get_final_features_list())
 
-    def test_tamper_feature_present_when_false(self):
-        """Entity with tamper=False must still include tamper_alarm in features."""
+    def test_tamper_is_not_published(self):
+        """Он не уходит и в публикуемое состояние."""
         entity = GasSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", tamper=False))
-        features = entity.get_final_features_list()
-        self.assertIn("tamper_alarm", features)
+        entity.fill_by_ha_state(_make_ha_state("on", tamper=True))
+        states = entity.to_sber_current_state()["binary_sensor.gas"]["states"]
+        self.assertNotIn("tamper_alarm", {s["key"] for s in states})
 
-    def test_tamper_feature_absent_without_attribute(self):
-        """Entity without tamper attribute must not include tamper_alarm."""
+    def test_documented_features_survive(self):
+        """Документированное продолжает публиковаться рядом с отброшенным."""
         entity = GasSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off"))
-        features = entity.get_final_features_list()
-        self.assertNotIn("tamper_alarm", features)
-
-    def test_tamper_true_in_state(self):
-        """tamper=True must produce tamper_alarm=True in Sber state."""
-        entity = GasSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", tamper=True))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.gas"]["states"]
-        tamper = next(s for s in states if s["key"] == "tamper_alarm")
-        self.assertTrue(tamper["value"]["bool_value"])
-
-    def test_tamper_false_in_state(self):
-        """tamper=False must produce tamper_alarm=False in Sber state."""
-        entity = GasSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off", tamper=False))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.gas"]["states"]
-        tamper = next(s for s in states if s["key"] == "tamper_alarm")
-        self.assertFalse(tamper["value"]["bool_value"])
-
-    def test_tamper_not_in_state_when_absent(self):
-        """Without tamper attribute, tamper_alarm must not appear in Sber state."""
-        entity = GasSensorEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("off"))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.gas"]["states"]
-        keys = [s["key"] for s in states]
-        self.assertNotIn("tamper_alarm", keys)
+        entity.fill_by_ha_state(_make_ha_state("on", tamper=True))
+        states = entity.to_sber_current_state()["binary_sensor.gas"]["states"]
+        keys = {s["key"] for s in states}
+        self.assertIn("gas_leak_state", keys)
+        self.assertIn("online", keys)
 
 
 class TestGasSensorAlarmMute(unittest.TestCase):

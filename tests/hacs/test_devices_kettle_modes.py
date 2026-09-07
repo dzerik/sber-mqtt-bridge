@@ -1192,7 +1192,9 @@ def test_published_state_keys_are_exactly_the_kettle_set() -> None:
     }
     assert published["kitchen_water_temperature"] == {"type": "INTEGER", "integer_value": "55"}
     assert published["kitchen_water_temperature_set"] == {"type": "INTEGER", "integer_value": "80"}
-    assert published["kitchen_water_level"] == {"type": "INTEGER", "integer_value": "70"}
+    # kitchen_water_level документирован как FLOAT (литры, 0…50), а не INTEGER:
+    # облако читает поле, названное типом, и INTEGER-конверт для него не видит.
+    assert published["kitchen_water_level"] == {"type": "FLOAT", "float_value": 70.0}
     assert published["kitchen_water_low_level"] == {"type": "BOOL", "bool_value": False}
     assert published["child_lock"] == {"type": "BOOL", "bool_value": True}
     assert published["online"] == {"type": "BOOL", "bool_value": True}

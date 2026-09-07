@@ -32,14 +32,23 @@ class TestIntercomCreate(unittest.TestCase):
         self.assertFalse(entity.current_state)
 
     def test_features_list(self):
+        """Домофон объявляет ровно четыре документированные функции.
+
+        Страница ``c2c/intercom`` перечисляет ``online``,
+        ``incoming_call``, ``reject_call`` и ``unlock`` — и всё.
+        ``on_off`` домофон получал по наследству от
+        :class:`~custom_components.sber_mqtt_bridge.devices.on_off_entity.OnOffEntity`,
+        и это была чужая функция: облако вправе отбросить модель с ней
+        целиком, а пользователь при этом не увидит ни ошибки, ни
+        домофона.
+        """
         entity = IntercomEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state())
         features = entity.get_final_features_list()
-        self.assertIn("online", features)
-        self.assertIn("on_off", features)
-        self.assertIn("incoming_call", features)
-        self.assertIn("reject_call", features)
-        self.assertIn("unlock", features)
+        self.assertEqual(
+            sorted(features),
+            ["incoming_call", "online", "reject_call", "unlock"],
+        )
 
 
 class TestIntercomFillState(unittest.TestCase):
@@ -65,12 +74,17 @@ class TestIntercomToSberCurrentState(unittest.TestCase):
     """Test to_sber_current_state."""
 
     def test_state_includes_call_features(self):
+        """Публикуется ``incoming_call``, но не недокументированный ``on_off``.
+
+        Если ``on_off`` вернётся в пакет, Сбер получит ключ, которого у
+        категории нет, — ровно тот случай, когда облако молча
+        отбрасывает состояние вместе с остальным содержимым.
+        """
         entity = IntercomEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("on", incoming_call=True))
         result = entity.to_sber_current_state()
         states = result["switch.intercom"]["states"]
-        on_off = next(s for s in states if s["key"] == "on_off")
-        self.assertTrue(on_off["value"]["bool_value"])
+        self.assertNotIn("on_off", {str(s["key"]) for s in states})
         call = next(s for s in states if s["key"] == "incoming_call")
         self.assertTrue(call["value"]["bool_value"])
 

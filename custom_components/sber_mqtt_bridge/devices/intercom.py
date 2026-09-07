@@ -27,9 +27,20 @@ class IntercomEntity(OnOffEntity):
     since there is no standard HA intercom domain.
 
     Supports:
-    - On/off control (inherited from OnOffEntity)
     - Read-only features from HA attributes: incoming_call, reject_call, unlock
+
+    ``on_off`` is **not** advertised even though the class reuses
+    :class:`~.on_off_entity.OnOffEntity`: the "Доступные функции
+    устройства" table on ``c2c/intercom`` lists only ``online``,
+    ``incoming_call``, ``reject_call`` and ``unlock``.  A model carrying
+    a function its category does not have can be rejected by the cloud as
+    a whole, so up to 1.50 an intercom risked never showing up in the
+    Sber app at all.  The on/off *command* handler stays: it costs
+    nothing and keeps a hand-crafted redefinition working.
     """
+
+    _supports_on_off = False
+    """``intercom`` has no ``on_off`` in the Sber spec — see the class docstring."""
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize intercom entity.

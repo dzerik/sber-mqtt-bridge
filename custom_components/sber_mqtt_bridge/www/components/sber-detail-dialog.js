@@ -14,6 +14,9 @@ await import(`./sber-json-block.js${_q}`);
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { deepActiveElement } = await import(`../utils.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
+const { ensureFeatureLabels, enumValueLabel, featureLabel, featureTitle } = await import(
+  `../feature-labels.js${_q}`
+);
 
 /**
  * Upper bound the backend accepts for the gate travel time, in seconds.
@@ -423,6 +426,7 @@ class SberDetailDialog extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    ensureFeatureLabels(this.hass, this);
     /* Modal keyboard contract: Escape closes. */
     this._escHandler = (e) => {
       if (this.open && e.key === "Escape") {
@@ -513,7 +517,14 @@ class SberDetailDialog extends LitElement {
           <span class="label">Room</span>
           <span class="value">${d.room || "\u2014"}</span>
           <span class="label">${t(this.hass, "detail_dialog.features")}</span>
-          <span class="value">${(d.features || []).map((f) => html`<span class="feature-tag">${f}</span>`)}</span>
+          <span class="value">${(d.features || []).map((f) => {
+            /* The dialog has room for the documented name, so it leads;
+             * the identifier stays one hover away.  Which of the two
+             * leads depends on the interface language — see
+             * ../feature-labels.js. */
+            const label = featureLabel(this.hass, f);
+            return html`<span class="feature-tag" title="${label.hint}">${label.text}</span>`;
+          })}</span>
         </div>
       </div>
     `;
@@ -529,15 +540,19 @@ class SberDetailDialog extends LitElement {
           <tr><th>${t(this.hass, "detail_dialog.col_key")}</th><th>${t(this.hass, "detail_dialog.col_type")}</th><th>${t(this.hass, "detail_dialog.col_value")}</th></tr>
           ${states.map((s) => {
             const v = s.value || {};
+            /* An ENUM value is as opaque as the feature name it belongs
+             * to: `dehumidification` says nothing until Sber's own page
+             * for the feature spells it out. */
+            const enumLabel = v.enum_value !== undefined ? enumValueLabel(this.hass, s.key, v.enum_value) : null;
             const displayVal = v.bool_value !== undefined ? String(v.bool_value)
               : v.integer_value !== undefined ? v.integer_value
-              : v.enum_value !== undefined ? v.enum_value
+              : enumLabel ? enumLabel.text
               : v.colour_value ? `H:${v.colour_value.h} S:${v.colour_value.s} V:${v.colour_value.v}`
               : JSON.stringify(v);
             return html`<tr>
-              <td><code>${s.key}</code></td>
+              <td><code title="${featureTitle(s.key)}">${s.key}</code></td>
               <td><code>${v.type || "?"}</code></td>
-              <td>${displayVal}</td>
+              <td title="${enumLabel ? enumLabel.hint : ""}">${displayVal}</td>
             </tr>`;
           })}
         </table>

@@ -13,6 +13,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from ..const import CONF_HUB_AUTO_PARENT, SETTINGS_DEFAULTS
+from ..message_logger import last_error_moment, parse_sber_error
 from ._common import (  # noqa: F401 — get_bridge re-exported for test patching
     WS_ENTITY_ID,
     get_bridge,
@@ -125,6 +126,15 @@ async def ws_get_status(
     if not bridge.is_connected:
         issues.append("disconnected")
 
+    # The error counter alone cannot be acted on: "3 Sber errors" reads the
+    # same whether the credentials are wrong (403) or the cloud was briefly
+    # down (503).  The decoded code says which of the two it was — and the
+    # moment says whether it is still true, because `last_error_detail` is
+    # never cleared once written.
+    last_error = parse_sber_error(stats.get("last_error_detail", ""))
+    if last_error is not None:
+        last_error = {**last_error, **last_error_moment(bridge.message_log)}
+
     if not bridge.is_connected:
         health_score = "unhealthy"
     elif never_confirmed or stats.get("errors_from_sber", 0) > 0:
@@ -138,6 +148,7 @@ async def ws_get_status(
             "connected": bridge.is_connected,
             "phase": bridge.connection_phase,
             "stats": stats,
+            "last_error": last_error,
             "entities_count": bridge.entities_count,
             "unacknowledged": unack,
             "cloud_known": bridge.cloud_known_entities,

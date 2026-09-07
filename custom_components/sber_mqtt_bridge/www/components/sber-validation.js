@@ -23,6 +23,7 @@
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
+const { ensureFeatureLabels, featureLabel } = await import(`../feature-labels.js${_q}`);
 
 /** Hard cap on the live issue timeline (live batches are unbounded —
  * the backend ring buffer only trims the initial snapshot). */
@@ -147,6 +148,24 @@ class SberValidation extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     ensurePanelTranslations(this.hass, this);
+    ensureFeatureLabels(this.hass, this);
+  }
+
+  /**
+   * Feature cell of one issue row: identifier plus documented name.
+   *
+   * A remark reads "light_colour_temp is out of range" and the reader
+   * has to know which knob that is before they can act on it.  Sber's
+   * own reference names it, so the name is shown — see
+   * ../feature-labels.js for which of the two leads in which language.
+   *
+   * @param {{key?: string}} issue - One issue from the backend.
+   * @returns {unknown} Lit template for the cell.
+   */
+  _featureCell(issue) {
+    if (!issue.key) return "\u2014";
+    const label = featureLabel(this.hass, issue.key);
+    return html`<span title="${label.hint}">${label.text}</span>`;
   }
 
   render() {
@@ -222,14 +241,36 @@ class SberValidation extends LitElement {
                 <td class="entity">${idx === 0 ? eid : ""}</td>
                 <td class="sev"><span class="badge badge-${i.severity}">${i.severity}</span></td>
                 <td class="type">${i.type}</td>
-                <td class="key">${i.key || "—"}</td>
-                <td class="desc">${i.description}</td>
+                <td class="key">${this._featureCell(i)}</td>
+                <td class="desc">${this._describe(i)}</td>
               </tr>
             `);
           })}
         </tbody>
       </table>
     `;
+  }
+
+  /**
+   * Localized sentence for one validation issue.
+   *
+   * The backend sends both halves: `description`, the English sentence it
+   * renders itself for logs and diagnostics, and the
+   * `message_key` / `message_args` pair this panel translates.  The pair
+   * is what a user reads, so a Russian install shows Russian here just
+   * like the rest of the panel; `description` is only the safety net for
+   * an issue produced by an older backend that has no key, or a key this
+   * build of the panel has never heard of.
+   *
+   * @param {{description?: string, message_key?: string,
+   *          message_args?: object}} issue - One issue from the backend.
+   * @returns {string} Text to show in the description column.
+   */
+  _describe(issue) {
+    if (!issue.message_key) return issue.description || "";
+    const key = `validation_issue.${issue.message_key}`;
+    const text = t(this.hass, key, issue.message_args || {});
+    return text === key ? issue.description || key : text;
   }
 
   _renderTimeline() {
@@ -256,8 +297,8 @@ class SberValidation extends LitElement {
               <td class="entity">${i.entity_id}</td>
               <td class="sev"><span class="badge badge-${i.severity}">${i.severity}</span></td>
               <td class="type">${i.type}</td>
-              <td class="key">${i.key || "—"}</td>
-              <td class="desc">${i.description}</td>
+              <td class="key">${this._featureCell(i)}</td>
+              <td class="desc">${this._describe(i)}</td>
             </tr>
           `)}
         </tbody>

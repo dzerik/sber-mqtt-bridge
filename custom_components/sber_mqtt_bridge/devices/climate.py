@@ -17,6 +17,7 @@ from .base_entity import (
     _safe_float_parser,
     _safe_int_parser,
 )
+from .utils.documented_range import clamp_to_bounds, documented_bounds, documented_integer_bounds
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -303,17 +304,22 @@ class ClimateEntity(BaseEntity):
             field="swing_horizontal_mode",
             attr_keys=("swing_horizontal_mode",),
         ),
+        # ``preserve_on_missing`` keeps the per-category defaults each
+        # subclass passes to ``__init__`` (a boiler runs 25…80 °C, an AC
+        # 16…32): an HA entity that reports no ``min_temp`` / ``max_temp``
+        # must not silently inherit the air-conditioner range and publish
+        # a 60 °C boiler setpoint as a declared-range violation.
         AttrSpec(
             field="min_temp",
             attr_keys=("min_temp",),
             parser=_safe_float_parser,
-            default=16.0,
+            preserve_on_missing=True,
         ),
         AttrSpec(
             field="max_temp",
             attr_keys=("max_temp",),
             parser=_safe_float_parser,
-            default=32.0,
+            preserve_on_missing=True,
         ),
         AttrSpec(
             field="_target_humidity",
@@ -440,7 +446,7 @@ class ClimateEntity(BaseEntity):
             features.append("hvac_work_mode")
         if self._supports_thermostat_mode and self._mapped_thermostat_modes():
             features.append("hvac_thermostat_mode")
-        if self._target_humidity is not None:
+        if self._target_humidity is not None and self.category in self._HUMIDITY_SET_CATEGORIES:
             features.append("hvac_humidity_set")
         if self._has_night_mode and self.category in self._NIGHT_MODE_CATEGORIES:
             features.append("hvac_night_mode")
@@ -448,6 +454,18 @@ class ClimateEntity(BaseEntity):
 
     _NIGHT_MODE_CATEGORIES = frozenset({"hvac_ac"})
     """Sber climate categories whose spec includes ``hvac_night_mode``."""
+
+    _HUMIDITY_SET_CATEGORIES = frozenset({"hvac_ac", "hvac_humidifier"})
+    """Sber climate categories whose spec includes ``hvac_humidity_set``.
+
+    A boiler, a heater, a radiator and underfloor heating have no
+    humidity row in their "Доступные функции устройства" tables — they
+    are heat sources, not humidity control.  Home Assistant nonetheless
+    reports a ``humidity`` attribute on many ``climate`` entities, and up
+    to 1.50 that attribute alone was enough to put ``hvac_humidity_set``
+    into the model of all four.  A model carrying a function outside its
+    category's table can be rejected by the cloud as a whole, so the user
+    lost the radiator rather than a slider."""
 
     @staticmethod
     def _mapped_values(mapping: dict[str, str], ha_modes: Iterable[object] | None) -> list[str]:
@@ -551,15 +569,33 @@ class ClimateEntity(BaseEntity):
                 "type": "ENUM",
                 "enum_values": {"values": sber_thermo},
             }
+        low, high = self._temp_set_bounds()
         allowed["hvac_temp_set"] = {
             "type": "INTEGER",
             "integer_values": {
-                "min": str(int(self.min_temp)),
-                "max": str(int(self.max_temp)),
+                "min": str(low),
+                "max": str(high),
                 "step": str(self.temp_step),
             },
         }
         return allowed
+
+    def _temp_set_bounds(self) -> tuple[int, int]:
+        """Return the ``hvac_temp_set`` range this entity may declare.
+
+        The HA entity's own ``min_temp`` / ``max_temp`` intersected with
+        what Sber documents for the category: ``allowed_values`` exists
+        only to *narrow* a documented range, so an HA thermostat
+        advertising 75 °C must not turn into a model that promises the
+        cloud 75 °C when the function page stops at 50.  ``hvac_boiler``
+        keeps its hotter ceiling because Sber's own reference boiler
+        declares it — see
+        :func:`~.utils.documented_range.documented_bounds`.
+
+        Returns:
+            ``(min, max)`` in whole degrees, inside the documented range.
+        """
+        return documented_integer_bounds(self.category, "hvac_temp_set", self.min_temp, self.max_temp)
 
     def _build_current_state(self) -> dict[str, dict]:
         """Build Sber current state payload with all climate attributes.
@@ -596,6 +632,11 @@ class ClimateEntity(BaseEntity):
         published: an entity whose HA setpoint is unknown (off, fan-only,
         or simply no ``TARGET_TEMPERATURE`` support) used to publish
         without it and Sber silently dropped the whole device.
+
+        The setpoint is clamped into the very range the model declares in
+        ``allowed_values``: a 60 °C HA setpoint on a category documented
+        up to 50 is not something the cloud promises to handle, and a
+        value outside a device's own declared range is worse still.
         """
         out: list = []
         if self.temperature is not None and math.isfinite(self.temperature):
@@ -603,24 +644,36 @@ class ClimateEntity(BaseEntity):
         target = self.target_temperature
         if target is None:
             target = self._fallback_target_temperature()
-        out.append(make_state(SberFeature.HVAC_TEMP_SET, make_integer_value(round(target))))
+        out.append(make_state(SberFeature.HVAC_TEMP_SET, make_integer_value(round(self._clamp_temp_set(target)))))
         return out
+
+    def _clamp_temp_set(self, temperature: float) -> float:
+        """Pull a setpoint into the range this entity declares to Sber.
+
+        Args:
+            temperature: Setpoint in whole-degree scale.
+
+        Returns:
+            The same value, or the nearest bound of :meth:`_temp_set_bounds`.
+        """
+        return clamp_to_bounds(temperature, self._temp_set_bounds())
 
     def _fallback_target_temperature(self) -> float:
         """Return a setpoint to publish when HA reports none.
 
         The current room temperature (clamped into the declared
         ``hvac_temp_set`` bounds) is the least surprising thing the app
-        can show — "hold what you have" — and falls back to ``min_temp``
-        when even that is unknown.  Any value inside the declared range
-        beats omitting an obligatory feature.
+        can show — "hold what you have" — and falls back to the low end
+        of that range when even that is unknown.  Any value inside the
+        declared range beats omitting an obligatory feature.
 
         Returns:
-            Temperature in whole-degree scale, inside ``[min_temp, max_temp]``.
+            Temperature in whole-degree scale, inside the declared range.
         """
+        low, _high = self._temp_set_bounds()
         if self.temperature is not None and math.isfinite(self.temperature):
-            return max(self.min_temp, min(self.max_temp, self.temperature))
-        return self.min_temp
+            return self._clamp_temp_set(self.temperature)
+        return low
 
     def _state_fan_with_presets(self) -> list:
         """Build hvac_air_flow_power state entry, mapping HA presets to Sber turbo/quiet."""
@@ -704,10 +757,22 @@ class ClimateEntity(BaseEntity):
         return [make_state(SberFeature.HVAC_THERMOSTAT_MODE, make_enum_value(sber_mode))]
 
     def _state_optional_flags(self) -> list:
-        """Build optional state entries: humidity_set, night_mode, child_lock."""
+        """Build optional state entries: humidity_set, night_mode, child_lock.
+
+        ``hvac_humidity_set`` is published only by the categories whose
+        Sber page has it (:attr:`_HUMIDITY_SET_CATEGORIES`) and is clamped
+        into its documented 30…90 %: an HA climate reporting 0 % target
+        humidity (the usual value when it has no humidity control at all)
+        would otherwise publish a number the cloud is not promised to
+        handle.
+        """
         out: list = []
-        if self._target_humidity is not None:
-            out.append(make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(self._target_humidity)))
+        if self._target_humidity is not None and self.category in self._HUMIDITY_SET_CATEGORIES:
+            humidity = clamp_to_bounds(
+                float(self._target_humidity),
+                documented_bounds(self.category, "hvac_humidity_set"),
+            )
+            out.append(make_state(SberFeature.HVAC_HUMIDITY_SET, make_integer_value(round(humidity))))
         if self._has_night_mode and self.category in self._NIGHT_MODE_CATEGORIES:
             is_night = _norm_mode(self._preset_mode) in ("sleep", "night")
             out.append(make_state(SberFeature.HVAC_NIGHT_MODE, make_bool_value(is_night)))

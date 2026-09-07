@@ -34,7 +34,49 @@
         "open_percentage",
         "open_set"
       ],
+      "conditional_any_of": [
+        [
+          "open_percentage",
+          "open_set"
+        ]
+      ],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умные шторы",
+        "groups": [
+          "Солнце",
+          "Теневые шторы"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мои шторы",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "battery_low_power": "Разряжена ли батарея или нет",
+        "battery_percentage": "Уровень заряда батареи",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "open_left_percentage": "Открывание левой половины устройства в процентах",
+        "open_left_set": "Открывание левой половины устройства",
+        "open_left_state": "Статус открывания левой стороны устройства",
+        "open_percentage": "Открывание устройства в процентах. Для устройства обязательно должен быть описан способ открытия: либо open_percentage, либо open_set, либо они оба",
+        "open_rate": "Скорость открывания устройства",
+        "open_right_percentage": "Открывание правой половины устройства в процентах",
+        "open_right_set": "Открывание правой половины устройства",
+        "open_right_state": "Статус открывания правой стороны устройства",
+        "open_set": "Открывание устройства. Для устройства обязательно должен быть описан способ открытия: либо open_set, либо open_percentage, либо они оба",
+        "open_state": "Статус открывания устройства",
+        "signal_strength": "Сила сигнала"
+      },
       "features": [
         "battery_low_power",
         "battery_percentage",
@@ -85,7 +127,47 @@
         "open_percentage",
         "open_set"
       ],
+      "conditional_any_of": [
+        [
+          "open_percentage",
+          "open_set"
+        ]
+      ],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умные ворота",
+        "groups": [
+          "Заезд",
+          "Входная группа"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мои ворота",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гараж",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "online": "Доступность устройства: офлайн или онлайн",
+        "open_left_percentage": "Открывание левой половины устройства в процентах",
+        "open_left_set": "Открывание левой половины устройства",
+        "open_left_state": "Статус открывания левой стороны устройства",
+        "open_percentage": "Открывание устройства в процентах. Для устройства обязательно должен быть описан способ открытия: либо open_percentage, либо open_set, либо они оба",
+        "open_rate": "Скорость открывания устройства",
+        "open_right_percentage": "Открывание правой половины устройства в процентах",
+        "open_right_set": "Статус открывания правой стороны устройства",
+        "open_right_state": "Открывание правой половины устройства",
+        "open_set": "Открывание устройства. Для устройства обязательно должен быть описан способ открытия: либо open_percentage, либо open_set, либо они оба",
+        "open_state": "Статус открывания устройства",
+        "signal_strength": "Сила сигнала"
+      },
       "features": [
         "online",
         "open_left_percentage",
@@ -111,7 +193,31 @@
       "allowed_values": {},
       "category": "hub",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный хаб",
+        "groups": [
+          "Управление",
+          "Освещение"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой хаб",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "online": "Доступность устройства: офлайн или онлайн"
+      },
       "features": [
         "online"
       ],
@@ -149,7 +255,41 @@
       },
       "category": "hvac_ac",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный кондиционер",
+        "groups": [
+          "Климат",
+          "Охлаждение"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой кондиционер",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "humidity": "Текущая влажность",
+        "hvac_air_flow_direction": "Направление потока воздуха",
+        "hvac_air_flow_power": "Скорость вентиляторов",
+        "hvac_humidity_set": "Влажность воздуха, которую необходимо достичь",
+        "hvac_ionization": "Режим ионизации",
+        "hvac_night_mode": "Ночной режим работы",
+        "hvac_temp_set": "Температура воздуха, которую необходимо достичь",
+        "hvac_work_mode": "Режим работы кондиционера",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "temperature": "Текущая температура"
+      },
       "features": [
         "hvac_air_flow_direction",
         "hvac_air_flow_power",
@@ -194,7 +334,39 @@
       },
       "category": "hvac_air_purifier",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный воздухоочиститель",
+        "groups": [
+          "Климат",
+          "Очистка"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой воздухоочиститель",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "hvac_air_flow_power": "Скорость вентилятора",
+        "hvac_aromatization": "Режим ароматизации воздуха",
+        "hvac_decontaminate": "Режим обеззараживания воздуха",
+        "hvac_ionization": "Режим ионизации",
+        "hvac_night_mode": "Ночной режим работы",
+        "hvac_replace_filter": "Нужно ли менять фильтр",
+        "hvac_replace_ionizator": "Нужно ли менять ионизатор",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн"
+      },
       "features": [
         "hvac_air_flow_power",
         "hvac_aromatization",
@@ -231,7 +403,36 @@
       },
       "category": "hvac_boiler",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный водонагреватель",
+        "groups": [
+          "Климат",
+          "Вода"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой водонагреватель",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "hvac_heating_rate": "Скорость нагрева",
+        "hvac_temp_set": "Температура, которую необходимо достичь",
+        "hvac_thermostat_mode": "Режим работы термостата",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "temperature": "Текущая температура"
+      },
       "features": [
         "hvac_temp_set",
         "hvac_thermostat_mode",
@@ -267,7 +468,34 @@
       },
       "category": "hvac_fan",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный вентилятор",
+        "groups": [
+          "Климат",
+          "Охлаждение"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой вентилятор",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "hvac_air_flow_power": "Скорость вентилятора",
+        "hvac_direction_set": "Направление вентилятора",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн"
+      },
       "features": [
         "hvac_air_flow_power",
         "on_off",
@@ -303,7 +531,36 @@
       },
       "category": "hvac_heater",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный обогреватель",
+        "groups": [
+          "Климат",
+          "Обогрев"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой обогреватель",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "hvac_air_flow_power": "Скорость вентилятора",
+        "hvac_temp_set": "Температура, которую необходимо достичь",
+        "hvac_thermostat_mode": "Режим работы термостата",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "temperature": "Текущая температура"
+      },
       "features": [
         "hvac_air_flow_power",
         "hvac_temp_set",
@@ -348,7 +605,42 @@
       },
       "category": "hvac_humidifier",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный увлажнитель воздуха",
+        "groups": [
+          "Климат",
+          "Очистка"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой увлажнитель воздуха",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "humidity": "Текущая влажность",
+        "hvac_air_flow_power": "Скорость вентилятора",
+        "hvac_humidity_set": "Влажность воздуха, которую необходимо достичь",
+        "hvac_ionization": "Режим ионизации",
+        "hvac_night_mode": "Ночной режим работы",
+        "hvac_replace_filter": "Нужно ли менять фильтр",
+        "hvac_replace_ionizator": "Нужно ли менять ионизатор",
+        "hvac_water_level": "Количество воды в баке в литрах",
+        "hvac_water_low_level": "Закончилась ли вода в баке",
+        "hvac_water_percentage": "Количество воды в баке в процентах",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн"
+      },
       "features": [
         "humidity",
         "hvac_air_flow_power",
@@ -386,7 +678,34 @@
       },
       "category": "hvac_radiator",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный терморегулятор",
+        "groups": [
+          "Климат",
+          "Обогрев"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой терморегулятор",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "hvac_temp_set": "Температура, которую необходимо достичь",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "temperature": "Текущая температура"
+      },
       "features": [
         "hvac_temp_set",
         "on_off",
@@ -419,7 +738,36 @@
       },
       "category": "hvac_underfloor_heating",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный теплый пол",
+        "groups": [
+          "Климат",
+          "Вода"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой теплый пол",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "hvac_heating_rate": "Скорость нагрева",
+        "hvac_temp_set": "Температура, которую необходимо достичь",
+        "hvac_thermostat_mode": "Режим работы термостата",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "temperature": "Текущая температура"
+      },
       "features": [
         "hvac_temp_set",
         "hvac_thermostat_mode",
@@ -442,7 +790,34 @@
       "allowed_values": {},
       "category": "intercom",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный домофон",
+        "groups": [
+          "Гости",
+          "Места общего пользования"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой домофон",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Подъезд",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "06 ноября 2025",
+      "feature_descriptions": {
+        "incoming_call": "Поступает ли вызов на домофон",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "reject_call": "Отклонить вызов",
+        "unlock": "Открыть замок"
+      },
       "features": [
         "incoming_call",
         "online",
@@ -475,7 +850,37 @@
       },
       "category": "kettle",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный чайник",
+        "groups": [
+          "Завтрак",
+          "Кухонные электроприборы"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой чайник",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Кухня",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "child_lock": "Блокировка от детей",
+        "kitchen_water_level": "Количество воды в устройстве в литрах",
+        "kitchen_water_low_level": "Закончилась ли вода в устройстве",
+        "kitchen_water_temperature": "Текущая температура воды в устройстве",
+        "kitchen_water_temperature_set": "Температура, до которой нужно нагреть воду",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн"
+      },
       "features": [
         "child_lock",
         "kitchen_water_level",
@@ -511,7 +916,36 @@
       },
       "category": "led_strip",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умная лента",
+        "groups": [
+          "Ночная подсветка",
+          "Окна"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.2",
+        "id": "ABCD_003",
+        "model_id": "QWERTY123",
+        "name": "Моя лента",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.7"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "light_brightness": "Яркость устройства",
+        "light_colour": "Цвет устройства",
+        "light_colour_temp": "Температура цвета устройства",
+        "light_mode": "Режим работы устройства: цветной или белый цвет",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн"
+      },
       "features": [
         "light_brightness",
         "light_colour",
@@ -547,7 +981,36 @@
       },
       "category": "light",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умная лампа",
+        "groups": [
+          "Верхний свет",
+          "Ниша"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.2",
+        "id": "ABCD_003",
+        "model_id": "QWERTY123",
+        "name": "Моя лампа",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.7"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "light_brightness": "Яркость устройства",
+        "light_colour": "Цвет устройства",
+        "light_colour_temp": "Температура цвета устройства",
+        "light_mode": "Режим работы устройства: цветной или белый цвет",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн"
+      },
       "features": [
         "light_brightness",
         "light_colour",
@@ -581,7 +1044,35 @@
       },
       "category": "relay",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умное реле",
+        "groups": [
+          "Видеотехника",
+          "Проводка"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мое реле",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "current": "Текущий ток, мА",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "power": "Текущая мощность, Вт",
+        "voltage": "Текущее напряжение, В"
+      },
       "features": [
         "current",
         "on_off",
@@ -631,7 +1122,50 @@
       },
       "category": "scenario_button",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [
+        "обязательно должна быть описана функция online, а также как минимум одна функция нажатия на кнопку."
+      ],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Сценарная кнопка",
+        "groups": [],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Моя кнопка",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "battery_low_power": "Разряжена ли батарея или нет",
+        "battery_percentage": "Уровень заряда батареи",
+        "button_10_event": "Нажатие на десятую кнопку",
+        "button_1_event": "Нажатие на первую кнопку",
+        "button_2_event": "Нажатие на вторую кнопку",
+        "button_3_event": "Нажатие на третью кнопку",
+        "button_4_event": "Нажатие на четвертую кнопку",
+        "button_5_event": "Нажатие на пятую кнопку",
+        "button_6_event": "Нажатие на шестую кнопку",
+        "button_7_event": "Нажатие на седьмую кнопку",
+        "button_8_event": "Нажатие на восьмую кнопку",
+        "button_9_event": "Нажатие на девятую кнопку",
+        "button_bottom_left_event": "Нажатие на левую нижнюю кнопку",
+        "button_bottom_right_event": "Нажатие на правую нижнюю кнопку",
+        "button_event": "Нажатие на кнопку",
+        "button_left_event": "Нажатие на левую кнопку",
+        "button_right_event": "Нажатие на правую кнопку",
+        "button_top_left_event": "Нажатие на левую верхнюю кнопку",
+        "button_top_right_event": "Нажатие на правую верхнюю кнопку",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "signal_strength": "Сила сигнала"
+      },
       "features": [
         "battery_percentag",
         "button_1_event",
@@ -671,7 +1205,51 @@
         "temperature",
         "tvoc_float"
       ],
+      "conditional_any_of": [
+        [
+          "co2",
+          "hcho_float",
+          "humidity",
+          "pm10",
+          "pm1_0",
+          "pm2_5",
+          "temperature",
+          "tvoc_float"
+        ]
+      ],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный датчик качества воздуха",
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой датчик качества воздуха",
+        "parent_id": "A_002",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Спальня",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "23 июня 2026",
+      "feature_descriptions": {
+        "battery_low_power": "Разряжена батарея или нет",
+        "battery_percentage": "Уровень заряда батареи",
+        "co2": "Текущая концентрация CO2",
+        "hcho_float": "Текущая концентрация частиц формальдегида HCHO",
+        "humidity": "Текущая влажность",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "pm10": "Текущая концентрация частиц PM10",
+        "pm1_0": "Текущая концентрация частиц PM1.0",
+        "pm2_5": "Текущая концентрация частиц PM2.5",
+        "signal_strength": "Сила сигнала",
+        "temp_unit_view": "Температурная шкала, в которой датчик выводит информацию о температуре на свой экран",
+        "temperature": "Текущая температура",
+        "tvoc_float": "Текущая концентрация частиц летучих органических соединений TVOC"
+      },
       "features": [
         "battery_low_power",
         "battery_percentage",
@@ -714,7 +1292,34 @@
       },
       "category": "sensor_door",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный датчик открытия",
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой датчик открытия",
+        "parent_id": "A_002",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "battery_low_power": "Разряжена ли батарея или нет",
+        "battery_percentage": "Уровень заряда батареи",
+        "doorcontact_state": "Показывает, разомкнуты или сомкнуты контакты датчика. Если контакты разомкнуты, значит, створки двери, окна или другой подобной конструкции открыты. Сомкнутые контакты означают, что створки закрыты",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "sensor_sensitive": "Чувствительность датчика",
+        "signal_strength": "Сила сигнала",
+        "tamper_alarm": "Сигнализация о вскрытии датчика"
+      },
       "features": [
         "battery_low_power",
         "battery_percentage",
@@ -752,7 +1357,34 @@
       },
       "category": "sensor_gas",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный датчик газа",
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой датчик газа",
+        "parent_id": "A_002",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Коридор",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "25 декабря 2025",
+      "feature_descriptions": {
+        "alarm_mute": "Выключено ли звуковое оповещение при срабатывании датчика",
+        "battery_low_power": "Разряжена ли батарея или нет",
+        "battery_percentage": "Уровень заряда батареи",
+        "gas_leak_state": "Обнаружена ли утечка газа",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "sensor_sensitive": "Чувствительность датчика",
+        "signal_strength": "Сила сигнала"
+      },
       "features": [
         "alarm_mute",
         "battery_low_power",
@@ -789,7 +1421,33 @@
       },
       "category": "sensor_pir",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный датчик движения",
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой датчик движения",
+        "parent_id": "A_002",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "battery_low_power": "Разряжена ли батарея или нет",
+        "battery_percentage": "Уровень заряда батареи",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "pir": "Обнаружено ли движение",
+        "sensor_sensitive": "Чувствительность датчика",
+        "signal_strength": "Сила сигнала"
+      },
       "features": [
         "battery_low_power",
         "battery_percentage",
@@ -825,7 +1483,33 @@
       },
       "category": "sensor_smoke",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный датчик дыма",
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой датчик дыма",
+        "parent_id": "A_002",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Коридор",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "25 декабря 2025",
+      "feature_descriptions": {
+        "alarm_mute": "Выключено ли звуковое оповещение при срабатывании датчика",
+        "battery_low_power": "Разряжена ли батарея или нет",
+        "battery_percentage": "Уровень заряда батареи",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "signal_strength": "Сила сигнала",
+        "smoke_state": "Обнаружено ли задымление"
+      },
       "features": [
         "alarm_mute",
         "battery_low_power",
@@ -867,7 +1551,41 @@
         "humidity",
         "temperature"
       ],
+      "conditional_any_of": [
+        [
+          "humidity",
+          "temperature"
+        ]
+      ],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный датчик температуры и влажности",
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой датчик температуры и влажности",
+        "parent_id": "A_002",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "air_pressure": "Текущее атмосферное давление",
+        "battery_low_power": "Разряжена ли батарея или нет",
+        "battery_percentage": "Уровень заряда батареи",
+        "humidity": "Текущая влажность. Функция обязательна для датчиков влажности и датчиков температуры и влажности. Для датчиков температуры, которые влажность не измеряют, ее указывать не нужно",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "sensor_sensitive": "Чувствительность датчика",
+        "signal_strength": "Сила сигнала",
+        "temp_unit_view": "Температурная шкала, в которой датчик сейчас выводит информацию о температуре на свой экран: °C или °F. Используйте только для датчиков с экраном, которые умеют показывать температуру в разных температурных шкалах",
+        "temperature": "Текущая температура. Функция обязательна для датчиков температуры и датчиков температуры и влажности. Для датчиков влажности, которые температуру не измеряют, ее указывать не нужно"
+      },
       "features": [
         "air_pressure",
         "battery_low_power",
@@ -904,7 +1622,32 @@
       },
       "category": "sensor_water_leak",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный датчик протечки",
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой датчик протечки",
+        "parent_id": "A_002",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Ванная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "battery_low_power": "Разряжена ли батарея или нет",
+        "battery_percentage": "Уровень заряда батареи",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "signal_strength": "Сила сигнала",
+        "water_leak_state": "Обнаружена ли протечка воды"
+      },
       "features": [
         "battery_low_power",
         "battery_percentage",
@@ -938,7 +1681,36 @@
       },
       "category": "socket",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умная розетка",
+        "groups": [
+          "Видеотехника",
+          "Звук"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Моя розетка",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "child_lock": "Блокировка кнопки питания от детей",
+        "current": "Текущий ток, мА",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "power": "Текущая мощность, Вт",
+        "voltage": "Текущее напряжение, В"
+      },
       "features": [
         "child_lock",
         "current",
@@ -985,7 +1757,41 @@
       },
       "category": "tv",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный телевизор",
+        "groups": [
+          "Видеотехника",
+          "Электроприборы"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой телевизор",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "channel": "Переключение на предыдущий или следующий канал",
+        "channel_int": "Номер канала",
+        "custom_key": "Кнопка, нажатая на пульте управления",
+        "direction": "Сдвиг курсора в нужном направлении",
+        "mute": "Бесшумный режим",
+        "number": "Нажатая на пульте цифровая кнопка",
+        "on_off": "Удаленное включение и выключение устройства",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "source": "Источник видеосигнала",
+        "volume": "Сделать тише или громче",
+        "volume_int": "Уровень громкости"
+      },
       "features": [
         "channel",
         "channel_int",
@@ -1028,7 +1834,36 @@
       },
       "category": "vacuum_cleaner",
       "conditional": [],
+      "conditional_any_of": [],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный пылесос",
+        "groups": [
+          "Уборка"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой пылесос",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "battery_percentage": "Уровень заряда батареи",
+        "child_lock": "Блокировка от детей",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "vacuum_cleaner_cleaning_type": "Тип уборки: сухая, влажная, сухая и влажная. Если пользователь не может управлять типом уборки, например, если он выбирается автоматически, исходя из надетой на пылесос насадки, тип уборки добавлять в модель устройства не нужно",
+        "vacuum_cleaner_command": "Команда управления: начать уборку, приостановить уборку, вернуться на базу, возобновить уборку. Если отдана команда уборки vacuum_cleaner_command и при этом не передано, какие программу vacuum_cleaner_program и тип уборки vacuum_cleaner_cleaning_type использовать, умный дом использует программу и тип, которые пользователь выбрал в приложении Салют или на устройстве с ассистентом Салют. Если в приложении или на устройстве ничего не предустановлено, используется программа smart: уборка в автоматическом режиме по алгоритму устройства",
+        "vacuum_cleaner_program": "Программа уборки: уборка по периметру, уборка по спирали, уборка всей доступной площади, уборка по случайному маршруту",
+        "vacuum_cleaner_status": "Статус устройства: уборка, пауза, возвращение на базу, на базе"
+      },
       "features": [
         "battery_percentage",
         "child_lock",
@@ -1068,7 +1903,42 @@
         "open_percentage",
         "open_set"
       ],
+      "conditional_any_of": [
+        [
+          "open_percentage",
+          "open_set"
+        ]
+      ],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умный кран",
+        "groups": [
+          "Вода",
+          "Безопасность"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мой кран",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Кладовая",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "battery_low_power": "Разряжена ли батарея или нет",
+        "battery_percentage": "Уровень заряда батареи",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "open_percentage": "Открывание устройства в процентах. Для устройства обязательно должен быть описан способ открытия: либо open_percentage, либо open_set, либо они оба",
+        "open_set": "Открывание устройства. Для устройства обязательно должен быть описан способ открытия: либо open_set, либо open_percentage, либо они оба",
+        "open_state": "Статус открывания устройства",
+        "signal_strength": "Сила сигнала"
+      },
       "features": [
         "battery_low_power",
         "battery_percentage",
@@ -1111,7 +1981,44 @@
         "open_percentage",
         "open_set"
       ],
+      "conditional_any_of": [
+        [
+          "open_percentage",
+          "open_set"
+        ]
+      ],
+      "conditional_unresolved": [],
       "dependencies": {},
+      "device_example": {
+        "default_name": "Умные шторы",
+        "groups": [
+          "Солнце",
+          "Теневые шторы"
+        ],
+        "home": "Мой дом",
+        "hw_version": "3.1",
+        "id": "ABCD_004",
+        "model_id": "QWERTY124",
+        "name": "Мои жалюзи",
+        "partner_meta": {
+          "internal-id": 1234,
+          "specificity": "microchip 2A"
+        },
+        "room": "Гостиная",
+        "sw_version": "5.6"
+      },
+      "doc_updated": "28 октября 2025",
+      "feature_descriptions": {
+        "battery_low_power": "Разряжена ли батарея или нет",
+        "battery_percentage": "Уровень заряда батареи",
+        "light_transmission_percentage": "Степень пропускания света (в процентах)",
+        "online": "Доступность устройства: офлайн или онлайн",
+        "open_percentage": "Открывание устройства в процентах. Для устройства обязательно должен быть описан способ открытия: либо open_percentage, либо open_set, либо они оба",
+        "open_rate": "Скорость открывания устройства",
+        "open_set": "Открывание устройства. Для устройства обязательно должен быть описан способ открытия: либо open_set, либо open_percentage, либо они оба",
+        "open_state": "Статус открывания устройства",
+        "signal_strength": "Сила сигнала"
+      },
       "features": [
         "battery_low_power",
         "battery_percentage",
@@ -1130,8 +2037,19 @@
   },
   "functions": {
     "air_pressure": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "air_pressure",
+      "narrowing": "range_and_step",
       "range": "200, 800",
+      "state_example": {
+        "key": "air_pressure",
+        "value": {
+          "integer_value": "720",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "текущее атмосферное давление",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1140,8 +2058,19 @@
       ]
     },
     "alarm_mute": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "alarm_mute",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "alarm_mute",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "выключено ли звуковое оповещение",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1151,8 +2080,19 @@
       ]
     },
     "battery_low_power": {
+      "doc_updated": "22 июня 2026",
+      "model_declaration": "must_declare",
       "name": "battery_low_power",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "battery_low_power",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "разряжена батарея или нет",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1171,8 +2111,19 @@
       ]
     },
     "battery_percentage": {
+      "doc_updated": "22 июня 2026",
+      "model_declaration": "must_declare",
       "name": "battery_percentage",
+      "narrowing": "range_and_step",
       "range": "0, 100",
+      "state_example": {
+        "key": "battery_percentage",
+        "value": {
+          "integer_value": "75",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "уровень заряда батареи",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1192,13 +2143,29 @@
       ]
     },
     "button_10_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_10_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_10_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на десятую кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1207,13 +2174,29 @@
       ]
     },
     "button_1_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_1_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_1_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на первую кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1222,13 +2205,29 @@
       ]
     },
     "button_2_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_2_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_2_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на вторую кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1237,13 +2236,29 @@
       ]
     },
     "button_3_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_3_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_3_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на третью кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1252,13 +2267,29 @@
       ]
     },
     "button_4_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_4_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_4_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на четвертую кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1267,13 +2298,29 @@
       ]
     },
     "button_5_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_5_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_5_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на пятую кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1282,13 +2329,29 @@
       ]
     },
     "button_6_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_6_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_6_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на шестую кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1297,13 +2360,29 @@
       ]
     },
     "button_7_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_7_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_7_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на седьмую кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1312,13 +2391,29 @@
       ]
     },
     "button_8_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_8_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_8_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на восьмую кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1327,13 +2422,29 @@
       ]
     },
     "button_9_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_9_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_9_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на девятую кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1342,13 +2453,29 @@
       ]
     },
     "button_bottom_left_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_bottom_left_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_bottom_left_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на левую нижнюю кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1357,13 +2484,29 @@
       ]
     },
     "button_bottom_right_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_bottom_right_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_bottom_right_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на правую нижнюю кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1372,13 +2515,29 @@
       ]
     },
     "button_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1387,13 +2546,29 @@
       ]
     },
     "button_left_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_left_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_left_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на левую кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1402,13 +2577,29 @@
       ]
     },
     "button_right_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_right_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_right_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на правую кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1417,13 +2608,29 @@
       ]
     },
     "button_top_left_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_top_left_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_top_left_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на левую верхнюю кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1432,13 +2639,29 @@
       ]
     },
     "button_top_right_event": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "click": "однократное нажатие",
+        "double_click": "двойное нажатие",
+        "long_press": "долгое нажатие"
+      },
       "enum_values": [
         "click",
         "double_click",
         "long_press"
       ],
+      "model_declaration": "must_declare",
       "name": "button_top_right_event",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "button_top_right_event",
+        "value": {
+          "enum_value": "click",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "нажатие на правую верхнюю кнопку",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1447,12 +2670,27 @@
       ]
     },
     "channel": {
+      "doc_updated": "5 ноября 2024",
+      "enum_descriptions": {
+        "+": "следующий канал",
+        "-": "предыдущий канал"
+      },
       "enum_values": [
         "+",
         "-"
       ],
+      "model_declaration": "must_declare",
       "name": "channel",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "channel",
+        "value": {
+          "enum_value": "+",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "включение предыдущего или следующего канала",
       "type": "ENUM",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -1461,8 +2699,19 @@
       ]
     },
     "channel_int": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "channel_int",
+      "narrowing": "range_and_step",
       "range": "0, 999",
+      "state_example": {
+        "key": "channel_int",
+        "value": {
+          "integer_value": "11",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "номер канала",
       "type": "INTEGER",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1471,8 +2720,19 @@
       ]
     },
     "child_lock": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "child_lock",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "child_lock",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "блокировка от детей",
       "type": "BOOL",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1483,8 +2743,19 @@
       ]
     },
     "co2": {
+      "doc_updated": "22 июня 2026",
+      "model_declaration": "must_declare",
       "name": "co2",
+      "narrowing": "range_and_step",
       "range": "0, 10000",
+      "state_example": {
+        "key": "co2",
+        "value": {
+          "integer_value": "60",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "концентрация углекислого газа",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1493,8 +2764,19 @@
       ]
     },
     "current": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "current",
+      "narrowing": "range_and_step",
       "range": "0, 30000",
+      "state_example": {
+        "key": "current",
+        "value": {
+          "integer_value": "9000",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "текущий ток",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1504,6 +2786,16 @@
       ]
     },
     "custom_key": {
+      "doc_updated": "5 ноября 2024",
+      "enum_descriptions": {
+        "back": "кнопка возврата на предыдущий экран",
+        "confirm": "кнопка подтверждения (OK)",
+        "home": "кнопка перехода на домашний экран",
+        "next": "кнопка перехода к следующему объекту, например видеофайлу",
+        "pause": "кнопка паузы воспроизведения",
+        "play": "кнопка старта воспроизведения",
+        "previous": "кнопка перехода к предыдущему объекту, например видеофайлу"
+      },
       "enum_values": [
         "confirm",
         "back",
@@ -1513,8 +2805,18 @@
         "previous",
         "next"
       ],
+      "model_declaration": "must_declare",
       "name": "custom_key",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "custom_key",
+        "value": {
+          "enum_value": "pause",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "кнопка на пульте",
       "type": "ENUM",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -1523,14 +2825,31 @@
       ]
     },
     "direction": {
+      "doc_updated": "5 ноября 2024",
+      "enum_descriptions": {
+        "down": "сдвинуть вниз",
+        "left": "сдвинуть влево",
+        "right": "сдвинуть вправо",
+        "up": "сдвинуть вверх"
+      },
       "enum_values": [
         "up",
         "down",
         "left",
         "right"
       ],
+      "model_declaration": "must_declare",
       "name": "direction",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "direction",
+        "value": {
+          "enum_value": "up",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "сдвиг курсора в нужном направлении",
       "type": "ENUM",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -1539,8 +2858,19 @@
       ]
     },
     "doorcontact_state": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "doorcontact_state",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "doorcontact_state",
+        "value": {
+          "bool_value": false,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "разомкнуты или сомкнуты контакты датчика",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1549,8 +2879,19 @@
       ]
     },
     "gas_leak_state": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "gas_leak_state",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "gas_leak_state",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "обнаружена ли утечка газа",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1559,8 +2900,19 @@
       ]
     },
     "hcho_float": {
+      "doc_updated": "23 июня 2026",
+      "model_declaration": "must_declare",
       "name": "hcho_float",
+      "narrowing": null,
       "range": "0, 1.999",
+      "state_example": {
+        "key": "hcho_float",
+        "value": {
+          "float_value": "0.205",
+          "type": "FLOAT"
+        }
+      },
+      "title_ru": "концентрация соединений частиц формальдегида",
       "type": "FLOAT",
       "usage": "хранит состояние устройства, менять его не может",
       "usage_mode": "state_read_only",
@@ -1569,8 +2921,19 @@
       ]
     },
     "humidity": {
+      "doc_updated": "22 июня 2026",
+      "model_declaration": "must_declare",
       "name": "humidity",
+      "narrowing": "range_and_step",
       "range": "0, 100",
+      "state_example": {
+        "key": "humidity",
+        "value": {
+          "integer_value": "60",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "текущая влажность",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1582,6 +2945,15 @@
       ]
     },
     "hvac_air_flow_direction": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "auto": "поток воздуха меняет направление автоматически",
+        "horizontal": "поток воздуха меняет направление по горизонтальной оси",
+        "no": "управление потоком воздуха выключено",
+        "rotation": "поток воздуха меняет направление и по вертикальной, и по горизонтальной осям",
+        "swing": "режим автоматической смены направления потока воздуха",
+        "vertical": "поток воздуха меняет направление по вертикальной оси"
+      },
       "enum_values": [
         "auto",
         "horizontal",
@@ -1590,8 +2962,18 @@
         "swing",
         "vertical"
       ],
+      "model_declaration": "must_declare",
       "name": "hvac_air_flow_direction",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "hvac_air_flow_direction",
+        "value": {
+          "enum_value": "vertical",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "направление потока воздуха",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1600,6 +2982,15 @@
       ]
     },
     "hvac_air_flow_power": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "auto": "скорость меняется автоматически",
+        "high": "высокая скорость",
+        "low": "низкая скорость",
+        "medium": "средняя скорость",
+        "quiet": "тихий режим работы. Скорость вентилятора замедляется для снижения шума",
+        "turbo": "повышенная скорость работы вентилятора. Обычно используется для быстрого охлаждения, нагрева или проветривания комнаты"
+      },
       "enum_values": [
         "auto",
         "high",
@@ -1608,8 +2999,18 @@
         "quiet",
         "turbo"
       ],
+      "model_declaration": "must_declare",
       "name": "hvac_air_flow_power",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "hvac_air_flow_power",
+        "value": {
+          "enum_value": "quiet",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "скорость вентиляторов",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1622,8 +3023,19 @@
       ]
     },
     "hvac_aromatization": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "hvac_aromatization",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "hvac_aromatization",
+        "value": {
+          "bool_value": false,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "режим ароматизации воздуха",
       "type": "BOOL",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1632,8 +3044,19 @@
       ]
     },
     "hvac_decontaminate": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "hvac_decontaminate",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "hvac_decontaminate",
+        "value": {
+          "bool_value": false,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "режим обеззараживания воздуха",
       "type": "BOOL",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1642,14 +3065,31 @@
       ]
     },
     "hvac_direction_set": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "down": "вниз",
+        "left": "налево",
+        "right": "направо",
+        "up": "вверх"
+      },
       "enum_values": [
         "left",
         "right",
         "up",
         "down"
       ],
+      "model_declaration": "must_declare",
       "name": "hvac_direction_set",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "hvac_direction_set",
+        "value": {
+          "enum_value": "up",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "направление вентилятора",
       "type": "ENUM",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -1658,14 +3098,31 @@
       ]
     },
     "hvac_heating_rate": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "auto": "автоматическая скорость нагрева",
+        "high": "высокая скорость нагрева",
+        "low": "низкая скорость нагрева",
+        "medium": "средняя скорость нагрева"
+      },
       "enum_values": [
         "auto",
         "high",
         "low",
         "medium"
       ],
+      "model_declaration": "must_declare",
       "name": "hvac_heating_rate",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "hvac_heating_rate",
+        "value": {
+          "enum_value": "low",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "скорость нагрева",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1675,8 +3132,19 @@
       ]
     },
     "hvac_humidity_set": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "hvac_humidity_set",
+      "narrowing": "range_and_step",
       "range": "30, 90",
+      "state_example": {
+        "key": "hvac_humidity_set",
+        "value": {
+          "integer_value": "40",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "целевая влажность воздуха",
       "type": "INTEGER",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1686,8 +3154,19 @@
       ]
     },
     "hvac_ionization": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "hvac_ionization",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "hvac_ionization",
+        "value": {
+          "bool_value": false,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "режим ионизации",
       "type": "BOOL",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1698,8 +3177,19 @@
       ]
     },
     "hvac_night_mode": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "hvac_night_mode",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "hvac_night_mode",
+        "value": {
+          "bool_value": false,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "ночной режим работы",
       "type": "BOOL",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1710,8 +3200,19 @@
       ]
     },
     "hvac_replace_filter": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "hvac_replace_filter",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "hvac_replace_filter",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "нужно ли менять фильтр",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1721,8 +3222,19 @@
       ]
     },
     "hvac_replace_ionizator": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "hvac_replace_ionizator",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "hvac_replace_ionizator",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "нужно ли менять ионизатор",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1732,8 +3244,19 @@
       ]
     },
     "hvac_temp_set": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "hvac_temp_set",
+      "narrowing": "range_and_step",
       "range": "5, 50",
+      "state_example": {
+        "key": "hvac_temp_set",
+        "value": {
+          "integer_value": "25",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "целевая температура",
       "type": "INTEGER",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1746,6 +3269,16 @@
       ]
     },
     "hvac_thermostat_mode": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "auto": "автоматический режим",
+        "cooling": "охлаждение",
+        "eco": "энергосбережение",
+        "fast_cooling": "быстрое охлаждение",
+        "fast_heating": "быстрый нагрев",
+        "heating": "нагрев",
+        "turbo": "режим усиленной работы"
+      },
       "enum_values": [
         "auto",
         "cooling",
@@ -1755,8 +3288,18 @@
         "heating",
         "turbo"
       ],
+      "model_declaration": "must_declare",
       "name": "hvac_thermostat_mode",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "hvac_thermostat_mode",
+        "value": {
+          "enum_value": "cooling",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "режим работы термостата",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1767,8 +3310,19 @@
       ]
     },
     "hvac_water_level": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "hvac_water_level",
+      "narrowing": "range_only",
       "range": "0, 50",
+      "state_example": {
+        "key": "hvac_water_level",
+        "value": {
+          "float_value": 1,
+          "type": "FLOAT"
+        }
+      },
+      "title_ru": "количество воды в баке в литрах",
       "type": "FLOAT",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1777,8 +3331,19 @@
       ]
     },
     "hvac_water_low_level": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "hvac_water_low_level",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "hvac_water_low_level",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "закончилась ли вода в баке",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1787,8 +3352,19 @@
       ]
     },
     "hvac_water_percentage": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "hvac_water_percentage",
+      "narrowing": "range_and_step",
       "range": "0, 100",
+      "state_example": {
+        "key": "hvac_water_percentage",
+        "value": {
+          "integer_value": "80",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "количество воды в баке в процентах",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1797,6 +3373,21 @@
       ]
     },
     "hvac_work_mode": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "air_purification": "очистка воздуха",
+        "auto": "автоматический режим",
+        "comfortable_sleep": "режим комфортного сна",
+        "cooling": "охлаждение воздуха",
+        "dehumidification": "осушение воздуха",
+        "eco": "энергосбережение",
+        "fast_cooling": "быстрое охлаждение воздуха",
+        "fast_heating": "быстрый нагрев воздуха",
+        "heating": "нагрев воздуха",
+        "self_cleaning": "самоочистка и сушка устройства",
+        "turbo": "режим усиленной работы",
+        "ventilation": "вентиляция без охлаждения или нагрева воздуха"
+      },
       "enum_values": [
         "air_purification",
         "auto",
@@ -1811,8 +3402,18 @@
         "turbo",
         "ventilation"
       ],
+      "model_declaration": "must_declare",
       "name": "hvac_work_mode",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "hvac_work_mode",
+        "value": {
+          "enum_value": "eco",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "режим работы",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1821,8 +3422,19 @@
       ]
     },
     "incoming_call": {
+      "doc_updated": "06 ноября 2025",
+      "model_declaration": "must_declare",
       "name": "incoming_call",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "incoming_call",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "поступает ли вызов на домофон",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1831,8 +3443,19 @@
       ]
     },
     "kitchen_water_level": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "kitchen_water_level",
+      "narrowing": "range_only",
       "range": "0, 50",
+      "state_example": {
+        "key": "kitchen_water_level",
+        "value": {
+          "float_value": 1,
+          "type": "FLOAT"
+        }
+      },
+      "title_ru": "количество воды в устройстве в литрах",
       "type": "FLOAT",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1841,8 +3464,19 @@
       ]
     },
     "kitchen_water_low_level": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "kitchen_water_low_level",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "kitchen_water_low_level",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "закончилась ли вода",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1851,8 +3485,19 @@
       ]
     },
     "kitchen_water_temperature": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "kitchen_water_temperature",
+      "narrowing": "range_and_step",
       "range": "0, 100",
+      "state_example": {
+        "key": "kitchen_water_temperature",
+        "value": {
+          "integer_value": "60",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "текущая температура воды",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -1861,8 +3506,19 @@
       ]
     },
     "kitchen_water_temperature_set": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "kitchen_water_temperature_set",
+      "narrowing": "range_and_step",
       "range": "0, 100",
+      "state_example": {
+        "key": "kitchen_water_temperature_set",
+        "value": {
+          "integer_value": "85",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "целевая температура воды",
       "type": "INTEGER",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1871,8 +3527,19 @@
       ]
     },
     "light_brightness": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "light_brightness",
+      "narrowing": "range_and_step",
       "range": "50,1000",
+      "state_example": {
+        "key": "light_brightness",
+        "value": {
+          "integer_value": "500",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "яркость",
       "type": "INTEGER",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1882,8 +3549,23 @@
       ]
     },
     "light_colour": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "light_colour",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "light_colour",
+        "value": {
+          "colour_value": {
+            "h": 360,
+            "s": 1000,
+            "v": 1000
+          },
+          "type": "COLOUR"
+        }
+      },
+      "title_ru": "цвет",
       "type": "COLOUR",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1893,8 +3575,19 @@
       ]
     },
     "light_colour_temp": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "light_colour_temp",
+      "narrowing": "range_and_step",
       "range": "0, 1000",
+      "state_example": {
+        "key": "light_colour_temp",
+        "value": {
+          "integer_value": "350",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "температура цвета",
       "type": "INTEGER",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1904,12 +3597,27 @@
       ]
     },
     "light_mode": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "colour": "цветной режим. Например, лампа светит оранжевым",
+        "white": "белый цвет. Устройство светит белым"
+      },
       "enum_values": [
         "white",
         "colour"
       ],
+      "model_declaration": "must_declare",
       "name": "light_mode",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "light_mode",
+        "value": {
+          "enum_value": "colour",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "режим цвета",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1919,8 +3627,19 @@
       ]
     },
     "light_transmission_percentage": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "light_transmission_percentage",
+      "narrowing": "range_and_step",
       "range": "0, 100",
+      "state_example": {
+        "key": "light_transmission_percentage",
+        "value": {
+          "integer_value": "80",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "степень пропускания света в процентах",
       "type": "INTEGER",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1929,8 +3648,19 @@
       ]
     },
     "mute": {
+      "doc_updated": "5 ноября 2024",
+      "model_declaration": "must_declare",
       "name": "mute",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "mute",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "бесшумный режим",
       "type": "BOOL",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -1939,8 +3669,19 @@
       ]
     },
     "number": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "number",
+      "narrowing": "range_and_step",
       "range": "0, 9",
+      "state_example": {
+        "key": "number",
+        "value": {
+          "integer_value": "1",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "нажатая на пульте цифровая кнопка",
       "type": "INTEGER",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -1949,8 +3690,19 @@
       ]
     },
     "on_off": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "on_off",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "on_off",
+        "value": {
+          "bool_value": false,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "удаленное включение и выключение устройства",
       "type": "BOOL",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -1972,8 +3724,19 @@
       ]
     },
     "online": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "online",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "online",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "доступность устройства",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2010,8 +3773,19 @@
       ]
     },
     "open_left_percentage": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "open_left_percentage",
+      "narrowing": "range_and_step",
       "range": "0, 100",
+      "state_example": {
+        "key": "open_left_percentage",
+        "value": {
+          "integer_value": "30",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "открывание левой половины в процентах",
       "type": "INTEGER",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -2021,13 +3795,29 @@
       ]
     },
     "open_left_set": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "close": "закрыть",
+        "open": "открыть",
+        "stop": "остановить"
+      },
       "enum_values": [
         "open",
         "close",
         "stop"
       ],
+      "model_declaration": "must_declare",
       "name": "open_left_set",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "open_left_set",
+        "value": {
+          "enum_value": "open",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "открывание левой половины",
       "type": "ENUM",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -2037,14 +3827,31 @@
       ]
     },
     "open_left_state": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "close": "закрыто",
+        "closing": "закрывается",
+        "open": "открыто",
+        "opening": "открывается"
+      },
       "enum_values": [
         "open",
         "close",
         "opening",
         "closing"
       ],
+      "model_declaration": "must_declare",
       "name": "open_left_state",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "open_left_state",
+        "value": {
+          "enum_value": "open",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "статус открывания левой стороны",
       "type": "ENUM",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2054,8 +3861,19 @@
       ]
     },
     "open_percentage": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "open_percentage",
+      "narrowing": "range_and_step",
       "range": "0, 100",
+      "state_example": {
+        "key": "open_percentage",
+        "value": {
+          "integer_value": "30",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "открывание в процентах",
       "type": "INTEGER",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -2067,14 +3885,31 @@
       ]
     },
     "open_rate": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "auto": "автоматическая скорость",
+        "high": "высокая скорость",
+        "low": "низкая скорость",
+        "medium": "средняя скорость"
+      },
       "enum_values": [
         "auto",
         "low",
         "medium",
         "high"
       ],
+      "model_declaration": "must_declare",
       "name": "open_rate",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "open_rate",
+        "value": {
+          "enum_value": "low",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "скорость открывания",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -2085,8 +3920,19 @@
       ]
     },
     "open_right_percentage": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "open_right_percentage",
+      "narrowing": "range_and_step",
       "range": "0, 100",
+      "state_example": {
+        "key": "open_right_percentage",
+        "value": {
+          "integer_value": "30",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "открывание правой половины в процентах",
       "type": "INTEGER",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -2096,13 +3942,29 @@
       ]
     },
     "open_right_set": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "close": "закрыть",
+        "open": "открыть",
+        "stop": "остановить"
+      },
       "enum_values": [
         "open",
         "close",
         "stop"
       ],
+      "model_declaration": "must_declare",
       "name": "open_right_set",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "open_right_set",
+        "value": {
+          "enum_value": "open",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "открывание правой половины",
       "type": "ENUM",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -2112,14 +3974,31 @@
       ]
     },
     "open_right_state": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "close": "закрыто",
+        "closing": "закрывается",
+        "open": "открыто",
+        "opening": "открывается"
+      },
       "enum_values": [
         "open",
         "close",
         "opening",
         "closing"
       ],
+      "model_declaration": "must_declare",
       "name": "open_right_state",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "open_right_state",
+        "value": {
+          "enum_value": "open",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "статус открывания правой стороны",
       "type": "ENUM",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2129,13 +4008,29 @@
       ]
     },
     "open_set": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "close": "закрыть",
+        "open": "открыть",
+        "stop": "остановить"
+      },
       "enum_values": [
         "open",
         "close",
         "stop"
       ],
+      "model_declaration": "must_declare",
       "name": "open_set",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "open_set",
+        "value": {
+          "enum_value": "open",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "открывание",
       "type": "ENUM",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -2147,14 +4042,31 @@
       ]
     },
     "open_state": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "close": "закрыто",
+        "closing": "закрывается",
+        "open": "открыто",
+        "opening": "открывается"
+      },
       "enum_values": [
         "open",
         "close",
         "opening",
         "closing"
       ],
+      "model_declaration": "must_declare",
       "name": "open_state",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "open_state",
+        "value": {
+          "enum_value": "open",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "статус открывания",
       "type": "ENUM",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2166,11 +4078,25 @@
       ]
     },
     "pir": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "pir": "отправляется, когда обнаружено движение"
+      },
       "enum_values": [
         "pir"
       ],
+      "model_declaration": "must_declare",
       "name": "pir",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "pir",
+        "value": {
+          "enum_value": "pir",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "обнаружено ли движение",
       "type": "ENUM",
       "usage": "уведомляет о состоянии устройства, менять его не может.",
       "usage_mode": "event_only",
@@ -2179,8 +4105,19 @@
       ]
     },
     "pm10": {
+      "doc_updated": "22 июня 2026",
+      "model_declaration": "must_declare",
       "name": "pm10",
+      "narrowing": "range_and_step",
       "range": "0, 1000",
+      "state_example": {
+        "key": "pm10",
+        "value": {
+          "integer_value": "160",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "концентрация твердых крупных частиц, крупной пыли",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2189,8 +4126,19 @@
       ]
     },
     "pm1_0": {
+      "doc_updated": "22 июня 2026",
+      "model_declaration": "must_declare",
       "name": "pm1_0",
+      "narrowing": "range_and_step",
       "range": "0, 500",
+      "state_example": {
+        "key": "pm1_0",
+        "value": {
+          "integer_value": "160",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "концентрация микрочастиц, мельчайших частиц",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2199,8 +4147,19 @@
       ]
     },
     "pm2_5": {
+      "doc_updated": "22 июня 2026",
+      "model_declaration": "must_declare",
       "name": "pm2_5",
+      "narrowing": "range_and_step",
       "range": "0, 500",
+      "state_example": {
+        "key": "pm2_5",
+        "value": {
+          "integer_value": "160",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "концентрация твердых мелких частиц, мелкой пыли",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2209,8 +4168,19 @@
       ]
     },
     "power": {
+      "doc_updated": "15 июля 2025",
+      "model_declaration": "must_declare",
       "name": "power",
+      "narrowing": "range_and_step",
       "range": "0, 50000",
+      "state_example": {
+        "key": "power",
+        "value": {
+          "integer_value": "2500",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "текущая мощность",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2220,8 +4190,19 @@
       ]
     },
     "reject_call": {
+      "doc_updated": "06 ноября 2025",
+      "model_declaration": "must_declare",
       "name": "reject_call",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "reject_call",
+        "value": {
+          "enum_value": "reject",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "отклонить вызов",
       "type": "ENUM",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -2230,13 +4211,29 @@
       ]
     },
     "sensor_sensitive": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "high": "высокая чувствительность",
+        "low": "низкая чувствительность",
+        "medium": "средняя чувствительность"
+      },
       "enum_values": [
         "low",
         "medium",
         "high"
       ],
+      "model_declaration": "must_declare",
       "name": "sensor_sensitive",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "sensor_sensitive",
+        "value": {
+          "enum_value": "medium",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "чувствительность датчика",
       "type": "ENUM",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2248,13 +4245,29 @@
       ]
     },
     "signal_strength": {
+      "doc_updated": "22 июня 2026",
+      "enum_descriptions": {
+        "high": "высокий уровень сигнала. Вероятность появления сбоев связи минимальна",
+        "low": "низкий уровень сигнала. Возможны сбои связи",
+        "medium": "средний уровень сигнала. Иногда возможны сбои связи, но вероятность их появления меньше, чем на уровне low"
+      },
       "enum_values": [
         "low",
         "medium",
         "high"
       ],
+      "model_declaration": "must_declare",
       "name": "signal_strength",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "signal_strength",
+        "value": {
+          "enum_value": "high",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "сила сигнала",
       "type": "ENUM",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2274,8 +4287,19 @@
       ]
     },
     "smoke_state": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "smoke_state",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "smoke_state",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "обнаружено ли задымление",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2284,6 +4308,18 @@
       ]
     },
     "source": {
+      "doc_updated": "5 ноября 2024",
+      "enum_descriptions": {
+        "+": "следующий источник сигнала",
+        "-": "предыдущий источник сигнала",
+        "av": "сигнал с AV-входа (RCA)",
+        "content": "трансляция видео со смартфона или компьютера на телевизор",
+        "hdmi1": "сигнал со входа HDMI № 1",
+        "hdmi2": "сигнал со входа HDMI № 2",
+        "hdmi3": "сигнал со входа HDMI № 3",
+        "screencast": "демонстрация экрана смартфона или компьютера на телевизоре",
+        "tv": "сигнал с ТВ-антенны"
+      },
       "enum_values": [
         "hdmi1",
         "hdmi2",
@@ -2295,8 +4331,18 @@
         "+",
         "-"
       ],
+      "model_declaration": "must_declare",
       "name": "source",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "source",
+        "value": {
+          "enum_value": "HDMI1",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "источник видеосигнала",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -2305,8 +4351,19 @@
       ]
     },
     "tamper_alarm": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "tamper_alarm",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "tamper_alarm",
+        "value": {
+          "bool_value": false,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "сигнализация о вскрытии",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2315,12 +4372,27 @@
       ]
     },
     "temp_unit_view": {
+      "doc_updated": "22 июня 2026",
+      "enum_descriptions": {
+        "c": "градусы Цельсия",
+        "f": "градусы Фаренгейта"
+      },
       "enum_values": [
         "c",
         "f"
       ],
+      "model_declaration": "must_declare",
       "name": "temp_unit_view",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "temp_unit_view",
+        "value": {
+          "enum_value": "c",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "температурная шкала для вывода информации",
       "type": "ENUM",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2330,8 +4402,19 @@
       ]
     },
     "temperature": {
+      "doc_updated": "22 июня 2026",
+      "model_declaration": "must_declare",
       "name": "temperature",
+      "narrowing": "range_and_step",
       "range": "-400, 2000",
+      "state_example": {
+        "key": "temperature",
+        "value": {
+          "integer_value": "220",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "текущая температура",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2346,8 +4429,19 @@
       ]
     },
     "tvoc_float": {
+      "doc_updated": "23 июня 2026",
+      "model_declaration": "must_declare",
       "name": "tvoc_float",
+      "narrowing": null,
       "range": "0, 9.999",
+      "state_example": {
+        "key": "tvoc_float",
+        "value": {
+          "float_value": "0.205",
+          "type": "FLOAT"
+        }
+      },
+      "title_ru": "общая концентрация летучих органических веществ",
       "type": "FLOAT",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2356,8 +4450,19 @@
       ]
     },
     "unlock": {
+      "doc_updated": "06 ноября 2025",
+      "model_declaration": "must_declare",
       "name": "unlock",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "unlock",
+        "value": {
+          "enum_value": "unlock",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "открыть замок",
       "type": "ENUM",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -2366,13 +4471,29 @@
       ]
     },
     "vacuum_cleaner_cleaning_type": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "dry": "сухая уборка",
+        "mixed": "сухая и влажная уборка",
+        "wet": "влажная уборка"
+      },
       "enum_values": [
         "dry",
         "wet",
         "mixed"
       ],
+      "model_declaration": "must_declare",
       "name": "vacuum_cleaner_cleaning_type",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "vacuum_cleaner_cleaning_type",
+        "value": {
+          "enum_value": "wet",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "тип уборки",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -2381,14 +4502,31 @@
       ]
     },
     "vacuum_cleaner_command": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "pause": "приостановить уборку",
+        "resume": "возобновить уборку",
+        "return_to_dock": "вернуться на базу",
+        "start": "начать уборку"
+      },
       "enum_values": [
         "start",
         "pause",
         "return_to_dock",
         "resume"
       ],
+      "model_declaration": "must_declare",
       "name": "vacuum_cleaner_command",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "vacuum_cleaner_command",
+        "value": {
+          "enum_value": "return_to_dock",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "команда управления уборкой",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -2397,14 +4535,31 @@
       ]
     },
     "vacuum_cleaner_program": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "perimeter": "уборка по периметру помещения. Устройство двигается вдоль стен, не убираясь в центре",
+        "random_route": "уборка по случайному маршруту. Устройство двигается по простейшему алгоритму, не отслеживающему ранее убранную площадь. Обычно уборка продолжается, пока батарея не разрядится до заданного производителем порогового значения, после этого устройство возвращается на базу",
+        "smart": "уборка в автоматическом режиме по алгоритму устройства. Обычно в этом режиме устройство убирает всю доступную площадь помещения",
+        "spot": "уборка по спирали. Устройство начинает уборку в точке запуска и двигается по расширяющейся спирали"
+      },
       "enum_values": [
         "perimeter",
         "spot",
         "smart",
         "random_route"
       ],
+      "model_declaration": "must_declare",
       "name": "vacuum_cleaner_program",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "vacuum_cleaner_program",
+        "value": {
+          "enum_value": "smart",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "программа уборки",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -2413,14 +4568,31 @@
       ]
     },
     "vacuum_cleaner_status": {
+      "doc_updated": "28 октября 2024",
+      "enum_descriptions": {
+        "cleaning": "уборка",
+        "docked": "на базе",
+        "pause": "пауза",
+        "returning_to_dock": "возвращение на базу"
+      },
       "enum_values": [
         "cleaning",
         "docked",
         "pause",
         "returning_to_dock"
       ],
+      "model_declaration": "must_declare",
       "name": "vacuum_cleaner_status",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "vacuum_cleaner_status",
+        "value": {
+          "enum_value": "cleaning",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "статус устройства",
       "type": "ENUM",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -2429,8 +4601,19 @@
       ]
     },
     "voltage": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "voltage",
+      "narrowing": "range_and_step",
       "range": "0, 5000",
+      "state_example": {
+        "key": "voltage",
+        "value": {
+          "integer_value": "230",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "текущее напряжение",
       "type": "INTEGER",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2440,12 +4623,27 @@
       ]
     },
     "volume": {
+      "doc_updated": "5 ноября 2024",
+      "enum_descriptions": {
+        "+": "сделать громче",
+        "-": "сделать тише"
+      },
       "enum_values": [
         "+",
         "-"
       ],
+      "model_declaration": "must_declare",
       "name": "volume",
+      "narrowing": "enum_subset",
       "range": null,
+      "state_example": {
+        "key": "volume",
+        "value": {
+          "enum_value": "-",
+          "type": "ENUM"
+        }
+      },
+      "title_ru": "сделать тише или громче",
       "type": "ENUM",
       "usage": "не хранит состояние устройства, может менять его.",
       "usage_mode": "command_only",
@@ -2454,8 +4652,19 @@
       ]
     },
     "volume_int": {
+      "doc_updated": "4 апреля 2025",
+      "model_declaration": "must_declare",
       "name": "volume_int",
+      "narrowing": "range_and_step",
       "range": "0, 999",
+      "state_example": {
+        "key": "volume_int",
+        "value": {
+          "integer_value": "30",
+          "type": "INTEGER"
+        }
+      },
+      "title_ru": "уровень громкости",
       "type": "INTEGER",
       "usage": "хранит состояние устройства и может менять его.",
       "usage_mode": "state_read_write",
@@ -2464,8 +4673,19 @@
       ]
     },
     "water_leak_state": {
+      "doc_updated": "28 октября 2024",
+      "model_declaration": "must_declare",
       "name": "water_leak_state",
+      "narrowing": null,
       "range": null,
+      "state_example": {
+        "key": "water_leak_state",
+        "value": {
+          "bool_value": true,
+          "type": "BOOL"
+        }
+      },
+      "title_ru": "обнаружена ли протечка",
       "type": "BOOL",
       "usage": "хранит состояние устройства, менять его не может.",
       "usage_mode": "state_read_only",
@@ -2474,6 +4694,354 @@
       ]
     }
   },
-  "generated_at": "2026-09-07T12:06:54.143165+00:00",
-  "source": "https://developers.sber.ru/docs/ru/smarthome/c2c"
+  "generated_at": "2026-09-07T15:07:37.367121+00:00",
+  "protocol": {
+    "allowed_values_types": [
+      "FLOAT",
+      "INTEGER",
+      "ENUM"
+    ],
+    "colour_ranges": {
+      "h": [
+        0,
+        360
+      ],
+      "s": [
+        0,
+        1000
+      ],
+      "v": [
+        100,
+        1000
+      ]
+    },
+    "error_codes": {
+      "400": "ошибка валидации запроса",
+      "401": "ошибка авторизации",
+      "403": "ошибка проверки токена",
+      "500": "внутренняя ошибка системы",
+      "503": "сервер недоступен"
+    },
+    "partner_meta_max_chars": 1024,
+    "value_field_types": {
+      "bool_value": "boolean",
+      "colour_value": "colour",
+      "enum_value": "string",
+      "float_value": "number",
+      "integer_value": "string",
+      "string_value": "string"
+    },
+    "value_types": [
+      "FLOAT",
+      "INTEGER",
+      "STRING",
+      "BOOL",
+      "ENUM",
+      "COLOUR"
+    ]
+  },
+  "source": "https://developers.sber.ru/docs/ru/smarthome/c2c",
+  "structures": {
+    "allowed_values": {
+      "doc_updated": "13 апреля 2025",
+      "fields": {
+        "allowed_values": {
+          "conditional": false,
+          "description": "Содержит перечень функций. Для каждой функции описываются значения, которые она может принимать",
+          "obligatory": true,
+          "type": "map<string, object>"
+        },
+        "enum_values": {
+          "conditional": true,
+          "description": "Допустимые значения для функции, принимающей значение ENUM.\n\nОбязательно указывается перечень values, содержащий хотя бы одно значение",
+          "obligatory": false,
+          "type": "object"
+        },
+        "float_values": {
+          "conditional": true,
+          "description": "Допустимые значения для функции, принимающей значение FLOAT.\n\nОбязательно указываются:\n\nmin. Минимальное значение функции, включительно.\nmax. Максимальное значение функции, включительно",
+          "obligatory": false,
+          "type": "object"
+        },
+        "func_name": {
+          "conditional": false,
+          "description": "Функция, для которой описывается диапазон допустимых значений.\n\nСписок функций см. в разделе Функции устройств",
+          "obligatory": true,
+          "type": "string"
+        },
+        "integer_values": {
+          "conditional": true,
+          "description": "Допустимые значения для функции, принимающей значение INTEGER.\n\nОбязательно указываются:\n\nmin. Минимальное значение функции, включительно. Указывается как целочисленное значение long, записанное в виде строки.\nmax. Максимальное значение функции, включительно. Указывается как целочисленное значение long, записанное в виде строки.\nstep. Шаг, с которым меняются значения функции. Указывается как целочисленное значение long, записанное в виде строки",
+          "obligatory": false,
+          "type": "object"
+        },
+        "type": {
+          "conditional": false,
+          "description": "Тип данных, которое принимает функция. Возможные значения:\n\nFLOAT\nINTEGER\nENUM",
+          "obligatory": true,
+          "type": "string"
+        }
+      },
+      "slug": "allowed_values",
+      "title": "Допустимые значения функций (allowed_values)"
+    },
+    "common_error": {
+      "doc_updated": "15 августа 2025",
+      "fields": {
+        "code": {
+          "conditional": false,
+          "description": "Код ошибки. Могут использоваться следующие коды:\n\n400 — ошибка валидации запроса\n401 — ошибка авторизации\n403 — ошибка проверки токена\n500 — внутренняя ошибка системы\n503 — сервер недоступен",
+          "obligatory": true,
+          "type": "integer"
+        },
+        "details": {
+          "conditional": false,
+          "description": "Дополнительная информация об ошибке",
+          "obligatory": false,
+          "type": "list<string>"
+        },
+        "message": {
+          "conditional": false,
+          "description": "Произвольное описание ошибки",
+          "obligatory": true,
+          "type": "string"
+        }
+      },
+      "slug": "common-error",
+      "title": "Общая ошибка при обработке запроса (common error)"
+    },
+    "device": {
+      "doc_updated": "28 октября 2025",
+      "fields": {
+        "default_name": {
+          "conditional": false,
+          "description": "Название устройства от производителя",
+          "obligatory": true,
+          "type": "string"
+        },
+        "groups": {
+          "conditional": false,
+          "description": "Названия групп, в которые входит устройство. В группу могут входить только устройства одного типа",
+          "obligatory": false,
+          "type": "list<string>"
+        },
+        "home": {
+          "conditional": false,
+          "description": "Название группы помещений, в которой расположено устройство",
+          "obligatory": false,
+          "type": "string"
+        },
+        "hw_version": {
+          "conditional": false,
+          "description": "Версия оборудования",
+          "obligatory": false,
+          "type": "string"
+        },
+        "id": {
+          "conditional": false,
+          "description": "Идентификатор устройства в системе вендора",
+          "obligatory": true,
+          "type": "string"
+        },
+        "model": {
+          "conditional": false,
+          "description": "Описание модели устройства (указывается, только если не задан model_id). Структуру описания модели см. в разделе Модель устройства (model)",
+          "obligatory": true,
+          "type": "<object>"
+        },
+        "model_id": {
+          "conditional": false,
+          "description": "ID модели устройства",
+          "obligatory": true,
+          "type": "string"
+        },
+        "name": {
+          "conditional": false,
+          "description": "Название, которое пользователь дал устройству",
+          "obligatory": true,
+          "type": "string"
+        },
+        "parent_id": {
+          "conditional": false,
+          "description": "ID родительского устройства (например, хаба)",
+          "obligatory": false,
+          "type": "string"
+        },
+        "partner_meta": {
+          "conditional": false,
+          "description": "Произвольная информация об устройстве. Содержит неограниченное количество пар ключ–значение, где ключ всегда имеет тип string, а значение может принимать любой тип данных (в том числе другой объект, вложенность не ограничена). Максимально допустимое количество символов в JSON-представлении объекта partner_meta — 1024.\n\nВендор может передать в partner_meta любую нужную информацию, умный дом будет хранить ее и возвращать в ответ на запросы получения списка устройств",
+          "obligatory": false,
+          "type": "<object>"
+        },
+        "room": {
+          "conditional": false,
+          "description": "Название помещения, в котором расположено устройство",
+          "obligatory": false,
+          "type": "string"
+        },
+        "sw_version": {
+          "conditional": false,
+          "description": "Версия прошивки",
+          "obligatory": false,
+          "type": "string"
+        }
+      },
+      "slug": "device",
+      "title": "Устройство пользователя (device)"
+    },
+    "error": {
+      "doc_updated": "19 февраля 2025",
+      "fields": {
+        "code": {
+          "conditional": false,
+          "description": "Код ошибки. Могут использоваться коды:\n\n400 — ошибка валидации запроса\n401 — ошибка авторизации\n403 — ошибка проверки токена\n500 — внутренняя ошибка системы\n503 — сервер недоступен",
+          "obligatory": true,
+          "type": "integer"
+        },
+        "id": {
+          "conditional": false,
+          "description": "Идентификатор устройства",
+          "obligatory": true,
+          "type": "string"
+        },
+        "message": {
+          "conditional": false,
+          "description": "Произвольное описание ошибки",
+          "obligatory": true,
+          "type": "string"
+        }
+      },
+      "slug": "error",
+      "title": "Ошибка обработки запроса о конкретном устройстве (error)"
+    },
+    "model": {
+      "doc_updated": "28 октября 2025",
+      "fields": {
+        "allowed_values": {
+          "conditional": false,
+          "description": "Допустимые значения функций (см. Допустимые значения функций (allowed_values))",
+          "obligatory": false,
+          "type": "map<string, object>"
+        },
+        "category": {
+          "conditional": false,
+          "description": "Категория устройства (см. Устройства)",
+          "obligatory": true,
+          "type": "string"
+        },
+        "description": {
+          "conditional": false,
+          "description": "Описание",
+          "obligatory": false,
+          "type": "string"
+        },
+        "features": {
+          "conditional": false,
+          "description": "Список функций (см. Функции устройств)",
+          "obligatory": true,
+          "type": "list<string>"
+        },
+        "hw_version": {
+          "conditional": false,
+          "description": "Версия оборудования",
+          "obligatory": false,
+          "type": "string"
+        },
+        "id": {
+          "conditional": false,
+          "description": "Идентификатор модели (часто product_id)",
+          "obligatory": true,
+          "type": "string"
+        },
+        "manufacturer": {
+          "conditional": false,
+          "description": "Производитель",
+          "obligatory": true,
+          "type": "string"
+        },
+        "model": {
+          "conditional": false,
+          "description": "Название модели",
+          "obligatory": true,
+          "type": "string"
+        },
+        "sw_version": {
+          "conditional": false,
+          "description": "Версия прошивки",
+          "obligatory": false,
+          "type": "string"
+        }
+      },
+      "slug": "model",
+      "title": "Модель устройства (model)"
+    },
+    "state": {
+      "doc_updated": "13 апреля 2025",
+      "fields": {
+        "key": {
+          "conditional": false,
+          "description": "Название функции устройства (см. Функции устройств)",
+          "obligatory": true,
+          "type": "string"
+        },
+        "value": {
+          "conditional": false,
+          "description": "Текущее значение функции (см. Значение функции устройства (value))",
+          "obligatory": true,
+          "type": "object"
+        }
+      },
+      "slug": "state",
+      "title": "Состояние устройства (state)"
+    },
+    "value": {
+      "doc_updated": "28 октября 2025",
+      "fields": {
+        "bool_value": {
+          "conditional": false,
+          "description": "Логическое значение",
+          "obligatory": false,
+          "type": "boolean"
+        },
+        "colour_value": {
+          "conditional": false,
+          "description": "Цвет в формате HSV: {\"h\":int,\"s\":int,\"v\":int}.\n\nДопустимые значения:\n\nh: 0–360\ns: 0–1000\nv: 100–1000",
+          "obligatory": false,
+          "type": "colour"
+        },
+        "enum_value": {
+          "conditional": false,
+          "description": "Перечисляемое значение",
+          "obligatory": false,
+          "type": "string"
+        },
+        "float_value": {
+          "conditional": false,
+          "description": "Вещественное значение",
+          "obligatory": false,
+          "type": "number"
+        },
+        "integer_value": {
+          "conditional": false,
+          "description": "Целочисленное значение long, записанное в виде строки",
+          "obligatory": false,
+          "type": "string"
+        },
+        "string_value": {
+          "conditional": false,
+          "description": "Строковое значение",
+          "obligatory": false,
+          "type": "string"
+        },
+        "type": {
+          "conditional": false,
+          "description": "Тип данных, в котором передается значение. Может принимать значение:\n\nFLOAT\nINTEGER\nSTRING\nBOOL\nENUM\nCOLOUR",
+          "obligatory": true,
+          "type": "string"
+        }
+      },
+      "slug": "value",
+      "title": "Значение функции устройства (value)"
+    }
+  }
 }

@@ -23,6 +23,11 @@ class GasSensorEntity(TamperAlarmMuteMixin, SimpleReadOnlySensor):
     - ``true`` = gas leak detected
     - ``false`` = no gas leak
 
+    The HA ``tamper`` attribute is **not** forwarded: Sber documents
+    ``tamper_alarm`` for ``sensor_door`` only, and a model carrying a
+    function outside its category's table can be rejected by the cloud as
+    a whole.
+
     Optionally supports ``alarm_mute`` (BOOL) if the HA entity
     provides it in attributes.
     """
@@ -52,13 +57,13 @@ class GasSensorEntity(TamperAlarmMuteMixin, SimpleReadOnlySensor):
         self._parse_tamper_alarm_mute(ha_state.get("attributes", {}))
 
     def _create_features_list(self) -> list[str]:
-        """Return Sber feature list including tamper_alarm and alarm_mute when available."""
+        """Return Sber feature list including ``alarm_mute`` when available."""
         features = super()._create_features_list()
         self._append_tamper_alarm_mute_features(features)
         return features
 
     def _build_current_state(self) -> dict[str, dict]:
-        """Build Sber current state payload with tamper_alarm and alarm_mute."""
+        """Build Sber current state payload with ``alarm_mute`` when available."""
         result = super()._build_current_state()
         self._append_tamper_alarm_mute_states(result[self.entity_id]["states"])
         return result

@@ -40,12 +40,24 @@ def _state(key: str, type_: str, **body) -> dict:
 
 
 def _config_device(device_id: str, category: str, features: list[str]) -> dict:
-    """Собрать дескриптор устройства в том виде, в каком он идёт в ``up/config``."""
+    """Собрать дескриптор устройства в том виде, в каком он идёт в ``up/config``.
+
+    Все поля, которые Сбер помечает обязательными, здесь заполнены — иначе
+    проверка ``missing_required_field`` справедливо ругалась бы на сам
+    стенд теста, а не на то, ради чего тест написан.
+    """
     return {
         "id": device_id,
         "name": device_id,
+        "default_name": device_id,
         "room": "Комната",
-        "model": {"id": f"Mdl_{category}", "category": category, "features": features},
+        "model": {
+            "id": f"Mdl_{category}",
+            "manufacturer": "HA-SberBridge",
+            "model": "Generic",
+            "category": category,
+            "features": features,
+        },
     }
 
 
@@ -95,16 +107,43 @@ class TestConfigPayloadReachesTheValidator:
 
         assert collector.record_publish_payload(payload) == {"root": []}
 
-    def test_entries_without_a_model_are_skipped(self) -> None:
-        """Мусор в пакете — баг сборщика payload, а не пользователя.
+    def test_entries_without_an_id_are_skipped(self) -> None:
+        """Запись, которую не к чему привязать, пропускается молча.
 
-        Такие записи пропускаются молча: жаловаться пользователю на то,
-        чего он не писал, — чистый шум.
+        Замечание адресуется устройством: без ``id`` его некуда положить
+        ни в таблицу «здоровье устройств», ни в ленту. Жаловаться
+        пользователю на мусор, которого он не писал, — чистый шум.
+
+        Что сломается у пользователя, если тест упадёт: панель получит
+        строки без устройства и либо не отрисует их, либо свалится на
+        отсутствующем ключе.
         """
         collector = ValidationCollector()
-        payload = {"devices": ["строка", {"id": "no-model"}, {"model": {"category": "light"}}]}
+        payload = {"devices": ["строка", {"model": {"category": "light"}}, {"id": ""}]}
 
         assert collector.record_publish_payload(payload) == {}
+
+    def test_descriptor_without_a_model_is_reported_not_skipped(self) -> None:
+        """Устройство с одним лишь ``id`` разбирается, а не выбрасывается.
+
+        Сбер разрешает описать устройство либо вложенной ``model``, либо
+        ``model_id`` уже зарегистрированной. Дескриптор без обеих —
+        настоящая поломка, и проверки на неё в
+        :func:`validate_device_descriptor` есть.
+
+        Что сломается у пользователя, если тест упадёт: коллектор снова
+        начнёт отфильтровывать такой дескриптор до проверок, и половина
+        ``validate_device_descriptor`` останется достижимой только из
+        тестов — устройство молча не появится в приложении, а панель
+        покажет его здоровым.
+        """
+        collector = ValidationCollector()
+        result = collector.record_publish_payload({"devices": [{"id": "no-model"}]})
+
+        assert list(result) == ["no-model"]
+        keys = {i.message_key for i in result["no-model"]}
+        assert "device_missing_model" in keys
+        assert keys >= {"device_missing_field"}
 
     def test_config_and_status_findings_live_side_by_side(self) -> None:
         """Публикация конфига не стирает то, что нашла публикация состояний.

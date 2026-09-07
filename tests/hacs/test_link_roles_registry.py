@@ -391,10 +391,21 @@ class TestOnOffCapabilityFlags:
         assert "power" not in _states_of(entity)
 
     def test_subclass_can_opt_in_child_lock(self):
-        """A future kettle-like OnOff subclass enables child_lock without base edits."""
+        """A future kettle-like OnOff subclass enables child_lock without base edits.
+
+        Категория подменена на ``socket``: ``BaseEntity`` больше не даёт
+        объявить функцию, которой нет в справочнике категории, а у
+        ``relay`` Sber ``child_lock`` не описывает.  Проверяется здесь
+        именно флаг миксина — что подкласс включает функцию сам, без
+        правок базового класса.
+        """
 
         class _LockableRelay(RelayEntity):
             _supports_child_lock = True
+
+            def __init__(self, entity_data: dict) -> None:
+                super().__init__(entity_data)
+                self.category = "socket"
 
         entity = _LockableRelay({"entity_id": "switch.k", "name": "K"})
         entity.fill_by_ha_state(_on_state(child_lock=False))

@@ -27,7 +27,7 @@
         'id': 'switch.lamp',
         'model': dict({
           'category': 'relay',
-          'description': 'Lamp',
+          'description': 'Home Assistant relay',
           'features': list([
             'online',
             'on_off',
@@ -47,7 +47,7 @@
         'id': 'sensor.temp',
         'model': dict({
           'category': 'sensor_temp',
-          'description': 'Temperature',
+          'description': 'Home Assistant sensor_temp',
           'features': list([
             'online',
             'temperature',
@@ -94,7 +94,7 @@
         'id': 'switch.lamp',
         'model': dict({
           'category': 'relay',
-          'description': 'Lamp',
+          'description': 'Home Assistant relay',
           'features': list([
             'online',
             'on_off',

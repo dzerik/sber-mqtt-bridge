@@ -247,27 +247,42 @@ class TestTamperAlarmDoor(unittest.TestCase):
 
 
 class TestTamperAlarmMotion(unittest.TestCase):
-    """Test tamper_alarm feature in MotionSensorEntity."""
+    """``tamper_alarm`` датчику движения не положен.
 
-    def test_tamper_feature_present(self):
+    Таблица «Доступные функции устройства» на странице
+    ``c2c/sensor_pir`` перечисляет ``online``, ``pir``,
+    ``sensor_sensitive``, ``battery_low_power``, ``battery_percentage``
+    и ``signal_strength``.  ``tamper_alarm`` Sber документирует только
+    для ``sensor_door``.
+
+    Если тест упадёт, в модели датчика движения снова появится чужая
+    функция, а модель с такой функцией облако вправе отбросить целиком —
+    пользователь потеряет весь датчик, а не одну строчку в карточке.
+    """
+
+    def test_tamper_attribute_does_not_reach_the_model(self):
+        """Атрибут ``tamper`` из HA не превращается в функцию модели."""
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.motion", tamper=True))
-        features = entity.get_final_features_list()
-        self.assertIn("tamper_alarm", features)
+        self.assertNotIn("tamper_alarm", entity.get_final_features_list())
 
     def test_tamper_feature_absent(self):
+        """Без атрибута его тем более нет — поведение не изменилось."""
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.motion"))
-        features = entity.get_final_features_list()
-        self.assertNotIn("tamper_alarm", features)
+        self.assertNotIn("tamper_alarm", entity.get_final_features_list())
 
-    def test_tamper_in_state(self):
+    def test_tamper_is_not_published(self):
+        """Он не уходит и в публикуемое состояние, а ``online`` остаётся.
+
+        ``pir`` здесь не проверяется намеренно: Sber описывает его как
+        событийную функцию, и датчик покоя её не публикует.
+        """
         entity = MotionSensorEntity(MOTION_DATA)
         entity.fill_by_ha_state(_binary_state("binary_sensor.motion", tamper=True))
-        result = entity.to_sber_current_state()
-        states = result["binary_sensor.motion"]["states"]
-        tamper = next(s for s in states if s["key"] == "tamper_alarm")
-        self.assertTrue(tamper["value"]["bool_value"])
+        keys = {str(s["key"]) for s in entity.to_sber_current_state()["binary_sensor.motion"]["states"]}
+        self.assertNotIn("tamper_alarm", keys)
+        self.assertIn("online", keys)
 
 
 # === Task 4: battery_low_power for sensors ===

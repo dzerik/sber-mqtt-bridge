@@ -31,8 +31,15 @@ from collections.abc import Callable
 from typing import ClassVar
 
 from ..sber_constants import SberFeature, SberValueType
-from ..sber_models import make_bool_value, make_integer_value, make_state, normalize_sber_value
-from .base_entity import AttrSpec, BaseEntity, CommandResult, _safe_bool_parser, _safe_int_parser
+from ..sber_models import make_state_for, normalize_sber_value
+from .base_entity import (
+    AttrSpec,
+    BaseEntity,
+    CommandResult,
+    _safe_bool_parser,
+    _safe_float_parser,
+    _safe_int_parser,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -181,9 +188,12 @@ class KettleEntity(BaseEntity):
             default=False,
         ),
         AttrSpec(
+            # Sber documents ``kitchen_water_level`` as a FLOAT in litres
+            # (0…50), so the reading stays fractional: a 1.7-litre kettle
+            # used to be truncated to "1" on its way out.
             field="_water_level",
             attr_keys=(WATER_LEVEL_ATTR,),
-            parser=_safe_int_parser,
+            parser=_safe_float_parser,
         ),
         AttrSpec(
             field="_water_low_level",
@@ -218,7 +228,7 @@ class KettleEntity(BaseEntity):
         self._current_temperature: int | None = None
         self._target_temperature: int | None = None
         self._child_lock: bool = False
-        self._water_level: int | None = None
+        self._water_level: float | None = None
         self._water_low_level: bool | None = None
         self._operation_list: tuple[str, ...] = ()
         self._operation_mode: str | None = None
@@ -512,22 +522,18 @@ class KettleEntity(BaseEntity):
             Dict mapping entity_id to its Sber state representation.
         """
         states = [
-            make_state(SberFeature.ONLINE, make_bool_value(self._is_online)),
-            make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)),
+            make_state_for(SberFeature.ONLINE, self._is_online),
+            make_state_for(SberFeature.ON_OFF, self.current_state),
         ]
         if self._current_temperature is not None:
-            states.append(
-                make_state(SberFeature.KITCHEN_WATER_TEMPERATURE, make_integer_value(self._current_temperature))
-            )
+            states.append(make_state_for(SberFeature.KITCHEN_WATER_TEMPERATURE, self._current_temperature))
         if self._water_low_level is not None:
-            states.append(make_state(SberFeature.KITCHEN_WATER_LOW_LEVEL, make_bool_value(self._water_low_level)))
+            states.append(make_state_for(SberFeature.KITCHEN_WATER_LOW_LEVEL, self._water_low_level))
         if self._water_level is not None:
-            states.append(make_state(SberFeature.KITCHEN_WATER_LEVEL, make_integer_value(self._water_level)))
+            states.append(make_state_for(SberFeature.KITCHEN_WATER_LEVEL, self._water_level))
         if self._target_temperature is not None:
-            states.append(
-                make_state(SberFeature.KITCHEN_WATER_TEMPERATURE_SET, make_integer_value(self._target_temperature))
-            )
-        states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
+            states.append(make_state_for(SberFeature.KITCHEN_WATER_TEMPERATURE_SET, self._target_temperature))
+        states.append(make_state_for(SberFeature.CHILD_LOCK, self._child_lock))
         return {self.entity_id: {"states": states}}
 
     # -- commands -------------------------------------------------------

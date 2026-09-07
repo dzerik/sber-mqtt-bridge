@@ -28,6 +28,8 @@ class DoorSensorEntity(TamperAlarmMuteMixin, SimpleReadOnlySensor):
     _sber_value_key = "doorcontact_state"
     _sber_value_type = "BOOL"
     _unknown_is_online = True
+    SUPPORTS_TAMPER = True
+    """``sensor_door`` is the one category whose Sber page documents ``tamper_alarm``."""
 
     def __init__(self, entity_data: dict) -> None:
         """Initialize door sensor entity.

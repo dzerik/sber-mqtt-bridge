@@ -24,13 +24,33 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install Playwright + chromium
-        run: |
-          pip install --quiet playwright
-          playwright install --with-deps chromium
+      # No browser is installed on purpose.  developers.sber.ru is
+      # Docusaurus with server-side rendering, so the scraper reads the
+      # pages with plain HTTP and the standard library — the run no
+      # longer depends on a chromium download succeeding.  The tool can
+      # still fall back to Playwright when a page arrives empty; if that
+      # ever happens here it will report the page as failed (exit 1) and
+      # this job will go red, which is the signal to look at the site
+      # rather than to reinstall a browser.
 
       - name: Fetch Sber schemas
-        run: python tools/fetch_sber_schemas.py
+        id: fetch
+        run: |
+          # Exit 3 means "snapshot written, but the scraper extracted less
+          # than the pages carry" — a degraded crawl, not a documentation
+          # change.  The run must continue so the drift PR still gets
+          # opened with whatever was captured; the warning below is what
+          # tells a human to reread the log before trusting that diff.
+          set +e
+          python tools/fetch_sber_schemas.py
+          code=$?
+          set -e
+          echo "degraded=$([ "$code" -eq 3 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          if [ "$code" -eq 3 ]; then
+            echo "::warning::Scraper extraction is incomplete (exit 3) — see the WARN lines above."
+            exit 0
+          fi
+          exit "$code"
 
       - name: Regenerate committed artifacts
         run: python tools/codegen.py
@@ -88,6 +108,10 @@ jobs:
 
             Merge this PR only after verifying the Sber change is
             intentional and our code is updated accordingly.
+
+            Scraper extraction incomplete: ${{ steps.fetch.outputs.degraded }}
+            (when `true`, part of this diff may be the scraper losing data
+            rather than Sber changing anything — check the job log).
           labels: |
             sber-drift
             automated

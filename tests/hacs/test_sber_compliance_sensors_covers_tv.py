@@ -67,6 +67,24 @@ def _assert_bool_value(states: list[dict], key: str, expected: bool) -> None:
     assert value["bool_value"] is expected, f"Expected bool_value={expected} for '{key}', got {value['bool_value']}"
 
 
+def _assert_feature_is_foreign(entity, states: list[dict], key: str) -> None:
+    """Убедиться, что функция не объявлена и не опубликована.
+
+    Sber держит на странице каждой категории закрытую таблицу
+    «Доступные функции устройства».  Функция вне таблицы — не «лишняя
+    строчка в карточке»: облако вправе отбросить модель целиком, и
+    пользователь останется без устройства, не получив ни ошибки, ни
+    записи в журнале.
+
+    Args:
+        entity: Проверяемая сущность.
+        states: Публикуемый список состояний той же сущности.
+        key: Имя функции, которой у категории быть не должно.
+    """
+    assert key not in entity.get_final_features_list(), f"'{key}' объявлен, хотя у категории его нет"
+    assert _find_state(states, key) is None, f"'{key}' опубликован, хотя у категории его нет"
+
+
 def _assert_enum_value(states: list[dict], key: str, expected: str) -> None:
     """Assert that an ENUM state entry has the expected value."""
     entry = _find_state(states, key)
@@ -378,11 +396,10 @@ class TestMotionSensorCompliance:
         assert "online" in features
         assert "pir" in features
 
-    def test_features_with_tamper(self):
-        """When tamper attr present, tamper_alarm feature appears."""
+    def test_tamper_is_foreign_to_the_category(self):
+        """``tamper_alarm`` Sber документирует только для ``sensor_door``."""
         entity = self._make_entity(tamper=False)
-        features = entity.get_final_features_list()
-        assert "tamper_alarm" in features
+        _assert_feature_is_foreign(entity, _get_states(entity, self.ENTITY_ID), "tamper_alarm")
 
     def test_features_with_battery(self):
         """Battery features when battery available."""
@@ -423,17 +440,11 @@ class TestMotionSensorCompliance:
         states = _get_states(entity, self.ENTITY_ID)
         _assert_bool_value(states, "online", False)
 
-    def test_tamper_alarm_bool_in_state(self):
-        """tamper_alarm must be BOOL in state."""
-        entity = self._make_entity("off", tamper=True)
-        states = _get_states(entity, self.ENTITY_ID)
-        _assert_bool_value(states, "tamper_alarm", True)
-
-    def test_tamper_alarm_false(self):
-        """tamper_alarm=false when tamper attribute is falsy."""
-        entity = self._make_entity("off", tamper=False)
-        states = _get_states(entity, self.ENTITY_ID)
-        _assert_bool_value(states, "tamper_alarm", False)
+    def test_tamper_alarm_never_published(self):
+        """Ни при каком значении атрибута ``tamper`` ключ не уезжает в облако."""
+        for tamper in (True, False):
+            entity = self._make_entity("off", tamper=tamper)
+            _assert_feature_is_foreign(entity, _get_states(entity, self.ENTITY_ID), "tamper_alarm")
 
     def test_read_only_no_commands(self):
         """Motion sensor must not process commands."""
@@ -557,12 +568,12 @@ class TestWaterLeakSensorCompliance:
         assert "online" in features
         assert "water_leak_state" in features
 
-    def test_features_with_tamper_and_alarm_mute(self):
-        """tamper_alarm and alarm_mute features when attrs present."""
+    def test_tamper_and_alarm_mute_are_foreign_to_the_category(self):
+        """``c2c/sensor_water_leak`` не описывает ни того, ни другого."""
         entity = self._make_entity(tamper=False, alarm_mute=False)
-        features = entity.get_final_features_list()
-        assert "tamper_alarm" in features
-        assert "alarm_mute" in features
+        states = _get_states(entity, self.ENTITY_ID)
+        _assert_feature_is_foreign(entity, states, "tamper_alarm")
+        _assert_feature_is_foreign(entity, states, "alarm_mute")
 
     def test_water_leak_state_true_when_detected(self):
         """water_leak_state must be BOOL true when leak detected (HA state='on')."""
@@ -576,17 +587,13 @@ class TestWaterLeakSensorCompliance:
         states = _get_states(entity, self.ENTITY_ID)
         _assert_bool_value(states, "water_leak_state", False)
 
-    def test_tamper_alarm_in_state(self):
-        """tamper_alarm must appear as BOOL when attr set."""
-        entity = self._make_entity("off", tamper=True)
+    def test_neither_is_published_when_ha_reports_them(self):
+        """Атрибуты из HA есть, а в пакет для Сбера они не попадают."""
+        entity = self._make_entity("off", tamper=True, alarm_mute=True)
         states = _get_states(entity, self.ENTITY_ID)
-        _assert_bool_value(states, "tamper_alarm", True)
-
-    def test_alarm_mute_in_state(self):
-        """alarm_mute must appear as BOOL when attr set."""
-        entity = self._make_entity("off", alarm_mute=True)
-        states = _get_states(entity, self.ENTITY_ID)
-        _assert_bool_value(states, "alarm_mute", True)
+        _assert_feature_is_foreign(entity, states, "tamper_alarm")
+        _assert_feature_is_foreign(entity, states, "alarm_mute")
+        _assert_bool_value(states, "water_leak_state", False)
 
     def test_read_only_no_commands(self):
         """Water leak sensor must not process commands."""
@@ -629,12 +636,12 @@ class TestSmokeSensorCompliance:
         assert "online" in features
         assert "smoke_state" in features
 
-    def test_features_with_tamper_and_alarm_mute(self):
-        """tamper_alarm and alarm_mute features when attrs present."""
+    def test_tamper_is_foreign_but_alarm_mute_is_not(self):
+        """У этой категории Sber документирует ``alarm_mute``, но не ``tamper_alarm``."""
         entity = self._make_entity(tamper=False, alarm_mute=True)
-        features = entity.get_final_features_list()
-        assert "tamper_alarm" in features
-        assert "alarm_mute" in features
+        states = _get_states(entity, self.ENTITY_ID)
+        _assert_feature_is_foreign(entity, states, "tamper_alarm")
+        assert "alarm_mute" in entity.get_final_features_list()
 
     def test_smoke_state_true_when_detected(self):
         """smoke_state must be BOOL true when smoke detected."""
@@ -648,11 +655,10 @@ class TestSmokeSensorCompliance:
         states = _get_states(entity, self.ENTITY_ID)
         _assert_bool_value(states, "smoke_state", False)
 
-    def test_tamper_alarm_bool(self):
-        """tamper_alarm as BOOL in state."""
+    def test_tamper_alarm_is_not_published(self):
+        """Атрибут ``tamper`` из HA не превращается в ключ пакета."""
         entity = self._make_entity("off", tamper=True)
-        states = _get_states(entity, self.ENTITY_ID)
-        _assert_bool_value(states, "tamper_alarm", True)
+        _assert_feature_is_foreign(entity, _get_states(entity, self.ENTITY_ID), "tamper_alarm")
 
     def test_alarm_mute_bool(self):
         """alarm_mute as BOOL in state."""
@@ -701,12 +707,12 @@ class TestGasSensorCompliance:
         assert "online" in features
         assert "gas_leak_state" in features
 
-    def test_features_with_tamper_and_alarm_mute(self):
-        """tamper_alarm and alarm_mute features when attrs present."""
+    def test_tamper_is_foreign_but_alarm_mute_is_not(self):
+        """У этой категории Sber документирует ``alarm_mute``, но не ``tamper_alarm``."""
         entity = self._make_entity(tamper=False, alarm_mute=False)
-        features = entity.get_final_features_list()
-        assert "tamper_alarm" in features
-        assert "alarm_mute" in features
+        states = _get_states(entity, self.ENTITY_ID)
+        _assert_feature_is_foreign(entity, states, "tamper_alarm")
+        assert "alarm_mute" in entity.get_final_features_list()
 
     def test_gas_leak_state_true_when_detected(self):
         """gas_leak_state must be BOOL true when gas leak detected."""
@@ -720,11 +726,10 @@ class TestGasSensorCompliance:
         states = _get_states(entity, self.ENTITY_ID)
         _assert_bool_value(states, "gas_leak_state", False)
 
-    def test_tamper_alarm_bool(self):
-        """tamper_alarm as BOOL in state."""
+    def test_tamper_alarm_is_not_published(self):
+        """Атрибут ``tamper`` из HA не превращается в ключ пакета."""
         entity = self._make_entity("off", tamper=True)
-        states = _get_states(entity, self.ENTITY_ID)
-        _assert_bool_value(states, "tamper_alarm", True)
+        _assert_feature_is_foreign(entity, _get_states(entity, self.ENTITY_ID), "tamper_alarm")
 
     def test_alarm_mute_bool(self):
         """alarm_mute as BOOL in state."""

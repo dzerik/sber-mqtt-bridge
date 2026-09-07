@@ -9,7 +9,7 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
-const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
+const { t, ensurePanelTranslations, sberErrorText } = await import(`../localize.js${_q}`);
 
 function formatUptime(seconds) {
   if (seconds == null) return "\u2014";
@@ -79,6 +79,36 @@ class SberStatsGrid extends LitElement {
       }
       .unack-list div {
         padding: 2px 0;
+      }
+      .last-error {
+        margin-top: 16px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: rgba(244, 67, 54, 0.12);
+        font-size: 13px;
+      }
+      /* Sber answered after this error, so it is history, not an alarm:
+         same words, no red. */
+      .last-error.superseded {
+        background: var(--secondary-background-color, #f5f5f5);
+        color: var(--secondary-text-color);
+      }
+      .last-error .code {
+        font-weight: 600;
+        color: var(--error-color, #f44336);
+      }
+      .last-error.superseded .code {
+        color: inherit;
+      }
+      .last-error .when {
+        margin-left: 8px;
+        color: var(--secondary-text-color);
+      }
+      .last-error .detail {
+        display: block;
+        margin-top: 4px;
+        color: var(--secondary-text-color);
+        overflow-wrap: anywhere;
       }
     `;
   }
@@ -164,6 +194,61 @@ class SberStatsGrid extends LitElement {
             </div>
           `
         : ""}
+      ${this._renderLastError(s.last_error)}
+    `;
+  }
+
+  /**
+   * Wall-clock moment of an event, in the user's own locale.
+   *
+   * @param {?number} moment - Seconds since the epoch, or null when the
+   *   error is older than the message log remembers.
+   * @returns {string} Localized date and time, or "" when there is no
+   *   moment to print \u2014 a guessed one would be worse than none.
+   */
+  _moment(moment) {
+    if (typeof moment !== "number" || !Number.isFinite(moment)) return "";
+    const when = new Date(moment * 1000);
+    return Number.isNaN(when.getTime()) ? "" : when.toLocaleString(this.hass?.locale?.language || this.hass?.language);
+  }
+
+  /**
+   * The last error Sber sent, with its code spelled out and dated.
+   *
+   * "Sber errors: 3" in the grid above says something went wrong and
+   * nothing about what: a wrong password (403) and a cloud outage (503)
+   * produce the identical tile.  The documented meaning of the code is
+   * the difference between the two, so it is shown next to the number.
+   *
+   * The bridge never clears the error either, so an undated tile stays
+   * red for the rest of the Home Assistant session \u2014 long after the user
+   * fixed the password and the bridge went back to work.  Hence the two
+   * extra facts the backend now sends: when the error happened, and
+   * whether Sber has addressed the bridge since.  If it has, the tile
+   * steps back to a plain note: still worth reading, no longer an alarm.
+   *
+   * @param {{code: ?number, message: string, device_id: string,
+   *   at: ?number, superseded: boolean}|null} error - Decoded error from
+   *   `sber_mqtt_bridge/status`, or null when the cloud has not reported
+   *   one.
+   * @returns {unknown} Lit template, or "" when there is nothing to show.
+   */
+  _renderLastError(error) {
+    if (!error) return "";
+    const meaning = sberErrorText(this.hass, error.code);
+    const when = this._moment(error.at);
+    return html`
+      <div class="last-error ${error.superseded ? "superseded" : ""}">
+        <span class="stat-label">${t(this.hass, "stats.last_error")}</span>
+        <span class="code"> ${error.code ?? "\u2014"}</span>${meaning ? html` \u2014 ${meaning}` : ""}
+        ${when ? html`<span class="when">${when}</span>` : ""}
+        ${error.message || error.device_id
+          ? html`<span class="detail">${error.message}${error.device_id ? html` (${error.device_id})` : ""}</span>`
+          : ""}
+        ${error.superseded
+          ? html`<span class="detail">${t(this.hass, "stats.last_error_superseded")}</span>`
+          : ""}
+      </div>
     `;
   }
 }
