@@ -246,7 +246,8 @@
       "loading": "Loading…",
       "none": "No compatible entities found.",
       "same_device": "Same device",
-      "close": "Close dialog"
+      "close": "Close dialog",
+      "roles_unfilled": "Nothing to link for: {roles} — no matching entity was found in Home Assistant."
     },
     "settings": {
       "load_failed": "Failed to load settings: {reason}",
@@ -326,7 +327,15 @@
       "not_usable": "Not usable",
       "summary_category": "Sber category:",
       "summary_linked": "Linked sensors:",
-      "slug_hint": "Transliterated slug for the Sber protocol"
+      "slug_hint": "Transliterated slug for the Sber protocol",
+      "energy_sensors": "Energy monitoring",
+      "energy_hint": "Sber shows power, voltage and current for this device. The ticked readings will be sent — untick one to leave it out.",
+      "energy_none": "No power, voltage or current sensor was found next to this device, so Sber will show no energy readings. Link one later from the device row.",
+      "energy_none_orphan": "This entity has no Home Assistant device, so there is nowhere to look for a power, voltage or current sensor — Sber will show no energy readings.",
+      "energy_unlinked": "These readings were found, but none is ticked: tick the ones Sber should show.",
+      "energy_missing": "Not found: {roles}. Sber will show no such reading.",
+      "summary_energy": "Energy monitoring:",
+      "summary_energy_none": "none selected"
     },
     "devtools": {
       "config_sent": "Config sent to Sber",
@@ -427,6 +436,23 @@
       "raw_summary": "Raw summary",
       "copy_report": "Copy report",
       "action": "Action:"
+    },
+    "link_role": {
+      "battery": "Battery",
+      "battery_low": "Low battery",
+      "signal_strength": "Signal strength",
+      "temperature": "Temperature",
+      "humidity": "Humidity",
+      "co2": "CO2",
+      "pm1": "PM1",
+      "pm25": "PM2.5",
+      "pm10": "PM10",
+      "tvoc": "TVOC",
+      "hcho": "Formaldehyde",
+      "open_state": "Open state",
+      "power": "Power",
+      "voltage": "Voltage",
+      "current": "Current"
     }
   },
   "options": {

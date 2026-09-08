@@ -4,8 +4,12 @@ Provides shared implementations of ``fill_by_ha_state``, ``_create_features_list
 and ``_build_current_state`` for devices that expose a simple on/off state
 via the Sber ``on_off`` feature.
 
-Supports optional ``power``, ``voltage``, and ``current`` features when the
-HA entity reports those values via attributes.
+Supports optional ``power``, ``voltage``, and ``current`` features from
+two sources: attributes of the HA entity itself (already in Sber's
+units), and companion ``sensor`` entities linked in the ``power`` /
+``voltage`` / ``current`` roles (converted from their own
+``unit_of_measurement``) — the latter being how Zigbee2MQTT, Tuya, Shelly
+and ESPHome actually expose the metering of a smart plug.
 """
 
 from __future__ import annotations
@@ -15,7 +19,17 @@ from typing import ClassVar
 
 from ..sber_constants import SberFeature
 from ..sber_models import make_bool_value, make_integer_value, make_state
-from .base_entity import AttrSpec, BaseEntity, _safe_bool_parser, _safe_int_parser
+from .base_entity import (
+    AttrSpec,
+    BaseEntity,
+    _safe_bool_parser,
+    _safe_float_parser,
+)
+from .utils.electrical import (
+    ENERGY_FEATURES,
+    to_sber_energy_attribute,
+    to_sber_energy_value,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,6 +41,37 @@ Per the Sber functions catalog, ``child_lock`` exists only for
 ``relay`` risks silent device rejection (issue #44 audit).  Default data
 for :attr:`OnOffEntity._supports_child_lock`; subclasses override the
 flag instead of editing this set."""
+
+_ENERGY_SBER_FEATURES: dict[str, str] = {
+    "power": SberFeature.POWER,
+    "voltage": SberFeature.VOLTAGE,
+    "current": SberFeature.CURRENT,
+}
+"""Sber feature name → :class:`~..sber_constants.SberFeature` constant.
+
+Keys are also the link-role names (:data:`ENERGY_LINK_ROLES`) and the
+keys of :data:`~.utils.electrical.ENERGY_FEATURES`, so declaration,
+ingestion and emission iterate one list instead of three hand-written
+``if`` blocks that used to drift apart."""
+
+_ENERGY_ATTR_FIELDS: dict[str, str] = {
+    "power": "_power",
+    "voltage": "_voltage",
+    "current": "_current",
+}
+"""Sber feature name → field filled from the HA entity's own attributes."""
+
+_ENERGY_LINKED_FIELDS: dict[str, str] = {
+    "power": "_linked_power",
+    "voltage": "_linked_voltage",
+    "current": "_linked_current",
+}
+"""Sber feature name → field filled from a linked companion sensor.
+
+Kept apart from :data:`_ENERGY_ATTR_FIELDS` on purpose: the attribute
+fields are rewritten by every primary state change (an ``AttrSpec``
+without ``preserve_on_missing`` resets to ``None``), so sharing one field
+would blank the metering on each toggle of the socket."""
 
 _ENERGY_CATEGORIES = frozenset({"relay", "socket"})
 """Sber categories whose spec includes power / voltage / current.
@@ -45,8 +90,14 @@ class OnOffEntity(BaseEntity):
     Subclasses may override ``_ha_on_state`` if the HA 'on' state string
     differs from the default ``"on"``.
 
-    Optionally reports ``power``, ``voltage``, and ``current`` when
-    the HA entity has those attributes.
+    Optionally reports ``power``, ``voltage``, and ``current``, taken
+    either from attributes of the HA entity itself or from companion
+    ``sensor`` entities linked in the matching role (see
+    :data:`~.base_entity.ENERGY_LINK_ROLES`).  A linked sensor wins over
+    an attribute of the same name: it is an explicit user choice and it
+    carries a ``unit_of_measurement``, so it can be converted into the
+    unit Sber documents, whereas an unitless attribute can only be taken
+    at face value.
     """
 
     current_state: bool
@@ -110,11 +161,19 @@ class OnOffEntity(BaseEntity):
         return self.category in _ENERGY_CATEGORIES
 
     ATTR_SPECS: ClassVar[tuple[AttrSpec, ...]] = (
-        AttrSpec(field="_power", attr_keys=("power",), parser=_safe_int_parser),
-        AttrSpec(field="_voltage", attr_keys=("voltage",), parser=_safe_int_parser),
-        AttrSpec(field="_current", attr_keys=("current",), parser=_safe_int_parser),
+        AttrSpec(field="_power", attr_keys=("power",), parser=_safe_float_parser),
+        AttrSpec(field="_voltage", attr_keys=("voltage",), parser=_safe_float_parser),
+        AttrSpec(field="_current", attr_keys=("current",), parser=_safe_float_parser),
         AttrSpec(field="_child_lock", attr_keys=("child_lock",), parser=_safe_bool_parser),
     )
+    """Metering attributes are parsed as **floats**, not integers.
+
+    ``_safe_int_parser`` truncated a fractional attribute (``0.65``) to
+    ``0`` at parse time, i.e. before anything could round it.  The one
+    rounding now happens in
+    :func:`~.utils.electrical.to_sber_energy_attribute`, so a fractional
+    reading survives as ``1`` instead of vanishing, and the linked-sensor
+    path keeps full precision until its unit conversion is done."""
 
     def __init__(self, category: str, entity_data: dict) -> None:
         """Initialize on/off entity.
@@ -125,10 +184,13 @@ class OnOffEntity(BaseEntity):
         """
         super().__init__(category, entity_data)
         self.current_state = False
-        self._power: int | None = None
-        self._voltage: int | None = None
-        self._current: int | None = None
+        self._power: float | None = None
+        self._voltage: float | None = None
+        self._current: float | None = None
         self._child_lock: bool | None = None
+        self._linked_power: int | None = None
+        self._linked_voltage: int | None = None
+        self._linked_current: int | None = None
 
     def fill_by_ha_state(self, ha_state: dict) -> None:
         """Parse HA state and update on/off status, energy, and child_lock attributes.
@@ -144,6 +206,63 @@ class OnOffEntity(BaseEntity):
         super().fill_by_ha_state(ha_state)
         self.current_state = ha_state.get("state") == self._ha_on_state
         self._apply_attr_specs(ha_state.get("attributes", {}))
+
+    def update_linked_data(self, role: str, ha_state: dict) -> None:
+        """Ingest a metering reading from a linked companion sensor.
+
+        Smart plugs expose their metering as separate HA ``sensor``
+        entities (``sensor.plug_power`` and friends), so this is the path
+        energy monitoring actually travels; the attribute path below is
+        the rare case.  The reading is normalised to Sber's unit here —
+        notably amperes → milliamperes — because the sensor's
+        ``unit_of_measurement`` is available only at this point.
+
+        Args:
+            role: Link role name (``power`` / ``voltage`` / ``current``);
+                anything else is left to other handlers.
+            ha_state: HA state dict of the linked sensor, with ``state``
+                and ``attributes``.
+        """
+        super().update_linked_data(role, ha_state)
+        field = _ENERGY_LINKED_FIELDS.get(role)
+        if field is None:
+            return
+        attributes = ha_state.get("attributes") or {}
+        setattr(
+            self,
+            field,
+            to_sber_energy_value(
+                role,
+                ha_state.get("state"),
+                attributes.get("unit_of_measurement"),
+                self.category,
+            ),
+        )
+
+    def _energy_value(self, feature: str) -> int | None:
+        """Return the value to publish for one metering feature.
+
+        Args:
+            feature: ``"power"``, ``"voltage"`` or ``"current"``.
+
+        Returns:
+            The linked sensor's value when one is linked, otherwise the
+            HA attribute of the same name, or ``None`` when neither
+            source has a usable reading — the feature must then not be
+            declared either.
+
+            A linked sensor wins because it is an explicit user choice
+            and carries a ``unit_of_measurement``, so its reading can be
+            converted into Sber's unit.  An attribute carries no unit and
+            is published as-is (rounded and clamped) —
+            :func:`~.utils.electrical.to_sber_energy_attribute` explains
+            why re-interpreting it would break the integrations that
+            actually fill those attributes.
+        """
+        linked = getattr(self, _ENERGY_LINKED_FIELDS[feature])
+        if linked is not None:
+            return linked
+        return to_sber_energy_attribute(feature, getattr(self, _ENERGY_ATTR_FIELDS[feature]), self.category)
 
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list including 'on_off' and optional features.
@@ -162,12 +281,7 @@ class OnOffEntity(BaseEntity):
         if self._supports_on_off:
             features.append("on_off")
         if self._supports_energy:
-            if self._power is not None:
-                features.append("power")
-            if self._voltage is not None:
-                features.append("voltage")
-            if self._current is not None:
-                features.append("current")
+            features.extend(f for f in ENERGY_FEATURES if self._energy_value(f) is not None)
         if self._child_lock is not None and self._supports_child_lock:
             features.append("child_lock")
         return features
@@ -182,12 +296,10 @@ class OnOffEntity(BaseEntity):
         if self._supports_on_off:
             states.append(make_state(SberFeature.ON_OFF, make_bool_value(self.current_state)))
         if self._supports_energy:
-            if self._power is not None:
-                states.append(make_state(SberFeature.POWER, make_integer_value(self._power)))
-            if self._voltage is not None:
-                states.append(make_state(SberFeature.VOLTAGE, make_integer_value(self._voltage)))
-            if self._current is not None:
-                states.append(make_state(SberFeature.CURRENT, make_integer_value(self._current)))
+            for feature, sber_key in _ENERGY_SBER_FEATURES.items():
+                value = self._energy_value(feature)
+                if value is not None:
+                    states.append(make_state(sber_key, make_integer_value(value)))
         if self._child_lock is not None and self._supports_child_lock:
             states.append(make_state(SberFeature.CHILD_LOCK, make_bool_value(self._child_lock)))
         return {self.entity_id: {"states": states}}

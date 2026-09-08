@@ -411,6 +411,8 @@ export const EN_FALLBACK = {
   "link.none": "No compatible entities found.",
   "link.same_device": "Same device",
   "link.close": "Close dialog",
+  "link.roles_unfilled":
+    "Nothing to link for: {roles} — no matching entity was found in Home Assistant.",
 
   // --- settings ---
   "settings.loading": "Loading settings…",
@@ -431,6 +433,35 @@ export const EN_FALLBACK = {
   "wizard.summary_category": "Sber category:",
   "wizard.summary_linked": "Linked sensors:",
   "wizard.slug_hint": "Transliterated slug for the Sber protocol",
+  "wizard.energy_sensors": "Energy monitoring",
+  "wizard.energy_hint":
+    "Sber shows power, voltage and current for this device. The ticked readings will be sent — untick one to leave it out.",
+  "wizard.energy_unlinked":
+    "These readings were found, but none is ticked: tick the ones Sber should show.",
+  "wizard.energy_none":
+    "No power, voltage or current sensor was found next to this device, so Sber will show no energy readings. Link one later from the device row.",
+  "wizard.energy_none_orphan":
+    "This entity has no Home Assistant device, so there is nowhere to look for a power, voltage or current sensor — Sber will show no energy readings.",
+  "wizard.energy_missing": "Not found: {roles}. Sber will show no such reading.",
+  "wizard.summary_energy": "Energy monitoring:",
+  "wizard.summary_energy_none": "none selected",
+
+  // --- link roles (devices/base_entity.py::LinkableRole) ---
+  "link_role.battery": "Battery",
+  "link_role.battery_low": "Low battery",
+  "link_role.signal_strength": "Signal strength",
+  "link_role.temperature": "Temperature",
+  "link_role.humidity": "Humidity",
+  "link_role.co2": "CO2",
+  "link_role.pm1": "PM1",
+  "link_role.pm25": "PM2.5",
+  "link_role.pm10": "PM10",
+  "link_role.tvoc": "TVOC",
+  "link_role.hcho": "Formaldehyde",
+  "link_role.open_state": "Open state",
+  "link_role.power": "Power",
+  "link_role.voltage": "Voltage",
+  "link_role.current": "Current",
 
   // --- detail_dialog ---
   "detail_dialog.entity_id": "Entity ID",

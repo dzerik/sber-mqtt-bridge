@@ -18,7 +18,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 
 from ..const import CONF_ENTITY_LINKS, CONF_EXPOSED_ENTITIES
-from ..device_grouper import effective_device_class
+from ..device_grouper import select_native_links
 from ._common import (  # noqa: F401 — get_config_entry re-exported for test patching
     WS_ENTITY_ID,
     get_bridge,
@@ -116,17 +116,22 @@ async def ws_auto_link_all(
         if not linkable_roles:
             continue
 
-        new_links: dict[str, str] = {}
-        for e in entity_reg.entities.values():
-            if e.device_id != primary_reg.device_id or e.entity_id == primary_id:
-                continue
-            if e.disabled:
-                continue
-            dc = effective_device_class(e)
-            for lr in linkable_roles:
-                if lr.matches(e.domain, dc) and lr.role not in new_links:
-                    new_links[lr.role] = e.entity_id
-                    break
+        # Same-device siblings only: an entity of another HA device may
+        # measure a completely different appliance, so it is never
+        # auto-linked (the wizard offers those as an opt-in choice).
+        siblings = [
+            e
+            for e in entity_reg.entities.values()
+            if e.device_id == primary_reg.device_id and e.entity_id != primary_id and not e.disabled
+        ]
+        # Shared with the wizard so both agree which sensor belongs to
+        # which channel of a multi-gang device (issue: energy monitoring
+        # power strips expose one power sensor per outlet).
+        new_links = select_native_links(
+            primary_entity_id=primary_id,
+            siblings=siblings,
+            accepted_roles=linkable_roles,
+        )
 
         if new_links:
             all_links[primary_id] = new_links

@@ -24,6 +24,7 @@ const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { slugify, isValidSalutName, deepActiveElement } = await import(`../utils.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
+const { acceptsEnergyRoles, linkRoleLabel, linkRoleNames, missingEnergyRoles, roleNames, splitEnergyLinks } = await import(`../link-roles.js${_q}`);
 const { dialogStyles, buttonStyles, filterInputStyles } = await import(`../shared-styles.js${_q}`);
 
 class SberWizard extends LitElement {
@@ -611,10 +612,42 @@ class SberWizard extends LitElement {
     `;
   }
 
+  /**
+   * Every link candidate offered for a device, energy readings apart.
+   *
+   * The socket's `power` / `voltage` / `current` sensors are the one
+   * group a user opens the card to *check* rather than to discover —
+   * they are what a smart plug is bought for — so they are pulled out of
+   * the "native" / "from other devices" lists and shown together.  The
+   * origin chip on a cross-device sensor survives the move, since
+   * {@link _renderLinkRow} only prints it when the backend supplied one.
+   *
+   * @param {object} device - Device descriptor from the backend.
+   * @returns {{energy: Array, native: Array, compatible: Array}} The
+   *   three lists in render order.  `energy` is empty when the backend
+   *   reports no electrical roles — for every category but `socket`, and
+   *   for a socket with no meter — and the section then disappears
+   *   instead of showing an empty heading.
+   */
+  _partitionLinks(device) {
+    const native = splitEnergyLinks(device.linked_native || []);
+    const compatible = splitEnergyLinks(device.linked_compatible || []);
+    return {
+      energy: [...native.energy, ...compatible.energy],
+      native: native.other,
+      compatible: compatible.other,
+    };
+  }
+
+  /** Link candidates currently checked, in backend order. */
+  _selectedLinksOf(device, links) {
+    return links.filter((link) => this._enabledLinks.has(link.entity_id));
+  }
+
   _renderDeviceCardExpanded(device) {
     const alternatives = device.primary_alternatives || [];
-    const nativeLinks = device.linked_native || [];
-    const compatibleLinks = device.linked_compatible || [];
+    const { energy: energyLinks, native: nativeLinks, compatible: compatibleLinks } =
+      this._partitionLinks(device);
     const unsupported = device.unsupported || [];
     const allPrimaries = [device.primary, ...alternatives];
 
@@ -645,6 +678,8 @@ class SberWizard extends LitElement {
           </div>
         ` : ""}
 
+        ${this._renderEnergySection(device, energyLinks)}
+
         ${nativeLinks.length > 0 ? html`
           <div class="expanded-section">
             <div class="expanded-title">${t(this.hass, "wizard.native_sensors")}</div>
@@ -674,8 +709,89 @@ class SberWizard extends LitElement {
     `;
   }
 
+  /**
+   * Whether a device group stands for a bare entity, not an HA device.
+   *
+   * `HaDeviceGrouper._build_orphan_group` wraps an entity that has no
+   * `device_id` (template switch, SmartIR, helper) into a "virtual"
+   * group whose `device_id` *is* the entity id.  Such a group can never
+   * gain a linked sensor: `ws_suggest_links` returns an empty candidate
+   * list for an entity without a device, so telling its owner to "link
+   * the sensors later from the device row" sends them to a dead end.
+   *
+   * @param {?object} device - Device descriptor from the backend.
+   * @returns {boolean} True for the virtual group of an orphan entity.
+   */
+  _isVirtualDevice(device) {
+    return Boolean(device) && device.device_id === device.primary?.entity_id;
+  }
+
+  /**
+   * The energy readings of a metering device, as one confirmable group.
+   *
+   * Rendered with the same `link-row` checkboxes as every other linked
+   * sensor — the group exists so the user can *see* what was found, not
+   * so energy gets a control of its own.
+   *
+   * Three things the caption has to get right, because each of them is a
+   * user walking away without energy monitoring:
+   *
+   * 1. **Nothing ticked.** Cross-device sensors arrive `preselected:
+   *    false`, and on a multi-channel strip the backend deliberately
+   *    preselects nothing rather than guess which outlet a meter belongs
+   *    to.  A caption saying "untick to leave one out" over three empty
+   *    boxes is simply false, so the empty case asks for a tick instead.
+   * 2. **Nothing found.** Explained only where a reading was possible —
+   *    decided by the backend's `accepted_roles`, not by a category list
+   *    (see `acceptsEnergyRoles`) — and with different wording for an
+   *    orphan entity, which has nowhere to link a sensor from.
+   * 3. **Something missing.** Two of three readings found is the common
+   *    Zigbee case; the third is named rather than passed over, since
+   *    its absence is what the user will notice in the Sber app.
+   *
+   * @param {object} device - Device descriptor from the backend.
+   * @param {Array} energyLinks - Energy link candidates for this device.
+   * @returns {*} A lit template, or `""` when there is nothing to say.
+   */
+  _renderEnergySection(device, energyLinks) {
+    if (energyLinks.length === 0) {
+      /* A role the backend did report is rendered whatever the category;
+       * only the explanation of an *absence* needs to know whether the
+       * device could have metered at all. */
+      if (!acceptsEnergyRoles(device)) return "";
+      /* Literal t() calls, not a ternary inside one: the translation
+       * guard greps for them to prove the key exists in all four files. */
+      const none = this._isVirtualDevice(device)
+        ? t(this.hass, "wizard.energy_none_orphan")
+        : t(this.hass, "wizard.energy_none");
+      return html`
+        <div class="expanded-section">
+          <div class="expanded-title">${t(this.hass, "wizard.energy_sensors")}</div>
+          <div class="section-hint">${none}</div>
+        </div>
+      `;
+    }
+    const ticked = this._selectedLinksOf(device, energyLinks).length;
+    const hint =
+      ticked === 0 ? t(this.hass, "wizard.energy_unlinked") : t(this.hass, "wizard.energy_hint");
+    const missing = missingEnergyRoles(device, energyLinks);
+    return html`
+      <div class="expanded-section">
+        <div class="expanded-title">${t(this.hass, "wizard.energy_sensors")}</div>
+        <div class="section-hint">${hint}</div>
+        ${energyLinks.map((link) => this._renderLinkRow(device, link, true))}
+        ${missing.length > 0
+          ? html`<div class="section-hint">${t(this.hass, "wizard.energy_missing", { roles: roleNames(this.hass, missing) })}</div>`
+          : ""}
+      </div>
+    `;
+  }
+
   _renderLinkRow(device, link, showOrigin) {
     const enabled = this._enabledLinks.has(link.entity_id);
+    /* The wire identifier stays in the tooltip: it is what the docs, the
+     * logs and the WebSocket payloads call this slot. */
+    const role = linkRoleLabel(this.hass, link.link_role, link.device_class);
     return html`
       <label class="link-row">
         <input
@@ -683,7 +799,7 @@ class SberWizard extends LitElement {
           .checked=${enabled}
           @click=${(e) => { e.stopPropagation(); this._toggleLink(device, link); }}
         />
-        <span class="link-role">${link.link_role || link.device_class || "?"}</span>
+        <span class="link-role" title="${role.hint}">${role.text}</span>
         <span class="link-name">${link.friendly_name || link.entity_id}</span>
         <span class="entity-id">${link.entity_id}</span>
         ${showOrigin && link.origin_device_name
@@ -693,10 +809,33 @@ class SberWizard extends LitElement {
     `;
   }
 
+  /**
+   * What the confirmation step says about energy monitoring.
+   *
+   * Confirmation, not a second chance to choose: the summary names the
+   * readings that are about to reach the Sber app so the user does not
+   * have to go back and count checkboxes.  It is deliberately *not*
+   * silent when nothing is ticked — silence there reads as "fine", and
+   * the whole point of adding a smart plug is the reading that would
+   * then be missing.  Silent only where no reading was ever possible.
+   *
+   * @param {?object} device - Selected device descriptor.
+   * @returns {string} Readable role names, the "none selected" text, or
+   *   `""` when the device takes no electrical readings at all and the
+   *   line should not be rendered.
+   */
+  _energySummary(device) {
+    if (!acceptsEnergyRoles(device)) return "";
+    const picked = this._selectedLinksOf(device, this._partitionLinks(device).energy);
+    if (picked.length === 0) return t(this.hass, "wizard.summary_energy_none");
+    return linkRoleNames(this.hass, picked);
+  }
+
   /* ---------- Step 3: name + room (single or multi-primary) ---------- */
   _renderStep3() {
     const device = this._devices.find((d) => d.device_id === this._selectedDeviceId);
     const linkedCount = this._enabledLinks.size;
+    const energySummary = this._energySummary(device);
     const categoryLabel =
       this._categories.find((c) => c.id === this._selectedCategory)?.label || this._selectedCategory;
     const isMulti = this._selectedPrimaries.length > 1;
@@ -715,6 +854,9 @@ class SberWizard extends LitElement {
             ? html` <span class="hint-inline">(attached to first device only)</span>`
             : ""
         }</div>
+        ${energySummary
+          ? html`<div class="summary-line"><b>${t(this.hass, "wizard.summary_energy")}</b> ${energySummary}</div>`
+          : ""}
       </div>
 
       ${this._selectedPrimaries.map((primaryId) => this._renderPrimaryForm(primaryId, isMulti))}
@@ -947,6 +1089,10 @@ class SberWizard extends LitElement {
 
       .expanded-section { margin-top: 10px; }
       .expanded-section.unsupported-section { opacity: 0.6; }
+      .section-hint {
+        font-size: 12px; color: var(--secondary-text-color);
+        margin: -2px 0 6px; line-height: 1.35;
+      }
       .expanded-title {
         font-size: 11px; font-weight: 600; text-transform: uppercase;
         letter-spacing: 0.5px; color: var(--secondary-text-color);

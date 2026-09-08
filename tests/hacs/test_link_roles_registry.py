@@ -421,7 +421,13 @@ class TestOnOffCapabilityFlags:
 class TestRegistryConstruction:
     """ALL_LINKABLE_ROLES is derived, ordered, and complete."""
 
-    def test_contains_all_twelve_known_roles(self):
+    def test_contains_all_known_roles(self):
+        """Инвентарь ролей: новая роль обязана быть осознанно добавлена сюда.
+
+        Список — «что мастер умеет связывать» целиком; молча исчезнувшая
+        роль означает, что соответствующий сенсор у пользователя снова
+        попадёт в раздел «Не подходят».
+        """
         assert {r.role for r in ALL_LINKABLE_ROLES} == {
             "battery",
             "battery_low",
@@ -436,6 +442,10 @@ class TestRegistryConstruction:
             "hcho",
             # Reed contact of an impulse gate (issue #53).
             "open_state",
+            # Metering sensors of a smart plug.
+            "power",
+            "voltage",
+            "current",
         }
 
     def test_registry_equals_module_level_declarations_in_source_order(self):

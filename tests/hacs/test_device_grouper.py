@@ -13,10 +13,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from custom_components.sber_mqtt_bridge.device_grouper import (
-    effective_device_class,
     DeviceGroup,
     EntityRole,
     HaDeviceGrouper,
+    effective_device_class,
+    pick_role_match,
+    shares_channel_prefix,
 )
 
 # ---------------------------------------------------------------------------
@@ -680,6 +682,60 @@ class TestMultipleNativeSameRole:
         temp_ids = {e.entity_id for e in group.linked_native if e.link_role == "temperature"}
         assert temp_ids == {"sensor.temp_indoor", "sensor.temp_outdoor"}
 
+    def test_only_one_candidate_per_role_is_preselected(self, hass, mock_registries):
+        """Роль держит ровно одну сущность — галочка тоже должна быть одна.
+
+        Если отметить оба датчика, ``add_ha_device`` откажет с
+        ``role_conflict`` и пользователь не сможет добавить устройство
+        вообще; а если бы бэкенд молча взял «первый попавшийся» — в Сбер
+        поехала бы уличная температура вместо комнатной.  Имена здесь
+        одинаково далеки от имени примари, поэтому угадывать нечего:
+        не отмечаем ничего и оставляем выбор человеку.
+        """
+        entity_reg, device_reg, _ = mock_registries
+        _set_devices(device_reg, [_make_device("temp_dev")])
+        _set_entities(
+            entity_reg,
+            [
+                _make_entity("climate.thermostat", device_id="temp_dev"),
+                _make_entity("sensor.temp_indoor", device_id="temp_dev", original_device_class="temperature"),
+                _make_entity("sensor.temp_outdoor", device_id="temp_dev", original_device_class="temperature"),
+            ],
+        )
+        group = HaDeviceGrouper(hass).list_for_category("hvac_ac")[0]
+
+        assert [e.entity_id for e in group.linked_native if e.preselected] == []
+
+    def test_channel_named_candidate_wins_the_preselection(self, hass, mock_registries):
+        """Из двух кандидатов выбираем тот, что назван по имени примари.
+
+        Так интеграции именуют многоканальные устройства
+        (``climate.floor_bath`` ↔ ``sensor.floor_bath_temperature``).
+        Упадёт — на многоканальном устройстве мастер перестанет
+        предлагать вообще что-либо, и связи придётся ставить руками.
+        """
+        entity_reg, device_reg, _ = mock_registries
+        _set_devices(device_reg, [_make_device("floor_dev")])
+        _set_entities(
+            entity_reg,
+            [
+                _make_entity("climate.floor_bath", device_id="floor_dev"),
+                _make_entity(
+                    "sensor.floor_bath_temperature",
+                    device_id="floor_dev",
+                    original_device_class="temperature",
+                ),
+                _make_entity(
+                    "sensor.floor_hall_temperature",
+                    device_id="floor_dev",
+                    original_device_class="temperature",
+                ),
+            ],
+        )
+        group = HaDeviceGrouper(hass).list_for_category("hvac_ac")[0]
+
+        assert [e.entity_id for e in group.linked_native if e.preselected] == ["sensor.floor_bath_temperature"]
+
 
 class TestPreviewForCategory:
     def test_preview_known_device(self, hass, mock_registries):
@@ -723,6 +779,29 @@ class TestPreviewForCategory:
         listed = grouper.list_for_category("curtain")[0]
         assert [e.entity_id for e in listed.linked_compatible] == [e.entity_id for e in preview.linked_compatible]
 
+    def test_preview_honours_the_requested_primary(self, hass, mock_registries):
+        """Превью отвечает про тот канал, про который спросили.
+
+        На многоканальном устройстве (колодка розеток, двухклавишный
+        выключатель) без этого превью описывает первый попавшийся канал.
+        Упадёт — диалог связей второй розетки покажет сенсоры первой.
+        """
+        entity_reg, device_reg, _ = mock_registries
+        _set_devices(device_reg, [_make_device("strip_dev", name="Strip")])
+        _set_entities(
+            entity_reg,
+            [
+                _make_entity("switch.strip_l1", device_id="strip_dev", original_device_class="outlet"),
+                _make_entity("switch.strip_l2", device_id="strip_dev", original_device_class="outlet"),
+            ],
+        )
+        grouper = HaDeviceGrouper(hass)
+
+        assert grouper.preview_for_category("strip_dev", "socket").primary.entity_id == "switch.strip_l1"
+        pinned = grouper.preview_for_category("strip_dev", "socket", primary_entity_id="switch.strip_l2")
+        assert pinned.primary.entity_id == "switch.strip_l2"
+        assert [e.entity_id for e in pinned.primary_alternatives] == ["switch.strip_l1"]
+
     def test_preview_unknown_device_returns_none(self, hass, mock_registries):
         _, device_reg, _ = mock_registries
         _set_devices(device_reg, [])
@@ -765,7 +844,11 @@ class TestSerialization:
             "linked_native",
             "linked_compatible",
             "unsupported",
+            "accepted_roles",
         }
+        # Панель строит по нему шаг выбора связанных сенсоров — в т.ч.
+        # пустые слоты ролей, под которые кандидатов не нашлось.
+        assert payload["accepted_roles"] == ["battery", "battery_low", "signal_strength"]
         assert isinstance(payload["primary"], dict)
         assert payload["primary"]["role"] == "primary"
         assert payload["primary"]["entity_id"] == "light.lamp"
@@ -879,3 +962,38 @@ class TestEffectiveDeviceClass:
 
         assert in_gate == ["dev_gate"], "the override must place the device under gate"
         assert in_blind == [], "and take it out of the category its integration reported"
+
+
+class TestChannelPrefixHelpers:
+    """Защитные ветки хелперов, решающих «чей это сенсор».
+
+    Оба хелпера вызываются на каждом кандидате каждой карточки мастера,
+    поэтому любое исключение здесь роняет весь шаг «выберите устройство»,
+    а не одну строку.
+    """
+
+    def test_entity_id_without_a_domain_never_matches(self) -> None:
+        """Битый ``entity_id`` не должен считаться «своим каналом».
+
+        В реестр HA такое не попадает, но сюда приходят и значения из
+        сохранённых опций записи, которые пользователь мог править
+        руками.  Упадёт (или начнёт возвращать True) — примари с пустым
+        object_id совпадёт с любым сенсором дома, и мастер предвыберет
+        случайный.
+        """
+        assert shares_channel_prefix("brokenid", "sensor.plug_power") is False
+
+    def test_own_entity_and_channel_suffix_match(self) -> None:
+        """Совпадение имени и суффикс канала — это «свой» сенсор."""
+        assert shares_channel_prefix("switch.strip_l1", "sensor.strip_l1_power") is True
+        assert shares_channel_prefix("switch.strip_l1", "sensor.strip_l2_power") is False
+
+    def test_no_candidates_means_no_preselection(self) -> None:
+        """Пустой список кандидатов — не ошибка, а «нечего предлагать».
+
+        Так выглядит роль, под которую в устройстве нет ни одной
+        сущности (например, у розетки отключён сенсор напряжения).
+        Упадёт — построение карточки такого устройства сломается
+        исключением вместо пустого слота роли.
+        """
+        assert pick_role_match("switch.plug", []) is None

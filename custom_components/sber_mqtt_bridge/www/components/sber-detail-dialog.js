@@ -17,6 +17,7 @@ const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { ensureFeatureLabels, enumValueLabel, featureLabel, featureTitle } = await import(
   `../feature-labels.js${_q}`
 );
+const { linkRoleLabel } = await import(`../link-roles.js${_q}`);
 
 /**
  * Upper bound the backend accepts for the gate travel time, in seconds.
@@ -560,17 +561,30 @@ class SberDetailDialog extends LitElement {
     `;
   }
 
+  /**
+   * The companion entities feeding this device, one card per role.
+   *
+   * The badge carries the readable name of the role and the wire
+   * identifier as its tooltip, so the socket's power meter is described
+   * the same way as the curtain's battery — see ``../link-roles.js``.
+   *
+   * @param {object} d - Device detail payload from the backend.
+   * @returns {*} A lit template for the section.
+   */
   _renderLinkedEntities(d) {
     return html`
       <div class="section">
         <div class="section-title">${t(this.hass, "detail_dialog.linked_entities")}</div>
-        ${d.linked_entities.map((le) => html`
-          <div class="linked-card">
-            <span class="linked-role">${le.role}</span>
-            <span class="linked-name">${le.friendly_name}<br><code style="font-size:11px;color:var(--secondary-text-color)">${le.entity_id}</code></span>
-            <span class="linked-state">${le.state ?? "\u2014"}</span>
-          </div>
-        `)}
+        ${d.linked_entities.map((le) => {
+          const role = linkRoleLabel(this.hass, le.role);
+          return html`
+            <div class="linked-card">
+              <span class="linked-role" title="${role.hint}">${role.text}</span>
+              <span class="linked-name">${le.friendly_name}<br><code style="font-size:11px;color:var(--secondary-text-color)">${le.entity_id}</code></span>
+              <span class="linked-state">${le.state ?? "\u2014"}</span>
+            </div>
+          `;
+        })}
       </div>
     `;
   }

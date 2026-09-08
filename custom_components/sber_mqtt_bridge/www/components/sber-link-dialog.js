@@ -13,6 +13,7 @@ const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { deepActiveElement } = await import(`../utils.js${_q}`);
+const { linkRoleLabel, roleNames } = await import(`../link-roles.js${_q}`);
 const { dialogStyles, buttonStyles } = await import(`../shared-styles.js${_q}`);
 
 class SberLinkDialog extends LitElement {
@@ -24,6 +25,7 @@ class SberLinkDialog extends LitElement {
       _category: { type: String },
       _candidates: { type: Array },
       _allowedRoles: { type: Array },
+      _acceptedRoles: { type: Array },
       _selected: { type: Object },
       _loading: { type: Boolean },
       _saving: { type: Boolean },
@@ -42,6 +44,7 @@ class SberLinkDialog extends LitElement {
     this._category = "";
     this._candidates = [];
     this._allowedRoles = [];
+    this._acceptedRoles = [];
     this._selected = {};
     this._loading = false;
     this._saving = false;
@@ -98,17 +101,36 @@ class SberLinkDialog extends LitElement {
       });
       this._candidates = result.candidates || [];
       this._allowedRoles = result.allowed_roles || [];
+      this._acceptedRoles = result.accepted_roles || [];
       this._category = result.category || "";
-      // Pre-select currently linked
+      /* Two passes, existing links first.  A saved link is the user's own
+       * decision and always wins; only then does the backend's suggestion
+       * fill a role still standing empty.
+       *
+       * The suggestion matters most here, not in the wizard: a device
+       * added before this release never went through the wizard's energy
+       * step, so this dialog is the only place its power / voltage /
+       * current sensors can be found — and finding three sensors by hand
+       * among every companion entity is exactly what nobody does. */
       const sel = {};
+      const takenRoles = new Set();
       for (const c of this._candidates) {
         if (c.currently_linked && c.linked_role) {
           sel[c.entity_id] = true;
+          takenRoles.add(c.linked_role);
         }
+      }
+      for (const c of this._candidates) {
+        if (sel[c.entity_id] || !c.preselected) continue;
+        /* One entity per role, same rule _toggle enforces by hand. */
+        if (c.suggested_role && takenRoles.has(c.suggested_role)) continue;
+        sel[c.entity_id] = true;
+        if (c.suggested_role) takenRoles.add(c.suggested_role);
       }
       this._selected = sel;
     } catch (e) {
       this._candidates = [];
+      this._acceptedRoles = [];
       this._error = e.message || t(this.hass, "link.load_failed");
     } finally {
       this._loading = false;
@@ -173,7 +195,19 @@ class SberLinkDialog extends LitElement {
     }
   }
 
+  /**
+   * One link candidate: checkbox, entity, role badge.
+   *
+   * The badge names the Sber slot the entity would fill.  It reads the
+   * shared vocabulary, so `power` shows up next to `battery` looking
+   * like a peer of it rather than like a raw field name — see
+   * ``../link-roles.js``.
+   *
+   * @param {object} c - Candidate from ``suggest_links``.
+   * @returns {*} A lit template for the row.
+   */
   _renderCandidateRow(c) {
+    const role = linkRoleLabel(this.hass, c.suggested_role, c.device_class);
     return html`
       <div class="candidate-row ${!c.compatible ? 'incompatible' : ''}">
         <input
@@ -187,8 +221,41 @@ class SberLinkDialog extends LitElement {
           <div class="candidate-name">${c.friendly_name}</div>
           <div class="candidate-id">${c.entity_id}</div>
         </div>
-        <span class="role-badge ${c.compatible ? 'compatible' : ''}">${c.suggested_role || c.device_class || "?"}</span>
+        <span class="role-badge ${c.compatible ? 'compatible' : ''}" title="${role.hint}">${role.text}</span>
         ${!c.compatible && c.device_class ? html`<span class="not-supported">not supported</span>` : ""}
+      </div>
+    `;
+  }
+
+  /**
+   * Roles this device's Sber class takes but nothing can fill.
+   *
+   * `accepted_roles` is the full slot list — the readings the device
+   * *could* report — while the candidates are what Home Assistant
+   * actually offers.  The difference is the honest answer to "why is
+   * there no current in the app?": there is no current sensor to link,
+   * and no amount of scrolling this dialog will produce one.
+   *
+   * @returns {string[]} Role identifiers with no candidate, backend order.
+   */
+  _rolesWithoutCandidate() {
+    const offered = new Set(
+      this._candidates.map((c) => c.suggested_role).filter(Boolean),
+    );
+    return (this._acceptedRoles || []).filter((role) => !offered.has(role));
+  }
+
+  /**
+   * The unfilled-slot footer, or `""` when every slot has a candidate.
+   *
+   * @returns {*} A lit template naming the roles nothing can fill.
+   */
+  _renderUnfilledRoles() {
+    const missing = this._rolesWithoutCandidate();
+    if (missing.length === 0) return "";
+    return html`
+      <div class="unfilled-roles">
+        ${t(this.hass, "link.roles_unfilled", { roles: roleNames(this.hass, missing) })}
       </div>
     `;
   }
@@ -196,7 +263,12 @@ class SberLinkDialog extends LitElement {
   _renderCandidates() {
     if (this._loading) return html`<div class="empty">${t(this.hass, "link.loading")}</div>`;
     if (this._error) return html`<div class="empty error-text">${this._error}</div>`;
-    if (this._candidates.length === 0) return html`<div class="empty">${t(this.hass, "link.none")}</div>`;
+    if (this._candidates.length === 0) {
+      return html`
+        <div class="empty">${t(this.hass, "link.none")}</div>
+        ${this._renderUnfilledRoles()}
+      `;
+    }
 
     const sameDevice = this._candidates.filter(c => c.same_device);
     const otherDevices = this._candidates.filter(c => !c.same_device);
@@ -210,6 +282,7 @@ class SberLinkDialog extends LitElement {
         <div class="section-label">${sameDevice.length > 0 ? "Other devices" : "Available entities"}</div>
         ${otherDevices.map(c => this._renderCandidateRow(c))}
       ` : ""}
+      ${this._renderUnfilledRoles()}
     `;
   }
 
@@ -249,6 +322,9 @@ class SberLinkDialog extends LitElement {
       }
       .error-text { color: var(--error-color, #f44336); }
       .empty { text-align: center; padding: 24px; color: var(--secondary-text-color); font-style: italic; }
+      /* Footer naming the roles nothing can fill — an explanation,
+         not an action, so it stays quieter than a candidate row. */
+      .unfilled-roles { padding: 8px 4px 0; font-size: 12px; color: var(--secondary-text-color); }
       /* Cancel + Save sit together on the right, unlike the wizard's
        * Back/Next split, so the shared footer's spacing is overridden. */
       .dialog-footer { justify-content: flex-end; }

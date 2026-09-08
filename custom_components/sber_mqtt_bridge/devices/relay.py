@@ -12,7 +12,7 @@ from ..sber_constants import (
     SberFeature,
     SberValueType,
 )
-from .base_entity import CommandResult
+from .base_entity import ENERGY_LINK_ROLES, CommandResult
 from .on_off_entity import OnOffEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,7 +26,18 @@ class RelayEntity(OnOffEntity):
 
     Maps HA switch, script, and button entities to the Sber 'relay' category.
     Supports basic on/off toggling via the ``on_off`` Sber feature.
+
+    Accepts the three metering links (:data:`~.base_entity.ENERGY_LINK_ROLES`)
+    because both categories served by this class — ``relay`` and, via
+    :class:`~.socket_entity.SocketEntity`, ``socket`` — document
+    ``power`` / ``voltage`` / ``current``.  Declared here rather than on
+    :class:`~.on_off_entity.OnOffEntity` so that ``intercom``, whose Sber
+    table has no metering functions, cannot be offered those links in the
+    wizard.
     """
+
+    LINKABLE_ROLES = ENERGY_LINK_ROLES
+    """Metering sensors of a smart plug (power / voltage / current)."""
 
     def __init__(self, entity_data: dict, category: str = RELAY_CATEGORY) -> None:
         """Initialize relay entity.

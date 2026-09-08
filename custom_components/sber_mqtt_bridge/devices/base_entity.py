@@ -370,6 +370,27 @@ dedicated device_class for formaldehyde; the closest match is
 ``volatile_organic_compounds_parts``. Users with a distinct HCHO sensor
 will link it manually via the wizard."""
 
+ROLE_POWER = LinkableRole("power", frozenset({"sensor"}), frozenset({"power"}))
+"""Active-power sensor of a metering socket/relay (Sber ``power``, watts).
+
+Zigbee2MQTT, Tuya, Shelly and ESPHome publish the three metering values
+of a smart plug as separate ``sensor`` entities, never as attributes of
+the ``switch`` — without these roles the wizard files them under "not
+usable" and the socket reaches Sber with no energy monitoring at all.
+
+``binary_sensor`` is deliberately not accepted: a ``binary_sensor`` with
+``device_class: power`` means "mains present", not a number of watts.
+"""
+
+ROLE_VOLTAGE = LinkableRole("voltage", frozenset({"sensor"}), frozenset({"voltage"}))
+"""Voltage sensor of a metering socket/relay (Sber ``voltage``, volts)."""
+
+ROLE_CURRENT = LinkableRole("current", frozenset({"sensor"}), frozenset({"current"}))
+"""Current sensor of a metering socket/relay (Sber ``current``, **milliamperes**).
+
+Home Assistant reports amperes; the conversion lives in
+:mod:`~devices.utils.electrical`."""
+
 ROLE_OPEN_STATE = LinkableRole(
     "open_state",
     frozenset({"binary_sensor"}),
@@ -388,6 +409,10 @@ and would otherwise become gate candidates in the wizard.
 
 SENSOR_LINK_ROLES: tuple[LinkableRole, ...] = (ROLE_BATTERY, ROLE_BATTERY_LOW, ROLE_SIGNAL)
 """Common linkable roles for battery-powered devices (sensors, covers, valves)."""
+
+ENERGY_LINK_ROLES: tuple[LinkableRole, ...] = (ROLE_POWER, ROLE_VOLTAGE, ROLE_CURRENT)
+"""Metering roles accepted by categories whose Sber spec documents
+``power`` / ``voltage`` / ``current`` (``relay``, ``socket``)."""
 
 GATE_LINK_ROLES: tuple[LinkableRole, ...] = (ROLE_OPEN_STATE, ROLE_SIGNAL)
 """Linkable roles accepted by an impulse gate (the Sber ``gate`` spec has no battery)."""

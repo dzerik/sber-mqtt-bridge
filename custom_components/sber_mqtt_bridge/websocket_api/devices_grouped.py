@@ -430,6 +430,24 @@ async def ws_suggest_links(
     :class:`HaDeviceGrouper.preview_for_category` that flattens
     ``linked_native`` + ``linked_compatible`` into the legacy
     ``candidates`` list shape the frontend expects.
+
+    Two fields carry the backend's own reading of the situation, on top
+    of the ``currently_linked`` state the dialog renders today:
+
+    * ``preselected`` — this candidate is the one suggestion for a role
+      that is not linked yet (at most one candidate per role, and none
+      at all when the choice would be a guess, see
+      :func:`~..device_grouper.pick_role_match`);
+    * ``accepted_roles`` — every role the primary's category takes,
+      including roles no candidate was found for.
+
+    ``sber-link-dialog.js`` seeds its checkbox set from
+    ``currently_linked`` first and then adds the ``preselected``
+    suggestions, and draws one slot per ``accepted_roles`` entry so a
+    role whose sensor is disabled or missing is visibly empty instead of
+    absent.  A payload without the two fields (an older backend) leaves
+    the dialog on ``currently_linked`` alone, which is why neither is
+    required reading.
     """
     from homeassistant.helpers import entity_registry as er
 
@@ -461,7 +479,14 @@ async def ws_suggest_links(
         return
 
     grouper = HaDeviceGrouper(hass)
-    group = grouper.preview_for_category(primary_entry.device_id, primary_category)
+    # Pin the primary: on a multi-gang device (a power strip with a power
+    # sensor per outlet) the grouper would otherwise describe whichever
+    # channel comes first and offer the neighbouring socket's sensors.
+    group = grouper.preview_for_category(
+        primary_entry.device_id,
+        primary_category,
+        primary_entity_id=entity_id,
+    )
     if group is None:
         connection.send_result(msg["id"], {"candidates": [], "allowed_roles": [], "category": primary_category})
         return
@@ -475,6 +500,9 @@ async def ws_suggest_links(
     for link in [*group.linked_native, *group.linked_compatible]:
         if link.link_role:
             allowed_roles.add(link.link_role)
+        # A role the user has already decided on by hand is never
+        # suggested again, whatever the grouper thinks.
+        role_taken = bool(link.link_role) and link.link_role in existing_links
         candidates.append(
             {
                 "entity_id": link.entity_id,
@@ -489,6 +517,7 @@ async def ws_suggest_links(
                     (role for role, eid in existing_links.items() if eid == link.entity_id),
                     "",
                 ),
+                "preselected": link.preselected and not role_taken,
             }
         )
     candidates.sort(key=lambda c: (not c["same_device"], c["friendly_name"]))
@@ -498,6 +527,7 @@ async def ws_suggest_links(
         {
             "candidates": candidates,
             "allowed_roles": sorted(allowed_roles),
+            "accepted_roles": list(group.accepted_roles),
             "category": primary_category,
         },
     )
