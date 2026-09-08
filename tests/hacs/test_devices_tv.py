@@ -291,11 +291,20 @@ class TestTvFeatures(unittest.TestCase):
     """Test channel_int and direction in features list."""
 
     def test_channel_int_in_features(self):
-        """channel_int must always be in features list."""
-        entity = TvEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
-        features = entity.get_final_features_list()
-        self.assertIn("channel_int", features)
+        """Телевизор объявляет channel_int; медиаплеер без класса — нет.
+
+        Номер канала есть только у телевизора. Умная колонка, получив эту
+        функцию, показывала бы в приложении Сбера элемент управления,
+        который никогда не обновится, — так и случилось на живой
+        установке с тремя Яндекс.Станциями.
+        """
+        tv = TvEntity(ENTITY_DATA)
+        tv.fill_by_ha_state(_make_ha_state("on", volume_level=0.5, device_class="tv"))
+        self.assertIn("channel_int", tv.get_final_features_list())
+
+        speaker = TvEntity(ENTITY_DATA)
+        speaker.fill_by_ha_state(_make_ha_state("on", volume_level=0.5))
+        self.assertNotIn("channel_int", speaker.get_final_features_list())
 
     def test_direction_in_features(self):
         """direction must always be in features list."""
@@ -542,6 +551,9 @@ class TestTvChannelIntState(unittest.TestCase):
     """
 
     def _channel_state(self, **attrs):
+        # device_class="tv" обязателен: номер канала объявляется только
+        # телевизорам, потому что у колонки его не может быть в принципе.
+        attrs.setdefault("device_class", "tv")
         entity = TvEntity(ENTITY_DATA)
         entity.fill_by_ha_state(_make_ha_state("playing", **attrs))
         states = entity.to_sber_current_state()["media_player.tv"]["states"]
@@ -597,5 +609,5 @@ class TestTvChannelIntState(unittest.TestCase):
         потеряют комнату, имя и сценарии (история issue #44).
         """
         entity = TvEntity(ENTITY_DATA)
-        entity.fill_by_ha_state(_make_ha_state("playing", volume_level=0.5))
+        entity.fill_by_ha_state(_make_ha_state("playing", volume_level=0.5, device_class="tv"))
         self.assertIn("channel_int", entity.get_final_features_list())

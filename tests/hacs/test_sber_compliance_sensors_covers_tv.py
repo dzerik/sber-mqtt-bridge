@@ -1193,8 +1193,13 @@ class TestTvCompliance:
         assert entity.category == "tv"
 
     def test_features_minimal(self):
-        """Minimal features: online, on_off, volume_int, mute, channel, channel_int, direction."""
-        entity = self._make_entity()
+        """Минимальный набор функций телевизора.
+
+        ``channel_int`` в него входит только у устройства, которое Home
+        Assistant называет телевизором: номер канала есть у телевизора и
+        нет у умной колонки.
+        """
+        entity = self._make_entity(device_class="tv")
         features = entity.get_final_features_list()
         for feat in ("online", "on_off", "volume_int", "mute", "channel", "channel_int", "direction"):
             assert feat in features, f"Missing feature '{feat}'"

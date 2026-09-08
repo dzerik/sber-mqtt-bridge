@@ -273,8 +273,49 @@ def _publish_says_off(states_list: list) -> bool:
         that omits ``on_off`` says nothing about the appliance being off,
         so it is not treated as off.
     """
+    return _publish_says_false(states_list, "on_off")
+
+
+def _publish_says_offline(states_list: list) -> bool:
+    """Report whether this publish carries ``online`` set to ``false``.
+
+    An unreachable device has no readings at all, and the bridge stops
+    publishing them on purpose: a temperature sensor that lost its Zigbee
+    link must not keep reporting a value, and it must not report ``0``
+    either — that would land in the cloud's history as a real
+    measurement.  Demanding completeness from such a publish flags every
+    device that is merely offline, which is exactly what happened on a
+    live installation right after Home Assistant restarted: eleven
+    warnings in one second, all of them about devices that had simply
+    not come up yet.
+
+    Obligatory alarm states are unaffected — they keep being published
+    while offline (``false`` there means "no alarm reported", not a
+    fabricated reading), so they never reach the check as missing.
+
+    Args:
+        states_list: The ``states`` entries of one device in the payload.
+
+    Returns:
+        ``True`` only when ``online`` is present *and* false.
+    """
+    return _publish_says_false(states_list, "online")
+
+
+def _publish_says_false(states_list: list, key: str) -> bool:
+    """Report whether ``key`` is present in the publish and false.
+
+    Args:
+        states_list: The ``states`` entries of one device in the payload.
+        key: Sber feature name to look for.
+
+    Returns:
+        ``True`` only when the key is present and carries ``False``.  A
+        publish that omits the key says nothing, so it is not treated as
+        false.
+    """
     for state in states_list:
-        if state.get("key") != "on_off":
+        if state.get("key") != key:
             continue
         value = state.get("value")
         if isinstance(value, dict):
@@ -1214,7 +1255,12 @@ def validate_publish(
             # unknown_for_category, and the fix is the same one ("drop it").
             # Adding "…and it is never published" counts one mistake twice.
             must_publish &= ref
-        if _publish_says_off(states_list):
+        if _publish_says_offline(states_list):
+            # An unreachable device has no readings at all, and the
+            # bridge deliberately stops publishing them rather than
+            # inventing zeros — see _publish_says_offline.
+            must_publish = set()
+        elif _publish_says_off(states_list):
             # Nothing to report while the appliance is off — see
             # OFF_SILENT_FEATURES.
             must_publish -= OFF_SILENT_FEATURES

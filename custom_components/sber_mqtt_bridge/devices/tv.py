@@ -31,17 +31,24 @@ CHANNEL_INT_MAX = 999
 besides ``volume_int`` / ``mute`` / ``source`` that *stores* state rather
 than only changing it, so it is published back to the cloud."""
 
-CHANNELLESS_DEVICE_CLASSES: frozenset[str] = frozenset({"speaker", "receiver"})
-"""HA media player device classes that have no channels at all.
+TV_DEVICE_CLASS = "tv"
+"""HA media player device class that marks an actual television.
 
 ``channel_int`` stores state, so advertising it obliges the bridge to
-publish a value (see the ``declared_not_published`` check).  A smart
-speaker or an AV receiver has no channel to report and never will, so
-the control would sit in the app forever without a value.  A device
-class of ``tv`` — and, deliberately, a *missing* device class — still
-gets the feature: many integrations leave the class unset, and taking a
-working control away from them would be worse than leaving it on a
-device that cannot use it.
+publish a value.  Only a television has a channel number to report; a
+smart speaker never will, and the control would sit in the app forever
+without a value.
+
+The test is deliberately "is a TV", not "is not a speaker".  The first
+attempt excluded ``speaker`` and ``receiver`` and left everything else
+alone — and a live installation showed three Yandex stations still
+carrying the feature, because their integration reports neither class.
+An unset class is the common case, so it cannot be read as "probably a
+television".  Twenty-four HA integrations set this class on real TVs,
+which makes the positive test both stable and specific — and stability
+matters here beyond correctness: the advertised feature list feeds the
+model digest, so a signal that flickers with playback would re-register
+the device in the cloud.
 """
 
 CHANNEL_MEDIA_TYPE = "channel"
@@ -213,9 +220,8 @@ class TvEntity(BaseEntity):
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list for TV capabilities.
 
-        ``channel_int`` is withheld from devices whose HA device class
-        says they have no channels — see
-        :data:`CHANNELLESS_DEVICE_CLASSES`.
+        ``channel_int`` is advertised only by devices HA calls a
+        television — see :data:`TV_DEVICE_CLASS`.
 
         ``source`` is advertised only when at least one HA input name
         resolves to a documented Sber value.  A TV whose inputs are all
@@ -231,7 +237,7 @@ class TvEntity(BaseEntity):
         if self._source_to_sber:
             features.append("source")
         features.extend(["channel", "direction", "custom_key", "number"])
-        if self._ha_device_class not in CHANNELLESS_DEVICE_CLASSES:
+        if self._ha_device_class == TV_DEVICE_CLASS:
             features.append("channel_int")
         return features
 

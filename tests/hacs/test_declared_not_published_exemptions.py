@@ -1,8 +1,9 @@
-"""Две законные причины не публиковать заявленную функцию.
+"""Когда не публиковать заявленную функцию — законно.
 
-Обе найдены на живом стенде: панель показала предупреждения
-``declared_not_published`` там, где мост вёл себя правильно, — и там,
-где он вёл себя неправильно, но починить надо было не публикацию.
+Все три случая пришли с живого стенда: панель показывала
+предупреждения ``declared_not_published`` там, где мост вёл себя
+правильно, — и там, где он вёл себя неправильно, но починить надо было
+не публикацию.
 
 * **Выключенный кондиционер и ``hvac_work_mode``.** В словаре Sber нет
   значения «выключено»: он предлагает cooling / heating / ventilation и
@@ -10,6 +11,14 @@
   функцией ``on_off``. Выключенный прибор может либо промолчать, либо
   выдумать режим, в котором не находится. Мост молчит — и предупреждать
   об этом не за что.
+
+* **Недоступное устройство.** Показаний у него нет вовсе, и мост
+  намеренно перестаёт их слать, чтобы в историю Сбера не попал
+  выдуманный ноль вместо температуры. Проверка полноты обязана это
+  учитывать: иначе каждый перезапуск Home Assistant рождает пачку
+  предупреждений об устройствах, которые просто ещё не поднялись —
+  ровно так и вышло на живой установке, одиннадцать штук в одну
+  секунду.
 
 * **Умная колонка и ``channel_int``.** Здесь наоборот: предупреждение
   было по делу, но лечится оно снятием функции, а не публикацией.
@@ -22,7 +31,7 @@ from __future__ import annotations
 
 import pytest
 
-from custom_components.sber_mqtt_bridge.devices.tv import CHANNELLESS_DEVICE_CLASSES
+from custom_components.sber_mqtt_bridge.devices.tv import TV_DEVICE_CLASS
 from custom_components.sber_mqtt_bridge.sber_entity_map import CATEGORY_DOMAIN_MAP
 from custom_components.sber_mqtt_bridge.schema_validator import validate_publish
 
@@ -120,15 +129,16 @@ class TestSwitchedOffAppliance:
 class TestChannellessMediaPlayers:
     """Колонке не нужен номер канала."""
 
-    @pytest.mark.parametrize("device_class", sorted(CHANNELLESS_DEVICE_CLASSES))
-    def test_speaker_does_not_advertise_channel_int(self, device_class: str) -> None:
-        """Колонка и ресивер не объявляют ``channel_int``.
+    @pytest.mark.parametrize("device_class", ["speaker", "receiver", ""])
+    def test_non_television_does_not_advertise_channel_int(self, device_class: str) -> None:
+        """Всё, что не телевизор, не объявляет ``channel_int``.
 
-        На стенде владельца две Яндекс.Станции были помечены
-        предупреждением: функция объявлена, а значения для неё не
-        существует в природе. Если тест упадёт, в приложении Сбера у
-        колонок снова появится номер канала, который никогда не
-        обновится.
+        Пустая строка в списке — главный случай: первая попытка
+        исключала только ``speaker`` и ``receiver``, и на стенде
+        владельца три Яндекс.Станции остались с предупреждением, потому
+        что их интеграция не сообщает класс вовсе. Если тест упадёт, в
+        приложении Сбера у колонок снова появится номер канала, который
+        никогда не обновится.
         """
         declared, issues, _ = _publish(
             "tv",
@@ -158,20 +168,99 @@ class TestChannellessMediaPlayers:
         assert "channel_int" in declared
         assert "channel_int" in published
 
-    def test_missing_device_class_keeps_channel_int(self) -> None:
-        """Без указанного класса устройства функцию не отнимаем.
+    def test_declaration_does_not_flicker_with_playback(self) -> None:
+        """Признак телевизора не зависит от того, что сейчас играет.
 
-        Многие интеграции класс не проставляют вовсе. Отнять у них
-        рабочий элемент управления хуже, чем оставить его там, где он не
-        пригодится: неизвестность — не повод считать устройство
-        колонкой.
+        Объявленный набор функций входит в дайджест модели, поэтому
+        признак, меняющийся при переключении с канала на HDMI, заставлял
+        бы облако перерегистрировать телевизор посреди просмотра.
         """
-        declared, _, published = _publish(
+        on_channel, _, _ = _publish(
             "tv",
             "media_player",
-            {"volume_level": 0.3, "is_volume_muted": False, "media_content_id": "7"},
+            {"device_class": TV_DEVICE_CLASS, "media_content_id": "5", "media_content_type": "channel"},
+            "playing",
+        )
+        on_hdmi, _, _ = _publish(
+            "tv",
+            "media_player",
+            {"device_class": TV_DEVICE_CLASS, "media_content_id": "hdmi1", "media_content_type": "app"},
             "playing",
         )
 
-        assert "channel_int" in declared
-        assert "channel_int" in published
+        assert "channel_int" in on_channel
+        assert set(on_channel) == set(on_hdmi), "набор функций не должен зависеть от источника"
+
+
+class TestUnreachableDevices:
+    """У недоступного устройства показаний нет по определению."""
+
+    @pytest.mark.parametrize(
+        ("category", "domain", "attrs", "device_class"),
+        [
+            ("sensor_temp", "sensor", {"device_class": "temperature", "unit_of_measurement": "°C"}, "temperature"),
+            ("hvac_ac", "climate", {"hvac_modes": ["cool", "off"], "min_temp": 16, "max_temp": 30}, ""),
+            (
+                "light",
+                "light",
+                {
+                    "supported_color_modes": ["hs", "color_temp"],
+                    "min_color_temp_kelvin": 2000,
+                    "max_color_temp_kelvin": 6500,
+                },
+                "",
+            ),
+            ("curtain", "cover", {"current_position": 50}, ""),
+        ],
+    )
+    def test_offline_device_raises_no_warning(self, category: str, domain: str, attrs: dict, device_class: str) -> None:
+        """Недоступное устройство не даёт замечаний о полноте.
+
+        Мост намеренно перестаёт публиковать показания устройства,
+        потерявшего связь: иначе в историю Сбера попадёт выдуманный ноль
+        вместо температуры. Проверка полноты об этом знать обязана —
+        иначе каждый перезапуск Home Assistant порождает пачку
+        предупреждений об устройствах, которые просто ещё не поднялись.
+        Именно так и случилось на живой установке: одиннадцать
+        предупреждений в одну секунду.
+        """
+        entity = CATEGORY_DOMAIN_MAP[category].cls(
+            {
+                "entity_id": f"{domain}.probe",
+                "name": "Probe",
+                "original_device_class": device_class,
+                "device_class": device_class,
+            }
+        )
+        entity.fill_by_ha_state({"state": "unavailable", "attributes": attrs})
+        declared = [getattr(f, "value", f) for f in entity.get_final_features_list()]
+        states = [
+            {"key": getattr(item["key"], "value", item["key"]), "value": item["value"]}
+            for payload in entity.to_sber_current_state().values()
+            for item in payload["states"]
+        ]
+        issues = validate_publish(
+            entity_id=f"{domain}.probe",
+            category=category,
+            states=states,
+            declared_features=declared,
+            check_completeness=True,
+        )
+
+        assert [i.type for i in issues] == [], f"получено: {[(i.type, i.key) for i in issues]}"
+
+    def test_reachable_device_is_still_checked(self) -> None:
+        """Поблажка не должна прикрывать работающее устройство.
+
+        Устройство на связи, объявившее функцию и не приславшее для неё
+        значения, — настоящая находка, и она обязана остаться видимой.
+        """
+        issues = validate_publish(
+            entity_id="sensor.alive",
+            category="sensor_temp",
+            states=[{"key": "online", "value": {"type": "BOOL", "bool_value": True}}],
+            declared_features=["online", "temperature"],
+            check_completeness=True,
+        )
+
+        assert "temperature" in [i.key for i in issues if i.type == "declared_not_published"]
