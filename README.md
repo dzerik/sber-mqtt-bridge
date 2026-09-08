@@ -414,3 +414,13 @@ logger:
 ## Лицензия
 
 [MIT](LICENSE.txt)
+
+## Обсуждение и поддержка
+
+Чат в Telegram: **[@ha_sber_chat](https://t.me/ha_sber_chat)** — общий чат по интеграциям
+[ha-sberhome](https://github.com/dzerik/ha-sberhome),
+[ha-sboom-card](https://github.com/dzerik/ha-sboom-card),
+[holabrain-ha](https://github.com/dzerik/holabrain-ha) и
+[sber-mqtt-bridge](https://github.com/dzerik/sber-mqtt-bridge).
+Вопросы по установке и настройке, обсуждение новых устройств, ранние сборки.
+Баг-репорты лучше заводить issue'ами в соответствующем репозитории.

@@ -402,3 +402,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 ## License
 
 [MIT](LICENSE.txt)
+
+## Community and support
+
+Telegram chat: **[@ha_sber_chat](https://t.me/ha_sber_chat)** — a shared chat for the
+[ha-sberhome](https://github.com/dzerik/ha-sberhome),
+[ha-sboom-card](https://github.com/dzerik/ha-sboom-card),
+[holabrain-ha](https://github.com/dzerik/holabrain-ha) and
+[sber-mqtt-bridge](https://github.com/dzerik/sber-mqtt-bridge) integrations.
+Setup questions, new device reports, early builds. The chat is mostly in Russian,
+English is welcome. For bugs please open an issue in the matching repository.
