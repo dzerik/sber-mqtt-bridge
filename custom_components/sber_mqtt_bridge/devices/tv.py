@@ -31,6 +31,19 @@ CHANNEL_INT_MAX = 999
 besides ``volume_int`` / ``mute`` / ``source`` that *stores* state rather
 than only changing it, so it is published back to the cloud."""
 
+CHANNELLESS_DEVICE_CLASSES: frozenset[str] = frozenset({"speaker", "receiver"})
+"""HA media player device classes that have no channels at all.
+
+``channel_int`` stores state, so advertising it obliges the bridge to
+publish a value (see the ``declared_not_published`` check).  A smart
+speaker or an AV receiver has no channel to report and never will, so
+the control would sit in the app forever without a value.  A device
+class of ``tv`` — and, deliberately, a *missing* device class — still
+gets the feature: many integrations leave the class unset, and taking a
+working control away from them would be worse than leaving it on a
+device that cannot use it.
+"""
+
 CHANNEL_MEDIA_TYPE = "channel"
 """HA ``media_content_type`` that marks ``media_content_id`` as a channel."""
 
@@ -179,6 +192,7 @@ class TvEntity(BaseEntity):
         self._source_list: list[str] = []
         self._media_content_id: str | None = None
         self._media_content_type: str | None = None
+        self._ha_device_class: str = ""
         self._source_to_sber: dict[str, str] = {}
         self._source_to_ha: dict[str, str] = {}
 
@@ -191,12 +205,17 @@ class TvEntity(BaseEntity):
         super().fill_by_ha_state(ha_state)
         attrs = ha_state.get("attributes", {})
         self._apply_attr_specs(attrs)
+        self._ha_device_class = str(attrs.get("device_class") or "").strip().lower()
         self._source_to_sber = map_ha_values(self._source_list, SOURCE_VALUES)
         self._source_to_ha = invert_value_map(self._source_to_sber)
         self.current_state = ha_state.get("state") not in ("off", "standby", "unavailable", "unknown")
 
     def _create_features_list(self) -> list[str]:
         """Return Sber feature list for TV capabilities.
+
+        ``channel_int`` is withheld from devices whose HA device class
+        says they have no channels — see
+        :data:`CHANNELLESS_DEVICE_CLASSES`.
 
         ``source`` is advertised only when at least one HA input name
         resolves to a documented Sber value.  A TV whose inputs are all
@@ -211,7 +230,9 @@ class TvEntity(BaseEntity):
         features = [*super()._create_features_list(), "on_off", "volume_int", "volume", "mute"]
         if self._source_to_sber:
             features.append("source")
-        features.extend(["channel", "channel_int", "direction", "custom_key", "number"])
+        features.extend(["channel", "direction", "custom_key", "number"])
+        if self._ha_device_class not in CHANNELLESS_DEVICE_CLASSES:
+            features.append("channel_int")
         return features
 
     def create_allowed_values_list(self) -> dict[str, dict]:

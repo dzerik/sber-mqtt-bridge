@@ -243,6 +243,45 @@ exactly as designed.  So they are exempt from the
 ``declared_not_published`` check, and only from that one: their type,
 vocabulary and category membership are still validated normally."""
 
+OFF_SILENT_FEATURES: frozenset[str] = frozenset({"hvac_work_mode", "hvac_thermostat_mode"})
+"""Mode features a switched-off appliance has nothing to say about.
+
+Both vocabularies describe how the device *works* and neither contains
+an "off" value: ``hvac_work_mode`` offers cooling / heating /
+ventilation / dehumidification and friends, ``hvac_thermostat_mode``
+offers heating / cooling / auto and friends.  Sber carries the on/off
+distinction in ``on_off`` instead, so an appliance that is off can only
+either stay silent or invent a mode it is not in.  The bridge stays
+silent (see :meth:`~.devices.climate.ClimateEntity._state_work_mode_with_presets`),
+and demanding a value here would put a warning on every switched-off air
+conditioner — a device behaving exactly as designed.
+
+The exemption is narrow on purpose: it applies only while the publish
+itself says ``on_off`` is ``false``.  A running appliance that omits its
+work mode is still reported.
+"""
+
+
+def _publish_says_off(states_list: list) -> bool:
+    """Report whether this publish carries ``on_off`` set to ``false``.
+
+    Args:
+        states_list: The ``states`` entries of one device in the payload.
+
+    Returns:
+        ``True`` only when ``on_off`` is present *and* false.  A publish
+        that omits ``on_off`` says nothing about the appliance being off,
+        so it is not treated as off.
+    """
+    for state in states_list:
+        if state.get("key") != "on_off":
+            continue
+        value = state.get("value")
+        if isinstance(value, dict):
+            return value.get("bool_value") is False
+    return False
+
+
 IssueType = Literal[
     "missing_obligatory",
     "missing_conditional",
@@ -1175,6 +1214,10 @@ def validate_publish(
             # unknown_for_category, and the fix is the same one ("drop it").
             # Adding "…and it is never published" counts one mistake twice.
             must_publish &= ref
+        if _publish_says_off(states_list):
+            # Nothing to report while the appliance is off — see
+            # OFF_SILENT_FEATURES.
+            must_publish -= OFF_SILENT_FEATURES
         issues.extend(
             _issue(
                 now=now,
