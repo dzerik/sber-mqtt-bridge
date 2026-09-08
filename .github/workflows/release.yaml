@@ -54,6 +54,25 @@ jobs:
         with:
           inputs: sber_mqtt_bridge.zip
 
+      # Whether this tag is a pre-release is decided by a rule, not by a
+      # list.  The previous version spelled out b1/b2/b3 and nothing
+      # else, so v1.51.0b4 was published as a stable release and HACS
+      # would have offered a beta to every user.  PEP 440 spells
+      # pre-releases as aN / bN / rcN right after the version, which is
+      # exactly what tools/bump_version.py produces; the -alpha/-beta/-rc
+      # spellings are accepted too, in case a tag is ever hand-made.
+      - name: Decide whether this is a pre-release
+        id: channel
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          if [[ "$tag" =~ (a|b|rc)[0-9]+$ ]] || [[ "$tag" =~ -(alpha|beta|rc) ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$GITHUB_REF_NAME is a pre-release"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$GITHUB_REF_NAME is a stable release"
+          fi
+
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
@@ -61,4 +80,4 @@ jobs:
           files: |
             sber_mqtt_bridge.zip
             sber_mqtt_bridge.zip.sigstore.json
-          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') || contains(github.ref_name, 'b1') || contains(github.ref_name, 'b2') || contains(github.ref_name, 'b3') || contains(github.ref_name, 'a1') || contains(github.ref_name, 'a2') || contains(github.ref_name, 'rc') }}
+          prerelease: ${{ steps.channel.outputs.prerelease == 'true' }}
