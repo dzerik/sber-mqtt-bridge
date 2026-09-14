@@ -11,6 +11,7 @@ import voluptuous as vol
 from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
@@ -40,6 +41,9 @@ class SberBridgeData:
 
     bridge: SberBridge
 
+
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
+"""Platforms carrying the bridge's own diagnostic entities."""
 
 type SberBridgeConfigEntry = ConfigEntry[SberBridgeData]
 """Type alias for a ConfigEntry carrying SberBridgeData as runtime_data."""
@@ -130,6 +134,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
         # bridge's own traffic; surface it as a Repairs issue (issue #63).
         entry.async_on_unload(async_track_conflicts(hass, entry))
 
+        # The bridge's own diagnostic entities (connection, errors).
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
         # Register frontend panel (static path + sidebar entry).
         #
         # The static path is registered ONCE per HA instance, not per entry
@@ -182,6 +189,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) 
     Returns:
         True if unload succeeded.
     """
+    if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        return False
     await entry.runtime_data.bridge.async_stop()
 
     # Remove panel from sidebar

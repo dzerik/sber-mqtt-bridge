@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.sber_mqtt_bridge import async_setup_entry
+from custom_components.sber_mqtt_bridge import PLATFORMS, async_setup_entry
 from custom_components.sber_mqtt_bridge.const import (
     CONF_SBER_BROKER,
     CONF_SBER_LOGIN,
@@ -70,8 +70,14 @@ async def test_setup_registers_panel_and_keeps_bridge(hass: HomeAssistant, fake_
     """Happy path: the bridge is started, kept, and the panel is registered."""
     entry = _entry(hass)
 
-    with patch("custom_components.sber_mqtt_bridge.async_register_built_in_panel") as panel:
+    with (
+        patch("custom_components.sber_mqtt_bridge.async_register_built_in_panel") as panel,
+        patch.object(hass.config_entries, "async_forward_entry_setups", AsyncMock()) as forward,
+    ):
         assert await async_setup_entry(hass, entry) is True
+
+    # The bridge's own diagnostic entities are set up with it.
+    forward.assert_awaited_once_with(entry, PLATFORMS)
 
     fake_bridge.async_start.assert_awaited_once()
     fake_bridge.async_stop.assert_not_awaited()

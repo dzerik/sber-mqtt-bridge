@@ -50,6 +50,7 @@ from typing import Any
 import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.const import EntityCategory
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
@@ -852,6 +853,20 @@ class TestLogModule:
         assert [frame["event"]["message"]["direction"] for frame in streamed] == ["out"]
 
 
+class TestCommandSchema:
+    """``command_schema`` feeds the DevTools command builder."""
+
+    async def test_lamp_schema(self, admin: Any) -> None:
+        result = await ok(admin, "command_schema", entity_id=LAMP)
+        keys = {f["key"] for f in result["features"]}
+        assert {"on_off", "light_brightness"} <= keys
+        assert "online" not in keys
+
+    async def test_unknown_entity(self, admin: Any) -> None:
+        response = await call(admin, "command_schema", entity_id="light.nope")
+        assert response["error"]["code"] == "entity_not_found"
+
+
 class TestReplayModule:
     """``replay.py`` — inject a Sber command as if the broker sent it."""
 
@@ -1106,6 +1121,7 @@ VALID_PAYLOADS: dict[str, dict[str, Any]] = {
     "update_settings": {"settings": {"debounce_delay": 0.9}},
     "trace": {"trace_id": "nope"},
     "diagnose_entity": {"entity_id": LAMP},
+    "command_schema": {"entity_id": LAMP},
 }
 """Schema-valid extra fields per command (commands not listed take none).
 
@@ -1360,7 +1376,6 @@ class TestBareStatusRequestUpdatesThePanel:
         assert status["cloud_known"] == exposed
 
 
-
 class TestSystemHealth:
     """System information page summary (``system_health.py``)."""
 
@@ -1388,3 +1403,46 @@ class TestSystemHealth:
         for name in ("strings.json", "translations/en.json", "translations/ru.json"):
             labels = json.loads((base / name).read_text(encoding="utf-8"))["system_health"]["info"]
             assert keys == set(labels), name
+
+
+class TestDiagnosticEntities:
+    """The bridge's own connection / error entities (binary_sensor.py, sensor.py)."""
+
+    @staticmethod
+    def _own_entity_ids(hass: HomeAssistant, entry: MockConfigEntry) -> dict[str, str]:
+        registry = er.async_get(hass)
+        return {e.translation_key: e.entity_id for e in er.async_entries_for_config_entry(registry, entry.entry_id)}
+
+    async def test_entities_are_created_on_a_service_device(self, hass: HomeAssistant, entry: MockConfigEntry) -> None:
+        ids = self._own_entity_ids(hass, entry)
+        assert set(ids) == {"connected", "phase", "known_to_sber", "never_confirmed", "sber_errors", "last_sber_error"}
+        registry = er.async_get(hass)
+        device = dr.async_get(hass).async_get(registry.async_get(ids["connected"]).device_id)
+        assert device.entry_type is dr.DeviceEntryType.SERVICE
+        assert all(registry.async_get(eid).entity_category == EntityCategory.DIAGNOSTIC for eid in ids.values())
+
+    async def test_connection_change_is_pushed_at_once(self, hass: HomeAssistant, entry: MockConfigEntry) -> None:
+        connected = self._own_entity_ids(hass, entry)["connected"]
+        bridge = entry.runtime_data.bridge
+        assert hass.states.get(connected).state == "off"
+
+        bridge._mqtt_service._client = RecordingTransport()
+        bridge._mark_connected()
+        await hass.async_block_till_done()
+        assert hass.states.get(connected).state == "on"
+
+        await bridge._handle_disconnect(RuntimeError("link lost"))
+        await hass.async_block_till_done()
+        assert hass.states.get(connected).state == "off"
+
+    async def test_own_entities_are_never_offered_for_export(
+        self, hass: HomeAssistant, entry: MockConfigEntry, admin: Any
+    ) -> None:
+        from custom_components.sber_mqtt_bridge.config_flow import _get_entities_by_domains
+
+        own = set(self._own_entity_ids(hass, entry).values())
+        assert not own & set(_get_entities_by_domains(hass, ["binary_sensor", "sensor"]))
+        for category in ("sensor_temp", "relay"):
+            result = await ok(admin, "list_devices_for_category", category=category)
+            offered = {d["primary"]["entity_id"] for d in result["devices"]}
+            assert not own & offered, category

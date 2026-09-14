@@ -196,7 +196,7 @@ def _get_entities_by_domains(hass: HomeAssistant, domains: list[str]) -> list[st
     no_device: list[str] = []
 
     for entry in entity_reg.entities.values():
-        if entry.disabled_by is not None:
+        if entry.disabled_by is not None or entry.platform == DOMAIN:
             continue
         domain = entry.entity_id.split(".", 1)[0]
         if domain not in domains:
@@ -263,7 +263,7 @@ def _get_entities_by_labels(hass: HomeAssistant, labels: list[str]) -> list[str]
     result: list[str] = []
 
     for entry in entity_reg.entities.values():
-        if entry.disabled_by is not None:
+        if entry.disabled_by is not None or entry.platform == DOMAIN:
             continue
         domain = entry.entity_id.split(".", 1)[0]
         if domain not in SUPPORTED_DOMAINS:
@@ -646,7 +646,8 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
         entity_reg = er.async_get(self.hass)
         domain_counts: dict[str, int] = {}
         for entry in entity_reg.entities.values():
-            if entry.disabled_by is not None:
+            # The bridge's own diagnostic entities are never exported to Sber.
+            if entry.disabled_by is not None or entry.platform == DOMAIN:
                 continue
             d = entry.entity_id.split(".", 1)[0]
             if d in SUPPORTED_DOMAINS:
@@ -696,7 +697,8 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
         entity_reg = er.async_get(self.hass)
         all_labels: set[str] = set()
         for entry in entity_reg.entities.values():
-            if entry.disabled_by is not None:
+            # The bridge's own diagnostic entities are never exported to Sber.
+            if entry.disabled_by is not None or entry.platform == DOMAIN:
                 continue
             domain = entry.entity_id.split(".", 1)[0]
             if domain in SUPPORTED_DOMAINS and hasattr(entry, "labels"):

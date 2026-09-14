@@ -28,6 +28,7 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
+from .const import DOMAIN
 from .devices.base_entity import (
     ENERGY_LINK_ROLES,
     BaseEntity,
@@ -368,7 +369,8 @@ class HaDeviceGrouper:
         entities_by_device: dict[str, list[er.RegistryEntry]] = {}
         orphan_entries: list[er.RegistryEntry] = []
         for entry in self._entity_reg.entities.values():
-            if entry.disabled_by is not None:
+            # The bridge's own diagnostic entities are never exported to Sber.
+            if entry.disabled_by is not None or entry.platform == DOMAIN:
                 continue
             if entry.device_id is None:
                 orphan_entries.append(entry)

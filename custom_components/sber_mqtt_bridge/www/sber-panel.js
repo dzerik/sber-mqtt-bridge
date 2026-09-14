@@ -787,7 +787,7 @@ class SberMqttPanel extends LitElement {
       <sber-traces .hass=${this.hass}></sber-traces>
       <sber-command-confirm .hass=${this.hass}></sber-command-confirm>
       <sber-state-diff .hass=${this.hass}></sber-state-diff>
-      <sber-replay .hass=${this.hass} .bus=${messageBus}></sber-replay>
+      <sber-replay .hass=${this.hass} .bus=${messageBus} .entities=${this._devices}></sber-replay>
       <sber-validation .hass=${this.hass}></sber-validation>
       <sber-diagnose .hass=${this.hass} .entities=${this._devices}></sber-diagnose>
     `;

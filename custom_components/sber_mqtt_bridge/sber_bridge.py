@@ -233,6 +233,7 @@ class SberBridge:
         self._load_settings_from_options(entry.options)
 
         self._unsub_lifecycle_listeners: list[Callable] = []
+        self._status_listeners: list[Callable[[], None]] = []
 
         self._stats = BridgeStats()
 
@@ -591,6 +592,33 @@ class SberBridge:
     def _mqtt_client(self, value: aiomqtt.Client | None) -> None:
         """Forward a forced client object to the owning service."""
         self._mqtt_service._client = value
+
+    def add_status_listener(self, callback_fn: Callable[[], None]) -> Callable[[], None]:
+        """Call ``callback_fn`` whenever the MQTT link goes up or down.
+
+        Used by the bridge's own diagnostic entities, so a lost connection
+        shows up at once instead of on their next poll.
+
+        Args:
+            callback_fn: Zero-argument callable, run in the event loop.
+
+        Returns:
+            Callable that removes the listener.
+        """
+        self._status_listeners.append(callback_fn)
+
+        def _remove() -> None:
+            if callback_fn in self._status_listeners:
+                self._status_listeners.remove(callback_fn)
+
+        return _remove
+
+    def _notify_status_listeners(self) -> None:
+        for listener in list(self._status_listeners):
+            try:
+                listener()
+            except Exception:  # pragma: no cover — an entity must never break the link handling
+                _LOGGER.exception("Bridge status listener failed")
 
     @property
     def config_entry(self) -> ConfigEntry:
@@ -1401,6 +1429,7 @@ class SberBridge:
         self._config_gate.cancel()
         self._cloud_devices.shutdown()
         self._connected = False
+        self._notify_status_listeners()
 
     @callback
     def _reload_entities_and_resubscribe(self) -> None:
@@ -1561,6 +1590,7 @@ class SberBridge:
         """Flip connection-related state flags after a successful MQTT handshake."""
         self._connected = True
         self._stats.connected_since = time.monotonic()
+        self._notify_status_listeners()
         _LOGGER.info(
             "Connected to Sber MQTT broker %s:%d (entities: %d)",
             self._broker,
@@ -1674,6 +1704,7 @@ class SberBridge:
         """
         self._connected = False
         self._mqtt_client = None
+        self._notify_status_listeners()
         # Cancel the pending silent-rejection audit: with the link down no
         # ack can physically arrive, so letting the timer fire would create
         # false "silent rejection" warnings / repair issues that mask the

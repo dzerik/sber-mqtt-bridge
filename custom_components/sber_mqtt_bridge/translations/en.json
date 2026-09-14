@@ -446,7 +446,28 @@
       "from_log": "Replay from log",
       "col_time": "Time",
       "col_topic": "Topic",
-      "col_payload": "Payload"
+      "col_payload": "Payload",
+      "hint": "Feed a Sber-shaped MQTT message into the bridge without touching the broker. Works offline; the same dispatcher, trace, command confirmation and state diff see it.",
+      "subscribe_failed": "Subscribe failed: {reason}",
+      "injected": "Injected → {suffix}",
+      "unknown_topic": "Unknown topic suffix: {suffix}",
+      "inject_failed": "Inject failed: {reason}",
+      "replayed": "Replayed → {suffix}",
+      "replay_failed": "Replay failed: {reason}",
+      "reset_template": "Reset template",
+      "empty": "No incoming messages yet. Real Sber traffic will appear here.",
+      "replay": "Replay",
+      "builder": "Command builder",
+      "builder_hint": "Pick an exposed entity, a feature it accepts and a value — the builder composes the down/commands payload Sber would send, with the right value type and bounds. Several features make one multi-key command.",
+      "builder_entity": "Entity",
+      "builder_feature": "Feature",
+      "builder_value": "Value",
+      "builder_add": "Add",
+      "builder_remove": "Remove {key}",
+      "builder_compose": "Put into the editor",
+      "builder_composed": "Command placed into the editor — check it and press Inject.",
+      "builder_nothing": "This entity accepts no commands (its features are read-only).",
+      "schema_failed": "Could not load the entity's features: {reason}"
     },
     "diagnose": {
       "title": "Why isn't it working?",
@@ -623,6 +644,37 @@
       "sber_errors": "Errors from Sber",
       "last_sber_error": "Last Sber error code",
       "other_sber_bridges": "Other Sber bridges installed"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "connected": {
+        "name": "Sber connection"
+      }
+    },
+    "sensor": {
+      "phase": {
+        "name": "Connection phase",
+        "state": {
+          "starting": "Starting",
+          "connecting": "Connecting",
+          "awaiting_ack": "Waiting for Sber",
+          "ready": "Ready",
+          "disconnected": "Disconnected"
+        }
+      },
+      "known_to_sber": {
+        "name": "Devices known to Sber"
+      },
+      "never_confirmed": {
+        "name": "Devices never confirmed by Sber"
+      },
+      "sber_errors": {
+        "name": "Errors from Sber"
+      },
+      "last_sber_error": {
+        "name": "Last Sber error code"
+      }
     }
   }
 }

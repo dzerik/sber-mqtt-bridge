@@ -3142,3 +3142,43 @@ class TestDevtoolsTablesFitAPhone:
         src = _read(path)
         assert src.count(f'<div class="table-scroll"><table class="{table}">') == src.count(f'<table class="{table}">')
         assert ".table-scroll { overflow-x: auto; }" in src
+
+
+@requires_node
+class TestCommandBuilderHelpers:
+    """The builder composes exactly what Sber sends (value shapes, bounds)."""
+
+    def _values(self, tmp_path, cases):
+        body = f"const cases = {json.dumps(cases)};\nconsole.log(JSON.stringify(cases.map(([f, raw]) => u.makeSberValue(f, raw))));"
+        return _run_utils(tmp_path, body)
+
+    def test_value_shapes(self, tmp_path):
+        colour = {"type": "COLOUR", "components": {"h": [0, 360], "s": [0, 1000], "v": [100, 1000]}}
+        out = self._values(
+            tmp_path,
+            [
+                [{"type": "BOOL"}, "true"],
+                [{"type": "BOOL"}, False],
+                [{"type": "INTEGER", "min": 100, "max": 900}, "950"],
+                [{"type": "INTEGER", "min": 100, "max": 900}, 499.6],
+                [{"type": "FLOAT", "min": 16, "max": 32}, "10"],
+                [{"type": "ENUM"}, "white"],
+                [colour, {"h": 400, "s": 500, "v": 50}],
+            ],
+        )
+        assert out == [
+            {"type": "BOOL", "bool_value": True},
+            {"type": "BOOL", "bool_value": False},
+            {"type": "INTEGER", "integer_value": "900"},
+            {"type": "INTEGER", "integer_value": "500"},
+            {"type": "FLOAT", "float_value": 16},
+            {"type": "ENUM", "enum_value": "white"},
+            {"type": "COLOUR", "colour_value": {"h": 360, "s": 500, "v": 100}},
+        ]
+
+    def test_payload_wraps_states_per_entity(self, tmp_path):
+        out = _run_utils(
+            tmp_path,
+            'console.log(JSON.stringify(JSON.parse(u.buildCommandPayload("light.a", [{key: "on_off", value: {type: "BOOL", bool_value: true}}]))));',
+        )
+        assert out == {"devices": {"light.a": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}}}

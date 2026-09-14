@@ -193,3 +193,50 @@ export function formatSberValue(v) {
   }
   return JSON.stringify(v);
 }
+
+/**
+ * Build a Sber ``value`` object for one feature of the command schema.
+ *
+ * Numbers are clamped to the feature's bounds; INTEGER goes on the wire as a
+ * string, as Sber documents it (``integer_value`` — "long written as a string").
+ *
+ * @param {{type: string, min?: number, max?: number, components?: object}} feature
+ *   An entry of ``sber_mqtt_bridge/command_schema``.
+ * @param {*} raw Value from the form: boolean/"true", number or numeric string,
+ *   enum string, or ``{h, s, v}`` for colours.
+ * @returns {object} ``{"type": ..., "<type>_value": ...}``.
+ */
+export function makeSberValue(feature, raw) {
+  const clamp = (n, low, high) => Math.min(high ?? n, Math.max(low ?? n, n));
+  switch (feature.type) {
+    case "BOOL":
+      return { type: "BOOL", bool_value: raw === true || raw === "true" };
+    case "INTEGER":
+      return { type: "INTEGER", integer_value: String(Math.round(clamp(Number(raw) || 0, feature.min, feature.max))) };
+    case "FLOAT":
+      return { type: "FLOAT", float_value: clamp(Number(raw) || 0, feature.min, feature.max) };
+    case "COLOUR": {
+      const ranges = feature.components || {};
+      const part = (name) => {
+        const [low, high] = ranges[name] || [];
+        return Math.round(clamp(Number(raw?.[name]) || 0, low, high));
+      };
+      return { type: "COLOUR", colour_value: { h: part("h"), s: part("s"), v: part("v") } };
+    }
+    case "ENUM":
+      return { type: "ENUM", enum_value: String(raw ?? "") };
+    default:
+      return { type: "STRING", string_value: String(raw ?? "") };
+  }
+}
+
+/**
+ * Wrap states into a ``down/commands`` payload for one entity.
+ *
+ * @param {string} entityId
+ * @param {Array<{key: string, value: object}>} states
+ * @returns {string} Pretty-printed JSON, ready for the inject editor.
+ */
+export function buildCommandPayload(entityId, states) {
+  return JSON.stringify({ devices: { [entityId]: { states } } }, null, 2);
+}

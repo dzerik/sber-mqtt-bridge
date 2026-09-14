@@ -23,9 +23,15 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 
-from ._common import WS_PAYLOAD, get_bridge, requires_bridge  # noqa: F401 — get_bridge re-exported for test patching
+from ..command_schema import build_command_schema
+from ._common import (  # noqa: F401 — get_bridge re-exported for test patching
+    WS_ENTITY_ID,
+    WS_PAYLOAD,
+    get_bridge,
+    requires_bridge,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,6 +65,28 @@ async def ws_inject_sber_message(
         connection.send_error(msg["id"], "inject_failed", str(e))
         return
     connection.send_result(msg["id"], result)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/command_schema",
+        vol.Required("entity_id"): WS_ENTITY_ID,
+    }
+)
+@callback
+@requires_bridge
+def ws_command_schema(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    bridge: Any,
+) -> None:
+    """Return the commandable features of one exposed entity for the command builder."""
+    entity = bridge.entities.get(msg["entity_id"])
+    if entity is None:
+        connection.send_error(msg["id"], "entity_not_found", f"{msg['entity_id']} is not exposed to Sber")
+        return
+    connection.send_result(msg["id"], {"entity_id": msg["entity_id"], "features": build_command_schema(entity)})
 
 
 @websocket_api.websocket_command(

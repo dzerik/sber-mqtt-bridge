@@ -60,7 +60,7 @@ from .links import ws_auto_link_all, ws_set_entity_links
 from .log import ws_clear_message_log, ws_message_log, ws_subscribe_messages
 from .raw import ws_raw_config, ws_raw_states, ws_send_raw_config, ws_send_raw_state
 from .reference import ws_feature_labels
-from .replay import ws_inject_sber_message, ws_replay_message
+from .replay import ws_command_schema, ws_inject_sber_message, ws_replay_message
 from .settings import ws_get_settings, ws_update_settings
 from .status import (
     ws_device_detail,
@@ -90,6 +90,7 @@ __all__ = [
     "ws_clear_state_diffs",
     "ws_clear_traces",
     "ws_clear_validation_issues",
+    "ws_command_schema",
     "ws_device_detail",
     "ws_diagnose_entity",
     "ws_export",
@@ -179,6 +180,7 @@ _COMMANDS = (
     # DevTools replay / inject (v1.34.0)
     ws_inject_sber_message,
     ws_replay_message,
+    ws_command_schema,
     # DevTools schema validation (v1.35.0)
     ws_list_validation_issues,
     ws_clear_validation_issues,
