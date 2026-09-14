@@ -408,6 +408,18 @@ class TestStatusModule:
         assert health["score"] == "degraded"
         assert health["issues"] == ["1 entities never confirmed by Sber"]
 
+    async def test_status_reports_another_bridge_on_the_same_account(
+        self, hass: HomeAssistant, admin: Any, transport: RecordingTransport
+    ) -> None:
+        """A second HA → Sber bridge is surfaced in status and lowers health (issue #63)."""
+        MockConfigEntry(domain="sber_mqtt", data={"mqtt_login": "test"}, title="Sber MQTT").add_to_hass(hass)
+
+        result = await ok(admin, "status")
+
+        assert result["conflicts"] == [{"domain": "sber_mqtt", "title": "Sber MQTT", "same_account": True}]
+        assert result["health"]["score"] == "degraded"
+        assert "1 other Sber bridge(s) installed" in result["health"]["issues"]
+
     async def test_status_health_survives_a_restart(
         self, admin: Any, entry: MockConfigEntry, transport: RecordingTransport
     ) -> None:

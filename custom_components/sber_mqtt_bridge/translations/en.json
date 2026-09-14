@@ -208,10 +208,21 @@
       "sync_failed": "Sync failed: {reason}",
       "refresh_failed": "Refresh after add failed: {reason}",
       "link_failed": "Link failed: {reason}",
-      "sections": "Sber MQTT Bridge sections"
+      "sections": "Sber MQTT Bridge sections",
+      "conflict_same_account": "Another Sber bridge exports devices to the same Sber account: {integrations}. Each one replaces the device list of the other, so devices appear and disappear in the Sber app. Keep only one of them.",
+      "conflict_other_account": "Another Sber bridge is installed: {integrations}. It uses a different Sber account, but the same device may show up twice in the Sber app."
     },
     "diff": {
-      "title": "State Diffs"
+      "title": "State Diffs",
+      "clear": "Clear",
+      "hint": "Each row is the difference between two consecutive state publishes of one device; identical publishes produce no row. Rows are grouped by device, the most recently changed first.",
+      "search": "Filter by entity",
+      "empty": "No changes yet. The first real state change will appear here.",
+      "nothing_matches": "No devices match the filter.",
+      "initial": "initial",
+      "show_earlier": "Show {count} earlier",
+      "hide_earlier": "Hide {count} earlier",
+      "count_title": "{count} changes in the buffer"
     },
     "table": {
       "total_exposed": "Total exposed:",
@@ -357,7 +368,20 @@
       "col_time": "Time",
       "col_dir": "Dir",
       "col_topic": "Topic",
-      "col_payload": "Payload"
+      "col_payload": "Payload",
+      "log_pause": "Pause",
+      "log_resume": "Resume",
+      "log_copy_shown": "Copy shown",
+      "log_all_directions": "All directions",
+      "log_dir_in": "Incoming",
+      "log_dir_out": "Outgoing",
+      "log_dir_replay": "Replay / inject",
+      "log_all_topics": "All topics",
+      "log_search": "Search topic or payload",
+      "log_shown": "{shown} of {total}",
+      "log_new_while_paused": "{count} new while paused",
+      "log_empty": "No MQTT messages yet. They appear here as they are sent and received.",
+      "log_nothing_matches": "No messages match the filters."
     },
     "validation": {
       "title": "Schema Validation",
@@ -453,6 +477,28 @@
       "power": "Power",
       "voltage": "Voltage",
       "current": "Current"
+    },
+    "confirm": {
+      "title": "Command Confirmation",
+      "hint": "For every Sber command: did the state the bridge reported back to Sber reach the commanded values? A trace only shows that a service call was made; a command that stays unconfirmed means the device, or its integration, did not follow it.",
+      "clear": "Clear",
+      "filter_status": "Filter by status",
+      "search": "Filter by entity",
+      "empty": "No commands from Sber yet.",
+      "nothing_matches": "No commands match the filters.",
+      "status_pending": "Waiting",
+      "status_confirmed": "Confirmed",
+      "status_partial": "Partial",
+      "status_not_confirmed": "Not confirmed",
+      "status_superseded": "Superseded",
+      "col_key": "Feature",
+      "col_sent": "Sent by Sber",
+      "col_reported": "Reported back",
+      "col_match": "Match",
+      "key_matched": "The reported value matches the command",
+      "key_differs": "The reported value differs from the command",
+      "key_not_reported": "No state reported for this feature yet",
+      "copy": "Copy JSON"
     }
   },
   "options": {
@@ -551,6 +597,14 @@
     "validation_failures": {
       "title": "Devices excluded from Sber config",
       "description": "{count} device(s) failed protocol validation and were NOT published to Sber cloud. Fix the device configuration or report a bug. Affected: {entities}"
+    },
+    "conflicting_integration": {
+      "title": "Another Sber bridge is installed",
+      "description": "Other integrations also export Home Assistant devices to Sber: {integrations}. They use a different Sber account, so they can work side by side, but the same device may appear twice in the Sber app. If that is not what you want, remove the devices from one of them."
+    },
+    "conflicting_integration_same_account": {
+      "title": "Another Sber bridge uses the same Sber account",
+      "description": "Other integrations export Home Assistant devices to the same Sber account as this bridge: {integrations}. Each of them publishes its own device list and replaces the list of the other, so devices appear and disappear in the Sber app. Keep only one integration for this account."
     }
   }
 }

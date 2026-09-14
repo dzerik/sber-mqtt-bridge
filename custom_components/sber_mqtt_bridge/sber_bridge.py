@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -24,8 +25,10 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_interval
 
+from ._generated import FEATURE_RANGES
 from .cloud_device_registry import OPTIONS_KEY as CLOUD_KNOWN_OPTIONS_KEY
 from .cloud_device_registry import CloudDeviceRegistry
+from .command_confirm import CommandConfirmTracker
 from .command_dispatcher import DispatcherDeps, SberCommandDispatcher
 from .config_publish_gate import ConfigPublishGate
 from .const import (
@@ -236,7 +239,7 @@ class SberBridge:
         # DevTools collector aggregate (message log, traces, diff, validation).
         # Built early: both the publisher and the dispatcher receive it as an
         # explicit dependency rather than reaching back through the bridge.
-        self._devtools = DevToolsHub(message_log_size=self._message_log_size)
+        self._devtools = DevToolsHub(message_log_size=self._message_log_size, tolerance_for=self._confirm_tolerance)
 
         # Delayed confirm tasks per entity (dedup: cancel previous on new command)
         self._confirm_tasks: dict[str, asyncio.Task] = {}
@@ -1228,6 +1231,46 @@ class SberBridge:
     # ---------------------------------------------------------------------------
     # Correlation-timeline traces (DevTools #1)
     # ---------------------------------------------------------------------------
+
+    @property
+    def command_confirm(self) -> CommandConfirmTracker:
+        """Return the per-key command confirmation tracker (delegates to hub)."""
+        return self._devtools.command_confirm
+
+    def _confirm_tolerance(self, entity_id: str, key: str, value_type: str) -> float:
+        """Numeric slack when checking a published value against a command.
+
+        A Sber integer on its way back passes through Home Assistant's
+        8-bit scale at worst (brightness 100–900 ↔ 0–255), so it may return
+        off by up to ``span / 255``; narrow ranges such as a 16–32 °C
+        setpoint stay exact.  The range comes from the entity's own
+        ``allowed_values`` first, then from the documented feature range.
+
+        Args:
+            entity_id: Commanded entity.
+            key: Sber feature key.
+            value_type: Sber value type of the commanded value.
+
+        Returns:
+            Allowed absolute difference; ``0`` when no range is known.
+        """
+        if value_type not in ("INTEGER", "FLOAT"):
+            return 0
+        bounds: tuple[float, float] | None = None
+        entity = self._entities.get(entity_id)
+        if entity is not None:
+            spec = entity.create_allowed_values_list().get(key) or {}
+            box = spec.get("integer_values") or spec.get("float_values") or {}
+            try:
+                bounds = (float(box["min"]), float(box["max"]))
+            except (KeyError, TypeError, ValueError):
+                bounds = None
+        if bounds is None:
+            bounds = FEATURE_RANGES.get(key)
+        if bounds is None:
+            return 0
+        span = (bounds[1] - bounds[0]) / 255
+        return float(math.floor(span)) if value_type == "INTEGER" else span
 
     @property
     def trace_collector(self) -> TraceCollector:

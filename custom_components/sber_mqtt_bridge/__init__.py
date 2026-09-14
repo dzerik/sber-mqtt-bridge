@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .cloud_device_registry import CloudDeviceRegistry, ModelIdentityMigration
+from .conflict import async_track_conflicts
 from .const import DOMAIN as DOMAIN
 from .custom_capabilities import parse_yaml_config
 from .sber_bridge import SberBridge
@@ -124,6 +125,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
 
         # Register WebSocket API (idempotent — skips if already registered)
         async_setup_websocket_api(hass)
+
+        # Another HA → Sber bridge next to this one is invisible from the
+        # bridge's own traffic; surface it as a Repairs issue (issue #63).
+        entry.async_on_unload(async_track_conflicts(hass, entry))
 
         # Register frontend panel (static path + sidebar entry).
         #

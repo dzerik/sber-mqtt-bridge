@@ -21,6 +21,7 @@ await Promise.all([
   import(`./components/sber-toast.js${_q}`),
   import(`./components/sber-devtools.js${_q}`),
   import(`./components/sber-traces.js${_q}`),
+  import(`./components/sber-command-confirm.js${_q}`),
   import(`./components/sber-state-diff.js${_q}`),
   import(`./components/sber-replay.js${_q}`),
   import(`./components/sber-validation.js${_q}`),
@@ -597,6 +598,15 @@ class SberMqttPanel extends LitElement {
         font-weight: 500;
       }
 
+      .warning-banner {
+        background: rgba(255, 152, 0, 0.12);
+        color: var(--warning-color, #ff9800);
+        border: 1px solid var(--warning-color, #ff9800);
+        padding: 8px 16px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
       .error-banner {
         background: var(--error-color, #f44336);
         color: #fff;
@@ -647,6 +657,7 @@ class SberMqttPanel extends LitElement {
       </div>
 
       ${this._error ? html`<div class="error-banner">${this._error}</div>` : ""}
+      ${this._renderConflictBanner()}
 
       <div class="toolbar-wrapper">
         <sber-toolbar
@@ -734,6 +745,19 @@ class SberMqttPanel extends LitElement {
 
   /* ---------- tab: status ---------- */
 
+  /** Another HA → Sber bridge is installed (issue #63).  Shown on every tab:
+   * on a shared account it explains devices vanishing from the Sber app
+   * better than anything the bridge's own traffic can show. */
+  _renderConflictBanner() {
+    const conflicts = this._status?.conflicts || [];
+    if (!conflicts.length) return "";
+    const integrations = conflicts.map((c) => `${c.title} (${c.domain})`).join(", ");
+    const shared = conflicts.some((c) => c.same_account);
+    return html`<div class="${shared ? "error-banner" : "warning-banner"}" role="alert">
+      ${t(this.hass, shared ? "panel.conflict_same_account" : "panel.conflict_other_account", { integrations })}
+    </div>`;
+  }
+
   _renderStatus() {
     const s = this._status;
     const connected = s?.connected ?? false;
@@ -761,6 +785,7 @@ class SberMqttPanel extends LitElement {
         @devtools-toast=${(e) => this._showToast(e.detail.message, e.detail.type)}
       ></sber-devtools>
       <sber-traces .hass=${this.hass}></sber-traces>
+      <sber-command-confirm .hass=${this.hass}></sber-command-confirm>
       <sber-state-diff .hass=${this.hass}></sber-state-diff>
       <sber-replay .hass=${this.hass} .bus=${messageBus}></sber-replay>
       <sber-validation .hass=${this.hass}></sber-validation>

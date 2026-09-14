@@ -317,6 +317,11 @@ class SberCommandDispatcher:
             return False
 
         _LOGGER.info("Sber → HA command: %s [%s]", entity_id, _state_keys(cmd_data))
+        # Before the service call: the echo and the state that follows are
+        # compared against these keys (DevTools command confirmation).
+        states = cmd_data.get("states")
+        if isinstance(states, list):
+            deps.devtools.command_confirm.record_command(entity_id, states, context_id=context.id)
 
         needs_state_update = False
         try:

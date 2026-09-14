@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from .command_confirm import CommandConfirmTracker
 from .message_logger import MessageLogger
 from .schema_validator import ValidationCollector
 from .state_diff import DiffCollector
@@ -26,6 +27,8 @@ from .trace_collector import TraceCollector
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from .command_confirm import ToleranceFn
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,13 +41,15 @@ class DevToolsHub:
     in sync with the user-tunable ``message_log_size`` option.
     """
 
-    def __init__(self, message_log_size: int) -> None:
-        """Build the hub with the four collectors at the given size.
+    def __init__(self, message_log_size: int, tolerance_for: ToleranceFn | None = None) -> None:
+        """Build the hub with the collectors at the given size.
 
         Args:
             message_log_size: Capacity passed to each collector's ring
                 buffer. Tuned via the ``message_log_size`` config option;
-                kept identical across all four for parallel scrollback.
+                kept identical across all of them for parallel scrollback.
+            tolerance_for: Numeric slack per ``(entity_id, key, type)`` for
+                command confirmation — see :class:`CommandConfirmTracker`.
         """
         self._msg_logger = MessageLogger(maxlen=message_log_size)
         self._trace_collector = TraceCollector(
@@ -53,12 +58,22 @@ class DevToolsHub:
         )
         self._diff_collector = DiffCollector(maxlen=message_log_size)
         self._validation_collector = ValidationCollector(maxlen=message_log_size)
+        self._command_confirm = CommandConfirmTracker(
+            maxlen=message_log_size,
+            timeout=10.0,
+            tolerance_for=tolerance_for,
+        )
 
     # ------------------------------------------------------------------ accessors
     @property
     def message_logger(self) -> MessageLogger:
         """Return the outbound-message ring buffer collector."""
         return self._msg_logger
+
+    @property
+    def command_confirm(self) -> CommandConfirmTracker:
+        """Return the per-key command confirmation tracker."""
+        return self._command_confirm
 
     @property
     def trace_collector(self) -> TraceCollector:
@@ -107,9 +122,10 @@ class DevToolsHub:
         self._trace_collector.resize(message_log_size)
         self._diff_collector.resize(message_log_size)
         self._validation_collector.resize(message_log_size)
+        self._command_confirm.resize(message_log_size)
 
     def sweep_traces(self) -> None:
-        """Close traces idle beyond the configured timeout.
+        """Close idle traces and command confirmations past their timeout.
 
         Safe to call from any context; ``TraceCollector.sweep`` is
         CPU-only and the hub swallows defensive exceptions so the bridge
@@ -117,5 +133,6 @@ class DevToolsHub:
         """
         try:
             self._trace_collector.sweep()
+            self._command_confirm.sweep()
         except Exception:  # pragma: no cover — must never break the bridge
             _LOGGER.exception("Trace sweep failed")

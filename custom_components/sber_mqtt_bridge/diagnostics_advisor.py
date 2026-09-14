@@ -93,6 +93,12 @@ def _collect_summary(bridge: SberBridge, entity_id: str) -> dict[str, Any]:
             last_diff = d
             break
 
+    last_command = None
+    for c in reversed(bridge.command_confirm.snapshot()):
+        if c.get("entity_id") == entity_id and c.get("status") != "superseded":
+            last_command = c
+            break
+
     validation_by_entity = bridge.validation_collector.snapshot().get("by_entity", {})
     current_issues = validation_by_entity.get(entity_id, [])
 
@@ -106,6 +112,7 @@ def _collect_summary(bridge: SberBridge, entity_id: str) -> dict[str, Any]:
         "declared_features": (entity.get_final_features_list() if entity is not None else None),
         "last_trace": last_trace,
         "last_diff": last_diff,
+        "last_command": last_command,
         "current_validation_issues": current_issues,
     }
 
@@ -260,6 +267,27 @@ def _rule_recent_trace(summary: dict[str, Any]) -> Finding | None:
     return None
 
 
+def _rule_recent_command(summary: dict[str, Any]) -> Finding | None:
+    c = summary["last_command"]
+    if not c or c.get("status") not in ("not_confirmed", "partial"):
+        return None
+    missing = [k["key"] for k in c.get("keys", []) if not k.get("matched")]
+    return Finding(
+        code="recent_command_not_confirmed",
+        severity="warning",
+        title="Last command did not reach the device state",
+        detail=(
+            f"Sber asked to change {', '.join(missing)}, but the state Home Assistant "
+            "reported afterwards still differs — the Sber app shows the old value. "
+            "The service call itself did not fail."
+        ),
+        action=(
+            "Check the device in Home Assistant: its integration may ignore the call "
+            "or report state late (cloud devices often do)."
+        ),
+    )
+
+
 _RULES = (
     _rule_not_known,
     _rule_not_enabled,
@@ -269,6 +297,7 @@ _RULES = (
     _rule_validation_errors,
     _rule_validation_warnings,
     _rule_recent_trace,
+    _rule_recent_command,
 )
 
 

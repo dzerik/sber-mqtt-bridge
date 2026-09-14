@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from custom_components.sber_mqtt_bridge.command_confirm import CommandConfirmTracker
 from custom_components.sber_mqtt_bridge.diagnostics_advisor import (
     DiagnosticReport,
     Finding,
@@ -51,6 +52,7 @@ def _bridge(
     bridge.trace_collector = TraceCollector()
     bridge.diff_collector = DiffCollector()
     bridge.validation_collector = ValidationCollector()
+    bridge.command_confirm = CommandConfirmTracker(timeout=0)
     return bridge
 
 
@@ -218,3 +220,30 @@ class TestReportDataclass:
             "findings": [],
             "summary": {},
         }
+
+
+class TestRecentCommandConfirmation:
+    """The device ignoring a command is the case a trace cannot show (issue #63)."""
+
+    @staticmethod
+    def _command(bridge: MagicMock, reported_on: bool) -> None:
+        tracker = bridge.command_confirm
+        tracker.record_command("x.y", [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}])
+        tracker.observe_state("x.y", [{"key": "on_off", "value": {"type": "BOOL", "bool_value": reported_on}}])
+        tracker.sweep()
+
+    def test_unconfirmed_command_is_a_warning(self) -> None:
+        bridge = _bridge()
+        self._command(bridge, reported_on=False)
+        report = diagnose_entity(bridge, "x.y")
+        finding = next(f for f in report.findings if f.code == "recent_command_not_confirmed")
+        assert finding.severity == "warning"
+        assert "on_off" in finding.detail
+        assert report.summary["last_command"]["status"] == "not_confirmed"
+
+    def test_confirmed_command_adds_nothing(self) -> None:
+        bridge = _bridge()
+        self._command(bridge, reported_on=True)
+        report = diagnose_entity(bridge, "x.y")
+        assert not any(f.code == "recent_command_not_confirmed" for f in report.findings)
+        assert report.verdict == "ok"

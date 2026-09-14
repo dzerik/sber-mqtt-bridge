@@ -12,7 +12,8 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
-from ..const import CONF_HUB_AUTO_PARENT, SETTINGS_DEFAULTS
+from ..conflict import detect_conflicts
+from ..const import CONF_HUB_AUTO_PARENT, CONF_SBER_LOGIN, SETTINGS_DEFAULTS
 from ..message_logger import last_error_moment, parse_sber_error
 from ._common import (  # noqa: F401 — get_bridge re-exported for test patching
     WS_ENTITY_ID,
@@ -125,6 +126,9 @@ async def ws_get_status(
         issues.append(f"{stats['publish_errors']} publish error(s)")
     if not bridge.is_connected:
         issues.append("disconnected")
+    conflicts = detect_conflicts(hass, entry.data.get(CONF_SBER_LOGIN) if entry else None)
+    if conflicts:
+        issues.append(f"{len(conflicts)} other Sber bridge(s) installed")
 
     # The error counter alone cannot be acted on: "3 Sber errors" reads the
     # same whether the credentials are wrong (403) or the cloud was briefly
@@ -137,7 +141,7 @@ async def ws_get_status(
 
     if not bridge.is_connected:
         health_score = "unhealthy"
-    elif never_confirmed or stats.get("errors_from_sber", 0) > 0:
+    elif never_confirmed or conflicts or stats.get("errors_from_sber", 0) > 0:
         health_score = "degraded"
     else:
         health_score = "healthy"
@@ -154,6 +158,7 @@ async def ws_get_status(
             "cloud_known": bridge.cloud_known_entities,
             "never_confirmed": never_confirmed,
             "version": VERSION,
+            "conflicts": [c.as_dict() for c in conflicts],
             "health": {
                 "score": health_score,
                 "issues": issues,

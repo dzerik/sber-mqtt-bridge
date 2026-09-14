@@ -270,6 +270,7 @@ class TestCategoryRegistry:
 SUBSCRIBING_COMPONENTS = [
     ("sber-devtools.js", "_subscribeMessages", "_unsubscribeMessages"),
     ("sber-traces.js", "_subscribe", "_unsubscribe"),
+    ("sber-command-confirm.js", "_subscribe", "_unsubscribe"),
     ("sber-state-diff.js", "_subscribe", "_unsubscribe"),
     ("sber-replay.js", "_subscribe", "_unsubscribe"),
     ("sber-validation.js", "_subscribe", "_unsubscribe"),
@@ -279,6 +280,7 @@ SUBSCRIBING_COMPONENTS = [
 # share one through ``message-bus.js``, which carries the guards instead.
 OWN_SUBSCRIPTION_COMPONENTS = [
     ("sber-traces.js", "_subscribe"),
+    ("sber-command-confirm.js", "_subscribe"),
     ("sber-state-diff.js", "_subscribe"),
     ("sber-validation.js", "_subscribe"),
 ]
@@ -541,6 +543,7 @@ class TestModulesParse:
 
 # Every element the panel must have registered by the time it is loaded.
 EXPECTED_ELEMENTS = {
+    "sber-command-confirm",
     "sber-detail-dialog",
     "sber-json-block",
     "sber-device-table",
@@ -3001,3 +3004,118 @@ class TestSettingsFormUsesBackendLimits:
         assert "settingsRes.limits" in src
         body = _method_body(src, "_renderField")
         assert "this._limits" in body
+
+
+# --------------------------------------------------------------------------- #
+# Message log filters (ported from ha-sberhome, plus search and pause)
+# --------------------------------------------------------------------------- #
+
+
+def _run_utils(tmp_path: Path, body: str) -> object:
+    """Execute ``body`` in node with ``utils.js`` imported as ``u``."""
+    (tmp_path / "utils.mjs").write_text(_read("utils.js"), encoding="utf-8")
+    driver = tmp_path / "driver.mjs"
+    driver.write_text('import * as u from "./utils.mjs";\n' + body, encoding="utf-8")
+    proc = subprocess.run([NODE, str(driver)], capture_output=True, text=True, check=True, timeout=60)  # noqa: S603
+    return json.loads(proc.stdout)
+
+
+LOG_SAMPLE = [
+    {"time": 1, "direction": "in", "topic": "sberdevices/v1/acc/down/commands", "payload": '{"devices":{"light.kitchen":{}}}'},
+    {"time": 2, "direction": "out", "topic": "sberdevices/v1/acc/up/status", "payload": '{"devices":{"light.kitchen":{}}}'},
+    {"time": 3, "direction": "replay", "topic": "sberdevices/v1/acc/down/commands", "payload": '{"devices":{"switch.fan":{}}}'},
+    {"time": 4, "direction": "in", "topic": "sberdevices/v1/acc/down/errors", "payload": '{"code":403}'},
+]
+
+
+@requires_node
+class TestMessageLogFilter:
+    def test_topic_suffix_drops_the_account_prefix(self, tmp_path):
+        out = _run_utils(
+            tmp_path,
+            "console.log(JSON.stringify([u.topicSuffix('sberdevices/v1/acc/down/commands'),"
+            " u.topicSuffix('sberdevices/v1/global_config'), u.topicSuffix('odd')]));",
+        )
+        assert out == ["down/commands", "global_config", "odd"]
+
+    @pytest.mark.parametrize(
+        ("criteria", "times"),
+        [
+            ({}, [1, 2, 3, 4]),
+            ({"direction": "in"}, [1, 4]),
+            ({"direction": "replay"}, [3]),
+            ({"topic": "down/commands"}, [1, 3]),
+            ({"query": "LIGHT.KITCHEN"}, [1, 2]),
+            ({"query": "403", "direction": "in"}, [4]),
+            ({"query": "up/status"}, [2]),
+        ],
+    )
+    def test_filter_messages(self, tmp_path, criteria, times):
+        out = _run_utils(
+            tmp_path,
+            f"const msgs = {json.dumps(LOG_SAMPLE)};\n"
+            f"console.log(JSON.stringify(u.filterMessages(msgs, {json.dumps(criteria)}).map((m) => m.time)));",
+        )
+        assert out == times
+
+    def test_log_topics_are_distinct_and_sorted(self, tmp_path):
+        out = _run_utils(
+            tmp_path,
+            f"console.log(JSON.stringify(u.logTopics({json.dumps(LOG_SAMPLE)})));",
+        )
+        assert out == ["down/commands", "down/errors", "up/status"]
+
+
+class TestMessageLogToolbar:
+    """The log section wires the filters, pause and copy-all into the UI."""
+
+    def test_log_section_uses_the_shared_filter(self):
+        src = _read("components/sber-devtools.js")
+        assert "filterMessages(" in _method_body(src, "_visibleLog")
+        body = _method_body(src, "_renderLogSection")
+        assert "this._visibleLog()" in body
+        assert "this._logPaused" in body
+        assert "_copyVisibleLog" in body
+
+
+@requires_node
+def test_format_sber_value(tmp_path):
+    cases = [
+        None,
+        {"type": "BOOL", "bool_value": False},
+        {"type": "INTEGER", "integer_value": "500"},
+        {"type": "FLOAT", "float_value": 21.5},
+        {"type": "ENUM", "enum_value": "white"},
+        {"type": "STRING", "string_value": "hi"},
+        {"type": "COLOUR", "colour_value": {"h": 120, "s": 800, "v": 600}},
+        {"type": "ODD"},
+    ]
+    out = _run_utils(tmp_path, f"console.log(JSON.stringify({json.dumps(cases)}.map(u.formatSberValue)));")
+    assert out == ["—", "false", "500", "21.5", "white", '"hi"', "h=120 s=800 v=600", '{"type":"ODD"}']
+
+
+@requires_node
+class TestStateDiffGrouping:
+    """Diffs are grouped per entity, most recently changed first (from ha-sberhome)."""
+
+    def _groups(self, tmp_path, diffs, query=""):
+        body = _methods_as_object_body(_read("components/sber-state-diff.js"), ["_groups"])
+        driver = (
+            f"const view = {{ _diffs: {json.dumps(diffs)}, _query: {json.dumps(query)},\n{body}\n}};\n"
+            "console.log(JSON.stringify(view._groups().map(([e, ds]) => [e, ds.map((d) => d.ts)])));\n"
+        )
+        return _run_node(tmp_path, driver)
+
+    def test_latest_entity_first_and_each_group_newest_first(self, tmp_path):
+        diffs = [
+            {"entity_id": "light.a", "ts": 1},
+            {"entity_id": "sensor.t", "ts": 2},
+            {"entity_id": "light.a", "ts": 3},
+            {"entity_id": "sensor.t", "ts": 4},
+            {"entity_id": "sensor.t", "ts": 5},
+        ]
+        assert self._groups(tmp_path, diffs) == [["sensor.t", [5, 4, 2]], ["light.a", [3, 1]]]
+
+    def test_query_filters_entities(self, tmp_path):
+        diffs = [{"entity_id": "light.a", "ts": 1}, {"entity_id": "sensor.t", "ts": 2}]
+        assert self._groups(tmp_path, diffs, "LIGHT") == [["light.a", [1]]]

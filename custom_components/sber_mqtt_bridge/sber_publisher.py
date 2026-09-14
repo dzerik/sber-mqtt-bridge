@@ -211,6 +211,8 @@ class SberPublisher:
         ids = list(entity_ids)
         for eid in ids:
             devtools.trace_collector.record_publish(eid, topic, payload)
+        if full_snapshot:
+            self._confirm_published_states(payload, ids, log_suffix)
         try:
             devtools.diff_collector.record_publish_payload(payload, topic=topic)
         except Exception:  # pragma: no cover — must never break publish
@@ -227,6 +229,24 @@ class SberPublisher:
             )
         except Exception:  # pragma: no cover — must never break publish
             _LOGGER.exception("ValidationCollector.record_publish_payload failed%s", log_suffix)
+
+    def _confirm_published_states(self, payload: str, entity_ids: list[str], log_suffix: str) -> None:
+        """Feed each entity's published state to the command confirmation tracker.
+
+        Args:
+            payload: The exact ``up/status`` payload that went on the wire.
+            entity_ids: Entities included in it.
+            log_suffix: Suffix for the failure log message.
+        """
+        try:
+            devices = json.loads(payload).get("devices", {})
+            tracker = self._deps.devtools.command_confirm
+            for eid in entity_ids:
+                device = devices.get(eid)
+                if isinstance(device, dict) and isinstance(device.get("states"), list):
+                    tracker.observe_state(eid, device["states"])
+        except Exception:  # pragma: no cover — must never break publish
+            _LOGGER.exception("CommandConfirmTracker.observe_state failed%s", log_suffix)
 
     @staticmethod
     def _snapshot_wire_state(entity: BaseEntity) -> dict | None:

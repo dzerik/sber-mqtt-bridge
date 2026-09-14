@@ -17,7 +17,7 @@ await import(`./sber-json-block.js${_q}`);
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations, sberErrorText } = await import(`../localize.js${_q}`);
 const { messageBus } = await import(`../message-bus.js${_q}`);
-const { copyText } = await import(`../utils.js${_q}`);
+const { copyText, filterMessages, logTopics, topicSuffix } = await import(`../utils.js${_q}`);
 const { codeSurfaceStyles } = await import(`../shared-styles.js${_q}`);
 
 /** Row styling per message direction.  ``replay`` marks DevTools injections:
@@ -49,6 +49,10 @@ class SberDevtools extends LitElement {
       _statesEditable: { type: String },
       _sendingConfig: { type: Boolean },
       _sendingStates: { type: Boolean },
+      _logDirection: { type: String },
+      _logTopic: { type: String },
+      _logQuery: { type: String },
+      _logPaused: { type: Boolean },
     };
   }
 
@@ -69,6 +73,12 @@ class SberDevtools extends LitElement {
     this._statesEditable = "";
     this._sendingConfig = false;
     this._sendingStates = false;
+    this._logDirection = "all";
+    this._logTopic = "";
+    this._logQuery = "";
+    this._logPaused = false;
+    /** Snapshot shown while paused; the live buffer keeps filling underneath. */
+    this._logFrozen = [];
     this._msgUnsub = null;
     /** Shared live feed — one WS subscription for the whole panel. */
     this.bus = messageBus;
@@ -250,6 +260,8 @@ class SberDevtools extends LitElement {
 
       .section-header {
         display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
         align-items: center;
         justify-content: space-between;
         margin-bottom: 12px;
@@ -288,6 +300,7 @@ class SberDevtools extends LitElement {
 
       .btn-group {
         display: flex;
+        flex-wrap: wrap;
         gap: 8px;
       }
 
@@ -423,6 +436,34 @@ class SberDevtools extends LitElement {
         color: var(--success-color, #4caf50);
       }
 
+      .log-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .log-filters select,
+      .log-filters input {
+        padding: 4px 8px;
+        border: 1px solid var(--divider-color);
+        border-radius: 4px;
+        background: var(--card-background-color);
+        color: var(--primary-text-color);
+        font-size: 13px;
+      }
+
+      .log-search {
+        flex: 1 1 12em;
+        min-width: 0;
+      }
+
+      .log-count {
+        color: var(--secondary-text-color);
+        font-size: 12px;
+      }
+
       .log-row-replay {
         color: var(--accent-color, #ab47bc);
       }
@@ -477,7 +518,7 @@ class SberDevtools extends LitElement {
 
       .log-container {
         max-height: 400px;
-        overflow-y: auto;
+        overflow: auto;
         border-radius: 8px;
       }
     `];
@@ -628,14 +669,41 @@ class SberDevtools extends LitElement {
     return html`<span class="sber-error-hint">${error.code} \u2014 ${meaning}</span>`;
   }
 
+  _toggleLogPause() {
+    this._logFrozen = this._logPaused ? [] : [...this._messages];
+    this._logPaused = !this._logPaused;
+  }
+
+  /** Log rows after pause and filters, newest first — what the table shows. */
+  _visibleLog() {
+    const source = this._logPaused ? this._logFrozen : this._messages;
+    return filterMessages(source, {
+      direction: this._logDirection,
+      topic: this._logTopic,
+      query: this._logQuery,
+    }).reverse();
+  }
+
+  _copyVisibleLog() {
+    this._copy(JSON.stringify(this._visibleLog(), null, 2));
+  }
+
   _renderLogSection() {
-    const messages = [...this._messages].reverse();
+    const source = this._logPaused ? this._logFrozen : this._messages;
+    const messages = this._visibleLog();
+    const arrivedWhilePaused = this._logPaused ? Math.max(0, this._messages.length - this._logFrozen.length) : 0;
 
     return html`
       <div class="section">
         <div class="section-header">
           <h2>${t(this.hass, "devtools.message_log")}</h2>
           <div class="btn-group">
+            <button class="btn-secondary" @click=${this._toggleLogPause} aria-pressed=${this._logPaused ? "true" : "false"}>
+              ${this._logPaused ? t(this.hass, "devtools.log_resume") : t(this.hass, "devtools.log_pause")}
+            </button>
+            <button class="btn-secondary" ?disabled=${messages.length === 0} @click=${this._copyVisibleLog}>
+              ${t(this.hass, "devtools.log_copy_shown")}
+            </button>
             <button class="btn-secondary" @click=${this._fetchLog}>
               ${t(this.hass, "devtools.refresh")}
             </button>
@@ -647,9 +715,32 @@ class SberDevtools extends LitElement {
           </div>
         </div>
         ${this._logError ? html`<div class="error-text">${this._logError}</div>` : ""}
+        <div class="log-filters">
+          <select aria-label=${t(this.hass, "devtools.col_dir")} .value=${this._logDirection}
+            @change=${(e) => { this._logDirection = e.target.value; }}>
+            <option value="all">${t(this.hass, "devtools.log_all_directions")}</option>
+            <option value="in">${t(this.hass, "devtools.log_dir_in")}</option>
+            <option value="out">${t(this.hass, "devtools.log_dir_out")}</option>
+            <option value="replay">${t(this.hass, "devtools.log_dir_replay")}</option>
+          </select>
+          <select aria-label=${t(this.hass, "devtools.col_topic")} .value=${this._logTopic}
+            @change=${(e) => { this._logTopic = e.target.value; }}>
+            <option value="">${t(this.hass, "devtools.log_all_topics")}</option>
+            ${logTopics(source).map((topic) => html`<option value=${topic}>${topic}</option>`)}
+          </select>
+          <input type="search" class="log-search"
+            aria-label=${t(this.hass, "devtools.log_search")}
+            placeholder=${t(this.hass, "devtools.log_search")}
+            .value=${this._logQuery}
+            @input=${(e) => { this._logQuery = e.target.value; }}>
+          <span class="log-count">
+            ${t(this.hass, "devtools.log_shown", { shown: messages.length, total: source.length })}
+            ${arrivedWhilePaused ? html` · ${t(this.hass, "devtools.log_new_while_paused", { count: arrivedWhilePaused })}` : ""}
+          </span>
+        </div>
         <div class="log-container">
           ${messages.length === 0
-            ? html`<div class="empty-log">No MQTT messages yet. Messages will appear here as they are sent/received.</div>`
+            ? html`<div class="empty-log">${source.length === 0 ? t(this.hass, "devtools.log_empty") : t(this.hass, "devtools.log_nothing_matches")}</div>`
             : html`
               <table class="log-table">
                 <thead>
@@ -670,7 +761,7 @@ class SberDevtools extends LitElement {
                           ${DIRECTION_STYLE[m.direction]?.arrow || "\u2192"}
                         </span>
                       </td>
-                      <td class="topic-cell" title="${m.topic}">${m.topic}</td>
+                      <td class="topic-cell" title="${m.topic}">${topicSuffix(m.topic)}</td>
                       <td class="payload-cell" title="${m.payload}">
                         ${this._truncate(m.payload)}
                         <button class="copy-btn" @click=${() => this._copy(m.payload, "Payload copied")} title="Copy payload">\u{1F4CB}</button>

@@ -18,6 +18,7 @@
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
+const { formatSberValue } = await import(`../utils.js${_q}`);
 
 /** Hard cap on the live diff buffer (live appends are unbounded on the
  * wire — the backend ring buffer only trims the initial snapshot). */
@@ -28,6 +29,8 @@ class SberStateDiff extends LitElement {
     return {
       hass: { type: Object },
       _diffs: { type: Array },
+      _query: { type: String },
+      _expanded: { type: Object },
       _error: { type: String },
     };
   }
@@ -35,6 +38,9 @@ class SberStateDiff extends LitElement {
   constructor() {
     super();
     this._diffs = [];
+    this._query = "";
+    /** entity_id → true when its earlier diffs are unfolded. */
+    this._expanded = {};
     this._error = "";
     this._unsub = null;
     this._subscribing = false;
@@ -110,29 +116,25 @@ class SberStateDiff extends LitElement {
       "." + String(d.getMilliseconds()).padStart(3, "0");
   }
 
-  /** Extract a short human-friendly representation of a Sber value dict. */
-  _formatValue(v) {
-    if (v === null || v === undefined) return "—";
-    if (typeof v !== "object") return String(v);
-    // Sber values are {"type": "BOOL", "bool_value": true} etc. — prefer
-    // the typed field when present, fall back to JSON for unusual shapes.
-    const type = v.type;
-    if (type === "BOOL" && "bool_value" in v) return String(v.bool_value);
-    if (type === "INTEGER" && "integer_value" in v) return String(v.integer_value);
-    if (type === "DOUBLE" && "double_value" in v) return String(v.double_value);
-    if (type === "STRING" && "string_value" in v) return JSON.stringify(v.string_value);
-    if (type === "ENUM" && "enum_value" in v) return String(v.enum_value);
-    if (type === "COLOUR" && "colour_value" in v) {
-      const c = v.colour_value;
-      if (c && typeof c === "object" && "h" in c) {
-        return `h=${c.h} s=${c.s} v=${c.v}`;
-      }
+  /**
+   * Diffs grouped per entity, the most recently changed entity first and
+   * each group newest first.  A flat list interleaves chatty sensors with
+   * the device being debugged; grouping keeps one device's history together.
+   */
+  _groups() {
+    const needle = this._query.trim().toLowerCase();
+    const groups = new Map();
+    for (let i = this._diffs.length - 1; i >= 0; i--) {
+      const d = this._diffs[i];
+      if (needle && !String(d.entity_id).toLowerCase().includes(needle)) continue;
+      if (!groups.has(d.entity_id)) groups.set(d.entity_id, []);
+      groups.get(d.entity_id).push(d);
     }
-    return JSON.stringify(v);
+    return [...groups.entries()];
   }
 
   render() {
-    const rows = [...this._diffs].reverse();
+    const groups = this._groups();
     return html`
       <div class="section">
         <div class="section-header">
@@ -141,24 +143,44 @@ class SberStateDiff extends LitElement {
             <button class="btn-danger"
               ?disabled=${this._diffs.length === 0}
               @click=${this._clear}>
-              Clear Diffs
+              ${t(this.hass, "diff.clear")}
             </button>
           </div>
         </div>
-        <div class="hint">
-          Each row is the delta between two consecutive state publishes for one device — no delta is emitted when the payload is identical.
-        </div>
+        <div class="hint">${t(this.hass, "diff.hint")}</div>
         ${this._error ? html`<div class="error-text">${this._error}</div>` : ""}
+        <input type="search" class="search"
+          aria-label=${t(this.hass, "diff.search")}
+          placeholder=${t(this.hass, "diff.search")}
+          .value=${this._query}
+          @input=${(e) => { this._query = e.target.value; }}>
         <div class="diff-container">
-          ${rows.length === 0
-            ? html`<div class="empty">No diffs yet. The first real state change will appear here.</div>`
-            : html`${rows.map((d) => this._renderDiff(d))}`}
+          ${groups.length === 0
+            ? html`<div class="empty">${this._diffs.length === 0 ? t(this.hass, "diff.empty") : t(this.hass, "diff.nothing_matches")}</div>`
+            : groups.map(([entityId, diffs]) => this._renderGroup(entityId, diffs))}
         </div>
       </div>
     `;
   }
 
-  _renderDiff(d) {
+  _renderGroup(entityId, diffs) {
+    const open = !!this._expanded[entityId];
+    const earlier = diffs.length - 1;
+    return html`
+      <div class="group">
+        ${this._renderDiff(diffs[0], diffs.length)}
+        ${earlier > 0 ? html`
+          <button class="more" aria-expanded=${open ? "true" : "false"}
+            @click=${() => { this._expanded = { ...this._expanded, [entityId]: !open }; }}>
+            ${t(this.hass, open ? "diff.hide_earlier" : "diff.show_earlier", { count: earlier })}
+          </button>
+          ${open ? diffs.slice(1).map((d) => this._renderDiff(d)) : ""}
+        ` : ""}
+      </div>
+    `;
+  }
+
+  _renderDiff(d, count = 0) {
     const changedKeys = Object.keys(d.changed || {}).sort();
     const addedKeys = Object.keys(d.added || {}).sort();
     const removedKeys = Object.keys(d.removed || {}).sort();
@@ -166,8 +188,9 @@ class SberStateDiff extends LitElement {
       <div class="diff ${d.is_initial ? "diff-initial" : ""}">
         <div class="diff-header">
           <span class="entity">${d.entity_id}</span>
+          ${count > 1 ? html`<span class="count-badge" title=${t(this.hass, "diff.count_title", { count })}>×${count}</span>` : ""}
           <span class="topic">${d.topic}</span>
-          ${d.is_initial ? html`<span class="initial-badge">initial</span>` : ""}
+          ${d.is_initial ? html`<span class="initial-badge">${t(this.hass, "diff.initial")}</span>` : ""}
           <span class="time">${this._formatTime(d.ts)}</span>
         </div>
         <table class="delta-table">
@@ -176,9 +199,9 @@ class SberStateDiff extends LitElement {
               <tr class="delta delta-changed">
                 <td class="op">~</td>
                 <td class="key">${k}</td>
-                <td class="from">${this._formatValue(d.changed[k].before)}</td>
+                <td class="from">${formatSberValue(d.changed[k].before)}</td>
                 <td class="arrow">→</td>
-                <td class="to">${this._formatValue(d.changed[k].after)}</td>
+                <td class="to">${formatSberValue(d.changed[k].after)}</td>
               </tr>
             `)}
             ${addedKeys.map((k) => html`
@@ -187,14 +210,14 @@ class SberStateDiff extends LitElement {
                 <td class="key">${k}</td>
                 <td class="from"></td>
                 <td class="arrow"></td>
-                <td class="to">${this._formatValue(d.added[k])}</td>
+                <td class="to">${formatSberValue(d.added[k])}</td>
               </tr>
             `)}
             ${removedKeys.map((k) => html`
               <tr class="delta delta-removed">
                 <td class="op">−</td>
                 <td class="key">${k}</td>
-                <td class="from">${this._formatValue(d.removed[k])}</td>
+                <td class="from">${formatSberValue(d.removed[k])}</td>
                 <td class="arrow"></td>
                 <td class="to"></td>
               </tr>
@@ -249,12 +272,13 @@ class SberStateDiff extends LitElement {
       .diff-initial { border-left: 3px solid var(--secondary-text-color); }
       .diff-header {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
-        gap: 12px;
+        gap: 4px 12px;
         margin-bottom: 6px;
         font-size: 0.9em;
       }
-      .entity { font-family: monospace; font-weight: 600; color: var(--primary-text-color); }
+      .entity { font-family: monospace; font-weight: 600; color: var(--primary-text-color); overflow-wrap: anywhere; }
       .topic { font-family: monospace; color: var(--secondary-text-color); font-size: 0.85em; }
       .initial-badge {
         background: var(--secondary-background-color);
@@ -266,21 +290,50 @@ class SberStateDiff extends LitElement {
         font-weight: 600;
       }
       .time { margin-left: auto; color: var(--secondary-text-color); font-family: monospace; font-size: 0.8em; }
-      .delta-table { width: 100%; border-collapse: collapse; font-family: monospace; font-size: 0.9em; }
+      /* Fixed layout: with automatic layout the fixed-width key column left
+       * the values a single character per line on a phone. */
+      .delta-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-family: monospace; font-size: 0.9em; }
       .delta td { padding: 2px 8px; vertical-align: top; }
       .op {
         width: 18px;
         font-weight: 700;
         text-align: center;
       }
-      .key { width: 220px; color: var(--primary-text-color); }
-      .from { color: var(--secondary-text-color); word-break: break-all; }
+      .key { width: 35%; color: var(--primary-text-color); overflow-wrap: anywhere; }
+      .from { color: var(--secondary-text-color); overflow-wrap: anywhere; }
       .arrow { width: 20px; text-align: center; color: var(--secondary-text-color); }
-      .to { color: var(--primary-text-color); word-break: break-all; }
+      .to { color: var(--primary-text-color); overflow-wrap: anywhere; }
       .delta-changed .op { color: var(--warning-color, #ff9800); }
       .delta-added .op { color: var(--success-color, #4caf50); }
       .delta-removed .op { color: var(--error-color, #f44336); }
       .delta-removed .from { text-decoration: line-through; }
+      .search {
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 8px;
+        padding: 4px 8px;
+        border: 1px solid var(--divider-color);
+        border-radius: 4px;
+        background: var(--card-background-color);
+        color: var(--primary-text-color);
+      }
+      .group { margin-bottom: 8px; }
+      .group .diff { margin-bottom: 4px; }
+      .count-badge {
+        border: 1px solid var(--divider-color);
+        border-radius: 10px;
+        padding: 0 6px;
+        font-size: 0.75em;
+        color: var(--secondary-text-color);
+      }
+      .more {
+        background: none;
+        border: none;
+        color: var(--primary-color, #03a9f4);
+        cursor: pointer;
+        font-size: 0.85em;
+        padding: 2px 0 6px;
+      }
     `;
   }
 }

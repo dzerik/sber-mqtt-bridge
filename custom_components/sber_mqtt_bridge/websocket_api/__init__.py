@@ -34,6 +34,11 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
 from ..const import DOMAIN
+from .confirmations import (
+    ws_clear_command_confirmations,
+    ws_command_confirmations,
+    ws_subscribe_command_confirmations,
+)
 from .devices_grouped import (
     ws_add_ha_device,
     ws_list_categories,
@@ -164,6 +169,9 @@ _COMMANDS = (
     ws_get_trace,
     ws_clear_traces,
     ws_subscribe_traces,
+    ws_command_confirmations,
+    ws_clear_command_confirmations,
+    ws_subscribe_command_confirmations,
     # DevTools state diffs (v1.33.0)
     ws_list_state_diffs,
     ws_clear_state_diffs,

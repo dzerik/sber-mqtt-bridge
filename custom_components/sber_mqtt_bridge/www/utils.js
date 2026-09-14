@@ -119,3 +119,77 @@ function legacyCopy(text) {
     document.body.removeChild(ta);
   }
 }
+
+/**
+ * Topic without the ``sberdevices/v1/<login>/`` prefix: ``down/commands``.
+ *
+ * The login is the same on every row of one bridge's log, so showing it
+ * only pushes the part that differs out of view.  Topics outside that
+ * shape (``sberdevices/v1/global_config``) keep everything after ``v1/``.
+ *
+ * @param {string} topic Full MQTT topic.
+ * @returns {string} The distinguishing tail of the topic.
+ */
+export function topicSuffix(topic) {
+  const parts = String(topic || "").split("/");
+  if (parts.length >= 5 && parts[0] === "sberdevices") return parts.slice(3).join("/");
+  if (parts.length >= 3 && parts[0] === "sberdevices") return parts.slice(2).join("/");
+  return String(topic || "");
+}
+
+/**
+ * Filter message-log entries by direction, topic suffix and free text.
+ *
+ * Every criterion is optional; an empty or missing one matches all.  The
+ * text search is case-insensitive over the full topic and the payload, so
+ * an entity id or an error code finds the rows that mention it.
+ *
+ * @param {Array<{direction: string, topic: string, payload: string}>} messages
+ * @param {{direction?: string, topic?: string, query?: string}} criteria
+ * @returns {Array} Matching entries, order preserved.
+ */
+export function filterMessages(messages, { direction = "", topic = "", query = "" } = {}) {
+  const needle = query.trim().toLowerCase();
+  return (messages || []).filter((m) => {
+    if (direction && direction !== "all" && m.direction !== direction) return false;
+    if (topic && topicSuffix(m.topic) !== topic) return false;
+    if (!needle) return true;
+    return `${m.topic || ""}\n${m.payload || ""}`.toLowerCase().includes(needle);
+  });
+}
+
+/**
+ * Distinct topic suffixes present in the log, sorted — options for the topic filter.
+ *
+ * @param {Array<{topic: string}>} messages
+ * @returns {string[]}
+ */
+export function logTopics(messages) {
+  return [...new Set((messages || []).map((m) => topicSuffix(m.topic)))].sort();
+}
+
+/**
+ * Short readable form of a Sber ``value`` object: ``true``, ``500``,
+ * ``h=120 s=800 v=600``.  Unknown shapes fall back to JSON so nothing is
+ * hidden; ``null`` / ``undefined`` render as an em dash.
+ *
+ * @param {object|null|undefined} v A ``{"type": ..., "<type>_value": ...}`` object.
+ * @returns {string}
+ */
+export function formatSberValue(v) {
+  if (v === null || v === undefined) return "—";
+  if (typeof v !== "object") return String(v);
+  const field = {
+    BOOL: "bool_value",
+    INTEGER: "integer_value",
+    FLOAT: "float_value",
+    ENUM: "enum_value",
+  }[v.type];
+  if (field && field in v) return String(v[field]);
+  if (v.type === "STRING" && "string_value" in v) return JSON.stringify(v.string_value);
+  if (v.type === "COLOUR" && v.colour_value && typeof v.colour_value === "object" && "h" in v.colour_value) {
+    const c = v.colour_value;
+    return `h=${c.h} s=${c.s} v=${c.v}`;
+  }
+  return JSON.stringify(v);
+}
