@@ -52,6 +52,14 @@ jobs:
           fi
           exit "$code"
 
+      # codegen formats every module with ruff and refuses to run without
+      # it.  The pin is the one CI checks formatting with, so a module
+      # regenerated here is byte-identical to what `ruff format --check`
+      # accepts.  Before this step existed the job produced raw, unformatted
+      # output and opened a drift PR over quote style alone (#64).
+      - name: Install ruff
+        run: pip install --quiet --constraint=.github/workflows/constraints.txt ruff
+
       - name: Regenerate committed artifacts
         run: python tools/codegen.py
 

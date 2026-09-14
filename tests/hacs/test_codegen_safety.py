@@ -393,6 +393,73 @@ class TestCodegenDriftCheck:
         )
 
 
+def _load_codegen_module():
+    """Import ``tools/codegen.py`` as a module so its functions can be patched."""
+    spec = importlib.util.spec_from_file_location("_codegen_under_test", CODEGEN_SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+class TestCodegenRequiresRuff:
+    """Without a working ruff, codegen must fail instead of writing raw output.
+
+    Unformatted output differs from the committed files in quoting and line
+    wrapping only, yet the weekly spec job took exactly that for a Sber
+    documentation change and opened a false drift PR (#64).
+    """
+
+    @pytest.fixture
+    def codegen(self):
+        return _load_codegen_module()
+
+    @staticmethod
+    def _ruff_missing(*_args, **_kwargs):
+        raise FileNotFoundError("ruff")
+
+    @staticmethod
+    def _ruff_crashed(*args, **_kwargs):
+        raise subprocess.CalledProcessError(2, args[0], stderr="error: Failed to parse")
+
+    @pytest.mark.parametrize("fake_run", ["_ruff_missing", "_ruff_crashed"])
+    def test_format_raises_instead_of_returning_input(self, codegen, monkeypatch, fake_run):
+        monkeypatch.setattr(codegen.subprocess, "run", getattr(self, fake_run))
+        with pytest.raises(codegen.FormatterError):
+            codegen.ruff_format_content("X = 1\n", Path("x.py"))
+
+    def test_error_names_the_cause(self, codegen, monkeypatch):
+        monkeypatch.setattr(codegen.subprocess, "run", self._ruff_crashed)
+        with pytest.raises(codegen.FormatterError, match="Failed to parse"):
+            codegen.ruff_format_content("X = 1\n", Path("x.py"))
+
+    def test_main_writes_nothing_when_ruff_missing(self, codegen, monkeypatch, tmp_path, capsys):
+        monkeypatch.setattr(codegen.subprocess, "run", self._ruff_missing)
+        monkeypatch.setattr(codegen, "OUTPUT_DIR", tmp_path)
+
+        assert codegen.main([]) == 2
+        assert list(tmp_path.iterdir()) == []
+        assert "ruff" in capsys.readouterr().err
+
+    def test_main_writes_nothing_when_ruff_fails_midway(self, codegen, monkeypatch, tmp_path):
+        """A failure on a later file must not leave earlier files rewritten."""
+        real_format = codegen.ruff_format_content
+        calls = 0
+
+        def fail_on_third(content, path):
+            nonlocal calls
+            calls += 1
+            if calls == 3:
+                raise codegen.FormatterError("boom")
+            return real_format(content, path)
+
+        monkeypatch.setattr(codegen, "ruff_format_content", fail_on_third)
+        monkeypatch.setattr(codegen, "OUTPUT_DIR", tmp_path)
+
+        assert codegen.main([]) == 2
+        assert list(tmp_path.iterdir()) == []
+
+
 class TestRuntimeDoesNotReadSpec:
     """Production runtime must NOT depend on the JSON spec file.
 

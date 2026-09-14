@@ -45,6 +45,10 @@ Safety guarantees:
    touching anything.
 5. **No surprising deletions** — we only generate the modules listed
    above, never clean up unrelated files under ``_generated/``.
+6. **ruff is mandatory** — every module is formatted before anything
+   is written; without ruff (or if it fails) codegen exits 2 and
+   writes nothing, rather than committing output that differs from
+   the committed files in formatting alone.
 
 Usage:
     python tools/codegen.py          # regenerate, overwrite committed files
@@ -827,8 +831,22 @@ def atomic_write(path: Path, content: str) -> None:
         raise
 
 
+class FormatterError(RuntimeError):
+    """``ruff format`` is unavailable or rejected the output — refuse to write."""
+
+
 def ruff_format_content(content: str, path: Path) -> str:
-    """Run content through ``ruff format`` via stdin, keeping input on failure."""
+    """Run content through ``ruff format`` via stdin.
+
+    Formatting is not optional.  The committed modules are ruff-formatted,
+    so raw renderer output differs from them in quoting and line wrapping
+    alone — and the weekly spec job reads any difference under
+    ``_generated/`` as a Sber documentation change (false drift PR #64,
+    produced by a job that simply had no ruff installed).
+
+    Raises:
+        FormatterError: ruff is not installed or failed on the content.
+    """
     try:
         # ruff is a trusted dev tool — argv is static.
         result = subprocess.run(  # noqa: S603
@@ -838,9 +856,10 @@ def ruff_format_content(content: str, path: Path) -> str:
             text=True,
             check=True,
         )
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        # ruff not available or failed — keep input unchanged.
-        return content
+    except FileNotFoundError as exc:
+        raise FormatterError("ruff is not installed — it is required to format generated modules") from exc
+    except subprocess.CalledProcessError as exc:
+        raise FormatterError(f"ruff format failed on {path.name}: {exc.stderr.strip()}") from exc
     return result.stdout
 
 
@@ -908,12 +927,21 @@ def main(argv: list[str] | None = None) -> int:
         "render_init": render_init,
     }
 
+    # Render and format everything before touching disk: a formatter
+    # failure on a later module must not leave earlier ones rewritten.
+    rendered: list[tuple[Path, str]] = []
+    try:
+        for filename, renderer_name in TARGETS:
+            target_path = OUTPUT_DIR / filename
+            raw_content = renderers[renderer_name](spec)
+            # Run through ruff for canonical formatting so drift-check is stable.
+            rendered.append((target_path, ruff_format_content(raw_content, target_path)))
+    except FormatterError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+
     drift_found = False
-    for filename, renderer_name in TARGETS:
-        target_path = OUTPUT_DIR / filename
-        raw_content = renderers[renderer_name](spec)
-        # Run through ruff for canonical formatting so drift-check is stable.
-        expected = ruff_format_content(raw_content, target_path)
+    for target_path, expected in rendered:
         if args.check:
             diff = diff_against_committed(target_path, expected)
             if diff:
