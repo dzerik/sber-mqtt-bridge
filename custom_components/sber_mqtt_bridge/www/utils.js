@@ -240,3 +240,38 @@ export function makeSberValue(feature, raw) {
 export function buildCommandPayload(entityId, states) {
   return JSON.stringify({ devices: { [entityId]: { states } } }, null, 2);
 }
+
+/**
+ * Version of the panel code a page is running, or ``null``.
+ *
+ * The panel is registered as ``sber-panel.js?v=<integration version>`` and
+ * every module inherits that query, so the loaded code carries its version
+ * in its own URL.
+ *
+ * @param {string} moduleUrl ``import.meta.url`` of a panel module.
+ * @returns {string|null}
+ */
+export function loadedPanelVersion(moduleUrl) {
+  try {
+    return new URL(moduleUrl).searchParams.get("v") || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether the page still runs panel code of another bridge version.
+ *
+ * After an upgrade the browser — the Home Assistant app above all — keeps
+ * the modules it already loaded: custom elements cannot be redefined, so the
+ * new panel cannot replace the old one until the page is reloaded.  The
+ * backend reports the version it runs; a mismatch means the code on screen
+ * is out of date.
+ *
+ * @param {string|null} loaded Version from {@link loadedPanelVersion}.
+ * @param {string|null|undefined} running Version reported by the backend.
+ * @returns {boolean}
+ */
+export function isPanelStale(loaded, running) {
+  return Boolean(loaded && running && loaded !== running);
+}

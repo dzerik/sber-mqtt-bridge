@@ -3029,6 +3029,36 @@ LOG_SAMPLE = [
 ]
 
 
+
+@requires_node
+class TestStalePanel:
+    """After an upgrade the page keeps the old modules until it is reloaded."""
+
+    def test_loaded_version_comes_from_the_module_url(self, tmp_path):
+        out = _run_utils(
+            tmp_path,
+            "console.log(JSON.stringify([u.loadedPanelVersion('http://ha/sber_mqtt_bridge/panel/sber-panel.js?v=1.54.2'),"
+            " u.loadedPanelVersion('http://ha/sber-panel.js'), u.loadedPanelVersion('not a url')]));",
+        )
+        assert out == ["1.54.2", None, None]
+
+    @pytest.mark.parametrize(
+        ("loaded", "running", "stale"),
+        [("1.54.1", "1.54.2", True), ("1.54.2", "1.54.2", False), (None, "1.54.2", False), ("1.54.2", None, False)],
+    )
+    def test_is_panel_stale(self, tmp_path, loaded, running, stale):
+        out = _run_utils(tmp_path, f"console.log(JSON.stringify(u.isPanelStale({json.dumps(loaded)}, {json.dumps(running)})));")
+        assert out is stale
+
+    def test_panel_offers_a_reload_before_everything_else(self):
+        src = _read("sber-panel.js")
+        render = _method_body(src, "render")
+        assert render.index("_renderStaleBanner()") < render.index("_renderConflictBanner()")
+        banner = _method_body(src, "_renderStaleBanner")
+        assert "isPanelStale(PANEL_VERSION" in banner
+        assert "location.reload()" in banner
+        assert "loadedPanelVersion(import.meta.url)" in src
+
 @requires_node
 class TestMessageLogFilter:
     def test_topic_suffix_drops_the_account_prefix(self, tmp_path):

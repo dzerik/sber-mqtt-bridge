@@ -154,6 +154,9 @@ export const EN_FALLBACK = {
     "Another Sber bridge exports devices to the same Sber account: {integrations}. Each one replaces the device list of the other, so devices appear and disappear in the Sber app. Keep only one of them.",
   "panel.conflict_other_account":
     "Another Sber bridge is installed: {integrations}. It uses a different Sber account, but the same device may show up twice in the Sber app.",
+  "panel.stale_frontend":
+    "This page still runs the panel of version {loaded}, while the bridge already runs {running}. Reload the page to get the new panel.",
+  "panel.reload": "Reload",
   "panel.unconfirmed": "{action} was accepted but the bridge did not confirm it — press Refresh.",
   "panel.action_removal": "Removal",
   "panel.action_clear_all": "Clear all",

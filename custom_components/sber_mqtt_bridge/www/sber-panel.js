@@ -33,6 +33,10 @@ await Promise.all([
 const { LitElement, html, css } = await import(`./lit-base.js${_q}`);
 const { messageBus } = await import(`./message-bus.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`./localize.js${_q}`);
+const { loadedPanelVersion, isPanelStale } = await import(`./utils.js${_q}`);
+
+/** Bridge version this panel code was loaded from (see ``isPanelStale``). */
+const PANEL_VERSION = loadedPanelVersion(import.meta.url);
 
 /** Tab labels, index-aligned with the ``_tab`` state value. */
 /** Tab keys; the visible label comes from `config_panel.tab.<key>`. */
@@ -598,6 +602,22 @@ class SberMqttPanel extends LitElement {
         font-weight: 500;
       }
 
+      .stale-banner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+      }
+      .stale-banner span { flex: 1 1 16em; }
+      .stale-reload {
+        background: var(--warning-color, #ff9800);
+        color: #000;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 14px;
+        cursor: pointer;
+        font: inherit;
+      }
       .warning-banner {
         background: rgba(255, 152, 0, 0.12);
         color: var(--warning-color, #ff9800);
@@ -657,6 +677,7 @@ class SberMqttPanel extends LitElement {
       </div>
 
       ${this._error ? html`<div class="error-banner">${this._error}</div>` : ""}
+      ${this._renderStaleBanner()}
       ${this._renderConflictBanner()}
 
       <div class="toolbar-wrapper">
@@ -748,6 +769,20 @@ class SberMqttPanel extends LitElement {
   /** Another HA → Sber bridge is installed (issue #63).  Shown on every tab:
    * on a shared account it explains devices vanishing from the Sber app
    * better than anything the bridge's own traffic can show. */
+  /**
+   * Ask for a reload when the page runs panel code of an older bridge.
+   *
+   * @returns {unknown} Lit template, or "" when the code is current.
+   */
+  _renderStaleBanner() {
+    const running = this._status?.version;
+    if (!isPanelStale(PANEL_VERSION, running)) return "";
+    return html`<div class="warning-banner stale-banner" role="alert">
+      <span>${t(this.hass, "panel.stale_frontend", { loaded: PANEL_VERSION, running })}</span>
+      <button class="stale-reload" @click=${() => location.reload()}>${t(this.hass, "panel.reload")}</button>
+    </div>`;
+  }
+
   _renderConflictBanner() {
     const conflicts = this._status?.conflicts || [];
     if (!conflicts.length) return "";

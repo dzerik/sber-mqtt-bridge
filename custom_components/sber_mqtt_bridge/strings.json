@@ -210,7 +210,9 @@
       "link_failed": "Link failed: {reason}",
       "sections": "Sber MQTT Bridge sections",
       "conflict_same_account": "Another Sber bridge exports devices to the same Sber account: {integrations}. Each one replaces the device list of the other, so devices appear and disappear in the Sber app. Keep only one of them.",
-      "conflict_other_account": "Another Sber bridge is installed: {integrations}. It uses a different Sber account, but the same device may show up twice in the Sber app."
+      "conflict_other_account": "Another Sber bridge is installed: {integrations}. It uses a different Sber account, but the same device may show up twice in the Sber app.",
+      "stale_frontend": "This page still runs the panel of version {loaded}, while the bridge already runs {running}. Reload the page to get the new panel.",
+      "reload": "Reload"
     },
     "diff": {
       "title": "State Diffs",
