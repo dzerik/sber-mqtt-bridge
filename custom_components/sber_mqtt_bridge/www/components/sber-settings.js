@@ -76,6 +76,7 @@ class SberSettings extends LitElement {
       hass: { type: Object },
       _settings: { type: Object },
       _defaults: { type: Object },
+      _limits: { type: Object },
       _hub: { type: Object },
       _loading: { type: Boolean },
       _saving: { type: Boolean },
@@ -111,6 +112,8 @@ class SberSettings extends LitElement {
       ]);
       this._settings = { ...settingsRes.settings };
       this._defaults = settingsRes.defaults;
+      /* Bounds the backend enforces — the form must not invent its own. */
+      this._limits = settingsRes.limits || {};
       this._hub = statusRes.hub || null;
       this._dirty = false;
     } catch (e) {
@@ -381,7 +384,7 @@ class SberSettings extends LitElement {
         <input type="number"
           aria-label=${t(this.hass, `settings.field.${f.key}`)}
           .value=${value ?? ""}
-          min=${f.min} max=${f.max} step=${f.step}
+          min=${this._limits?.[f.key]?.min ?? f.min} max=${this._limits?.[f.key]?.max ?? f.max} step=${f.step}
           @input=${(e) => this._onInput(f.key, Number(e.target.value))}>
       </div>
     `;

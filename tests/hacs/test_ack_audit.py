@@ -266,3 +266,39 @@ class TestSilentRejectionAudit:
         loop.advance(61)
 
         assert calls == [1, 1]
+
+
+class TestAuditDelayAppliesLive:
+    """Saving ``ack_audit_delay`` in the panel must affect the next audit.
+
+    The panel saves settings without a reload and promises they apply at
+    once, yet ``AckAudit`` kept the delay it was built with until the
+    integration was reloaded.
+    """
+
+    def test_new_delay_is_used_by_the_next_schedule(self) -> None:
+        loop = _FakeLoop()
+        calls: list[int] = []
+        audit = _make_audit(loop, calls, audit_delay=60)
+
+        audit.set_audit_delay(5)
+        audit.schedule_audit()
+        loop.advance(5)
+
+        assert calls == [1]
+
+    def test_bridge_apply_settings_updates_the_audit(self) -> None:
+        from unittest.mock import MagicMock
+
+        from custom_components.sber_mqtt_bridge.const import CONF_ACK_AUDIT_DELAY
+        from custom_components.sber_mqtt_bridge.sber_bridge import SberBridge
+
+        entry = MagicMock()
+        entry.data = {"sber_login": "l", "sber_password": "p", "sber_broker": "b", "sber_port": 8883}
+        entry.options = {}
+        bridge = SberBridge(MagicMock(), entry)
+
+        bridge.apply_settings({CONF_ACK_AUDIT_DELAY: 7.0})
+        bridge._ack_audit.schedule_audit()
+
+        assert bridge._hass.loop.call_later.call_args.args[0] == 7.0

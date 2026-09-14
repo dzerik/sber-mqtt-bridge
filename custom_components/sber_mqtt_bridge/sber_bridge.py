@@ -1093,7 +1093,7 @@ class SberBridge:
         """Apply changed operational settings without full bridge restart.
 
         Settings that take effect immediately: debounce_delay, max_mqtt_payload_size,
-        message_log_size.
+        message_log_size, ack_audit_delay (for audits scheduled after the change).
         Settings that take effect on next reconnect: reconnect_min, reconnect_max, verify_ssl.
 
         Args:
@@ -1105,6 +1105,7 @@ class SberBridge:
         self._mqtt_service.update_backoff_limits(self._reconnect_min, self._reconnect_max)
         self._mqtt_service.update_verify_ssl(self._verify_ssl)
         self._devtools.resize(self._message_log_size)
+        self._ack_audit.set_audit_delay(self._ack_audit_delay)
 
         _LOGGER.info(
             "Bridge settings applied (debounce=%.2fs, log=%d)",

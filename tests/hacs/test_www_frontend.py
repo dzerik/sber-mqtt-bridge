@@ -2977,3 +2977,27 @@ class TestTraceTimelineFitsNarrowPanel:
         assert re.search(r"\.event-table thead\s*\{\s*display:\s*none", narrow)
         assert ".single-entity td.col-entity" in narrow
         assert 'trace.entity_ids.length === 1 ? "single-entity"' in _read("components/sber-traces.js")
+
+
+class TestMessageLogMarksReplay:
+    """Injected messages must not be drawn as outbound traffic.
+
+    The log coloured every non-``in`` row as outbound, so a replayed Sber
+    command looked like something the bridge had sent to the cloud.
+    """
+
+    def test_replay_rows_have_their_own_badge(self):
+        src = _read("components/sber-devtools.js")
+        assert 'replay: { badge: "badge-replay"' in src
+        assert ".badge-replay" in src
+        assert 'm.direction === "in" ? "badge-in" : "badge-out"' not in src
+
+
+class TestSettingsFormUsesBackendLimits:
+    """Input bounds come from ``get_settings``, not from a copy in the panel."""
+
+    def test_limits_are_read_from_the_response(self):
+        src = _read("components/sber-settings.js")
+        assert "settingsRes.limits" in src
+        body = _method_body(src, "_renderField")
+        assert "this._limits" in body

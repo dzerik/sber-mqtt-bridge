@@ -120,6 +120,30 @@ historical key filter.  Every key from :data:`SETTINGS_DEFAULTS` must
 have an entry here — enforced by an import-time assertion below.
 """
 
+
+def _numeric_limits(schema: vol.Schema) -> dict[str, dict[str, Any]]:
+    """Collect the ``vol.Range`` bounds of every numeric setting in ``schema``.
+
+    Args:
+        schema: A settings value schema built from ``vol.All(..., vol.Range)``.
+
+    Returns:
+        ``{key: {"min": ..., "max": ...}}`` for each key that has a range.
+    """
+    limits: dict[str, dict[str, Any]] = {}
+    for key, validator in schema.schema.items():
+        for part in getattr(validator, "validators", ()):
+            if isinstance(part, vol.Range):
+                limits[str(key)] = {"min": part.min, "max": part.max}
+    return limits
+
+
+SETTINGS_LIMITS: dict[str, dict[str, Any]] = _numeric_limits(SETTINGS_VALUES_SCHEMA)
+"""Numeric bounds :data:`SETTINGS_VALUES_SCHEMA` enforces, sent to the panel.
+
+The settings form takes its input bounds from here instead of keeping its
+own copy, which had drifted to narrower ranges than the backend accepts."""
+
 _missing = set(SETTINGS_DEFAULTS) - {str(key) for key in SETTINGS_VALUES_SCHEMA.schema}
 if _missing:  # pragma: no cover — import-time self-check
     msg = f"SETTINGS_VALUES_SCHEMA is missing validators for: {sorted(_missing)}"
@@ -139,7 +163,7 @@ def ws_get_settings(
     msg: dict[str, Any],
     entry: Any,
 ) -> None:
-    """Return current bridge operational settings with their defaults."""
+    """Return current bridge operational settings with defaults and limits."""
     settings: dict[str, Any] = {}
     for key, default in SETTINGS_DEFAULTS.items():
         if key == CONF_SBER_VERIFY_SSL:
@@ -147,7 +171,10 @@ def ws_get_settings(
         else:
             settings[key] = entry.options.get(key, default)
 
-    connection.send_result(msg["id"], {"settings": settings, "defaults": dict(SETTINGS_DEFAULTS)})
+    connection.send_result(
+        msg["id"],
+        {"settings": settings, "defaults": dict(SETTINGS_DEFAULTS), "limits": SETTINGS_LIMITS},
+    )
 
 
 @websocket_api.websocket_command(

@@ -74,6 +74,17 @@ class AckAudit:
         self._on_audit = on_audit
         self._audit_handle: asyncio.TimerHandle | None = None
 
+    def set_audit_delay(self, seconds: float) -> None:
+        """Use ``seconds`` for audits scheduled from now on.
+
+        An audit already armed keeps its original due time — rescheduling
+        it would postpone a check the user is already waiting for.
+
+        Args:
+            seconds: New delay between a config publish and the audit.
+        """
+        self._audit_delay = seconds
+
     # Reconnect guard ---------------------------------------------------
 
     @property

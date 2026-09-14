@@ -694,6 +694,23 @@ class TestSettingsModule:
         assert "debounce_delay" in result["settings"]
         assert result["defaults"]["debounce_delay"] == pytest.approx(result["settings"]["debounce_delay"])
 
+    async def test_get_settings_exposes_the_limits_it_enforces(self, admin: Any) -> None:
+        """The panel draws its inputs from these, so they must be the real ones.
+
+        The panel used to hard-code narrower bounds (``message_log_size`` up
+        to 500 against 10 000 accepted here), so a value saved through import
+        or options showed up as invalid in the settings form.
+        """
+        limits = (await ok(admin, "get_settings"))["limits"]
+        assert limits["message_log_size"] == {"min": 1, "max": 10_000}
+        assert limits["debounce_delay"] == {"min": 0, "max": 60}
+        assert "sber_verify_ssl" not in limits, "toggles have no numeric bounds"
+        for key, bounds in limits.items():
+            ok_low = await call(admin, "update_settings", settings={key: bounds["min"]})
+            too_high = await call(admin, "update_settings", settings={key: bounds["max"] + 1})
+            assert ok_low["success"], key
+            assert too_high["error"]["code"] == "invalid_settings", key
+
     async def test_update_settings_persists_valid_values(self, admin: Any, entry: MockConfigEntry) -> None:
         result = await ok(admin, "update_settings", settings={"debounce_delay": 0.75})
         assert result == {"success": True}

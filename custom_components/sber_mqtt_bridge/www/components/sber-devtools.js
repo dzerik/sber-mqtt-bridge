@@ -20,6 +20,15 @@ const { messageBus } = await import(`../message-bus.js${_q}`);
 const { copyText } = await import(`../utils.js${_q}`);
 const { codeSurfaceStyles } = await import(`../shared-styles.js${_q}`);
 
+/** Row styling per message direction.  ``replay`` marks DevTools injections:
+ * they travel inward, but drawing them as ordinary inbound traffic would
+ * hide that they never came from Sber. */
+const DIRECTION_STYLE = {
+  in: { badge: "badge-in", arrow: "\u2190" },
+  out: { badge: "badge-out", arrow: "\u2192" },
+  replay: { badge: "badge-replay", arrow: "\u21BB" },
+};
+
 class SberDevtools extends LitElement {
   static get properties() {
     return {
@@ -414,6 +423,15 @@ class SberDevtools extends LitElement {
         color: var(--success-color, #4caf50);
       }
 
+      .log-row-replay {
+        color: var(--accent-color, #ab47bc);
+      }
+
+      .badge-replay {
+        background: rgba(171, 71, 188, 0.15);
+        color: var(--accent-color, #ab47bc);
+      }
+
       .topic-cell {
         max-width: 300px;
         overflow: hidden;
@@ -644,11 +662,12 @@ class SberDevtools extends LitElement {
                 </thead>
                 <tbody>
                   ${messages.map(m => html`
-                    <tr class="${m.direction === "in" ? "log-row-in" : "log-row-out"}">
+                    <tr class="log-row-${DIRECTION_STYLE[m.direction] ? m.direction : "out"}">
                       <td>${this._formatTime(m.time)}</td>
                       <td>
-                        <span class="direction-badge ${m.direction === "in" ? "badge-in" : "badge-out"}">
-                          ${m.direction === "in" ? "\u2190" : "\u2192"}
+                        <span class="direction-badge ${DIRECTION_STYLE[m.direction]?.badge || "badge-out"}"
+                          title=${m.direction}>
+                          ${DIRECTION_STYLE[m.direction]?.arrow || "\u2192"}
                         </span>
                       </td>
                       <td class="topic-cell" title="${m.topic}">${m.topic}</td>
