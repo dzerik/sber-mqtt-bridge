@@ -42,6 +42,7 @@ class SberStateDiff extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
     /* Re-subscribe on re-attach (HA navigation reuses the instance). */
     if (this.hass) this._subscribe();
   }
@@ -128,11 +129,6 @@ class SberStateDiff extends LitElement {
       }
     }
     return JSON.stringify(v);
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-    ensurePanelTranslations(this.hass, this);
   }
 
   render() {

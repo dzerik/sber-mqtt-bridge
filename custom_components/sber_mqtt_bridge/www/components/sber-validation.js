@@ -52,6 +52,8 @@ class SberValidation extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
+    ensureFeatureLabels(this.hass, this);
     /* Re-subscribe on re-attach (HA navigation reuses the instance). */
     if (this.hass) this._subscribe();
   }
@@ -143,12 +145,6 @@ class SberValidation extends LitElement {
       }
     }
     return { errors, warnings, infos };
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-    ensurePanelTranslations(this.hass, this);
-    ensureFeatureLabels(this.hass, this);
   }
 
   /**

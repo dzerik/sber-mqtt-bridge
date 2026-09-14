@@ -67,6 +67,7 @@ class SberDevtools extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
     /* Re-subscribe on re-attach: HA navigation away from the panel and
      * back reuses the same element instance, and disconnectedCallback
      * has torn the previous subscription down. */
@@ -465,11 +466,6 @@ class SberDevtools extends LitElement {
   }
 
   /* ---------- render ---------- */
-
-  connectedCallback() {
-    super.connectedCallback();
-    ensurePanelTranslations(this.hass, this);
-  }
 
   render() {
     return html`

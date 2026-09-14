@@ -87,8 +87,8 @@ class TraceCollector:
     """In-memory store of active and recently-closed correlation traces.
 
     The collector is deliberately passive: it does not schedule its own timers.
-    Callers invoke :meth:`sweep` from an existing periodic tick (or tests can
-    drive it directly) to close traces that have been idle beyond
+    The bridge invokes :meth:`sweep` from a periodic tick (tests can drive
+    it directly) to close traces that have been idle beyond
     ``trace_timeout``. This keeps the module HA-independent and trivial to
     unit-test.
     """
@@ -302,6 +302,12 @@ class TraceCollector:
         fired from a debounced/batched path), so we fall back to the
         per-entity last-known trace_id.  Returns ``None`` if no trace is
         currently active for this entity.
+
+        A trace idle beyond ``trace_timeout`` is closed here instead of
+        extended: its chain has finished, and the publish belongs to
+        something later (e.g. a full-state republish) even though it names
+        the same entity.  Otherwise a trace the periodic sweep has not
+        reached yet would absorb it.
         """
         tid = self._last_trace_per_entity.get(entity_id)
         if tid is None:
@@ -310,6 +316,9 @@ class TraceCollector:
         if trace is None:
             return None
         now = time.time()
+        if now - trace.last_event_at >= self._trace_timeout:
+            self.close(tid)
+            return None
         event = TraceEvent(
             ts=now,
             type="publish_out",

@@ -29,7 +29,8 @@ import pytest
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.sber_mqtt_bridge.const import (
     CONF_MAX_MQTT_PAYLOAD,
@@ -42,7 +43,7 @@ from custom_components.sber_mqtt_bridge.const import (
     CONF_SBER_VERIFY_SSL,
     DOMAIN,
 )
-from custom_components.sber_mqtt_bridge.sber_bridge import SberBridge
+from custom_components.sber_mqtt_bridge.sber_bridge import TRACE_SWEEP_INTERVAL, SberBridge
 
 # ---------------------------------------------------------------------------
 # Fakes / helpers
@@ -325,6 +326,37 @@ async def test_ack_audit_is_noop_while_disconnected(
 # ---------------------------------------------------------------------------
 # async_stop: task hygiene, flush, idempotency
 # ---------------------------------------------------------------------------
+
+
+async def test_idle_traces_close_without_a_new_command(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A periodic sweep closes finished traces even when Sber stays quiet.
+
+    The sweep used to run only when the next Sber command arrived, so the
+    last traces before a pause stayed ``active`` in the panel indefinitely
+    (issue #63 screenshots).  After stop the sweep must not fire again.
+    """
+    hass.states.async_set("switch.lamp", "on")
+    entry = _make_entry(hass, options={"exposed_entities": ["switch.lamp"]})
+    _install_fake_mqtt(monkeypatch, FakeMqttClient())
+    bridge = SberBridge(hass, entry)
+    collector = bridge.trace_collector
+    collector.set_trace_timeout(0)
+
+    try:
+        await bridge.async_start()
+        collector.begin(trace_id="quiet", trigger="sber_command", entity_ids=["switch.lamp"])
+
+        async_fire_time_changed(hass, dt_util.utcnow() + TRACE_SWEEP_INTERVAL)
+        await hass.async_block_till_done()
+
+        assert collector.get("quiet")["status"] == "timeout"
+    finally:
+        await bridge.async_stop()
+
+    collector.begin(trace_id="after-stop", trigger="sber_command", entity_ids=["switch.lamp"])
+    async_fire_time_changed(hass, dt_util.utcnow() + TRACE_SWEEP_INTERVAL * 3)
+    await hass.async_block_till_done()
+    assert collector.get("after-stop")["status"] == "active"
 
 
 async def test_stop_cancels_everything_flushes_redefinitions_and_is_idempotent(

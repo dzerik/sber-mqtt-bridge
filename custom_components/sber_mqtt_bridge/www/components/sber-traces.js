@@ -55,6 +55,7 @@ class SberTraces extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
     /* Re-subscribe on re-attach (HA navigation reuses the instance). */
     if (this.hass) this._subscribe();
   }
@@ -192,11 +193,6 @@ class SberTraces extends LitElement {
     return groups;
   }
 
-  connectedCallback() {
-    super.connectedCallback();
-    ensurePanelTranslations(this.hass, this);
-  }
-
   render() {
     const traces = [...this._traces].reverse(); // newest first
     const groups = this._groupTraces(traces);
@@ -249,7 +245,7 @@ class SberTraces extends LitElement {
           <span class="time">${this._formatTime(trace.started_at)}</span>
         </div>
         ${open ? html`
-          <table class="event-table">
+          <table class="event-table ${trace.entity_ids.length === 1 ? "single-entity" : ""}">
             <thead>
               <tr>
                 <th class="col-t">t+ms</th>
@@ -313,9 +309,14 @@ class SberTraces extends LitElement {
       .trace-success { border-left: 3px solid var(--success-color, #4caf50); }
       .trace-failed { border-left: 3px solid var(--error-color, #f44336); }
       .trace-timeout { border-left: 3px solid var(--warning-color, #ff9800); }
+      /* Sized by its own width, not the viewport: the panel sits beside
+       * HA's sidebar, so a desktop-width window can still leave the
+       * timeline phone-narrow. */
+      .trace-container { container: traces / inline-size; }
       .trace-header {
         display: grid;
-        grid-template-columns: 24px 80px 120px 1fr 60px 110px;
+        grid-template-columns: 24px 80px 120px minmax(0, 1fr) 60px 110px;
+        grid-template-areas: "caret status trigger entities counts time";
         gap: 8px;
         padding: 8px 12px;
         cursor: pointer;
@@ -328,9 +329,10 @@ class SberTraces extends LitElement {
         outline: 2px solid var(--primary-color, #03a9f4);
         outline-offset: -2px;
       }
-      .caret { display: inline-block; transition: transform 0.15s; color: var(--secondary-text-color); }
+      .caret { grid-area: caret; display: inline-block; transition: transform 0.15s; color: var(--secondary-text-color); }
       .caret.open { transform: rotate(90deg); }
       .status-badge {
+        grid-area: status;
         padding: 2px 8px;
         border-radius: 12px;
         font-size: 0.75em;
@@ -342,9 +344,9 @@ class SberTraces extends LitElement {
       .status-success { background: rgba(76, 175, 80, 0.15); color: var(--success-color, #4caf50); }
       .status-failed { background: rgba(244, 67, 54, 0.15); color: var(--error-color, #f44336); }
       .status-timeout { background: rgba(255, 152, 0, 0.15); color: var(--warning-color, #ff9800); }
-      .trigger { color: var(--secondary-text-color); font-family: monospace; font-size: 0.85em; }
-      .entities { color: var(--primary-text-color); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .counts { color: var(--secondary-text-color); font-size: 0.8em; text-align: right; display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+      .trigger { grid-area: trigger; color: var(--secondary-text-color); font-family: monospace; font-size: 0.85em; }
+      .entities { grid-area: entities; color: var(--primary-text-color); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .counts { grid-area: counts; color: var(--secondary-text-color); font-size: 0.8em; text-align: right; display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
       .dup-badge {
         background: var(--secondary-background-color);
         border: 1px solid var(--divider-color);
@@ -354,9 +356,13 @@ class SberTraces extends LitElement {
         font-size: 0.9em;
         font-weight: 600;
       }
-      .time { color: var(--secondary-text-color); font-family: monospace; font-size: 0.8em; text-align: right; }
+      .time { grid-area: time; color: var(--secondary-text-color); font-family: monospace; font-size: 0.8em; text-align: right; }
+      /* Fixed layout: with auto layout an unbreakable entity_id claimed
+       * its full width and squeezed the details column down to one
+       * character per line. */
       .event-table {
         width: 100%;
+        table-layout: fixed;
         border-collapse: collapse;
         font-size: 0.85em;
         background: var(--secondary-background-color);
@@ -371,14 +377,49 @@ class SberTraces extends LitElement {
       .event-table td { padding: 4px 12px; vertical-align: top; }
       .col-t { width: 70px; color: var(--secondary-text-color); font-family: monospace; text-align: right; }
       .col-type { width: 180px; font-family: monospace; }
-      .col-entity { width: 200px; font-family: monospace; color: var(--primary-text-color); }
-      .col-detail { color: var(--secondary-text-color); font-family: monospace; word-break: break-all; }
+      .col-entity { width: 200px; font-family: monospace; color: var(--primary-text-color); overflow-wrap: anywhere; }
+      .col-detail { color: var(--secondary-text-color); font-family: monospace; overflow-wrap: anywhere; }
       .arrow { display: inline-block; width: 16px; margin-right: 4px; }
       .event-sber_command { color: var(--primary-color, #03a9f4); }
       .event-ha_service_call { color: var(--success-color, #4caf50); }
       .event-ha_state_changed { color: var(--warning-color, #ff9800); }
       .event-publish_out { color: var(--primary-color, #03a9f4); }
       .event-silent_rejection { color: var(--error-color, #f44336); font-weight: 600; }
+
+      /* Narrow timeline: a four-column table cannot fit, so each event
+       * becomes a small card — time beside the event type, details below
+       * at full width.  The entity line is dropped when the whole trace
+       * concerns one entity: the header already names it. */
+      @container traces (max-width: 640px) {
+        .trace-header {
+          grid-template-columns: 16px auto minmax(0, 1fr) auto;
+          grid-template-areas:
+            "caret status trigger time"
+            "caret entities entities counts";
+          row-gap: 4px;
+          padding: 8px;
+        }
+        .event-table,
+        .event-table tbody { display: block; }
+        .event-table thead { display: none; }
+        .event-table tr {
+          display: grid;
+          grid-template-columns: 4em minmax(0, 1fr);
+          grid-template-areas:
+            "t type"
+            ". entity"
+            ". detail";
+          column-gap: 8px;
+          padding: 6px 8px;
+          border-bottom: 1px solid var(--divider-color);
+        }
+        .event-table td { display: block; width: auto; padding: 0; }
+        .event-table td.col-t { grid-area: t; }
+        .event-table td.col-type { grid-area: type; }
+        .event-table td.col-entity { grid-area: entity; }
+        .event-table td.col-detail { grid-area: detail; }
+        .event-table.single-entity td.col-entity { display: none; }
+      }
     `;
   }
 }

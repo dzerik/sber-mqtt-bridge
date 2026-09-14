@@ -35,6 +35,7 @@ import json
 import re
 import shutil
 import subprocess
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -300,6 +301,23 @@ class TestSubscriptionLifecycle:
         disconnected = _method_body(src, "disconnectedCallback")
         assert disconnected is not None, f"{name} must define disconnectedCallback"
         assert f"this.{unsub}()" in disconnected
+
+    @pytest.mark.parametrize("path", _js_modules(), ids=lambda p: p.name)
+    def test_no_method_is_declared_twice(self, path):
+        """A second declaration silently replaces the first in a JS class.
+
+        Five DevTools components had two ``connectedCallback`` bodies: the
+        later one (loading translations) won, so the re-subscribe in the
+        earlier one never ran — while the check above, reading the first
+        declaration, kept passing.
+        """
+        declarations = re.findall(
+            r"^  (static )?(?:async )?(get |set )?(\w+)\(.*\) \{$",
+            path.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+        duplicated = sorted(name for (*_, name), count in Counter(declarations).items() if count > 1)
+        assert not duplicated, f"{path.name} declares {duplicated} more than once — only the last one runs"
 
     @pytest.mark.parametrize(("name", "sub", "unsub"), SUBSCRIBING_COMPONENTS)
     def test_no_one_shot_hass_guard(self, name, sub, unsub):
@@ -2916,3 +2934,46 @@ class TestDeviceCountersReachThePanel:
             assert key in out["extra"], f"_fetchAll dropped {key!r} — the issue #57 defect"
         assert out["devices"] == [{"entity_id": "light.lamp"}]
         assert "devices" not in out["extra"], "the device list must not be duplicated into _devicesExtra"
+
+
+# --------------------------------------------------------------------------- #
+# Correlation timeline stays readable in a narrow panel
+# --------------------------------------------------------------------------- #
+
+
+class TestTraceTimelineFitsNarrowPanel:
+    """Issue #63: a long entity_id squeezed the details column to one character.
+
+    With automatic table layout the unbreakable entity id claimed its full
+    width, and ``word-break: break-all`` let the details column shrink to a
+    single character per line — on a phone the payload became a vertical
+    ribbon of letters.  The panel sits beside HA's sidebar, so the switch
+    to a narrow layout must follow the component's own width, not the
+    viewport's.
+    """
+
+    @pytest.fixture
+    def styles(self):
+        src = _strip_comments(_read("components/sber-traces.js"))
+        return src[src.index("static get styles()") :]
+
+    def test_layout_follows_the_component_width(self, styles):
+        assert re.search(r"\.trace-container\s*\{[^}]*container:\s*traces\s*/\s*inline-size", styles)
+        assert "@container traces (max-width:" in styles
+        assert "@media" not in styles, "a viewport query misses the sidebar-narrowed panel"
+
+    def test_wide_table_cannot_be_stretched_by_an_entity_id(self, styles):
+        table = re.search(r"\.event-table\s*\{([^}]*)\}", styles).group(1)
+        assert "table-layout: fixed" in table
+        entity = re.search(r"\.col-entity\s*\{([^}]*)\}", styles).group(1)
+        assert "overflow-wrap: anywhere" in entity
+
+    def test_details_column_is_not_allowed_to_collapse(self, styles):
+        assert "break-all" not in styles, "break-all lets the column shrink to one character"
+
+    def test_narrow_layout_stacks_each_event(self, styles):
+        narrow = styles[styles.index("@container traces") :]
+        assert re.search(r"\.event-table tr\s*\{[^}]*display:\s*grid", narrow)
+        assert re.search(r"\.event-table thead\s*\{\s*display:\s*none", narrow)
+        assert ".single-entity td.col-entity" in narrow
+        assert 'trace.entity_ids.length === 1 ? "single-entity"' in _read("components/sber-traces.js")

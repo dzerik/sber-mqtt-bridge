@@ -122,6 +122,24 @@ class TestPublishAttachment:
         # publish would flip "timeout" back into the active pool.
         assert tc.record_publish("light.x", topic="up/status", payload="{}") is None
 
+    def test_publish_to_idle_trace_closes_it_instead_of_attaching(self) -> None:
+        # A trace whose chain has long finished must not swallow an
+        # unrelated later publish of the same entity — issue #63 showed a
+        # full-state republish landing 46 s into a lamp command's trace.
+        tc = TraceCollector(trace_timeout=0.05)
+        tc.begin(trace_id="c", trigger="sber_command", entity_ids=["light.x"])
+        tc.record("c", type_="ha_service_call", entity_id="light.x")
+        time.sleep(0.1)
+        closed: list[str] = []
+        tc.subscribe(lambda kind, trace: closed.append(trace.trace_id) if kind == "trace_closed" else None)
+
+        assert tc.record_publish("light.x", topic="up/status", payload="{}") is None
+
+        trace = tc.get("c")
+        assert trace["status"] == "success"
+        assert [e["type"] for e in trace["events"]] == ["sber_command", "ha_service_call"]
+        assert closed == ["c"]
+
 
 class TestSilentRejection:
     """Silent-rejection audit integration."""

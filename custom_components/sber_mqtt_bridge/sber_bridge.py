@@ -14,6 +14,7 @@ import logging
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from functools import cached_property
 from typing import Any
 
@@ -21,6 +22,7 @@ import aiomqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers.event import async_track_time_interval
 
 from .cloud_device_registry import OPTIONS_KEY as CLOUD_KNOWN_OPTIONS_KEY
 from .cloud_device_registry import CloudDeviceRegistry
@@ -82,6 +84,14 @@ entity that asks for a *second*, later publish through
 ``pending_confirm_delay`` gets its own slot instead of cancelling the
 short one.  ``#`` cannot occur in an HA entity id, so the two namespaces
 can never collide."""
+
+TRACE_SWEEP_INTERVAL = timedelta(seconds=5)
+"""How often idle DevTools traces are closed.
+
+A trace closes after ``trace_timeout`` seconds without events, but only
+when something sweeps.  Sweeping solely on the next Sber command left the
+last traces before a pause ``active`` indefinitely.  With the 10 s
+timeout a trace now closes 10-15 s after its last event."""
 
 LOG_PAYLOAD_MAX_CHARS = 8192
 """Maximum characters of a payload stored in the DevTools message log.
@@ -1251,6 +1261,11 @@ class SberBridge:
             trigger_if_new="ha_state_change",
         )
 
+    @callback
+    def _sweep_idle_traces(self, _now: datetime) -> None:
+        """Periodic tick: close DevTools traces idle beyond their timeout."""
+        self._devtools.sweep_traces()
+
     async def async_start(self) -> None:
         """Start the bridge: load entities, subscribe to HA events, connect MQTT.
 
@@ -1267,6 +1282,15 @@ class SberBridge:
         self._ha_instance_id_prefix: str = full_uuid[:8]
         self._load_exposed_entities()
         self._subscribe_ha_events()
+        self._unsub_lifecycle_listeners.append(
+            async_track_time_interval(
+                self._hass,
+                self._sweep_idle_traces,
+                TRACE_SWEEP_INTERVAL,
+                name="sber_mqtt_bridge trace sweep",
+                cancel_on_shutdown=True,
+            )
+        )
         # Daemon, not a tracked task: this loop never returns, so tracking it
         # would make HA bootstrap wait on it until the setup timeout.
         self._connection_task = self._create_daemon_task(

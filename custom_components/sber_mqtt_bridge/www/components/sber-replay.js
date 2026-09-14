@@ -77,6 +77,7 @@ class SberReplay extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    ensurePanelTranslations(this.hass, this);
     /* Re-subscribe on re-attach (HA navigation reuses the instance). */
     if (this.hass) this._subscribe();
   }
@@ -168,11 +169,6 @@ class SberReplay extends LitElement {
   _truncate(s, n = 80) {
     if (typeof s !== "string") s = String(s ?? "");
     return s.length > n ? s.slice(0, n) + "…" : s;
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-    ensurePanelTranslations(this.hass, this);
   }
 
   render() {
