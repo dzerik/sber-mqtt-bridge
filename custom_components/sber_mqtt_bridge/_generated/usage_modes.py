@@ -5,7 +5,7 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-09-07T15:07:37.367121+00:00
+Spec generated at: 2026-09-14T12:38:26.862653+00:00
 """
 
 from __future__ import annotations
@@ -122,22 +122,7 @@ A feature missing from this table has a wording the scraper did not
 recognise — treat that as *unknown*, never as "no restriction"."""
 
 
-COMMAND_ONLY_FEATURES: frozenset[str] = frozenset(
-    {
-        "channel",
-        "custom_key",
-        "direction",
-        "hvac_direction_set",
-        "mute",
-        "number",
-        "open_left_set",
-        "open_right_set",
-        "open_set",
-        "reject_call",
-        "unlock",
-        "volume",
-    }
-)
+COMMAND_ONLY_FEATURES: frozenset[str] = frozenset({"channel", "custom_key", "direction", "hvac_direction_set", "mute", "number", "open_left_set", "open_right_set", "open_set", "reject_call", "unlock", "volume"})
 """Features that hold no state and exist only to accept a command.
 
 ``open_set`` is the archetype: a curtain must *declare* it, yet it can
@@ -154,93 +139,7 @@ sent when motion is detected and silent otherwise, so silence is the
 quiet state rather than a missing value (issue #61)."""
 
 
-STATE_BEARING_FEATURES: frozenset[str] = frozenset(
-    {
-        "air_pressure",
-        "alarm_mute",
-        "battery_low_power",
-        "battery_percentage",
-        "button_10_event",
-        "button_1_event",
-        "button_2_event",
-        "button_3_event",
-        "button_4_event",
-        "button_5_event",
-        "button_6_event",
-        "button_7_event",
-        "button_8_event",
-        "button_9_event",
-        "button_bottom_left_event",
-        "button_bottom_right_event",
-        "button_event",
-        "button_left_event",
-        "button_right_event",
-        "button_top_left_event",
-        "button_top_right_event",
-        "channel_int",
-        "child_lock",
-        "co2",
-        "current",
-        "doorcontact_state",
-        "gas_leak_state",
-        "hcho_float",
-        "humidity",
-        "hvac_air_flow_direction",
-        "hvac_air_flow_power",
-        "hvac_aromatization",
-        "hvac_decontaminate",
-        "hvac_heating_rate",
-        "hvac_humidity_set",
-        "hvac_ionization",
-        "hvac_night_mode",
-        "hvac_replace_filter",
-        "hvac_replace_ionizator",
-        "hvac_temp_set",
-        "hvac_thermostat_mode",
-        "hvac_water_level",
-        "hvac_water_low_level",
-        "hvac_water_percentage",
-        "hvac_work_mode",
-        "incoming_call",
-        "kitchen_water_level",
-        "kitchen_water_low_level",
-        "kitchen_water_temperature",
-        "kitchen_water_temperature_set",
-        "light_brightness",
-        "light_colour",
-        "light_colour_temp",
-        "light_mode",
-        "light_transmission_percentage",
-        "on_off",
-        "online",
-        "open_left_percentage",
-        "open_left_state",
-        "open_percentage",
-        "open_rate",
-        "open_right_percentage",
-        "open_right_state",
-        "open_state",
-        "pm10",
-        "pm1_0",
-        "pm2_5",
-        "power",
-        "sensor_sensitive",
-        "signal_strength",
-        "smoke_state",
-        "source",
-        "tamper_alarm",
-        "temp_unit_view",
-        "temperature",
-        "tvoc_float",
-        "vacuum_cleaner_cleaning_type",
-        "vacuum_cleaner_command",
-        "vacuum_cleaner_program",
-        "vacuum_cleaner_status",
-        "voltage",
-        "volume_int",
-        "water_leak_state",
-    }
-)
+STATE_BEARING_FEATURES: frozenset[str] = frozenset({"air_pressure", "alarm_mute", "battery_low_power", "battery_percentage", "button_10_event", "button_1_event", "button_2_event", "button_3_event", "button_4_event", "button_5_event", "button_6_event", "button_7_event", "button_8_event", "button_9_event", "button_bottom_left_event", "button_bottom_right_event", "button_event", "button_left_event", "button_right_event", "button_top_left_event", "button_top_right_event", "channel_int", "child_lock", "co2", "current", "doorcontact_state", "gas_leak_state", "hcho_float", "humidity", "hvac_air_flow_direction", "hvac_air_flow_power", "hvac_aromatization", "hvac_decontaminate", "hvac_heating_rate", "hvac_humidity_set", "hvac_ionization", "hvac_night_mode", "hvac_replace_filter", "hvac_replace_ionizator", "hvac_temp_set", "hvac_thermostat_mode", "hvac_water_level", "hvac_water_low_level", "hvac_water_percentage", "hvac_work_mode", "incoming_call", "kitchen_water_level", "kitchen_water_low_level", "kitchen_water_temperature", "kitchen_water_temperature_set", "light_brightness", "light_colour", "light_colour_temp", "light_mode", "light_transmission_percentage", "on_off", "online", "open_left_percentage", "open_left_state", "open_percentage", "open_rate", "open_right_percentage", "open_right_state", "open_state", "pm10", "pm1_0", "pm2_5", "power", "sensor_sensitive", "signal_strength", "smoke_state", "source", "tamper_alarm", "temp_unit_view", "temperature", "tvoc_float", "vacuum_cleaner_cleaning_type", "vacuum_cleaner_command", "vacuum_cleaner_program", "vacuum_cleaner_status", "voltage", "volume_int", "water_leak_state"})
 """Features that do carry device state, readable or writable.
 
 The complement of :data:`COMMAND_ONLY_FEATURES` and

@@ -5,21 +5,19 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-09-07T15:07:37.367121+00:00
+Spec generated at: 2026-09-14T12:38:26.862653+00:00
 """
 
 from __future__ import annotations
 
-MODEL_REQUIRED_FIELDS: frozenset[str] = frozenset({"category", "features", "id", "manufacturer", "model"})
+MODEL_REQUIRED_FIELDS: frozenset[str] = frozenset({'category', 'features', 'id', 'manufacturer', 'model'})
 """Fields the ``model`` structure marks ✔︎ obligatory.
 
 A model missing one of these is rejected whole, taking every device
 that references it along."""
 
 
-MODEL_FIELDS: frozenset[str] = frozenset(
-    {"allowed_values", "category", "description", "features", "hw_version", "id", "manufacturer", "model", "sw_version"}
-)
+MODEL_FIELDS: frozenset[str] = frozenset({'allowed_values', 'category', 'description', 'features', 'hw_version', 'id', 'manufacturer', 'model', 'sw_version'})
 """Every field the ``model`` structure documents, required or not.
 
 Note what is *not* here: ``dependencies``.  The bridge sends it, no Sber
@@ -28,7 +26,7 @@ cloud reasons the same way, that field is a silent rejection waiting to
 happen."""
 
 
-DEVICE_REQUIRED_FIELDS: frozenset[str] = frozenset({"default_name", "id", "model", "model_id", "name"})
+DEVICE_REQUIRED_FIELDS: frozenset[str] = frozenset({'default_name', 'id', 'model', 'model_id', 'name'})
 """Fields the ``device`` structure marks ✔︎ obligatory.
 
 Read this one with care: the page marks **both** ``model_id`` and
@@ -39,33 +37,18 @@ sends an inline ``model`` and no ``model_id``, matching the examples on
 all 29 category pages."""
 
 
-DEVICE_FIELDS: frozenset[str] = frozenset(
-    {
-        "default_name",
-        "groups",
-        "home",
-        "hw_version",
-        "id",
-        "model",
-        "model_id",
-        "name",
-        "parent_id",
-        "partner_meta",
-        "room",
-        "sw_version",
-    }
-)
+DEVICE_FIELDS: frozenset[str] = frozenset({'default_name', 'groups', 'home', 'hw_version', 'id', 'model', 'model_id', 'name', 'parent_id', 'partner_meta', 'room', 'sw_version'})
 """Every field the ``device`` structure documents.
 
 ``nicknames``, which the bridge sends, is absent here — same exposure as
 ``dependencies`` on the model side."""
 
 
-STATE_REQUIRED_FIELDS: frozenset[str] = frozenset({"key", "value"})
+STATE_REQUIRED_FIELDS: frozenset[str] = frozenset({'key', 'value'})
 """Fields of one ``state`` entry: ``key`` and ``value``, both required."""
 
 
-ALLOWED_VALUES_CONDITIONAL_FIELDS: frozenset[str] = frozenset({"enum_values", "float_values", "integer_values"})
+ALLOWED_VALUES_CONDITIONAL_FIELDS: frozenset[str] = frozenset({'enum_values', 'float_values', 'integer_values'})
 """The ✔︎* rows of ``allowed_values``: exactly one of these per entry.
 
 Which one is decided by the entry's ``type`` — ``integer_values`` for

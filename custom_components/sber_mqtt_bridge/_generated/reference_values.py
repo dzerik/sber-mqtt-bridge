@@ -5,7 +5,7 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-09-07T15:07:37.367121+00:00
+Spec generated at: 2026-09-14T12:38:26.862653+00:00
 """
 
 from __future__ import annotations
@@ -36,22 +36,7 @@ FEATURE_ENUM_VALUES: dict[str, frozenset[str]] = {
     "hvac_direction_set": frozenset({"down", "left", "right", "up"}),
     "hvac_heating_rate": frozenset({"auto", "high", "low", "medium"}),
     "hvac_thermostat_mode": frozenset({"auto", "cooling", "eco", "fast_cooling", "fast_heating", "heating", "turbo"}),
-    "hvac_work_mode": frozenset(
-        {
-            "air_purification",
-            "auto",
-            "comfortable_sleep",
-            "cooling",
-            "dehumidification",
-            "eco",
-            "fast_cooling",
-            "fast_heating",
-            "heating",
-            "self_cleaning",
-            "turbo",
-            "ventilation",
-        }
-    ),
+    "hvac_work_mode": frozenset({"air_purification", "auto", "comfortable_sleep", "cooling", "dehumidification", "eco", "fast_cooling", "fast_heating", "heating", "self_cleaning", "turbo", "ventilation"}),
     "light_mode": frozenset({"colour", "white"}),
     "open_left_set": frozenset({"close", "open", "stop"}),
     "open_left_state": frozenset({"close", "closing", "open", "opening"}),

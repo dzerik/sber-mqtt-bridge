@@ -5,12 +5,12 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-09-07T15:07:37.367121+00:00
+Spec generated at: 2026-09-14T12:38:26.862653+00:00
 """
 
 from __future__ import annotations
 
-VALUE_TYPES: frozenset[str] = frozenset({"BOOL", "COLOUR", "ENUM", "FLOAT", "INTEGER", "STRING"})
+VALUE_TYPES: frozenset[str] = frozenset({'BOOL', 'COLOUR', 'ENUM', 'FLOAT', 'INTEGER', 'STRING'})
 """Every value type the ``value`` structure may declare.
 
 Source: the ``type`` row of
@@ -66,7 +66,7 @@ it to the scraped page means a change upstream breaks a test
 instead of breaking colour on real lamps."""
 
 
-ALLOWED_VALUES_TYPES: frozenset[str] = frozenset({"ENUM", "FLOAT", "INTEGER"})
+ALLOWED_VALUES_TYPES: frozenset[str] = frozenset({'ENUM', 'FLOAT', 'INTEGER'})
 """The only types an ``allowed_values`` entry may declare.
 
 Source: developers.sber.ru/docs/ru/smarthome/c2c/allowed_values —

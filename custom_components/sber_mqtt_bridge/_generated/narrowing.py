@@ -5,7 +5,7 @@ DO NOT EDIT BY HAND.  Regenerate with:
     python tools/codegen.py
 
 Source: https://developers.sber.ru/docs/ru/smarthome/c2c
-Spec generated at: 2026-09-07T15:07:37.367121+00:00
+Spec generated at: 2026-09-14T12:38:26.862653+00:00
 """
 
 from __future__ import annotations
@@ -103,83 +103,9 @@ except where Sber's own category example is wider (the reference
 function page allows)."""
 
 
-NARROWABLE_ENUM_FEATURES: frozenset[str] = frozenset(
-    {
-        "button_10_event",
-        "button_1_event",
-        "button_2_event",
-        "button_3_event",
-        "button_4_event",
-        "button_5_event",
-        "button_6_event",
-        "button_7_event",
-        "button_8_event",
-        "button_9_event",
-        "button_bottom_left_event",
-        "button_bottom_right_event",
-        "button_event",
-        "button_left_event",
-        "button_right_event",
-        "button_top_left_event",
-        "button_top_right_event",
-        "channel",
-        "custom_key",
-        "direction",
-        "hvac_air_flow_direction",
-        "hvac_air_flow_power",
-        "hvac_direction_set",
-        "hvac_heating_rate",
-        "hvac_thermostat_mode",
-        "hvac_work_mode",
-        "open_left_set",
-        "open_left_state",
-        "open_rate",
-        "open_right_set",
-        "open_right_state",
-        "open_set",
-        "open_state",
-        "sensor_sensitive",
-        "signal_strength",
-        "source",
-        "vacuum_cleaner_cleaning_type",
-        "vacuum_cleaner_command",
-        "vacuum_cleaner_program",
-        "vacuum_cleaner_status",
-        "volume",
-    }
-)
+NARROWABLE_ENUM_FEATURES: frozenset[str] = frozenset({'button_10_event', 'button_1_event', 'button_2_event', 'button_3_event', 'button_4_event', 'button_5_event', 'button_6_event', 'button_7_event', 'button_8_event', 'button_9_event', 'button_bottom_left_event', 'button_bottom_right_event', 'button_event', 'button_left_event', 'button_right_event', 'button_top_left_event', 'button_top_right_event', 'channel', 'custom_key', 'direction', 'hvac_air_flow_direction', 'hvac_air_flow_power', 'hvac_direction_set', 'hvac_heating_rate', 'hvac_thermostat_mode', 'hvac_work_mode', 'open_left_set', 'open_left_state', 'open_rate', 'open_right_set', 'open_right_state', 'open_set', 'open_state', 'sensor_sensitive', 'signal_strength', 'source', 'vacuum_cleaner_cleaning_type', 'vacuum_cleaner_command', 'vacuum_cleaner_program', 'vacuum_cleaner_status', 'volume'})
 """ENUM features whose published vocabulary may be a subset."""
 
 
-NARROWABLE_RANGE_FEATURES: frozenset[str] = frozenset(
-    {
-        "air_pressure",
-        "battery_percentage",
-        "channel_int",
-        "co2",
-        "current",
-        "humidity",
-        "hvac_humidity_set",
-        "hvac_temp_set",
-        "hvac_water_level",
-        "hvac_water_percentage",
-        "kitchen_water_level",
-        "kitchen_water_temperature",
-        "kitchen_water_temperature_set",
-        "light_brightness",
-        "light_colour_temp",
-        "light_transmission_percentage",
-        "number",
-        "open_left_percentage",
-        "open_percentage",
-        "open_right_percentage",
-        "pm10",
-        "pm1_0",
-        "pm2_5",
-        "power",
-        "temperature",
-        "voltage",
-        "volume_int",
-    }
-)
+NARROWABLE_RANGE_FEATURES: frozenset[str] = frozenset({'air_pressure', 'battery_percentage', 'channel_int', 'co2', 'current', 'humidity', 'hvac_humidity_set', 'hvac_temp_set', 'hvac_water_level', 'hvac_water_percentage', 'kitchen_water_level', 'kitchen_water_temperature', 'kitchen_water_temperature_set', 'light_brightness', 'light_colour_temp', 'light_transmission_percentage', 'number', 'open_left_percentage', 'open_percentage', 'open_right_percentage', 'pm10', 'pm1_0', 'pm2_5', 'power', 'temperature', 'voltage', 'volume_int'})
 """Numeric features whose published range may be shrunk."""
