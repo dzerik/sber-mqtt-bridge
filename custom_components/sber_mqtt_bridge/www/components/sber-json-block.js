@@ -179,27 +179,27 @@ class SberJsonBlock extends LitElement {
     }
     const hidden = this.hiddenLineCount;
     return html`
+      ${this.hideCopy
+        ? ""
+        : html`<div class="bar bar-top">
+            <button class="btn btn-secondary" @click=${this._copy}>${t(this.hass, "json.copy")}</button>
+            <span class="copy-status" role="status" aria-live="polite">${this._copyState}</span>
+          </div>`}
       <div class="code-wrap">
         <pre id="code" class="code-surface" role="group" aria-label="${this.label} payload">${this.visibleText()}</pre>
         ${hidden ? html`<div class="fade" aria-hidden="true"></div>` : ""}
       </div>
-      <div class="bar">
-        ${this.isTruncatable
-          ? html`<button
-              class="btn btn-secondary"
-              aria-expanded=${this._expanded ? "true" : "false"}
-              aria-controls="code"
-              @click=${this._toggle}
-            >${this._expanded ? t(this.hass, "json.collapse") : t(this.hass, "json.expand", { lines: this.lineCount })}</button>`
-          : ""}
-        ${this.hideCopy
-          ? ""
-          : html`<button class="btn btn-secondary" @click=${this._copy}>${t(this.hass, "json.copy")}</button>`}
+      ${this.isTruncatable ? html`<div class="bar">
+        <button
+          class="btn btn-secondary"
+          aria-expanded=${this._expanded ? "true" : "false"}
+          aria-controls="code"
+          @click=${this._toggle}
+        >${this._expanded ? t(this.hass, "json.collapse") : t(this.hass, "json.expand", { lines: this.lineCount })}</button>
         ${hidden
           ? html`<span class="clip-note">${hidden} more ${hidden === 1 ? "line" : "lines"} hidden</span>`
           : ""}
-        <span class="copy-status" role="status" aria-live="polite">${this._copyState}</span>
-      </div>
+      </div>` : ""}
     `;
   }
 
@@ -233,6 +233,10 @@ class SberJsonBlock extends LitElement {
         flex-wrap: wrap;
         gap: 8px;
         margin-top: 6px;
+      }
+      /* Copy comes first, before the payload it copies. */
+      .bar-top {
+        margin: 0 0 6px;
       }
       .btn {
         padding: 4px 12px;

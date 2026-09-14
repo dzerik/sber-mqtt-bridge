@@ -198,6 +198,9 @@ class SberCommandConfirm extends LitElement {
           <span class="time">${this._formatTime(c.sent_at)}</span>
         </div>
         ${open ? html`
+          <div class="row-actions">
+            <button class="btn-secondary" @click=${() => this._copy(c)}>${t(this.hass, "confirm.copy")}</button>
+          </div>
           <table class="keys">
             <thead>
               <tr>
@@ -220,9 +223,6 @@ class SberCommandConfirm extends LitElement {
               `)}
             </tbody>
           </table>
-          <div class="row-actions">
-            <button class="btn-secondary" @click=${() => this._copy(c)}>${t(this.hass, "confirm.copy")}</button>
-          </div>
         ` : ""}
       </div>
     `;

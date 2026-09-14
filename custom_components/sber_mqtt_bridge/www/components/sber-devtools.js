@@ -14,6 +14,7 @@
 const _q = new URL(import.meta.url).search;
 await import(`./sber-json-block.js${_q}`);
 
+await import(`./sber-copy-button.js${_q}`);
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations, sberErrorText } = await import(`../localize.js${_q}`);
 const { messageBus } = await import(`../message-bus.js${_q}`);
@@ -480,21 +481,6 @@ class SberDevtools extends LitElement {
         white-space: nowrap;
       }
 
-      .copy-btn {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 14px;
-        padding: 2px 4px;
-        border-radius: 4px;
-        opacity: 0.5;
-        margin-left: 4px;
-        vertical-align: middle;
-      }
-      .copy-btn:hover {
-        opacity: 1;
-        background: var(--secondary-background-color, #333);
-      }
       .payload-cell {
         max-width: 400px;
         overflow: hidden;
@@ -563,19 +549,12 @@ class SberDevtools extends LitElement {
               @click=${this._loadConfig}>
               ${this._configLoading ? t(this.hass, "devtools.loading") : t(this.hass, "devtools.load_config")}
             </button>
-            ${this._configPayload ? html`
-              <button class="btn-secondary"
-                @click=${() => this._copy(this._configPayload)}>
-                Copy
-              </button>
-            ` : ""}
           </div>
         </div>
         ${this._configError ? html`<div class="error-text">${this._configError}</div>` : ""}
         ${this._configOpen ? html`
           <sber-json-block .hass=${this.hass}
             label="${t(this.hass, 'devtools.raw_config')}"
-            hide-copy
             placeholder="${t(this.hass, 'devtools.load_hint')}"
             .value=${this._configPayload}
           ></sber-json-block>
@@ -617,19 +596,12 @@ class SberDevtools extends LitElement {
               @click=${this._loadStates}>
               ${this._statesLoading ? t(this.hass, "devtools.loading") : t(this.hass, "devtools.load_states")}
             </button>
-            ${this._statesPayload ? html`
-              <button class="btn-secondary"
-                @click=${() => this._copy(this._statesPayload)}>
-                Copy
-              </button>
-            ` : ""}
           </div>
         </div>
         ${this._statesError ? html`<div class="error-text">${this._statesError}</div>` : ""}
         ${this._statesOpen ? html`
           <sber-json-block .hass=${this.hass}
-            label="Raw state payload"
-            hide-copy
+            label="${t(this.hass, 'devtools.raw_states')}"
             placeholder="${t(this.hass, 'devtools.load_hint')}"
             .value=${this._statesPayload}
           ></sber-json-block>
@@ -763,8 +735,7 @@ class SberDevtools extends LitElement {
                       </td>
                       <td class="topic-cell" title="${m.topic}">${topicSuffix(m.topic)}</td>
                       <td class="payload-cell" title="${m.payload}">
-                        ${this._truncate(m.payload)}
-                        <button class="copy-btn" @click=${() => this._copy(m.payload, "Payload copied")} title="Copy payload">\u{1F4CB}</button>
+                        <sber-copy-button .hass=${this.hass} .value=${m.payload}></sber-copy-button>${this._truncate(m.payload)}
                         ${this._renderSberError(m.sber_error)}
                       </td>
                     </tr>

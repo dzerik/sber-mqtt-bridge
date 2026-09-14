@@ -21,6 +21,7 @@
  * forwards it to vendor/lit.js).  Static imports would drop the query and
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
+await import(`./sber-copy-button.js${_q}`);
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { messageBus } = await import(`../message-bus.js${_q}`);
@@ -367,7 +368,7 @@ class SberReplay extends LitElement {
                     <tr>
                       <td class="t">${this._formatTime(m.time)}</td>
                       <td class="topic" title="${m.topic}">${this._shortTopic(m.topic)}</td>
-                      <td class="payload" title="${m.payload}">${this._truncate(m.payload)}</td>
+                      <td class="payload" title="${m.payload}"><sber-copy-button .hass=${this.hass} .value=${m.payload}></sber-copy-button>${this._truncate(m.payload)}</td>
                       <td>
                         <button class="btn-secondary small"
                           ?disabled=${this._busy}

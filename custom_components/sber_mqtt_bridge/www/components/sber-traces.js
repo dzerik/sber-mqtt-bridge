@@ -14,6 +14,7 @@
  * forwards it to vendor/lit.js).  Static imports would drop the query and
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
+await import(`./sber-copy-button.js${_q}`);
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 
@@ -263,7 +264,9 @@ class SberTraces extends LitElement {
                     ${ev.type}
                   </td>
                   <td class="col-entity">${ev.entity_id || ""}</td>
-                  <td class="col-detail" title="${JSON.stringify(ev.payload ?? "")}">${this._eventSummary(ev)}</td>
+                  <td class="col-detail" title="${JSON.stringify(ev.payload ?? "")}">${ev.payload !== null && ev.payload !== undefined
+                    ? html`<sber-copy-button .hass=${this.hass} .value=${ev.payload}></sber-copy-button>`
+                    : ""}${this._eventSummary(ev)}</td>
                 </tr>
               `)}
             </tbody>

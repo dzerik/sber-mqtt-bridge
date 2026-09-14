@@ -10,6 +10,7 @@
  * pin the browser to a stale copy of lit after an upgrade. */
 const _q = new URL(import.meta.url).search;
 await import(`./sber-json-block.js${_q}`);
+await import(`./sber-copy-button.js${_q}`);
 
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { deepActiveElement } = await import(`../utils.js${_q}`);
@@ -553,7 +554,9 @@ class SberDetailDialog extends LitElement {
             return html`<tr>
               <td><code title="${featureTitle(s.key)}">${s.key}</code></td>
               <td><code>${v.type || "?"}</code></td>
-              <td title="${enumLabel ? enumLabel.hint : ""}">${displayVal}</td>
+              <td title="${enumLabel ? enumLabel.hint : ""}">${displayVal === JSON.stringify(v)
+                ? html`<sber-copy-button .hass=${this.hass} .value=${v}></sber-copy-button>`
+                : ""}${displayVal}</td>
             </tr>`;
           })}
         </table>
@@ -632,8 +635,11 @@ class SberDetailDialog extends LitElement {
           <tr><th>${t(this.hass, "detail_dialog.col_attribute")}</th><th>${t(this.hass, "detail_dialog.col_value")}</th></tr>
           ${keys.map((k) => {
             const v = attrs[k];
-            const display = typeof v === "object" ? JSON.stringify(v) : String(v);
-            return html`<tr><td><code>${k}</code></td><td>${display}</td></tr>`;
+            const isJson = v !== null && typeof v === "object";
+            const display = isJson ? JSON.stringify(v) : String(v);
+            return html`<tr><td><code>${k}</code></td><td>${isJson
+              ? html`<sber-copy-button .hass=${this.hass} .value=${v}></sber-copy-button>`
+              : ""}${display}</td></tr>`;
           })}
         </table>
       </div>

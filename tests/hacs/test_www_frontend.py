@@ -544,6 +544,7 @@ class TestModulesParse:
 # Every element the panel must have registered by the time it is loaded.
 EXPECTED_ELEMENTS = {
     "sber-command-confirm",
+    "sber-copy-button",
     "sber-detail-dialog",
     "sber-json-block",
     "sber-device-table",
@@ -2250,8 +2251,8 @@ JSON_BLOCK_CONSUMERS = [
     ("components/sber-detail-dialog.js", 2, 0),
     # Raw summary; the header already offers "Copy report" for the whole report.
     ("components/sber-diagnose.js", 1, 1),
-    # Raw config + raw state; each section header has its own Copy button.
-    ("components/sber-devtools.js", 2, 2),
+    # Raw config + raw state; the block's own copy is the only one (at its start).
+    ("components/sber-devtools.js", 2, 0),
 ]
 
 # Same table without the copy-control column, for the tests that ignore it.
@@ -3182,3 +3183,49 @@ class TestCommandBuilderHelpers:
             'console.log(JSON.stringify(JSON.parse(u.buildCommandPayload("light.a", [{key: "on_off", value: {type: "BOOL", bool_value: true}}]))));',
         )
         assert out == {"devices": {"light.a": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}}}
+
+
+
+class TestCopyComesBeforeTheJson:
+    """Every JSON shown in the panel — whole or cut to a line — is copied from its start."""
+
+    def test_json_block_puts_copy_above_the_code(self):
+        body = _method_body(_read("components/sber-json-block.js"), "render")
+        assert body.index("json.copy") < body.index('<pre id="code"'), "copy must precede the payload"
+
+    @pytest.mark.parametrize(
+        ("path", "before"),
+        [
+            ("components/sber-devtools.js", "${this._truncate(m.payload)}"),
+            ("components/sber-replay.js", "${this._truncate(m.payload)}"),
+            ("components/sber-traces.js", "${this._eventSummary(ev)}</td>"),
+        ],
+    )
+    def test_cut_payloads_have_a_copy_button_in_front(self, path, before):
+        src = _read(path)
+        cut = src.index(before)
+        button = src.rfind("<sber-copy-button", 0, cut)
+        assert button != -1 and src.count("\n", button, cut) <= 2, f"{path}: no copy button right before the cut payload"
+        assert "./sber-copy-button.js${_q}" in src
+
+    def test_old_trailing_copy_icon_is_gone(self):
+        assert 'class="copy-btn"' not in _read("components/sber-devtools.js")
+
+    def test_command_record_copy_opens_the_record(self):
+        body = _method_body(_read("components/sber-command-confirm.js"), "_renderCommand")
+        assert body.index("confirm.copy") < body.index('<table class="keys">')
+
+    def test_report_copy_opens_the_report(self):
+        src = _read("components/sber-diagnose.js")
+        report = _method_body(src, "_renderReport")
+        assert report.index("diagnose.copy_report") < report.index('class="verdict')
+        assert "diagnose.copy_report" not in _method_body(src, "render")
+
+
+@requires_node
+def test_copyable_text(tmp_path):
+    (tmp_path / "utils.mjs").write_text(_read("utils.js"), encoding="utf-8")
+    src = _read("components/sber-copy-button.js")
+    fn = re.search(r"export function copyableText\(value\) \{.*?\n\}", src, re.S).group(0)
+    driver = fn + "\nconsole.log(JSON.stringify([copyableText('{\"a\":1}'), copyableText({a: 1}), copyableText(null)]));\n"
+    assert _run_node(tmp_path, driver) == ['{"a":1}', '{\n  "a": 1\n}', ""]

@@ -111,9 +111,6 @@ class SberDiagnose extends LitElement {
             @click=${this._run}>
             ${this._loading ? t(this.hass, "diagnose.running") : t(this.hass, "diagnose.run")}
           </button>
-          ${this._report ? html`
-            <button class="btn-secondary" @click=${this._copyReport}>${t(this.hass, "diagnose.copy_report")}</button>
-          ` : ""}
         </div>
         ${this._error ? html`<div class="error-text">${this._error}</div>` : ""}
         ${this._report ? this._renderReport(this._report) : ""}
@@ -124,6 +121,9 @@ class SberDiagnose extends LitElement {
   _renderReport(r) {
     const verdict = r.verdict;
     return html`
+      <div class="report-actions">
+        <button class="btn-secondary" @click=${this._copyReport}>${t(this.hass, "diagnose.copy_report")}</button>
+      </div>
       <div class="verdict verdict-${verdict}">
         <span class="verdict-badge verdict-badge-${verdict}">${t(this.hass, `diagnose.verdict_${verdict}`)}</span>
         <span class="verdict-entity">${r.entity_id}</span>
@@ -274,6 +274,7 @@ class SberDiagnose extends LitElement {
       .caret { display: inline-block; transition: transform 0.15s; margin-right: 4px; }
       .caret.open { transform: rotate(90deg); }
       sber-json-block { margin-top: 6px; }
+      .report-actions { margin: 4px 0 8px; }
     `;
   }
 }
