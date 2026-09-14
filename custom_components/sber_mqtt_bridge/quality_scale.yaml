@@ -53,4 +53,4 @@ rules:
   # Gold (future)
   diagnostics:
     status: done
-    comment: Implementation exists, tests pending
+    comment: Config entry diagnostics with recent DevTools data and credential scrubbing (tests/hacs/test_diagnostics.py)

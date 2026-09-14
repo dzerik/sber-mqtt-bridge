@@ -789,7 +789,7 @@ class SberMqttPanel extends LitElement {
       <sber-state-diff .hass=${this.hass}></sber-state-diff>
       <sber-replay .hass=${this.hass} .bus=${messageBus}></sber-replay>
       <sber-validation .hass=${this.hass}></sber-validation>
-      <sber-diagnose .hass=${this.hass}></sber-diagnose>
+      <sber-diagnose .hass=${this.hass} .entities=${this._devices}></sber-diagnose>
     `;
   }
 

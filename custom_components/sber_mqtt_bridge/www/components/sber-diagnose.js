@@ -22,16 +22,13 @@ const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { copyText } = await import(`../utils.js${_q}`);
 
-const VERDICT_LABEL = {
-  ok: "Clean",
-  warning: "Warnings",
-  broken: "Broken",
-};
 
 class SberDiagnose extends LitElement {
   static get properties() {
     return {
       hass: { type: Object },
+      /** Exposed devices (``{entity_id, name}``) offered as suggestions. */
+      entities: { attribute: false },
       _entityId: { type: String },
       _report: { type: Object },
       _loading: { type: Boolean },
@@ -42,6 +39,7 @@ class SberDiagnose extends LitElement {
 
   constructor() {
     super();
+    this.entities = [];
     this._entityId = "";
     this._report = null;
     this._loading = false;
@@ -93,18 +91,21 @@ class SberDiagnose extends LitElement {
         <div class="section-header">
           <h2>${t(this.hass, "diagnose.title")}</h2>
         </div>
-        <div class="hint">
-          Runs every diagnostic rule the bridge knows against one entity — loaded, linked, enabled, acknowledged, validated, recent traces — and returns a verdict with actionable next steps.
-        </div>
+        <div class="hint">${t(this.hass, "diagnose.hint")}</div>
         <div class="form-row">
           <input
             type="text"
+            list="diagnose-entities"
+            autocomplete="off"
             aria-label="${t(this.hass, 'diagnose.entity_label')}"
             placeholder="${t(this.hass, 'diagnose.entity_placeholder')}"
             .value=${this._entityId}
             @input=${(e) => { this._entityId = e.target.value; }}
             @keydown=${(e) => { if (e.key === "Enter") this._run(); }}
           />
+          <datalist id="diagnose-entities">
+            ${(this.entities || []).map((d) => html`<option value=${d.entity_id}>${d.name || ""}</option>`)}
+          </datalist>
           <button class="btn-primary"
             ?disabled=${this._loading}
             @click=${this._run}>
@@ -124,7 +125,7 @@ class SberDiagnose extends LitElement {
     const verdict = r.verdict;
     return html`
       <div class="verdict verdict-${verdict}">
-        <span class="verdict-badge verdict-badge-${verdict}">${VERDICT_LABEL[verdict] || verdict}</span>
+        <span class="verdict-badge verdict-badge-${verdict}">${t(this.hass, `diagnose.verdict_${verdict}`)}</span>
         <span class="verdict-entity">${r.entity_id}</span>
       </div>
       <div class="findings">
@@ -203,6 +204,7 @@ class SberDiagnose extends LitElement {
       .error-text { color: var(--error-color, #f44336); margin-bottom: 8px; font-size: 0.9em; }
       .verdict {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 12px;
         padding: 10px 14px;
@@ -222,7 +224,7 @@ class SberDiagnose extends LitElement {
       .verdict-badge-ok { background: rgba(76, 175, 80, 0.2); color: var(--success-color, #4caf50); }
       .verdict-badge-warning { background: rgba(255, 152, 0, 0.2); color: var(--warning-color, #ff9800); }
       .verdict-badge-broken { background: rgba(244, 67, 54, 0.2); color: var(--error-color, #f44336); }
-      .verdict-entity { font-family: monospace; color: var(--primary-text-color); }
+      .verdict-entity { font-family: monospace; color: var(--primary-text-color); overflow-wrap: anywhere; min-width: 0; }
       .findings { display: flex; flex-direction: column; gap: 8px; }
       .finding {
         border: 1px solid var(--divider-color);

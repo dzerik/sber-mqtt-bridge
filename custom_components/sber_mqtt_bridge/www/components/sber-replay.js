@@ -220,7 +220,7 @@ class SberReplay extends LitElement {
           ${replayable.length === 0
             ? html`<div class="empty">No incoming messages yet. Real Sber traffic will appear here.</div>`
             : html`
-              <table class="replay-table">
+              <div class="table-scroll"><table class="replay-table">
                 <thead>
                   <tr>
                     <th>${t(this.hass, "replay.col_time")}</th>
@@ -245,7 +245,7 @@ class SberReplay extends LitElement {
                     </tr>
                   `)}
                 </tbody>
-              </table>
+              </table></div>
             `}
         </div>
       </div>
@@ -332,6 +332,8 @@ class SberReplay extends LitElement {
       .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
       .btn-secondary.small { padding: 2px 8px; font-size: 0.85em; }
       .empty { color: var(--secondary-text-color); font-style: italic; padding: 12px; text-align: center; }
+      /* Long payloads scroll inside the card instead of widening the page. */
+      .table-scroll { overflow-x: auto; }
       .replay-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
       .replay-table th {
         text-align: left;
@@ -342,8 +344,8 @@ class SberReplay extends LitElement {
       }
       .replay-table td { padding: 4px 8px; vertical-align: middle; }
       .t { font-family: monospace; color: var(--secondary-text-color); width: 80px; }
-      .topic { font-family: monospace; width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .payload { font-family: monospace; color: var(--primary-text-color); }
+      .topic { font-family: monospace; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .payload { font-family: monospace; color: var(--primary-text-color); overflow-wrap: anywhere; min-width: 10em; }
     `;
   }
 }

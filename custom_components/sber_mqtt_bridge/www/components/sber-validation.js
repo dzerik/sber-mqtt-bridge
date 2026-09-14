@@ -210,7 +210,7 @@ class SberValidation extends LitElement {
       return html`<div class="empty">${t(this.hass, "validation.none_yet")}</div>`;
     }
     return html`
-      <table class="issue-table">
+      <div class="table-scroll"><table class="issue-table">
         <thead>
           <tr>
             <th class="col-entity">${t(this.hass, "validation.col_entity")}</th>
@@ -243,7 +243,7 @@ class SberValidation extends LitElement {
             `);
           })}
         </tbody>
-      </table>
+      </table></div>
     `;
   }
 
@@ -275,7 +275,7 @@ class SberValidation extends LitElement {
       return html`<div class="empty">${t(this.hass, "validation.no_issues_yet")}</div>`;
     }
     return html`
-      <table class="issue-table">
+      <div class="table-scroll"><table class="issue-table">
         <thead>
           <tr>
             <th class="col-time">${t(this.hass, "validation.col_time")}</th>
@@ -298,7 +298,7 @@ class SberValidation extends LitElement {
             </tr>
           `)}
         </tbody>
-      </table>
+      </table></div>
     `;
   }
 
@@ -352,6 +352,8 @@ class SberValidation extends LitElement {
         cursor: pointer;
       }
       .tab.active { color: var(--primary-text-color); border-bottom-color: var(--primary-color, #03a9f4); }
+      /* Long entity ids scroll inside the card instead of widening the page. */
+      .table-scroll { overflow-x: auto; }
       .issue-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
       .issue-table th {
         text-align: left;
@@ -360,7 +362,7 @@ class SberValidation extends LitElement {
         color: var(--secondary-text-color);
         font-weight: 500;
       }
-      .issue-table td { padding: 4px 8px; vertical-align: top; }
+      .issue-table td { padding: 4px 8px; vertical-align: top; overflow-wrap: anywhere; min-width: 6em; }
       .t { font-family: monospace; color: var(--secondary-text-color); width: 80px; }
       .entity { font-family: monospace; font-weight: 500; color: var(--primary-text-color); }
       .type { font-family: monospace; color: var(--secondary-text-color); }

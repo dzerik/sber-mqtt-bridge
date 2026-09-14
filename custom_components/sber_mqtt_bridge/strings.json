@@ -459,7 +459,11 @@
       "toggle_raw": "Toggle raw summary",
       "raw_summary": "Raw summary",
       "copy_report": "Copy report",
-      "action": "Action:"
+      "action": "Action:",
+      "hint": "Runs every diagnostic rule the bridge knows against one entity — loaded, linked, enabled, acknowledged by Sber, validated, recent traces and commands — and returns a verdict with next steps. Start typing to pick an exposed entity.",
+      "verdict_ok": "Clean",
+      "verdict_warning": "Warnings",
+      "verdict_broken": "Broken"
     },
     "link_role": {
       "battery": "Battery",
@@ -605,6 +609,20 @@
     "conflicting_integration_same_account": {
       "title": "Another Sber bridge uses the same Sber account",
       "description": "Other integrations export Home Assistant devices to the same Sber account as this bridge: {integrations}. Each of them publishes its own device list and replaces the list of the other, so devices appear and disappear in the Sber app. Keep only one integration for this account."
+    }
+  },
+  "system_health": {
+    "info": {
+      "version": "Version",
+      "connection": "Connection",
+      "connected_for": "Connected for",
+      "exposed_entities": "Exposed entities",
+      "known_to_sber": "Known to Sber",
+      "never_confirmed": "Never confirmed by Sber",
+      "reconnects": "Reconnects",
+      "sber_errors": "Errors from Sber",
+      "last_sber_error": "Last Sber error code",
+      "other_sber_bridges": "Other Sber bridges installed"
     }
   }
 }

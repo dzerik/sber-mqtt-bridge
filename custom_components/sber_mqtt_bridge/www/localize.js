@@ -349,6 +349,10 @@ export const EN_FALLBACK = {
   "replay.col_payload": "Payload",
 
   // --- diagnose ---
+  "diagnose.hint": "Runs every diagnostic rule the bridge knows against one entity — loaded, linked, enabled, acknowledged by Sber, validated, recent traces and commands — and returns a verdict with next steps. Start typing to pick an exposed entity.",
+  "diagnose.verdict_ok": "Clean",
+  "diagnose.verdict_warning": "Warnings",
+  "diagnose.verdict_broken": "Broken",
   "diagnose.title": "Why isn't it working?",
   "diagnose.enter_entity": "Enter an entity_id to diagnose.",
   "diagnose.copy_failed": "Copy failed — clipboard unavailable",

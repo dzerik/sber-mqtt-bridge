@@ -3119,3 +3119,26 @@ class TestStateDiffGrouping:
     def test_query_filters_entities(self, tmp_path):
         diffs = [{"entity_id": "light.a", "ts": 1}, {"entity_id": "sensor.t", "ts": 2}]
         assert self._groups(tmp_path, diffs, "LIGHT") == [["light.a", [1]]]
+
+
+class TestDiagnosePicker:
+    """Diagnose suggests exposed entities instead of a blind text field."""
+
+    def test_input_is_bound_to_a_datalist_of_exposed_entities(self):
+        src = _read("components/sber-diagnose.js")
+        assert 'list="diagnose-entities"' in src
+        assert '<datalist id="diagnose-entities">' in src
+        assert "<sber-diagnose .hass=${this.hass} .entities=${this._devices}>" in _read("sber-panel.js")
+
+    def test_verdict_labels_are_translated(self):
+        assert "VERDICT_LABEL" not in _read("components/sber-diagnose.js")
+
+
+class TestDevtoolsTablesFitAPhone:
+    """Wide DevTools tables scroll inside their card instead of widening the page."""
+
+    @pytest.mark.parametrize(("path", "table"), [("components/sber-validation.js", "issue-table"), ("components/sber-replay.js", "replay-table")])
+    def test_table_sits_in_a_scroll_container(self, path, table):
+        src = _read(path)
+        assert src.count(f'<div class="table-scroll"><table class="{table}">') == src.count(f'<table class="{table}">')
+        assert ".table-scroll { overflow-x: auto; }" in src

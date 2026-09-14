@@ -1358,3 +1358,33 @@ class TestBareStatusRequestUpdatesThePanel:
 
         status = await ok(admin, "status")
         assert status["cloud_known"] == exposed
+
+
+
+class TestSystemHealth:
+    """System information page summary (``system_health.py``)."""
+
+    async def test_bridge_reports_itself_without_secrets(self, hass: HomeAssistant, entry: MockConfigEntry) -> None:
+        from homeassistant.components.system_health import get_info
+
+        assert await async_setup_component(hass, "system_health", {})
+        await hass.async_block_till_done()
+
+        info = (await get_info(hass))[DOMAIN]
+
+        assert info["exposed_entities"] >= 1
+        assert info["connection"] in {"starting", "connecting", "awaiting_ack", "ready", "disconnected"}
+        assert info["other_sber_bridges"] == 0
+        assert "test" not in {str(v) for v in info.values()}, "the login must not appear"
+
+    async def test_translations_cover_every_info_key(self, hass: HomeAssistant, entry: MockConfigEntry) -> None:
+        import json
+        from pathlib import Path
+
+        from custom_components.sber_mqtt_bridge.system_health import system_health_info
+
+        keys = set(await system_health_info(hass))
+        base = Path(__file__).resolve().parents[2] / "custom_components" / "sber_mqtt_bridge"
+        for name in ("strings.json", "translations/en.json", "translations/ru.json"):
+            labels = json.loads((base / name).read_text(encoding="utf-8"))["system_health"]["info"]
+            assert keys == set(labels), name
