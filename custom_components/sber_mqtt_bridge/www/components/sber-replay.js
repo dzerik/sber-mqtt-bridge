@@ -331,6 +331,7 @@ class SberReplay extends LitElement {
               ${TOPIC_SUFFIXES.map((s) => html`<option value="${s}">${s}</option>`)}
             </select>
           </div>
+          <div class="editor-bar"><sber-copy-button .hass=${this.hass} .value=${this._payload}></sber-copy-button></div>
           <textarea class="json-editor"
             .value=${this._payload}
             spellcheck="false"
@@ -465,6 +466,7 @@ class SberReplay extends LitElement {
         border-radius: 4px;
         padding: 6px 8px;
       }
+      .editor-bar { margin-bottom: 4px; }
       .json-editor {
         width: 100%;
         min-height: 160px;

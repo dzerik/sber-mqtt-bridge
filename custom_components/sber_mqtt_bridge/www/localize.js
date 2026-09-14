@@ -303,6 +303,7 @@ export const EN_FALLBACK = {
   "devtools.edit_hint": "Edit JSON and click Send to publish to Sber…",
   "devtools.sending": "Sending…",
   "devtools.send_config": "Send Config to Sber",
+  "devtools.send_states": "Send States to Sber",
   "devtools.message_log": "MQTT Message Log",
   "devtools.refresh": "Refresh",
   "devtools.clear_log": "Clear Log",

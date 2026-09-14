@@ -2249,8 +2249,8 @@ _ELEMENT_WINDOW = 400
 JSON_BLOCK_CONSUMERS = [
     # Allowed values + dependencies; the dialog has no copy control of its own.
     ("components/sber-detail-dialog.js", 2, 0),
-    # Raw summary; the header already offers "Copy report" for the whole report.
-    ("components/sber-diagnose.js", 1, 1),
+    # Raw summary; "Copy report" copies the whole report, the block copies only the summary.
+    ("components/sber-diagnose.js", 1, 0),
     # Raw config + raw state; the block's own copy is the only one (at its start).
     ("components/sber-devtools.js", 2, 0),
 ]
@@ -3220,6 +3220,45 @@ class TestCopyComesBeforeTheJson:
         report = _method_body(src, "_renderReport")
         assert report.index("diagnose.copy_report") < report.index('class="verdict')
         assert "diagnose.copy_report" not in _method_body(src, "render")
+
+    def test_no_json_block_hides_its_copy_button(self):
+        for path in sorted((WWW / "components").glob("*.js")):
+            if path.name == "sber-json-block.js":
+                continue
+            assert "hide-copy" not in path.read_text(encoding="utf-8"), f"{path.name}: JSON block without copy"
+
+    def test_every_json_editor_has_a_copy_button_in_front(self):
+        editors = 0
+        for name in ("sber-devtools.js", "sber-replay.js"):
+            src = _read(f"components/{name}")
+            for match in re.finditer(r'<textarea class="json-editor', src):
+                editors += 1
+                button = src.rfind("<sber-copy-button", 0, match.start())
+                assert button != -1 and src.count("\n", button, match.start()) <= 1, f"{name}: editor without copy"
+            assert "./sber-copy-button.js${_q}" in src
+        assert editors == 3
+
+    @pytest.mark.parametrize(
+        ("path", "method"),
+        [
+            ("components/sber-command-confirm.js", "_renderCommand"),
+            ("components/sber-state-diff.js", "_renderDiff"),
+            ("components/sber-detail-dialog.js", "_renderSberStates"),
+            ("components/sber-detail-dialog.js", "_renderHAAttributes"),
+        ],
+    )
+    def test_every_value_row_starts_with_a_copy_button(self, path, method):
+        """Rows of Sber values are copied line by line, not only the odd JSON fallback."""
+        body = _method_body(_read(path), method)
+        rows = [row for row in re.split(r"<tr\b", body)[1:] if "<td" in row]
+        assert rows, f"{path}: no value rows found in {method}"
+        for row in rows:
+            first_value = min(
+                i for i in (row.find("formatSberValue("), row.find("${displayVal}"), row.find("${display}")) if i != -1
+            )
+            button = row.find("<sber-copy-button")
+            assert button != -1 and button < first_value, f"{path}: a {method} row has no copy before its value"
+        assert "./sber-copy-button.js${_q}" in _read(path)
 
 
 @requires_node

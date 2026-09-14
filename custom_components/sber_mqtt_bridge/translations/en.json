@@ -362,6 +362,7 @@
       "edit_hint": "Edit JSON and click Send to publish to Sber…",
       "sending": "Sending…",
       "send_config": "Send Config to Sber",
+      "send_states": "Send States to Sber",
       "message_log": "MQTT Message Log",
       "refresh": "Refresh",
       "clear_log": "Clear Log",

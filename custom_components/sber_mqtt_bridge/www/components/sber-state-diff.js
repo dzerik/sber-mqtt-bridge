@@ -19,6 +19,7 @@ const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { formatSberValue } = await import(`../utils.js${_q}`);
+await import(`./sber-copy-button.js${_q}`);
 
 /** Hard cap on the live diff buffer (live appends are unbounded on the
  * wire — the backend ring buffer only trims the initial snapshot). */
@@ -197,6 +198,7 @@ class SberStateDiff extends LitElement {
           <tbody>
             ${changedKeys.map((k) => html`
               <tr class="delta delta-changed">
+                <td class="copy-cell"><sber-copy-button .hass=${this.hass} .value=${{ key: k, ...d.changed[k] }}></sber-copy-button></td>
                 <td class="op">~</td>
                 <td class="key">${k}</td>
                 <td class="from">${formatSberValue(d.changed[k].before)}</td>
@@ -206,6 +208,7 @@ class SberStateDiff extends LitElement {
             `)}
             ${addedKeys.map((k) => html`
               <tr class="delta delta-added">
+                <td class="copy-cell"><sber-copy-button .hass=${this.hass} .value=${{ key: k, after: d.added[k] }}></sber-copy-button></td>
                 <td class="op">+</td>
                 <td class="key">${k}</td>
                 <td class="from"></td>
@@ -215,6 +218,7 @@ class SberStateDiff extends LitElement {
             `)}
             ${removedKeys.map((k) => html`
               <tr class="delta delta-removed">
+                <td class="copy-cell"><sber-copy-button .hass=${this.hass} .value=${{ key: k, before: d.removed[k] }}></sber-copy-button></td>
                 <td class="op">−</td>
                 <td class="key">${k}</td>
                 <td class="from">${formatSberValue(d.removed[k])}</td>
@@ -299,7 +303,12 @@ class SberStateDiff extends LitElement {
         font-weight: 700;
         text-align: center;
       }
-      .key { width: 35%; color: var(--primary-text-color); overflow-wrap: anywhere; }
+      /* Fixed layout: the copy column needs a real width, not a share;
+       * the narrow marker columns give it back so values keep their room. */
+      .delta .copy-cell { width: 30px; padding: 2px 0 2px 4px; }
+      .copy-cell sber-copy-button { margin-right: 0; }
+      .delta .op, .delta .arrow { padding: 2px 2px; }
+      .key { width: 30%; color: var(--primary-text-color); overflow-wrap: anywhere; }
       .from { color: var(--secondary-text-color); overflow-wrap: anywhere; }
       .arrow { width: 20px; text-align: center; color: var(--secondary-text-color); }
       .to { color: var(--primary-text-color); overflow-wrap: anywhere; }

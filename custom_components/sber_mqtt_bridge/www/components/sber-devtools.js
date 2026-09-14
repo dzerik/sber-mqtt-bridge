@@ -351,6 +351,8 @@ class SberDevtools extends LitElement {
        * box model lives here.  A textarea keeps a native scrollbar and the
        * caret to prove there is more text, so bounding its height does not
        * mislead the way a cropped read-only dump did (issue #44). */
+      .editor-bar { margin-top: 8px; }
+      .editor-bar + .json-editor { margin-top: 4px; }
       .json-editor {
         width: 100%;
         min-height: 120px;
@@ -558,6 +560,7 @@ class SberDevtools extends LitElement {
             placeholder="${t(this.hass, 'devtools.load_hint')}"
             .value=${this._configPayload}
           ></sber-json-block>
+          <div class="editor-bar"><sber-copy-button .hass=${this.hass} .value=${this._configEditable}></sber-copy-button></div>
           <textarea class="json-editor code-surface"
             .value=${this._configEditable}
             @input=${(e) => { this._configEditable = e.target.value; }}
@@ -605,6 +608,7 @@ class SberDevtools extends LitElement {
             placeholder="${t(this.hass, 'devtools.load_hint')}"
             .value=${this._statesPayload}
           ></sber-json-block>
+          <div class="editor-bar"><sber-copy-button .hass=${this.hass} .value=${this._statesEditable}></sber-copy-button></div>
           <textarea class="json-editor code-surface"
             .value=${this._statesEditable}
             @input=${(e) => { this._statesEditable = e.target.value; }}
@@ -613,7 +617,7 @@ class SberDevtools extends LitElement {
             <button class="btn-danger"
               ?disabled=${this._sendingStates || !this._statesEditable}
               @click=${this._sendStates}>
-              ${this._sendingStates ? "Sending..." : "Send States to Sber"}
+              ${this._sendingStates ? t(this.hass, "devtools.sending") : t(this.hass, "devtools.send_states")}
             </button>
           </div>
         ` : ""}

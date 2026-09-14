@@ -17,6 +17,7 @@ const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
 const { copyText, formatSberValue } = await import(`../utils.js${_q}`);
+await import(`./sber-copy-button.js${_q}`);
 
 /** Hard cap on the live buffer — live events are unbounded on the wire. */
 const MAX_COMMANDS = 250;
@@ -204,6 +205,7 @@ class SberCommandConfirm extends LitElement {
           <table class="keys">
             <thead>
               <tr>
+                <th class="copy-cell"><span class="visually-hidden">${t(this.hass, "json.copy")}</span></th>
                 <th>${t(this.hass, "confirm.col_key")}</th>
                 <th>${t(this.hass, "confirm.col_sent")}</th>
                 <th>${t(this.hass, "confirm.col_reported")}</th>
@@ -213,6 +215,7 @@ class SberCommandConfirm extends LitElement {
             <tbody>
               ${c.keys.map((k) => html`
                 <tr class=${k.matched ? "key-ok" : k.reported ? "key-diff" : "key-wait"}>
+                  <td class="copy-cell"><sber-copy-button .hass=${this.hass} .value=${k}></sber-copy-button></td>
                   <td class="mono">${k.key}</td>
                   <td class="mono">${formatSberValue(k.sent)}</td>
                   <td class="mono">${formatSberValue(k.reported)}</td>
@@ -353,6 +356,9 @@ class SberCommandConfirm extends LitElement {
       .keys th:last-child { width: 2em; }
       .keys td { padding: 4px 12px; vertical-align: top; overflow-wrap: anywhere; }
       .mono { font-family: monospace; }
+      /* Fixed layout: the copy column needs a real width, not a share. */
+      .keys .copy-cell { width: 34px; padding: 4px 0 4px 8px; }
+      .keys .copy-cell sber-copy-button { margin-right: 0; }
       .key-ok td:last-child { color: var(--success-color, #4caf50); }
       .key-diff td:last-child, .key-diff td:nth-child(3) { color: var(--error-color, #f44336); }
       .key-wait td:last-child { color: var(--secondary-text-color); }

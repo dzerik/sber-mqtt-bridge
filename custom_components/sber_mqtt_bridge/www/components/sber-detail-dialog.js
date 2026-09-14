@@ -169,6 +169,8 @@ class SberDetailDialog extends LitElement {
       .state-table td {
         padding: 4px 8px;
         border-bottom: 1px solid var(--divider-color, #222);
+        /* A long JSON value wraps inside the dialog instead of running off it. */
+        overflow-wrap: anywhere;
       }
       .state-table code {
         background: var(--code-editor-background-color, #2a2a2a);
@@ -548,15 +550,15 @@ class SberDetailDialog extends LitElement {
             const enumLabel = v.enum_value !== undefined ? enumValueLabel(this.hass, s.key, v.enum_value) : null;
             const displayVal = v.bool_value !== undefined ? String(v.bool_value)
               : v.integer_value !== undefined ? v.integer_value
+              : v.float_value !== undefined ? String(v.float_value)
+              : v.string_value !== undefined ? JSON.stringify(v.string_value)
               : enumLabel ? enumLabel.text
               : v.colour_value ? `H:${v.colour_value.h} S:${v.colour_value.s} V:${v.colour_value.v}`
               : JSON.stringify(v);
             return html`<tr>
               <td><code title="${featureTitle(s.key)}">${s.key}</code></td>
               <td><code>${v.type || "?"}</code></td>
-              <td title="${enumLabel ? enumLabel.hint : ""}">${displayVal === JSON.stringify(v)
-                ? html`<sber-copy-button .hass=${this.hass} .value=${v}></sber-copy-button>`
-                : ""}${displayVal}</td>
+              <td title="${enumLabel ? enumLabel.hint : ""}"><sber-copy-button .hass=${this.hass} .value=${s}></sber-copy-button>${displayVal}</td>
             </tr>`;
           })}
         </table>
@@ -637,9 +639,7 @@ class SberDetailDialog extends LitElement {
             const v = attrs[k];
             const isJson = v !== null && typeof v === "object";
             const display = isJson ? JSON.stringify(v) : String(v);
-            return html`<tr><td><code>${k}</code></td><td>${isJson
-              ? html`<sber-copy-button .hass=${this.hass} .value=${v}></sber-copy-button>`
-              : ""}${display}</td></tr>`;
+            return html`<tr><td><code>${k}</code></td><td><sber-copy-button .hass=${this.hass} .value=${{ [k]: v }}></sber-copy-button>${display}</td></tr>`;
           })}
         </table>
       </div>

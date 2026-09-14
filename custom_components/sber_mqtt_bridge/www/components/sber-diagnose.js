@@ -158,7 +158,7 @@ class SberDiagnose extends LitElement {
         Raw summary
       </div>
       ${this._rawOpen
-        ? html`<sber-json-block .hass=${this.hass} label="${t(this.hass, 'diagnose.raw_summary')}" hide-copy .value=${r.summary}></sber-json-block>`
+        ? html`<sber-json-block .hass=${this.hass} label="${t(this.hass, 'diagnose.raw_summary')}" .value=${r.summary}></sber-json-block>`
         : ""}
     `;
   }
