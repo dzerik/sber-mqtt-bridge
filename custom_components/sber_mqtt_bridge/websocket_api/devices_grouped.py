@@ -37,6 +37,7 @@ from ._common import (
     OVERRIDABLE_CATEGORIES,
     WS_ENTITY_ID,
     WS_ENTITY_IDS,
+    apply_entity_changes,
     get_bridge,
     get_config_entry,
     requires_entry,
@@ -322,20 +323,6 @@ def _build_options_patch(
     return new_options
 
 
-def _hot_reload(hass: HomeAssistant) -> None:
-    """Hot-reload bridge entities + republish config without tearing the entry down.
-
-    A full async_reload would remove the sidebar panel mid-navigation,
-    kicking the user out of the UI.
-    """
-    bridge = get_bridge(hass)
-    if bridge is None:
-        return
-    bridge._reload_entities_and_resubscribe()
-    if bridge.is_connected:
-        hass.async_create_task(bridge._publish_config())
-
-
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "sber_mqtt_bridge/add_ha_device",
@@ -359,8 +346,8 @@ async def ws_add_ha_device(
 
     Validates the payload, builds a single config-entry options patch
     (exposed_entities + type_overrides + entity_links + redefinitions)
-    and triggers one entry reload.  Replaces the legacy
-    ``ws_add_device_wizard`` endpoint.
+    and applies it to the running bridge without reloading the entry.
+    Replaces the legacy ``ws_add_device_wizard`` endpoint.
     """
     from homeassistant.helpers import entity_registry as er
 
@@ -390,8 +377,10 @@ async def ws_add_ha_device(
         room=(msg.get("room") or "").strip(),
     )
     hass.config_entries.async_update_entry(entry, options=new_options)
-
-    _hot_reload(hass)
+    # Applied to the running bridge rather than by reloading the entry: a
+    # reload would drop the MQTT session and remove the sidebar panel
+    # mid-wizard, kicking the user out of the UI.
+    apply_entity_changes(get_bridge(hass), f"device {primary_id} added in the panel")
 
     connection.send_result(
         msg["id"],

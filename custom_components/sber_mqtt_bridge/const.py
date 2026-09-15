@@ -163,6 +163,32 @@ as historical, not as a scope limit.
 CONF_GATE_OPTIONS = CONF_ENTITY_OPTIONS
 """Legacy alias of :data:`CONF_ENTITY_OPTIONS` (same key, gate-era name)."""
 
+HOT_APPLY_ENTITY_OPTION_KEYS: frozenset[str] = frozenset(
+    {
+        CONF_EXPOSED_ENTITIES,
+        CONF_ENTITY_TYPE_OVERRIDES,
+        CONF_ENTITY_LINKS,
+        CONF_ENTITY_OPTIONS,
+        "redefinitions",
+        # Not entity keys, but they only change the config payload: a
+        # republish is all they need.
+        CONF_HUB_AUTO_PARENT,
+        CONF_HA_SERIAL_NUMBER,
+    }
+)
+"""Options keys applied to a running bridge by rebuilding its device set.
+
+A change limited to these (plus :data:`HOT_APPLY_SETTINGS_OPTION_KEYS`) goes
+through ``SberBridge.async_apply_entity_changes`` instead of a config entry
+reload, so the MQTT session survives it."""
+
+HOT_APPLY_SETTINGS_OPTION_KEYS: frozenset[str] = frozenset(SETTINGS_DEFAULTS) - {CONF_SBER_VERIFY_SSL}
+"""Operational settings ``SberBridge.apply_settings`` takes over without a restart.
+
+``sber_verify_ssl`` is left out: it decides how the *current* TLS session was
+verified, so changing it from the options flow reloads the entry and
+reconnects at once instead of waiting for the next reconnect."""
+
 # NOTE: the list of HA domains exportable to Sber lives in
 # ``sber_entity_map.SUPPORTED_DOMAINS`` — it is derived from
 # CATEGORY_DOMAIN_MAP so it cannot drift from the category registry.

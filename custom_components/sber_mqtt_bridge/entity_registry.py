@@ -97,7 +97,11 @@ class SberEntityLoader:
         self._hass = hass
         self._entry = entry
 
-    def load(self, existing_redefinitions: dict[str, dict] | None = None) -> EntityLoadResult:
+    def load(
+        self,
+        existing_redefinitions: dict[str, dict] | None = None,
+        unsaved_redefinitions: dict[str, dict] | None = None,
+    ) -> EntityLoadResult:
         """Perform a full entity reload pass.
 
         Uses a swap-on-replace pattern: callers receive a new result set
@@ -125,6 +129,9 @@ class SberEntityLoader:
         Args:
             existing_redefinitions: Current in-memory redefinitions; merged
                 with persisted options before pruning stale entries.
+            unsaved_redefinitions: Edits not persisted yet
+                (:meth:`RedefinitionsStore.unsaved_edits`); they win over
+                the persisted options, which still hold the older value.
 
         Returns:
             :class:`EntityLoadResult` ready for atomic swap.
@@ -140,6 +147,10 @@ class SberEntityLoader:
         if saved_redefs:
             merged_redefs.update(saved_redefs)
             _LOGGER.debug("Loaded %d persisted redefinitions from options", len(saved_redefs))
+        if unsaved_redefinitions:
+            # A rename made seconds ago is newer than the persisted record the
+            # store's debounce has not overwritten yet.
+            merged_redefs.update(unsaved_redefinitions)
 
         result.entities = self._create_entities(new_enabled, custom_config)
         result.entity_links, result.linked_reverse = self._apply_entity_links(result.entities)

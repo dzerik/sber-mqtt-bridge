@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 import aiomqtt
 import voluptuous as vol
 from homeassistant.config_entries import (
     ConfigEntry,
+    ConfigEntryState,
     ConfigFlow,
     ConfigFlowResult,
     OptionsFlowWithReload,
@@ -42,6 +44,8 @@ from .const import (
     CONF_SBER_PORT,
     CONF_SBER_VERIFY_SSL,
     DOMAIN,
+    HOT_APPLY_ENTITY_OPTION_KEYS,
+    HOT_APPLY_SETTINGS_OPTION_KEYS,
     SBER_BROKER_DEFAULT,
     SBER_PORT_DEFAULT,
     SETTINGS_DEFAULTS,
@@ -359,12 +363,33 @@ class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
         return SberMqttBridgeOptionsFlow()
 
 
+def changed_option_keys(old: Mapping[str, Any], new: Mapping[str, Any]) -> set[str]:
+    """Return the options keys whose value differs between two option mappings.
+
+    A key present on one side only counts as changed.
+
+    Args:
+        old: Options before the change.
+        new: Options after the change.
+
+    Returns:
+        The set of changed keys (empty when both mappings are equal).
+    """
+    missing = object()
+    return {key for key in old.keys() | new.keys() if old.get(key, missing) != new.get(key, missing)}
+
+
 class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
     """Handle options flow for Sber MQTT Bridge.
 
     Primary device management is done through the sidebar panel.
     Options Flow is kept as a fallback with a link to the panel
     and advanced entity selection for users who prefer it.
+
+    ``OptionsFlowWithReload`` reloads the entry whenever a save changes the
+    options.  Changes a running bridge can take over live are applied by
+    :meth:`_async_save_options` before the flow finishes, so the reload
+    only happens for what really needs it — see :meth:`_async_apply_live`.
     """
 
     def _async_save_options(self, **updates: Any) -> ConfigFlowResult:
@@ -381,7 +406,43 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
         Returns:
             The finished flow result.
         """
-        return self.async_create_entry(data={**self.config_entry.options, **updates})
+        new_options = {**self.config_entry.options, **updates}
+        self._async_apply_live(new_options)
+        return self.async_create_entry(data=new_options)
+
+    def _async_apply_live(self, new_options: dict[str, Any]) -> None:
+        """Persist and apply ``new_options`` to the running bridge when no reload is needed.
+
+        Saving an exposed-entity selection or a type override used to
+        reload the entry, which dropped the MQTT connection and re-sent the
+        whole device list — devices blinked out in the Sber app.  When
+        every changed key is one the bridge can take over live
+        (:data:`~.const.HOT_APPLY_ENTITY_OPTION_KEYS`,
+        :data:`~.const.HOT_APPLY_SETTINGS_OPTION_KEYS`) the options are
+        written here and applied to the bridge; the flow then finishes with
+        options that no longer differ, and ``OptionsFlowWithReload`` —
+        which reloads only on an actual change — leaves the entry alone.
+
+        Anything else (a connection setting, an unknown key) or an entry
+        whose bridge is not running is left untouched here, and the
+        automatic reload applies it as before.
+
+        Args:
+            new_options: The complete options mapping about to be saved.
+        """
+        entry = self.config_entry
+        changed = changed_option_keys(entry.options, new_options)
+        if not changed or not changed <= HOT_APPLY_ENTITY_OPTION_KEYS | HOT_APPLY_SETTINGS_OPTION_KEYS:
+            return
+        runtime_data = getattr(entry, "runtime_data", None)
+        if entry.state is not ConfigEntryState.LOADED or runtime_data is None:
+            return
+        bridge = runtime_data.bridge
+        self.hass.config_entries.async_update_entry(entry, options=new_options)
+        if changed & HOT_APPLY_SETTINGS_OPTION_KEYS:
+            bridge.apply_settings(new_options)
+        if changed & HOT_APPLY_ENTITY_OPTION_KEYS:
+            bridge.async_apply_entity_changes("options changed in the options flow")
 
     def _entity_category_label(self, entry: er.RegistryEntry, override: str | None) -> str:
         """Return the human-readable Sber category label for a registry entry.
@@ -481,7 +542,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             The form, or the saved options entry.
         """
         if user_input is not None:
-            return self.async_create_entry(data={**self.config_entry.options, **user_input})
+            return self._async_save_options(**user_input)
 
         options = self.config_entry.options
         return self.async_show_form(

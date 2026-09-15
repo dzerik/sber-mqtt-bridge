@@ -21,6 +21,7 @@ from ..const import CONF_ENTITY_LINKS, CONF_EXPOSED_ENTITIES
 from ..device_grouper import select_native_links
 from ._common import (  # noqa: F401 — get_config_entry re-exported for test patching
     WS_ENTITY_ID,
+    apply_entity_changes,
     get_bridge,
     get_config_entry,
     requires_entry,
@@ -77,7 +78,7 @@ async def ws_set_entity_links(
     new_options = dict(entry.options)
     new_options[CONF_ENTITY_LINKS] = all_links
     hass.config_entries.async_update_entry(entry, options=new_options)
-    await hass.config_entries.async_reload(entry.entry_id)
+    apply_entity_changes(get_bridge(hass), f"links of {entity_id} changed in the panel")
 
     connection.send_result(msg["id"], {"success": True, "links": new_links})
 
@@ -141,7 +142,7 @@ async def ws_auto_link_all(
         new_options = dict(entry.options)
         new_options[CONF_ENTITY_LINKS] = all_links
         hass.config_entries.async_update_entry(entry, options=new_options)
-        await hass.config_entries.async_reload(entry.entry_id)
+        apply_entity_changes(bridge, "sensors auto-linked in the panel")
 
     connection.send_result(
         msg["id"],

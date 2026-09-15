@@ -21,6 +21,7 @@ from ._common import (  # noqa: F401 — get_bridge/get_config_entry re-exported
     ENTITY_OPTIONS_SCHEMA,
     OVERRIDABLE_CATEGORIES,
     WS_ENTITY_ID,
+    apply_entity_changes,
     get_bridge,
     get_config_entry,
     requires_bridge,
@@ -115,7 +116,10 @@ async def ws_import(
     The payload structure is validated against
     :data:`IMPORT_CONFIG_SCHEMA` *before* anything is persisted — on
     error the handler replies ``invalid_config`` and leaves
-    ``entry.options`` untouched (no reload is triggered).
+    ``entry.options`` untouched.
+
+    A valid import is applied to the running bridge without reloading the
+    config entry, so the MQTT session survives it.
     """
     try:
         config: dict[str, Any] = IMPORT_CONFIG_SCHEMA(msg["config"])
@@ -130,10 +134,9 @@ async def ws_import(
     if "type_overrides" in config:
         new_options[CONF_ENTITY_TYPE_OVERRIDES] = config["type_overrides"]
     if "redefinitions" in config:
-        # TODO(v1.38.4): route through RedefinitionsStore once it exists
-        # (docs/superpowers/plans/2026-05-14-v1.38.4-redefinitions-store.md) —
-        # direct writes to the magic "redefinitions" options key can be
-        # overwritten by the store's debounced flush.
+        # Written straight into the options; the hot apply below tells the
+        # bridge to drop its in-memory copy and any unflushed edit, so the
+        # store's debounced flush cannot overwrite the imported map.
         new_options["redefinitions"] = config["redefinitions"]
     if "entity_links" in config:
         new_options[CONF_ENTITY_LINKS] = config["entity_links"]
@@ -141,7 +144,11 @@ async def ws_import(
         new_options[CONF_ENTITY_OPTIONS] = config["gate_options"]
 
     hass.config_entries.async_update_entry(entry, options=new_options)
-    await hass.config_entries.async_reload(entry.entry_id)
+    apply_entity_changes(
+        get_bridge(hass),
+        "configuration imported in the panel",
+        replace_redefinitions="redefinitions" in config,
+    )
 
     connection.send_result(msg["id"], {"success": True})
 

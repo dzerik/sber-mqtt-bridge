@@ -290,9 +290,14 @@ _IO_MODULE = "custom_components.sber_mqtt_bridge.websocket_api.io_export"
 class TestImportValidation:
     """A structurally broken import must not touch options or reload."""
 
-    async def _call(self, hass: MagicMock, connection: MagicMock, config: dict) -> MagicMock:
+    async def _call(
+        self, hass: MagicMock, connection: MagicMock, config: dict, bridge: MagicMock | None = None
+    ) -> MagicMock:
         entry = _make_entry()
-        with patch(f"{_IO_MODULE}.get_config_entry", return_value=entry):
+        with (
+            patch(f"{_IO_MODULE}.get_config_entry", return_value=entry),
+            patch(f"{_IO_MODULE}.get_bridge", return_value=bridge if bridge is not None else MagicMock()),
+        ):
             await dispatch(ws_import, hass, connection, {"id": 1, "config": config})
         return entry
 
@@ -321,7 +326,7 @@ class TestImportValidation:
         hass.config_entries.async_reload.assert_not_called()
         connection.send_result.assert_not_called()
 
-    async def test_valid_config_written_and_reloaded(self, hass: MagicMock, connection: MagicMock) -> None:
+    async def test_valid_config_written_and_hot_applied(self, hass: MagicMock, connection: MagicMock) -> None:
         config = {
             "version": 2,
             "exposed_entities": ["light.a", "switch.b"],
@@ -329,14 +334,19 @@ class TestImportValidation:
             "redefinitions": {"light.a": {"name": "Лампа", "room": "Кухня"}},
             "entity_links": {"light.a": {"temperature": "sensor.t"}},
         }
-        entry = await self._call(hass, connection, config)
+        bridge = MagicMock()
+        await self._call(hass, connection, config, bridge)
 
         saved = hass.config_entries.async_update_entry.call_args[1]["options"]
         assert saved[CONF_EXPOSED_ENTITIES] == ["light.a", "switch.b"]
         assert saved[CONF_ENTITY_TYPE_OVERRIDES] == {"light.a": "light"}
         assert saved["redefinitions"] == {"light.a": {"name": "Лампа", "room": "Кухня"}}
         assert saved[CONF_ENTITY_LINKS] == {"light.a": {"temperature": "sensor.t"}}
-        hass.config_entries.async_reload.assert_awaited_once_with(entry.entry_id)
+        # Applied to the running bridge, the imported redefinitions replacing
+        # the in-memory ones — never a full entry reload.
+        hass.config_entries.async_reload.assert_not_called()
+        bridge.async_apply_entity_changes.assert_called_once()
+        assert bridge.async_apply_entity_changes.call_args.kwargs == {"replace_redefinitions": True}
         connection.send_result.assert_called_once_with(1, {"success": True})
 
 

@@ -42,11 +42,11 @@ const PANEL_VERSION = loadedPanelVersion(import.meta.url);
 /** Tab keys; the visible label comes from `config_panel.tab.<key>`. */
 const TABS = ["devices", "status", "devtools", "settings"];
 
-/* Mutating WS commands (add / remove / override / import) return as soon as
- * the config entry is patched; the reload that rebuilds the exposed device
- * set finishes a moment later.  Instead of sleeping a fixed 1.5s — too early
- * on a slow box, needlessly slow on a fast one — the panel re-reads the
- * device list until the expected change shows up. */
+/* Mutating WS commands (add / remove / override / import) patch the config
+ * entry and apply the change to the running bridge without reloading it;
+ * the Sber publish follows a moment later.  Instead of trusting a fixed
+ * sleep, the panel re-reads the device list until the expected change
+ * shows up (it normally does on the first read). */
 
 /** Delay between two confirmation re-reads. */
 const POLL_INTERVAL_MS = 200;

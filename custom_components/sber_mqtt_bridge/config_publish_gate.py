@@ -173,6 +173,26 @@ class ConfigPublishGate:
             return False
         return True
 
+    async def publish_when_ready(self) -> bool:
+        """Publish once no cloud-known device is missing, skipping an unchanged payload.
+
+        The awaitable counterpart of :meth:`request` for callers that must
+        follow the config with a state publish (the hot apply of a panel
+        change): it holds exactly like a burst would — until every device
+        the cloud already holds has reported, bounded by the hard cap — and
+        then publishes *without* ``force``, so a change that did not alter
+        the device list sends nothing.  A burst still pending in the gate
+        is satisfied by this publish and dropped, so the same list does not
+        go out twice.
+
+        Returns:
+            Whatever the publish callback reported — False means the
+            descriptor did not reach Sber.
+        """
+        await self.wait_until_ready()
+        self.cancel()
+        return bool(await self._publish())
+
     async def flush_now(self) -> bool:
         """Publish immediately, bypassing coalescing.
 

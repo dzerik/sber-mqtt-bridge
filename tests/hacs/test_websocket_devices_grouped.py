@@ -520,14 +520,12 @@ class TestAddHaDevice:
 
     @pytest.mark.asyncio
     async def test_happy_path_atomic_update(self, hass, connection):
-        """Successful add must patch options and hot-reload entities (no full reload)."""
+        """Successful add must patch options and hot-apply them (no full reload)."""
         entry = _make_entry()
         primary = _make_entity("light.lamp", device_id="dev1", original_name="Lamp")
         entity_reg = MagicMock()
         entity_reg.async_get.side_effect = lambda eid: primary if eid == "light.lamp" else None
         mock_bridge = MagicMock()
-        mock_bridge.is_connected = True
-        mock_bridge._publish_config = AsyncMock()
         with (
             patch(
                 "custom_components.sber_mqtt_bridge.websocket_api.devices_grouped.get_config_entry",
@@ -564,9 +562,10 @@ class TestAddHaDevice:
         assert options["redefinitions"]["light.lamp"]["name"] == "Living Room Light"
         assert options["redefinitions"]["light.lamp"]["room"] == "Living Room"
 
-        # Hot-reload: entities reloaded + config republished (no full entry reload)
-        mock_bridge._reload_entities_and_resubscribe.assert_called_once()
-        hass.async_create_task.assert_called_once()
+        # Hot apply through the bridge's public method — it owns the publish
+        # (through the config gate); no full entry reload, no untracked task.
+        mock_bridge.async_apply_entity_changes.assert_called_once()
+        hass.async_create_task.assert_not_called()
         hass.config_entries.async_reload.assert_not_awaited()
 
     @pytest.mark.asyncio

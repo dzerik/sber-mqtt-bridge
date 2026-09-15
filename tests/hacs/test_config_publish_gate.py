@@ -318,3 +318,38 @@ def test_updated_delays_take_effect_on_the_next_burst() -> None:
     h.loop.advance(1.5)
 
     assert h.publishes == [{"light.a"}], "the shorter window must be honoured"
+
+
+async def test_publish_when_ready_publishes_once_without_force_and_drops_the_pending_burst() -> None:
+    """The hot apply of a panel change publishes through the gate, not around it.
+
+    Non-forced, so the publisher can skip an unchanged device list, and a
+    burst already armed in the gate is satisfied by this publish instead of
+    sending the same list a second time when its timer fires.
+    """
+    h = GateHarness(enabled=["light.a", "light.b"], ready={"light.a"}, cloud_known=set())
+    h.gate.request("entity availability change")
+    assert h.gate.has_pending, "fixture: a partial set arms the settle timer"
+
+    await h.gate.publish_when_ready()
+
+    assert h.publishes == [{"light.a"}]
+    assert h.forced == [False], "a hot apply must not bypass the unchanged-payload check"
+    assert not h.gate.has_pending, "the pending burst must be dropped, not published again"
+    h.loop.advance(GateHarness.MAX_WAIT)
+    assert len(h.publishes) == 1
+
+
+async def test_publish_when_ready_holds_while_a_cloud_known_device_is_missing() -> None:
+    """A device Sber already holds must not be dropped by a panel-triggered publish (issue #44)."""
+    h = GateHarness(enabled=["light.a", "light.b"], ready={"light.a"}, cloud_known={"light.b"})
+
+    waiter = asyncio.ensure_future(h.gate.publish_when_ready())
+    await asyncio.sleep(0)
+    assert h.publishes == [], "must hold while light.b, known to the cloud, has not reported"
+
+    h.arrive("light.b")
+    await waiter
+
+    assert h.publishes[-1] == {"light.a", "light.b"}
+    assert h.forced[-1] is False

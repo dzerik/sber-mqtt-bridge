@@ -32,9 +32,9 @@ c. a non-admin user gets ``unauthorized`` with the same absence of
    side effects.
 
 Commands that mutate the config entry are additionally checked *past*
-the answer frame: the entry must still be ``LOADED`` and the freshly
-built bridge must actually reflect the change, so dropping the
-``async_reload`` (options written, running bridge stale) fails here.
+the answer frame: the entry must still be ``LOADED`` and the running
+bridge must actually reflect the change, so dropping the hot apply
+(options written, running bridge stale) fails here.
 
 Plus two anti-regress sweeps over the *registered* command table, so a
 newly added command that forgets its schema or its admin guard fails
@@ -43,8 +43,10 @@ the suite instead of shipping.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncGenerator, Callable
+from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -54,9 +56,15 @@ from homeassistant.const import EntityCategory
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_mock_service
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+    async_mock_service,
+)
 
 import custom_components.sber_mqtt_bridge.websocket_api as ws_pkg
+from custom_components.sber_mqtt_bridge import config_flow as cf
 from custom_components.sber_mqtt_bridge.cloud_device_registry import OPTIONS_KEY
 from custom_components.sber_mqtt_bridge.const import (
     CONF_ENTITY_LINKS,
@@ -72,7 +80,8 @@ from custom_components.sber_mqtt_bridge.const import (
     SBER_TOPIC_PREFIX,
     SETTINGS_DEFAULTS,
 )
-from custom_components.sber_mqtt_bridge.sber_bridge import SberBridge
+from custom_components.sber_mqtt_bridge.mqtt_client_service import MqttClientService
+from custom_components.sber_mqtt_bridge.sber_bridge import ENTITY_CHANGES_PUBLISH_DELAY, SberBridge
 
 WS_REGISTRY_KEY = "websocket_api"
 """``hass.data`` key under which HA stores ``{command: (handler, schema)}``."""
@@ -342,10 +351,10 @@ async def test_reload_triggering_command_keeps_entry_loaded(
 
     Runs *without* the de-duplicating static-path patch, i.e. against
     production ``async_setup_entry`` exactly as a user's HA runs it.
-    Every mutating panel command (``add_entities``, ``remove_entities``,
+    Mutating panel commands (``add_entities``, ``remove_entities``,
     ``set_override``, ``clear_all``, ``set_entity_links``, ``import``)
-    goes through ``hass.config_entries.async_reload``, so if the reload
-    cannot succeed the panel dies after the first click.
+    used to reload the entry and are now applied to the running bridge;
+    either way the panel must survive the first click.
     """
     await ok(admin, "set_override", entity_id=LAMP, category="led_strip")
     await hass.async_block_till_done()
@@ -509,9 +518,9 @@ class TestDevicesGroupedModule:
         """Options are written *and* hot-applied to the running bridge.
 
         ``ws_add_ha_device`` deliberately avoids a full entry reload (it
-        would tear the sidebar panel down mid-wizard) and calls
-        ``_hot_reload`` instead — so the same "did it actually take
-        effect?" question applies, just against the same bridge object.
+        would tear the sidebar panel down mid-wizard) and hot-applies the
+        change instead — so the same "did it actually take effect?"
+        question applies, just against the same bridge object.
         """
         bridge_before = entry.runtime_data.bridge
 
@@ -582,8 +591,8 @@ class TestEntitiesModule:
     """``entities.py`` — add / remove / override / clear.
 
     Each test asserts the *running* bridge as well as ``entry.options``:
-    the options are written before ``async_reload``, so a handler that
-    persisted the change but skipped the reload would answer
+    the options are written before the hot apply, so a handler that
+    persisted the change but skipped applying it would answer
     ``success`` while the bridge kept publishing the old device set.
     """
 
@@ -1446,3 +1455,472 @@ class TestDiagnosticEntities:
             result = await ok(admin, "list_devices_for_category", category=category)
             offered = {d["primary"]["entity_id"] for d in result["devices"]}
             assert not own & offered, category
+
+
+# ---------------------------------------------------------------------------
+# Panel changes are hot-applied: the MQTT session survives them
+# ---------------------------------------------------------------------------
+
+
+CONFIG_TOPIC = f"{SBER_TOPIC_PREFIX}/test/up/config"
+"""``up/config`` topic of the bridge configured by the ``entry`` fixture."""
+
+STATUS_TOPIC = f"{SBER_TOPIC_PREFIX}/test/up/status"
+"""``up/status`` topic of the bridge configured by the ``entry`` fixture."""
+
+
+def _fire_entity_changes_publish(hass: HomeAssistant) -> None:
+    """Move time past the hot-apply debounce window."""
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=ENTITY_CHANGES_PUBLISH_DELAY + 1))
+
+
+@pytest.fixture
+def session_spy(monkeypatch: pytest.MonkeyPatch, hass: HomeAssistant) -> dict[str, int]:
+    """Count entry reloads and MQTT service stops (i.e. dropped sessions)."""
+    counts = {"reload": 0, "schedule_reload": 0, "mqtt_stop": 0}
+    real_reload = hass.config_entries.async_reload
+    real_schedule = hass.config_entries.async_schedule_reload
+    real_stop = MqttClientService.stop
+
+    async def _reload(entry_id: str) -> bool:
+        counts["reload"] += 1
+        return await real_reload(entry_id)
+
+    def _schedule(entry_id: str) -> None:
+        counts["schedule_reload"] += 1
+        real_schedule(entry_id)
+
+    async def _stop(self: MqttClientService) -> None:
+        counts["mqtt_stop"] += 1
+        await real_stop(self)
+
+    monkeypatch.setattr(hass.config_entries, "async_reload", _reload)
+    monkeypatch.setattr(hass.config_entries, "async_schedule_reload", _schedule)
+    monkeypatch.setattr(MqttClientService, "stop", _stop)
+    return counts
+
+
+class TestPanelChangesKeepTheMqttSession:
+    """Every panel click used to reload the entry: MQTT dropped, full list re-sent.
+
+    Sber reads each ``up/config`` as the complete device list, so the
+    reconnect + republish made devices blink out in the Sber app on every
+    change.  The change must now be applied to the *same* bridge, and its
+    config must reach Sber once, through the config gate.
+    """
+
+    @pytest.mark.parametrize(
+        ("command", "payload"),
+        [
+            ("add_entities", {"entity_ids": [PUMP]}),
+            ("remove_entities", {"entity_ids": [LAMP]}),
+            ("set_override", {"entity_id": LAMP, "category": "led_strip"}),
+            ("clear_all", {}),
+            ("set_entity_links", {"entity_id": LAMP, "links": {"temperature": LAMP_TEMP}}),
+            ("import", {"config": {"exposed_entities": [LAMP, PUMP]}}),
+        ],
+    )
+    async def test_change_does_not_reload_or_disconnect(
+        self,
+        hass: HomeAssistant,
+        admin: Any,
+        entry: MockConfigEntry,
+        transport: RecordingTransport,
+        session_spy: dict[str, int],
+        command: str,
+        payload: dict[str, Any],
+    ) -> None:
+        bridge_before = entry.runtime_data.bridge
+
+        await ok(admin, command, **payload)
+        await hass.async_block_till_done()
+        _fire_entity_changes_publish(hass)
+        await hass.async_block_till_done()
+
+        assert session_spy == {"reload": 0, "schedule_reload": 0, "mqtt_stop": 0}, (
+            f"{command} tore the MQTT session down"
+        )
+        assert entry.state is ConfigEntryState.LOADED
+        assert entry.runtime_data.bridge is bridge_before
+        assert bridge_before.is_connected
+
+    async def test_burst_of_changes_is_published_once_through_the_gate(
+        self,
+        hass: HomeAssistant,
+        admin: Any,
+        entry: MockConfigEntry,
+        transport: RecordingTransport,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Three quick edits → the running bridge follows each, Sber gets one config with the final list."""
+        bridge = entry.runtime_data.bridge
+        gate = bridge._config_gate
+        gate_calls: list[bool] = []
+        real_publish_when_ready = gate.publish_when_ready
+
+        async def _spy() -> bool:
+            result = await real_publish_when_ready()
+            gate_calls.append(result)
+            return result
+
+        monkeypatch.setattr(gate, "publish_when_ready", _spy)
+
+        await ok(admin, "add_entities", entity_ids=[PUMP])
+        assert bridge.enabled_entity_ids == [LAMP, PUMP], "the change must be visible to the panel at once"
+        await ok(admin, "set_override", entity_id=PUMP, category="relay")
+        await ok(admin, "set_entity_links", entity_id=LAMP, links={"temperature": LAMP_TEMP})
+        await hass.async_block_till_done()
+        assert [t for t, _ in transport.published if t == CONFIG_TOPIC] == [], (
+            "the publish must wait for the burst to go quiet"
+        )
+
+        _fire_entity_changes_publish(hass)
+        await hass.async_block_till_done()
+
+        configs = [json.loads(body) for topic, body in transport.published if topic == CONFIG_TOPIC]
+        assert len(configs) == 1, f"expected one config publish, got {len(configs)}"
+        assert gate_calls == [True], "the config must go out through ConfigPublishGate"
+        devices = {device["id"]: device for device in configs[0]["devices"]}
+        assert {LAMP, PUMP} <= set(devices)
+        assert devices[PUMP]["model"]["category"] == "relay"
+        topics = [topic for topic, _ in transport.published]
+        assert STATUS_TOPIC in topics, "current states must follow the config"
+        assert topics.index(STATUS_TOPIC) > topics.index(CONFIG_TOPIC)
+
+    async def test_change_during_a_publish_gets_one_more_round_not_a_parallel_one(
+        self,
+        hass: HomeAssistant,
+        admin: Any,
+        entry: MockConfigEntry,
+        transport: RecordingTransport,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Publishes are serialised: the later change is published after the running one, never lost."""
+        bridge = entry.runtime_data.bridge
+        gate = bridge._config_gate
+        real_publish_when_ready = gate.publish_when_ready
+        release = asyncio.Event()
+        in_flight = 0
+        max_in_flight = 0
+        rounds: list[list[str]] = []
+
+        async def _serialised() -> bool:
+            nonlocal in_flight, max_in_flight
+            in_flight += 1
+            max_in_flight = max(max_in_flight, in_flight)
+            try:
+                rounds.append(list(bridge.enabled_entity_ids))
+                if len(rounds) == 1:
+                    async with asyncio.timeout(5):
+                        await release.wait()
+                return await real_publish_when_ready()
+            finally:
+                in_flight -= 1
+
+        monkeypatch.setattr(gate, "publish_when_ready", _serialised)
+
+        await ok(admin, "add_entities", entity_ids=[PUMP])
+        _fire_entity_changes_publish(hass)
+        await asyncio.sleep(0)
+        assert rounds == [[LAMP, PUMP]], "fixture: the first publish is in flight"
+
+        await ok(admin, "remove_entities", entity_ids=[LAMP])
+        _fire_entity_changes_publish(hass)
+        await asyncio.sleep(0)
+        assert len(rounds) == 1, "a second publish must not start while one is running"
+
+        release.set()
+        await hass.async_block_till_done()
+
+        assert rounds == [[LAMP, PUMP], [PUMP]]
+        assert max_in_flight == 1
+        configs = [json.loads(body) for topic, body in transport.published if topic == CONFIG_TOPIC]
+        assert [device["id"] for device in configs[-1]["devices"] if device["id"] != "root"] == [PUMP]
+
+    async def test_stopped_bridge_ignores_entity_changes(
+        self, hass: HomeAssistant, entry: MockConfigEntry, transport: RecordingTransport
+    ) -> None:
+        """A late caller holding a stopped bridge must not rebuild it or arm a publish."""
+        bridge = entry.runtime_data.bridge
+        await bridge.async_stop()
+        hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_EXPOSED_ENTITIES: [LAMP, PUMP]})
+
+        bridge.async_apply_entity_changes("late panel call")
+        _fire_entity_changes_publish(hass)
+        await hass.async_block_till_done()
+
+        assert bridge.enabled_entity_ids == [LAMP]
+        assert transport.published == []
+
+    async def test_nothing_is_published_after_unload(
+        self,
+        hass: HomeAssistant,
+        admin: Any,
+        entry: MockConfigEntry,
+        transport: RecordingTransport,
+    ) -> None:
+        """A change still waiting for its publish must die with the entry."""
+        await ok(admin, "add_entities", entity_ids=[PUMP])
+        await hass.async_block_till_done()
+        bridge = entry.runtime_data.bridge
+
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+        # The recorder outlives the stopped service: re-attach it so a stray
+        # publish would still be seen instead of failing on "not connected".
+        bridge._mqtt_service._client = transport
+        bridge._mqtt_service._connected = True
+        transport.published.clear()
+
+        _fire_entity_changes_publish(hass)
+        await hass.async_block_till_done()
+
+        assert transport.published == []
+
+    async def test_unload_cancels_a_publish_in_flight(
+        self,
+        hass: HomeAssistant,
+        admin: Any,
+        entry: MockConfigEntry,
+        transport: RecordingTransport,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The publish task is owned by the bridge: stopping it cancels the task, states never go out."""
+        bridge = entry.runtime_data.bridge
+        release = asyncio.Event()
+        started = asyncio.Event()
+        cancelled: list[bool] = []
+
+        async def _blocked() -> bool:
+            started.set()
+            try:
+                await release.wait()
+            except asyncio.CancelledError:
+                cancelled.append(True)
+                raise
+            return True
+
+        monkeypatch.setattr(bridge._config_gate, "publish_when_ready", _blocked)
+
+        await ok(admin, "add_entities", entity_ids=[PUMP])
+        _fire_entity_changes_publish(hass)
+        async with asyncio.timeout(5):
+            await started.wait()
+        transport.published.clear()
+
+        try:
+            await bridge.async_stop()
+            assert cancelled == [True], "async_stop left the publish task running"
+        finally:
+            release.set()
+        await hass.async_block_till_done()
+        assert transport.published == []
+
+    async def test_import_replaces_an_unsaved_redefinition(
+        self,
+        hass: HomeAssistant,
+        admin: Any,
+        entry: MockConfigEntry,
+    ) -> None:
+        """An import replaces the redefinitions, including a rename not persisted yet.
+
+        With the reload, stopping the old bridge flushed its pending
+        redefinition snapshot over the options the import had just written;
+        a hot apply that merged the in-memory map in would keep it too.
+        """
+        await ok(admin, "update_redefinitions", entity_id=LAMP, name="Старое имя")
+
+        await ok(
+            admin,
+            "import",
+            config={"exposed_entities": [LAMP, PUMP], "redefinitions": {PUMP: {"room": "Кухня"}}},
+        )
+        await hass.async_block_till_done()
+        _fire_entity_changes_publish(hass)
+        # Past the redefinitions store's own debounce window as well.
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=10))
+        await hass.async_block_till_done()
+
+        # The imported map is the whole truth: the lamp's unsaved rename is gone.
+        assert entry.options["redefinitions"] == {PUMP: {"room": "Кухня"}}
+        assert entry.runtime_data.bridge.redefinitions == {PUMP: {"room": "Кухня"}}
+
+    @staticmethod
+    async def _rename_twice(hass: HomeAssistant, admin: Any) -> None:
+        """Persist ``A`` for the lamp, then rename it to ``B`` and leave that unsaved."""
+        await ok(admin, "update_redefinitions", entity_id=LAMP, name="A")
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=10))
+        await hass.async_block_till_done()
+        await ok(admin, "update_redefinitions", entity_id=LAMP, name="B")
+
+    @staticmethod
+    async def _settle(hass: HomeAssistant) -> None:
+        """Run past the hot-apply publish and the redefinitions store debounce."""
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=30))
+        await hass.async_block_till_done()
+
+    @pytest.mark.parametrize(
+        ("command", "payload"),
+        [
+            ("add_entities", {"entity_ids": [PUMP]}),
+            ("set_override", {"entity_id": LAMP, "category": "led_strip"}),
+            ("set_entity_links", {"entity_id": LAMP, "links": {"temperature": LAMP_TEMP}}),
+        ],
+    )
+    async def test_unsaved_rename_survives_a_following_change(
+        self,
+        hass: HomeAssistant,
+        admin: Any,
+        entry: MockConfigEntry,
+        transport: RecordingTransport,
+        command: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """A rename still inside the store's debounce is not reverted by the next panel change.
+
+        The reload used to flush it while stopping the old bridge; the hot
+        apply reloads entities with the persisted options winning, which
+        put back the previous name and then persisted it.
+        """
+        bridge = entry.runtime_data.bridge
+        await self._rename_twice(hass, admin)
+
+        await ok(admin, command, **payload)
+        assert bridge.redefinitions[LAMP] == {"name": "B"}, "the running bridge lost the rename"
+        await self._settle(hass)
+
+        assert bridge.redefinitions[LAMP] == {"name": "B"}
+        assert entry.options["redefinitions"][LAMP] == {"name": "B"}
+        configs = [json.loads(body) for topic, body in transport.published if topic == CONFIG_TOPIC]
+        lamp = next(device for device in configs[-1]["devices"] if device["id"] == LAMP)
+        assert lamp["name"] == "B", "Sber was sent the old name"
+
+    async def test_unsaved_rename_and_wizard_names_both_survive(
+        self, hass: HomeAssistant, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        """The add-device wizard writes redefinitions itself; neither side may overwrite the other."""
+        bridge = entry.runtime_data.bridge
+        await self._rename_twice(hass, admin)
+
+        await ok(
+            admin,
+            "add_ha_device",
+            device_id=next(
+                device.id for device in dr.async_get(hass).devices.values() if device.name == PUMP_DEVICE_NAME
+            ),
+            primary_entity_id=PUMP,
+            category="relay",
+            name="Насос",
+            room="Кухня",
+        )
+        await self._settle(hass)
+
+        expected = {LAMP: {"name": "B"}, PUMP: {"name": "Насос", "room": "Кухня"}}
+        assert bridge.redefinitions == expected
+        assert entry.options["redefinitions"] == expected
+
+    async def test_wizard_rename_of_a_renamed_device_wins_per_field(
+        self, hass: HomeAssistant, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        """The wizard's later write wins for the field it set; the unsaved edit keeps the rest."""
+        bridge = entry.runtime_data.bridge
+        await self._rename_twice(hass, admin)
+        await ok(admin, "update_redefinitions", entity_id=LAMP, room="Спальня")
+
+        await ok(
+            admin,
+            "add_ha_device",
+            device_id=next(
+                device.id for device in dr.async_get(hass).devices.values() if device.name == LAMP_DEVICE_NAME
+            ),
+            primary_entity_id=LAMP,
+            category="light",
+            name="Мастер",
+        )
+        await self._settle(hass)
+
+        assert bridge.redefinitions[LAMP] == {"name": "Мастер", "room": "Спальня"}
+        assert entry.options["redefinitions"][LAMP] == {"name": "Мастер", "room": "Спальня"}
+
+
+class TestOptionsFlowAppliesLiveChangesWithoutReload:
+    """The options flow (``OptionsFlowWithReload``) reloaded on every save."""
+
+    async def _select_entities(self, hass: HomeAssistant, entry: MockConfigEntry, entity_ids: list[str]) -> None:
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {"action": "advanced"})
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"next_step_id": "select_entities_menu"}
+        )
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {"selection_mode": "manual"})
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {CONF_EXPOSED_ENTITIES: entity_ids}
+        )
+        assert result["type"] == "create_entry", result
+        await hass.async_block_till_done()
+
+    async def test_entity_selection_is_applied_live(
+        self, hass: HomeAssistant, entry: MockConfigEntry, session_spy: dict[str, int]
+    ) -> None:
+        bridge_before = entry.runtime_data.bridge
+
+        await self._select_entities(hass, entry, [LAMP, PUMP])
+
+        assert entry.options[CONF_EXPOSED_ENTITIES] == [LAMP, PUMP]
+        assert session_spy == {"reload": 0, "schedule_reload": 0, "mqtt_stop": 0}
+        assert entry.runtime_data.bridge is bridge_before
+        assert bridge_before.enabled_entity_ids == [LAMP, PUMP]
+
+    async def test_unsaved_rename_survives_an_entity_selection(
+        self, hass: HomeAssistant, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        """Saving the options flow right after a rename keeps the rename."""
+        bridge = entry.runtime_data.bridge
+        await ok(admin, "update_redefinitions", entity_id=LAMP, name="A")
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=10))
+        await hass.async_block_till_done()
+        await ok(admin, "update_redefinitions", entity_id=LAMP, name="B")
+
+        await self._select_entities(hass, entry, [LAMP, PUMP])
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=30))
+        await hass.async_block_till_done()
+
+        assert bridge.redefinitions[LAMP] == {"name": "B"}
+        assert entry.options["redefinitions"][LAMP] == {"name": "B"}
+
+    async def test_device_sync_settings_are_applied_live(
+        self, hass: HomeAssistant, entry: MockConfigEntry, session_spy: dict[str, int]
+    ) -> None:
+        bridge_before = entry.runtime_data.bridge
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {"action": "advanced"})
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "device_sync"})
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"config_settle_delay": 12.0, "config_max_wait": 240.0}
+        )
+        assert result["type"] == "create_entry", result
+        await hass.async_block_till_done()
+
+        assert session_spy == {"reload": 0, "schedule_reload": 0, "mqtt_stop": 0}
+        assert entry.runtime_data.bridge is bridge_before
+        assert bridge_before._config_gate._settle_delay == 12.0
+        assert bridge_before._config_gate._max_wait == 240.0
+
+    async def test_a_change_the_bridge_cannot_take_live_still_reloads(
+        self,
+        hass: HomeAssistant,
+        entry: MockConfigEntry,
+        session_spy: dict[str, int],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Keys outside the hot-apply sets (connection settings) keep the full reload."""
+        monkeypatch.setattr(cf, "HOT_APPLY_ENTITY_OPTION_KEYS", frozenset())
+        bridge_before = entry.runtime_data.bridge
+
+        await self._select_entities(hass, entry, [LAMP, PUMP])
+
+        assert session_spy["schedule_reload"] == 1
+        assert entry.state is ConfigEntryState.LOADED
+        assert entry.runtime_data.bridge is not bridge_before
+        assert entry.runtime_data.bridge.enabled_entity_ids == [LAMP, PUMP]

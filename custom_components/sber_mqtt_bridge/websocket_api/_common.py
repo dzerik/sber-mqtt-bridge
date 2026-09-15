@@ -185,6 +185,30 @@ def get_bridge(hass: HomeAssistant) -> SberBridge | None:
     return bridge
 
 
+def apply_entity_changes(bridge: SberBridge | None, reason: str, *, replace_redefinitions: bool = False) -> None:
+    """Hot-apply a persisted change of the exposed device set.
+
+    Every panel command that edits exposed entities, overrides, links or
+    redefinitions writes ``entry.options`` and then calls this instead of
+    reloading the config entry: a reload drops the MQTT session and
+    re-sends the whole device list, which made devices blink out in the
+    Sber app on every click.  See
+    :meth:`~..sber_bridge.SberBridge.async_apply_entity_changes`.
+
+    Args:
+        bridge: The running bridge (resolved by the handler through its own
+            module's ``get_bridge`` so test patches apply), or ``None``.
+        reason: Short description of the change, for the log.
+        replace_redefinitions: Forwarded to the bridge — the persisted
+            redefinitions were replaced wholesale.
+    """
+    if bridge is None:
+        # Nothing is running to apply into; the next setup of the entry
+        # reads the options that were just written.
+        return
+    bridge.async_apply_entity_changes(reason, replace_redefinitions=replace_redefinitions)
+
+
 def _make_requires(
     lookup_name: str,
     error_code: str,

@@ -26,6 +26,9 @@ _PERSIST_DEBOUNCE_SECONDS = 2.0
 """How long to coalesce successive update_redefinition calls before
 writing back to ConfigEntry.options. Mirrors the prior bridge value."""
 
+_REDEFINITION_KEYS: tuple[str, ...] = ("name", "room", "home")
+"""Fields a redefinition record can carry."""
+
 
 class RedefinitionsStore:
     """Holds device redefinitions and debounces their persistence.
@@ -49,6 +52,11 @@ class RedefinitionsStore:
         self._dirty = False
         self._timer: asyncio.TimerHandle | None = None
         self._stopped = False
+        self._unsaved_base: dict[str, dict] = {}
+        """Persisted record of each entity edited since the last flush, as it
+        was at its first such edit (empty when there was none).  Lets
+        :meth:`unsaved_edits` tell an edit still waiting for the debounce
+        apart from one a later options write has superseded."""
 
     @property
     def redefinitions(self) -> dict[str, dict]:
@@ -114,8 +122,11 @@ class RedefinitionsStore:
             update is applied to the in-memory store but before the
             ConfigEntry persistence completes).
         """
+        if entity_id not in self._unsaved_base:
+            persisted = self._persisted().get(entity_id)
+            self._unsaved_base[entity_id] = dict(persisted) if isinstance(persisted, dict) else {}
         existing = dict(self._redefinitions.get(entity_id, {}))
-        for key in ("name", "room", "home"):
+        for key in _REDEFINITION_KEYS:
             if key not in fields:
                 continue
             raw = fields[key]
@@ -156,6 +167,61 @@ class RedefinitionsStore:
             self._timer = None
         self._flush()
 
+    def discard_pending(self) -> None:
+        """Drop an edit that has not been persisted yet, without writing it.
+
+        For callers that just replaced the persisted redefinitions wholesale
+        (a configuration import): flushing the older in-memory snapshot
+        afterwards would silently overwrite what they wrote.
+        """
+        if self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
+        self._dirty = False
+        self._unsaved_base.clear()
+
+    def unsaved_edits(self) -> dict[str, dict]:
+        """Return the persisted records with the edits still waiting to be saved laid over them.
+
+        An entity reload merges the in-memory map with the persisted one,
+        and the persisted one wins — right for a record somebody wrote into
+        the options on purpose, wrong for a rename made a moment ago that the
+        debounce has not saved yet: it would be replaced by the older saved
+        value, and the pending flush would then persist that older value.
+        The loader lays these records over the persisted map to keep them.
+
+        The merge is per field: a field whose persisted value has changed
+        since the first unsaved edit of the entity was written by a later
+        options write (the add-device wizard naming the device, for
+        example), so the persisted value is kept for that field.
+
+        Returns:
+            ``entity_id → fields`` for every entity edited since the last
+            flush that is still present in the store.
+        """
+        persisted = self._persisted()
+        edits: dict[str, dict] = {}
+        for entity_id, base in self._unsaved_base.items():
+            memory = self._redefinitions.get(entity_id)
+            if memory is None:
+                continue
+            current_raw = persisted.get(entity_id)
+            record = dict(current_raw) if isinstance(current_raw, dict) else {}
+            for key in _REDEFINITION_KEYS:
+                if record.get(key) != base.get(key):
+                    continue
+                if key in memory:
+                    record[key] = memory[key]
+                else:
+                    record.pop(key, None)
+            edits[entity_id] = record
+        return edits
+
+    def _persisted(self) -> dict[str, dict]:
+        """Return the redefinitions currently stored in ``entry.options``."""
+        persisted = self._entry.options.get("redefinitions")
+        return persisted if isinstance(persisted, dict) else {}
+
     def shutdown(self) -> None:
         """Finalize the store: flush pending changes, stop all timers.
 
@@ -178,6 +244,7 @@ class RedefinitionsStore:
         if not self._dirty:
             return
         self._dirty = False
+        self._unsaved_base.clear()
         snapshot = {entity_id: dict(fields) for entity_id, fields in self._redefinitions.items()}
         new_options = {**self._entry.options, "redefinitions": snapshot}
         self._hass.config_entries.async_update_entry(self._entry, options=new_options)

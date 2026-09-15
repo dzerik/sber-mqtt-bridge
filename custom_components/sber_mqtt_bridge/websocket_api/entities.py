@@ -36,6 +36,7 @@ from ._common import (  # noqa: F401 — get_bridge / get_config_entry re-export
     WS_ENTITY_ID,
     WS_ENTITY_IDS,
     WS_TRAVEL_TIME,
+    apply_entity_changes,
     get_bridge,
     get_config_entry,
     requires_bridge,
@@ -79,7 +80,7 @@ async def ws_add_entities(
     msg: dict[str, Any],
     entry: Any,
 ) -> None:
-    """Add entities to the exposed list and reload the integration."""
+    """Add entities to the exposed list and apply them to the running bridge."""
     current: list[str] = list(entry.options.get(CONF_EXPOSED_ENTITIES, []))
     current_set = set(current)
     added: list[str] = []
@@ -94,7 +95,7 @@ async def ws_add_entities(
         new_options = dict(entry.options)
         new_options[CONF_EXPOSED_ENTITIES] = current
         hass.config_entries.async_update_entry(entry, options=new_options)
-        await hass.config_entries.async_reload(entry.entry_id)
+        apply_entity_changes(get_bridge(hass), "entities added in the panel")
 
     connection.send_result(msg["id"], {"added": added, "total": len(current)})
 
@@ -113,7 +114,7 @@ async def ws_remove_entities(
     msg: dict[str, Any],
     entry: Any,
 ) -> None:
-    """Remove entities from the exposed list and reload the integration."""
+    """Remove entities from the exposed list and apply that to the running bridge."""
     to_remove = set(msg["entity_ids"])
     current: list[str] = list(entry.options.get(CONF_EXPOSED_ENTITIES, []))
     new_list = [eid for eid in current if eid not in to_remove]
@@ -140,7 +141,7 @@ async def ws_remove_entities(
         new_options[CONF_ENTITY_LINKS] = entity_links
         new_options[CONF_ENTITY_OPTIONS] = entity_options
         hass.config_entries.async_update_entry(entry, options=new_options)
-        await hass.config_entries.async_reload(entry.entry_id)
+        apply_entity_changes(get_bridge(hass), "entities removed in the panel")
 
     connection.send_result(msg["id"], {"removed": removed, "total": len(new_list)})
 
@@ -177,7 +178,7 @@ async def ws_set_type_override(
     new_options = dict(entry.options)
     new_options[CONF_ENTITY_TYPE_OVERRIDES] = overrides
     hass.config_entries.async_update_entry(entry, options=new_options)
-    await hass.config_entries.async_reload(entry.entry_id)
+    apply_entity_changes(get_bridge(hass), f"category override of {entity_id} changed in the panel")
 
     connection.send_result(msg["id"], {"entity_id": entity_id, "category": category})
 
@@ -358,6 +359,6 @@ async def ws_clear_all(
     new_options[CONF_ENTITY_LINKS] = {}
     new_options[CONF_ENTITY_OPTIONS] = {}
     hass.config_entries.async_update_entry(entry, options=new_options)
-    await hass.config_entries.async_reload(entry.entry_id)
+    apply_entity_changes(get_bridge(hass), "all entities removed in the panel")
 
     connection.send_result(msg["id"], {"removed": previous_count})

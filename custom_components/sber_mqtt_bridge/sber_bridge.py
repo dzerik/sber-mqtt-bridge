@@ -97,6 +97,16 @@ when something sweeps.  Sweeping solely on the next Sber command left the
 last traces before a pause ``active`` indefinitely.  With the 10 s
 timeout a trace now closes 10-15 s after its last event."""
 
+ENTITY_CHANGES_PUBLISH_DELAY = 1.0
+"""Seconds a hot-applied panel change waits before its config publish.
+
+Panel edits arrive in bursts — a wizard adds a device and links its
+sensors, "remove" is followed by "add", an import rewrites everything — and
+Sber reads every ``up/config`` as the complete device list.  Each change is
+applied to the running bridge at once (so the panel re-reads the new set),
+but the publish waits for the burst to go quiet and then goes out once,
+with the final list."""
+
 LOG_PAYLOAD_MAX_CHARS = 8192
 """Maximum characters of a payload stored in the DevTools message log.
 
@@ -319,6 +329,14 @@ class SberBridge:
             publish=self._publish_config,
             create_task=self._create_safe_task,
         )
+
+        # Hot apply of panel / options-flow changes (see
+        # ``async_apply_entity_changes``): one debounce timer, at most one
+        # publish task, and a flag asking that task for one more round.
+        self._entity_changes_timer: asyncio.TimerHandle | None = None
+        self._entity_changes_task: asyncio.Task | None = None
+        self._entity_changes_dirty = False
+        self._entity_changes_reason = ""
 
         # HA → Sber event forwarder: owns state-change subscription + debouncing
         self._state_forwarder = HaStateForwarder(
@@ -1394,13 +1412,17 @@ class SberBridge:
         """Stop the bridge: disconnect MQTT, unsubscribe from HA events.
 
         Idempotent — safe to call multiple times.  Cancels every timer and
-        background task the bridge owns (state forwarder debounce, lifecycle
-        listeners, ack-audit timer, delayed-confirm tasks, redefinitions
-        debounce timer, MQTT connection loop) so nothing outlives the entry
-        unload.  A pending redefinitions snapshot is flushed synchronously
-        before shutdown so user edits are not lost on reload.
+        background task the bridge owns (hot-apply publish of panel changes,
+        state forwarder debounce, lifecycle listeners, ack-audit timer,
+        delayed-confirm tasks, redefinitions debounce timer, MQTT connection
+        loop) so nothing outlives the entry unload.  A pending redefinitions
+        snapshot is flushed synchronously before shutdown so user edits are
+        not lost on reload.
         """
         self._running = False
+
+        # A hot-applied panel change must not publish into a dying session.
+        await self._cancel_entity_changes()
 
         # HA state-change listeners + debounced publish live in the forwarder
         self._state_forwarder.unsubscribe_all()
@@ -1441,6 +1463,112 @@ class SberBridge:
         self._notify_status_listeners()
 
     @callback
+    def async_apply_entity_changes(self, reason: str, *, replace_redefinitions: bool = False) -> None:
+        """Apply a change of the exposed device set to the running bridge.
+
+        The single entry point for everything that edits which devices
+        Sber sees and how — exposed entities, category overrides, sensor
+        links, per-entity options, redefinitions (panel commands, the
+        options flow, a configuration import).  Such a change used to
+        reload the whole config entry: the MQTT session was dropped and
+        re-established and the full device list re-sent, so every click in
+        the panel made devices blink out in the Sber app.  Only the
+        connection settings (credentials, broker, TLS) need that.
+
+        What happens instead:
+
+        * entities, linked-entity routing and the ``state_changed``
+          subscriptions are rebuilt right now, so the caller (and a panel
+          re-reading the device list) sees the new set immediately;
+        * the config publish is debounced by
+          :data:`ENTITY_CHANGES_PUBLISH_DELAY`, so a burst of edits produces
+          one publish with the final list, and it goes through
+          :meth:`ConfigPublishGate.publish_when_ready` — held while a device
+          the cloud already holds has not reported, skipped when the list
+          did not change — followed by the current states, exactly as after
+          a (re)connect;
+        * publishes are serialised: a change arriving while one is in
+          flight asks for one more round instead of racing it.
+
+        The timer and the publish task belong to the bridge and are
+        cancelled by :meth:`async_stop`, so nothing reaches Sber after the
+        entry is unloaded.  Before :meth:`async_start` and after
+        :meth:`async_stop` the call is a no-op: the next start loads the
+        persisted options anyway.  While MQTT is down nothing is published —
+        the connect handshake sends the then-current list.
+
+        Args:
+            reason: Short description of the change, for the log.
+            replace_redefinitions: The persisted redefinitions were replaced
+                wholesale (an import).  In-memory ones are dropped instead
+                of merged in, and an edit still waiting to be persisted is
+                discarded so it cannot overwrite what was just written.
+        """
+        if not self._running:
+            _LOGGER.debug("Entity changes (%s) ignored: bridge is not running", reason)
+            return
+        if replace_redefinitions:
+            self._redef_store.discard_pending()
+            self._redef_store.replace({})
+        self._reload_entities_and_resubscribe()
+        self._entity_changes_reason = reason
+        if self._entity_changes_timer is not None:
+            self._entity_changes_timer.cancel()
+        self._entity_changes_timer = self._hass.loop.call_later(
+            ENTITY_CHANGES_PUBLISH_DELAY, self._on_entity_changes_timer
+        )
+
+    @callback
+    def _on_entity_changes_timer(self) -> None:
+        """Start the publish of a quiet burst of entity changes, or queue one more round."""
+        self._entity_changes_timer = None
+        if not self._running:
+            return
+        task = self._entity_changes_task
+        if task is not None and not task.done():
+            self._entity_changes_dirty = True
+            return
+        self._entity_changes_task = self._create_safe_task(
+            self._publish_entity_changes(), name="publish_entity_changes"
+        )
+
+    async def _publish_entity_changes(self) -> None:
+        """Publish config (through the gate) and states after hot-applied changes.
+
+        Loops while further changes arrived during a publish, so the last
+        one is never lost and two publishes never overlap.
+        """
+        while True:
+            self._entity_changes_dirty = False
+            if not self._running or not self._ha_ready.is_set() or not self.is_connected:
+                # Not started yet, stopped, or offline: the HA-started reload
+                # and the connect handshake publish the then-current set.
+                return
+            _LOGGER.debug("Publishing the device list after %s", self._entity_changes_reason)
+            if await self._config_gate.publish_when_ready():
+                await self._publish_states(force=True)
+            if not self._entity_changes_dirty:
+                return
+
+    async def _cancel_entity_changes(self) -> None:
+        """Cancel a pending or running hot-apply publish (bridge shutdown)."""
+        if self._entity_changes_timer is not None:
+            self._entity_changes_timer.cancel()
+            self._entity_changes_timer = None
+        self._entity_changes_dirty = False
+        task = self._entity_changes_task
+        self._entity_changes_task = None
+        if task is None or task.done():
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception:  # shutdown must not fail entry unload
+            _LOGGER.exception("Entity changes publish raised during shutdown")
+
+    @callback
     def _reload_entities_and_resubscribe(self) -> None:
         """Atomic reload: rebuild entities and re-subscribe HA events.
 
@@ -1460,7 +1588,10 @@ class SberBridge:
         ``self._redefinitions``.  Prunes stale ack tracking and kicks off
         the post-load repairs check.
         """
-        result = self._entity_loader.load(existing_redefinitions=self._redefinitions)
+        result = self._entity_loader.load(
+            existing_redefinitions=self._redefinitions,
+            unsaved_redefinitions=self._redef_store.unsaved_edits(),
+        )
 
         # Atomic swap — readers see either old or new, never partial state
         self._entities = result.entities
