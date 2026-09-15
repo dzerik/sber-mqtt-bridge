@@ -58,6 +58,7 @@ from .sber_entity_map import (
     category_label,
 )
 from .ssl_utils import create_ssl_context as create_ssl_context
+from .ssl_utils import entry_verify_ssl
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -338,7 +339,7 @@ class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
                 user_input[CONF_SBER_PASSWORD],
                 reauth_entry.data[CONF_SBER_BROKER],
                 reauth_entry.data[CONF_SBER_PORT],
-                verify_ssl=reauth_entry.data.get(CONF_SBER_VERIFY_SSL, True),
+                verify_ssl=entry_verify_ssl(reauth_entry.data, reauth_entry.options),
             )
             if error:
                 errors["base"] = error

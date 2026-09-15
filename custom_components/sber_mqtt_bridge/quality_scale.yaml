@@ -4,24 +4,30 @@ rules:
     status: exempt
     comment: No service actions are registered; the panel talks to the bridge over WebSocket commands
   appropriate-polling:
-    status: done
+    status: exempt
     comment: >-
-      Only the diagnostic entities poll, reading in-memory bridge counters every 30 s
-      (entity.py SCAN_INTERVAL); connection changes are pushed at once via a status listener
+      The integration does not poll (iot_class cloud_push): Sber commands arrive over MQTT and the
+      diagnostic entities have should_poll False, updated by bridge notifications (entity.py,
+      status_notifier.py)
   brands:
     status: done
     comment: Local brand images in brand/ (icon, logo, @2x), shown by HA 2026.3+
-  common-modules: done
+  common-modules:
+    status: done
+    comment: >-
+      Shared entity base class in entity.py; there is no coordinator because nothing is polled
   config-flow:
-    status: todo
+    status: done
     comment: >-
-      The user step has data_description for every field, the reauth_confirm step does not
-      (strings.json config.step.reauth_confirm)
+      Connection settings in entry.data, everything else in entry.options; every field of the user,
+      reauth_confirm and options steps has a data_description in strings.json, en.json and ru.json
+      (tests/hacs/test_config_flow_strings.py)
   config-flow-test-coverage:
-    status: todo
+    status: done
     comment: >-
-      config_flow.py is at 93% (options flow branches uncovered); the rule requires full
-      coverage (tests/hacs/test_config_flow.py, test_config_flow_options.py)
+      config_flow.py at 100%, including recovery after cannot_connect / invalid_auth, duplicate
+      account aborts, reauth and every options step (tests/hacs/test_config_flow.py,
+      test_config_flow_options.py)
   dependency-transparency: done
   docs-actions:
     status: exempt
@@ -32,8 +38,8 @@ rules:
   docs-high-level-description: done
   docs-installation-instructions: done
   docs-removal-instructions:
-    status: todo
-    comment: Neither README.md, README_ENG.md nor docs/ explain how to remove the integration
+    status: done
+    comment: README.md "Удаление интеграции", README_ENG.md "Removing the Integration", docs/removal.md
   docs-triggers:
     status: exempt
     comment: No triggers are provided
@@ -43,11 +49,11 @@ rules:
   runtime-data: done
   test-before-configure: done
   test-before-setup:
-    status: todo
+    status: done
     comment: >-
-      async_setup_entry (__init__.py) starts a background reconnect loop and returns True
-      without checking the broker; bad credentials or an unreachable broker surface only
-      later, never as ConfigEntryNotReady / ConfigEntryAuthFailed at setup
+      async_setup_entry (__init__.py) makes one bounded connection attempt before starting the
+      bridge: a refused login raises ConfigEntryAuthFailed, an unreachable broker or timeout raises
+      ConfigEntryNotReady (tests/hacs/test_setup_broker_check.py)
   unique-config-entry:
     status: done
     comment: single_config_entry in manifest.json; the config flow also sets the MQTT login as unique_id
@@ -58,39 +64,132 @@ rules:
     comment: No service actions are registered
   config-entry-unloading: done
   docs-configuration-parameters:
-    status: todo
+    status: done
     comment: >-
-      The options flow "Device sync timing" step (config_settle_delay, config_max_wait in
-      config_flow.py async_step_device_sync) is not documented
+      Every options flow step, including device sync timing (config_settle_delay,
+      config_max_wait), and every panel setting is documented in README.md, README_ENG.md and
+      docs/configuration.md
   docs-installation-parameters: done
   entity-unavailable:
-    status: exempt
+    status: done
     comment: >-
-      The only entities are diagnostics of the bridge itself, read from its in-memory state,
-      which is always readable; a lost Sber link is their value (binary_sensor.py connected,
-      sensor.py phase), not a reason to go unavailable
+      The entities describe the bridge itself and read its in-memory state; they are unavailable
+      while the bridge is not running (entity.py available). A lost Sber link is shown as their
+      value (binary_sensor.py connected, sensor.py phase), not as unavailability
   integration-owner: done
   log-when-unavailable:
-    status: todo
+    status: done
     comment: >-
-      A WARNING is logged on every reconnect attempt (sber_bridge.py _handle_disconnect), and an
-      unexpected error logs its traceback twice (mqtt_client_service.py run loop and
-      sber_bridge.py _handle_disconnect)
+      A lost or failed connection is logged once per outage, further failed attempts only at debug
+      level, and the restored connection once at info (sber_bridge.py _log_connection_failure,
+      _log_session_ready); a refused login is logged once and starts reauth
   parallel-updates:
-    status: todo
-    comment: PARALLEL_UPDATES is not set in binary_sensor.py or sensor.py
+    status: done
+    comment: PARALLEL_UPDATES = 0 in binary_sensor.py and sensor.py (read-only, push-updated entities)
   reauthentication-flow:
     status: done
     comment: >-
-      A refused login stops reconnecting and starts reauth (sber_bridge.py _handle_auth_failure);
-      config_flow.py async_step_reauth_confirm (tests/hacs/test_config_flow.py)
+      A refused login raises ConfigEntryAuthFailed at setup and, once running, stops reconnecting
+      and starts reauth (sber_bridge.py _handle_auth_failure); config_flow.py
+      async_step_reauth_confirm (tests/hacs/test_config_flow.py)
   test-coverage:
-    status: todo
+    status: done
     comment: >-
-      97.7% overall, but below 95% in __init__.py, command_schema.py, config_flow.py,
-      websocket_api/io_export.py, websocket_api/links.py, websocket_api/status.py
+      98.4% overall and above 95% in every module (lowest: schema_validator.py 95.4%);
+      CI enforces fail_under = 95 in pyproject.toml
 
-  # Gold (future)
+  # Gold
+  devices:
+    status: done
+    comment: >-
+      One service device per entry with name, manufacturer, model and sw_version (entity.py
+      DeviceInfo, entry_type SERVICE)
   diagnostics:
     status: done
     comment: Config entry diagnostics with recent DevTools data and credential scrubbing (tests/hacs/test_diagnostics.py)
+  discovery:
+    status: exempt
+    comment: >-
+      Nothing to discover: the integration connects to the Sber cloud MQTT broker with account
+      credentials from Sber Studio; no device is present on the local network
+  discovery-update-info:
+    status: exempt
+    comment: Nothing is discovered (see discovery)
+  docs-data-update:
+    status: done
+    comment: README.md "Как обновляются данные", README_ENG.md and docs/index.md
+  docs-examples:
+    status: todo
+    comment: No blueprints are published or linked from the documentation
+  docs-known-limitations:
+    status: done
+    comment: README.md "Известные ограничения", README_ENG.md and docs/index.md
+  docs-supported-devices:
+    status: done
+    comment: README.md "Поддерживаемые типы устройств" lists the HA domains and Sber categories
+  docs-supported-functions:
+    status: done
+    comment: README.md "Возможности", supported device types and the bridge's own entities
+  docs-troubleshooting:
+    status: done
+    comment: README.md "Устранение неполадок" and docs/troubleshooting.md
+  docs-use-cases:
+    status: done
+    comment: >-
+      README.md introduction (controlling HA devices by voice through Salute and from the Sber app)
+      and docs/index.md "Примеры голосовых команд"
+  dynamic-devices:
+    status: exempt
+    comment: >-
+      The integration creates a single service device per entry; exported HA entities are not
+      devices of this integration
+  entity-category:
+    status: done
+    comment: All entities are EntityCategory.DIAGNOSTIC (entity.py)
+  entity-device-class:
+    status: done
+    comment: >-
+      connectivity for the connection sensor, enum for the phase; the counters have no matching
+      device class
+  entity-disabled-by-default:
+    status: todo
+    comment: >-
+      All six diagnostic entities are enabled by default; which of them are rarely used has not
+      been decided
+  entity-translations:
+    status: done
+    comment: translation_key on every entity, names in strings.json, en.json and ru.json
+  exception-translations:
+    status: todo
+    comment: >-
+      Setup errors are translated, but the frontend registration failure (__init__.py) and the
+      undelivered device list error (sber_bridge.py) raise untranslated messages
+  icon-translations:
+    status: todo
+    comment: >-
+      No icons.json; the phase sensor and the counters have no device class icon
+  reconfiguration-flow:
+    status: todo
+    comment: >-
+      No async_step_reconfigure; the MQTT login, broker and port can only be changed by re-adding
+      the entry (the password through reauth, SSL verification in the panel)
+  repair-issues:
+    status: todo
+    comment: >-
+      Repair issues are raised (repairs.py), but some only report a state the user cannot act on
+      (sber_errors, entities_without_state)
+  stale-devices:
+    status: exempt
+    comment: The only device is the bridge's own service device, removed together with its entry
+
+  # Platinum
+  async-dependency:
+    status: done
+    comment: aiomqtt is an asyncio MQTT client
+  inject-websession:
+    status: exempt
+    comment: The integration makes no HTTP requests; it talks to Sber over MQTT only
+  strict-typing:
+    status: todo
+    comment: >-
+      mypy runs with check_untyped_defs but not in strict mode (pyproject.toml [tool.mypy])

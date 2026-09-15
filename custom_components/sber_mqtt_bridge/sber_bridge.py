@@ -69,6 +69,7 @@ from .repairs import check_and_create_issues
 from .sber_constants import MqttTopicSuffix
 from .sber_publisher import ConfigPublishContext, PublisherDeps, SberPublisher
 from .schema_validator import ValidationCollector
+from .ssl_utils import entry_verify_ssl
 from .state_diff import DiffCollector
 from .status_notifier import StatusNotifier
 from .trace_collector import TraceCollector
@@ -243,7 +244,7 @@ class SberBridge:
         self._password: str = entry.data[CONF_SBER_PASSWORD]
         self._broker: str = entry.data[CONF_SBER_BROKER]
         self._port: int = entry.data[CONF_SBER_PORT]
-        self._verify_ssl: bool = entry.options.get(CONF_SBER_VERIFY_SSL, entry.data.get(CONF_SBER_VERIFY_SSL, True))
+        self._verify_ssl: bool = entry_verify_ssl(entry.data, entry.options)
 
         self._root_topic = f"{SBER_TOPIC_PREFIX}/{self._login}"
         self._down_topic = f"{self._root_topic}/down"

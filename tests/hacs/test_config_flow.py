@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import ssl
 from unittest.mock import patch
 
 import aiomqtt
@@ -212,6 +213,48 @@ async def test_reauth_broker_unreachable_is_cannot_connect(hass: HomeAssistant, 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
     assert entry.data[CONF_SBER_PASSWORD] == "test_pass"
+
+
+@pytest.mark.asyncio(loop_scope="function")
+@pytest.mark.parametrize(
+    ("data_verify", "options", "expected_mode"),
+    [
+        # Turned off later in the panel: the setting lives in options only.
+        (True, {"sber_verify_ssl": False}, ssl.CERT_NONE),
+        # Turned back on in the panel over an entry created without verification.
+        (False, {"sber_verify_ssl": True}, ssl.CERT_REQUIRED),
+        # Never touched in the panel: the value from the setup form applies.
+        (False, {}, ssl.CERT_NONE),
+    ],
+)
+async def test_reauth_uses_the_certificate_check_the_bridge_uses(
+    hass: HomeAssistant, no_real_setup, data_verify: bool, options: dict, expected_mode: ssl.VerifyMode
+) -> None:
+    """Reauth connects with the same "Verify SSL certificate" setting as the running bridge.
+
+    The panel stores the setting in the entry options; a broker with its own
+    certificate must accept the new password without a certificate check.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={**MOCK_USER_INPUT, "sber_verify_ssl": data_verify},
+        options=options,
+        unique_id="test_user",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.sber_mqtt_bridge.config_flow.aiomqtt.Client",
+        return_value=_FakeConnectClient(None),
+    ) as client:
+        result = await entry.start_reauth_flow(hass)
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_SBER_PASSWORD: "new_pass"})
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    assert client.call_args.kwargs["tls_context"].verify_mode == expected_mode
+    assert entry.data[CONF_SBER_PASSWORD] == "new_pass"
 
 
 class _FakeConnectClient:

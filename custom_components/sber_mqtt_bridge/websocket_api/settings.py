@@ -25,6 +25,7 @@ from ..const import (
     CONF_SILENT_REJECTION_ALERTS,
     SETTINGS_DEFAULTS,
 )
+from ..ssl_utils import entry_verify_ssl
 from ._common import (  # noqa: F401 — get_config_entry re-exported for test patching
     get_bridge,
     get_config_entry,
@@ -167,7 +168,7 @@ def ws_get_settings(
     settings: dict[str, Any] = {}
     for key, default in SETTINGS_DEFAULTS.items():
         if key == CONF_SBER_VERIFY_SSL:
-            settings[key] = entry.options.get(key, entry.data.get(key, default))
+            settings[key] = entry_verify_ssl(entry.data, entry.options)
         else:
             settings[key] = entry.options.get(key, default)
 

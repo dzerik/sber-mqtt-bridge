@@ -9,6 +9,7 @@
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/dzerik/sber-mqtt-bridge/issues",
   "loggers": ["aiomqtt"],
+  "quality_scale": "silver",
   "requirements": ["aiomqtt>=2.0,<3.0", "pydantic>=2.0,<3.0"],
   "single_config_entry": true,
   "version": "1.56.0"
