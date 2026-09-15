@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import asyncio
+    from collections.abc import Callable
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,10 +38,18 @@ class ReconnectAckGuard:
             (``loop.call_later``), so it can be cancelled on cleanup.
     """
 
-    __slots__ = ("_awaiting", "_deadline", "_timeout_handle")
+    __slots__ = ("_awaiting", "_deadline", "_on_expire", "_timeout_handle")
 
-    def __init__(self) -> None:
-        """Initialize the guard (inactive)."""
+    def __init__(self, on_expire: Callable[[], None] | None = None) -> None:
+        """Initialize the guard (inactive).
+
+        Args:
+            on_expire: Called after the fallback timer has cleared the
+                guard, so the owner can report the change (the bridge's
+                connection phase leaves ``awaiting_ack`` without any
+                message arriving).
+        """
+        self._on_expire = on_expire
         self._awaiting: bool = False
         self._deadline: float = 0.0
         self._timeout_handle: object | None = None
@@ -101,6 +110,8 @@ class ReconnectAckGuard:
         if self._awaiting:
             _LOGGER.info("Sber ack timeout reached (timer) — accepting commands")
             self._awaiting = False
+            if self._on_expire is not None:
+                self._on_expire()
 
     def _cancel_timer(self) -> None:
         """Cancel the pending fallback timer if any."""

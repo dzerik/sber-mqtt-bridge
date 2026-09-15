@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 
-from .entity import SCAN_INTERVAL, SberBridgeDiagnosticEntity
+from .entity import SberBridgeDiagnosticEntity
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -14,7 +14,10 @@ if TYPE_CHECKING:
 
     from . import SberBridgeConfigEntry
 
-__all__ = ["SCAN_INTERVAL", "async_setup_entry"]
+__all__ = ["PARALLEL_UPDATES", "async_setup_entry"]
+
+PARALLEL_UPDATES = 0
+"""No limit: read-only entities pushed from the bridge's memory, nothing is requested."""
 
 
 async def async_setup_entry(

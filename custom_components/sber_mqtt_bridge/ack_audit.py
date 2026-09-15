@@ -55,6 +55,7 @@ class AckAudit:
         grace_timeout: float,
         audit_delay: float,
         on_audit: Callable[[], None],
+        on_guard_expired: Callable[[], None] | None = None,
     ) -> None:
         """Create an audit helper.
 
@@ -66,8 +67,10 @@ class AckAudit:
             on_audit: Bridge-provided callback that performs the actual
                 detection (reads unacknowledged entity list, logs,
                 creates repair issues).  Called with no arguments.
+            on_guard_expired: Called when the reconnect guard is cleared
+                by its fallback timer rather than by a Sber message.
         """
-        self._guard = ReconnectAckGuard()
+        self._guard = ReconnectAckGuard(on_expire=on_guard_expired)
         self._hass = hass
         self._grace_timeout = grace_timeout
         self._audit_delay = audit_delay

@@ -69,6 +69,7 @@ from .sber_constants import MqttTopicSuffix
 from .sber_publisher import ConfigPublishContext, PublisherDeps, SberPublisher
 from .schema_validator import ValidationCollector
 from .state_diff import DiffCollector
+from .status_notifier import StatusNotifier
 from .trace_collector import TraceCollector
 
 _LOGGER = logging.getLogger(__name__)
@@ -277,7 +278,8 @@ class SberBridge:
         self._load_settings_from_options(entry.options)
 
         self._unsub_lifecycle_listeners: list[Callable] = []
-        self._status_listeners: list[Callable[[], None]] = []
+        self._status_notifier = StatusNotifier(hass.loop, self._status_urgent_key)
+        """Pushes status changes to the bridge's diagnostic entities (throttled)."""
 
         self._stats = BridgeStats()
 
@@ -291,6 +293,9 @@ class SberBridge:
 
         self._pre_publish_backlog = 0
         """Inbound messages still to dispatch that were queued before this session's initial publish."""
+
+        self._session_ready = False
+        """True once this session's connect handshake is done: config published, reconnect guard armed."""
 
         # MQTT transport service: owns reconnect loop + publish + subscribe
         self._mqtt_service = MqttClientService(
@@ -320,6 +325,7 @@ class SberBridge:
             grace_timeout=RECONNECT_GRACE_TIMEOUT,
             audit_delay=self._ack_audit_delay,
             on_audit=self._run_ack_audit,
+            on_guard_expired=self._notify_status_listeners,
         )
 
         # Publish coordinator owns the three Sber publish flows and the
@@ -466,6 +472,7 @@ class SberBridge:
             published_ids: Entity ids that went out in the payload.
         """
         self._cloud_devices.note_published(published_ids)
+        self._notify_status_listeners()
         self._ack_audit.schedule_audit()
         unack = self.unacknowledged_entities
         if unack:
@@ -649,10 +656,14 @@ class SberBridge:
         self._mqtt_service._client = value
 
     def add_status_listener(self, callback_fn: Callable[[], None]) -> Callable[[], None]:
-        """Call ``callback_fn`` whenever the MQTT link goes up or down.
+        """Call ``callback_fn`` whenever a value of the bridge status may have changed.
 
-        Used by the bridge's own diagnostic entities, so a lost connection
-        shows up at once instead of on their next poll.
+        Used by the bridge's own diagnostic entities instead of polling:
+        the link, the connection phase, what the cloud knows, the Sber
+        error counter.  A change of the connection phase or of the link is
+        delivered at once; anything else is throttled by
+        :class:`~.status_notifier.StatusNotifier`, so a burst of MQTT
+        messages does not become a burst of state writes.
 
         Args:
             callback_fn: Zero-argument callable, run in the event loop.
@@ -660,20 +671,21 @@ class SberBridge:
         Returns:
             Callable that removes the listener.
         """
-        self._status_listeners.append(callback_fn)
+        return self._status_notifier.add_listener(callback_fn)
 
-        def _remove() -> None:
-            if callback_fn in self._status_listeners:
-                self._status_listeners.remove(callback_fn)
+    def _status_urgent_key(self) -> tuple[str, bool]:
+        """Return the part of the status whose change is pushed without delay."""
+        return (self.connection_phase, self.is_connected)
 
-        return _remove
-
+    @callback
     def _notify_status_listeners(self) -> None:
-        for listener in list(self._status_listeners):
-            try:
-                listener()
-            except Exception:  # pragma: no cover — an entity must never break the link handling
-                _LOGGER.exception("Bridge status listener failed")
+        """Tell the diagnostic entities that the bridge status may have changed."""
+        self._status_notifier.notify()
+
+    @property
+    def is_running(self) -> bool:
+        """Return True between :meth:`async_start` and :meth:`async_stop`."""
+        return self._running
 
     @property
     def config_entry(self) -> ConfigEntry:
@@ -692,7 +704,9 @@ class SberBridge:
         Phases:
             ``starting`` — HA not fully loaded, waiting for integrations.
             ``connecting`` — MQTT connection in progress.
-            ``awaiting_ack`` — connected, published config, waiting for Sber to acknowledge.
+            ``awaiting_ack`` — connected; the device config is still being
+            published, or Sber has not acknowledged it yet.  A session is
+            never ``ready`` before its connect handshake has finished.
             ``ready`` — fully operational, accepting commands.
             ``auth_failed`` — the broker refused the login or password;
             reconnecting is stopped until a reauth reloads the entry.
@@ -706,7 +720,7 @@ class SberBridge:
             return "starting"
         if not self.is_connected:
             return "connecting"
-        if self._ack_audit.is_awaiting:
+        if not self._session_ready or self._ack_audit.is_awaiting:
             return "awaiting_ack"
         return "ready"
 
@@ -803,6 +817,7 @@ class SberBridge:
             entity_ids: Entity ids the user removed from the bridge.
         """
         self._cloud_devices.forget(entity_ids)
+        self._notify_status_listeners()
 
     @property
     def cloud_device_registry_state(self) -> dict[str, Any]:
@@ -1274,6 +1289,7 @@ class SberBridge:
 
         if full_topic == SBER_GLOBAL_CONFIG_TOPIC:
             self._handle_global_config(body)
+            self._notify_status_listeners()
             return {"topic": full_topic, "handled": True, "suffix": "(global_config)"}
 
         handler = self._mqtt_dispatch.get(suffix)
@@ -1281,7 +1297,13 @@ class SberBridge:
             _LOGGER.warning("Inject: unhandled topic suffix %r", suffix)
             return {"topic": full_topic, "handled": False, "suffix": suffix}
 
-        await handler(body)
+        try:
+            await handler(body)
+        finally:
+            # Same contract as a real message (see _handle_mqtt_message):
+            # an injected error or status_request changes what the
+            # diagnostic entities show, and nothing else would push it.
+            self._notify_status_listeners()
         return {"topic": full_topic, "handled": True, "suffix": suffix}
 
     # ---------------------------------------------------------------------------
@@ -1459,6 +1481,7 @@ class SberBridge:
         if self._hass.is_running:
             _LOGGER.debug("HA already running — entities loaded, marking ready")
             self._ha_ready.set()
+            self._notify_status_listeners()
         else:
             self._unsub_lifecycle_listeners.append(
                 self._hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, self._on_homeassistant_started)
@@ -1516,7 +1539,9 @@ class SberBridge:
         self._config_gate.cancel()
         self._cloud_devices.shutdown()
         self._connected = False
+        self._session_ready = False
         self._notify_status_listeners()
+        self._status_notifier.shutdown()
 
     @callback
     def async_apply_entity_changes(self, reason: str, *, replace_redefinitions: bool = False) -> None:
@@ -1661,6 +1686,7 @@ class SberBridge:
         self._stats.acknowledged_entities &= valid_ids
 
         self._sync_deferred_confirms_after_load(valid_ids)
+        self._notify_status_listeners()
 
         # Only run repair checks after HA is fully started — during early
         # async_setup_entry many entities are still loading and linked
@@ -1733,6 +1759,7 @@ class SberBridge:
         # the loop publishes immediately — no duplicate publish needed here.
         if not self._ha_ready.is_set():
             self._ha_ready.set()
+            self._notify_status_listeners()
         else:
             # HA was already marked ready (shouldn't happen, but be safe) —
             # force republish since entities were just reloaded.
@@ -1781,11 +1808,16 @@ class SberBridge:
             client: Live ``aiomqtt.Client`` from the service.
         """
         self._pre_publish_backlog = 0
+        # Until the handshake below finishes, the phase reads "awaiting_ack"
+        # rather than "ready": the config has not reached Sber yet.
+        self._session_ready = False
         self._mark_connected()
         await self._subscribe_down_topics(client)
         await self._wait_for_ha_ready()
         await self._perform_initial_publish()
         self._ack_audit.activate_post_connect()
+        self._session_ready = True
+        self._notify_status_listeners()
         self._log_session_ready()
         # Message consumption is handled by MqttClientService itself —
         # it will call ``_handle_mqtt_message`` for each incoming message.
@@ -1972,6 +2004,7 @@ class SberBridge:
         self._connected = False
         self._mqtt_client = None
         self._pre_publish_backlog = 0
+        self._session_ready = False
         self._notify_status_listeners()
         # Cancel the pending silent-rejection audit: with the link down no
         # ack can physically arrive, so letting the timer fire would create
@@ -2055,6 +2088,20 @@ class SberBridge:
         self._entry.async_start_reauth(self._hass)
 
     async def _handle_mqtt_message(self, topic: str, payload: bytes) -> None:
+        """Route an incoming MQTT message, then report the status change.
+
+        Any message can change what the diagnostic entities show — an
+        error bumps the Sber error counter, a ``status_request`` confirms
+        devices and clears the reconnect guard — so the status listeners
+        are notified after every message, dropped ones included.  The
+        notifier throttles, so a burst of messages costs one state write.
+        """
+        try:
+            await self._route_mqtt_message(topic, payload)
+        finally:
+            self._notify_status_listeners()
+
+    async def _route_mqtt_message(self, topic: str, payload: bytes) -> None:
         """Route incoming MQTT messages to registered handlers.
 
         Uses a dispatch table (``_mqtt_dispatch``) keyed by topic suffix

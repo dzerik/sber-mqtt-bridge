@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 
-from .entity import SCAN_INTERVAL, SberBridgeDiagnosticEntity
+from .entity import SberBridgeDiagnosticEntity
 from .message_logger import parse_sber_error
 
 if TYPE_CHECKING:
@@ -18,7 +18,10 @@ if TYPE_CHECKING:
     from . import SberBridgeConfigEntry
     from .sber_bridge import SberBridge
 
-__all__ = ["SCAN_INTERVAL", "async_setup_entry"]
+__all__ = ["PARALLEL_UPDATES", "async_setup_entry"]
+
+PARALLEL_UPDATES = 0
+"""No limit: read-only entities pushed from the bridge's memory, nothing is requested."""
 
 PHASES = ["starting", "connecting", "awaiting_ack", "ready", "auth_failed", "disconnected"]
 """Every value :attr:`SberBridge.connection_phase` can take."""

@@ -53,7 +53,7 @@ from unittest.mock import patch
 import aiomqtt
 import pytest
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.const import EntityCategory
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -96,6 +96,8 @@ LAMP_TEMP = "sensor.lamp_temp"
 PUMP = "switch.pump"
 LAMP_DEVICE_NAME = "Lamp device"
 PUMP_DEVICE_NAME = "Pump device"
+ERRORS_TOPIC = f"{SBER_TOPIC_PREFIX}/test/down/errors"
+"""``down/errors`` topic of the bridge configured by the ``entry`` fixture."""
 
 
 # ---------------------------------------------------------------------------
@@ -1463,6 +1465,212 @@ class TestDiagnosticEntities:
         await bridge._handle_disconnect(RuntimeError("link lost"))
         await hass.async_block_till_done()
         assert hass.states.get(connected).state == "off"
+
+    @staticmethod
+    def _record_writes(hass: HomeAssistant, entity_ids: set[str]) -> list[tuple[str, str]]:
+        writes: list[tuple[str, str]] = []
+
+        # @callback: runs in the event loop at the write, in order — a plain
+        # function listener would run later in the executor.
+        @callback
+        def _on_state_changed(event: Any) -> None:
+            if event.data["entity_id"] in entity_ids:
+                writes.append((event.data["entity_id"], event.data["new_state"].state))
+
+        hass.bus.async_listen("state_changed", _on_state_changed)
+        return writes
+
+    async def test_platforms_are_push_based_with_unlimited_parallel_updates(
+        self, hass: HomeAssistant, entry: MockConfigEntry
+    ) -> None:
+        from homeassistant.helpers import entity_platform
+
+        from custom_components.sber_mqtt_bridge import binary_sensor, sensor
+
+        assert sensor.PARALLEL_UPDATES == 0
+        assert binary_sensor.PARALLEL_UPDATES == 0
+        entities = [
+            entity
+            for platform in entity_platform.async_get_platforms(hass, DOMAIN)
+            for entity in platform.entities.values()
+        ]
+        assert len(entities) == 6
+        assert all(entity.should_poll is False for entity in entities)
+
+        # Nothing re-reads the bridge on a timer: a value changed behind the
+        # bridge's back (no notification) stays as it was, however long we wait.
+        errors = self._own_entity_ids(hass, entry)["sber_errors"]
+        entry.runtime_data.bridge._stats.errors_from_sber = 7
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=5))
+        await hass.async_block_till_done()
+        assert hass.states.get(errors).state == "0"
+
+    async def test_sber_error_is_pushed_without_polling(self, hass: HomeAssistant, entry: MockConfigEntry) -> None:
+        ids = self._own_entity_ids(hass, entry)
+        bridge = entry.runtime_data.bridge
+        assert hass.states.get(ids["sber_errors"]).state == "0"
+
+        await bridge._handle_mqtt_message(ERRORS_TOPIC, b'{"code": 42, "message": "bad device"}')
+        await hass.async_block_till_done()
+
+        assert hass.states.get(ids["sber_errors"]).state == "1"
+        assert hass.states.get(ids["last_sber_error"]).state == "42"
+
+    async def test_message_burst_is_throttled_and_its_last_value_kept(
+        self, hass: HomeAssistant, entry: MockConfigEntry
+    ) -> None:
+        from custom_components.sber_mqtt_bridge.status_notifier import STATUS_UPDATE_COOLDOWN
+
+        errors = self._own_entity_ids(hass, entry)["sber_errors"]
+        bridge = entry.runtime_data.bridge
+        writes = self._record_writes(hass, {errors})
+
+        for _ in range(20):
+            await bridge._handle_mqtt_message(ERRORS_TOPIC, b"{}")
+        await hass.async_block_till_done()
+        assert writes == [(errors, "1")], "the first error is shown at once, the rest of the burst waits"
+
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=STATUS_UPDATE_COOLDOWN + 1))
+        await hass.async_block_till_done()
+        assert writes == [(errors, "1"), (errors, "20")]
+
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=3 * STATUS_UPDATE_COOLDOWN))
+        await hass.async_block_till_done()
+        assert len(writes) == 2, "a quiet bridge writes nothing more"
+
+    async def test_notification_that_changes_nothing_writes_nothing(
+        self, hass: HomeAssistant, entry: MockConfigEntry
+    ) -> None:
+        own = set(self._own_entity_ids(hass, entry).values())
+        writes = self._record_writes(hass, own)
+
+        # Counted (messages_received) but shown by no entity.
+        await entry.runtime_data.bridge._handle_mqtt_message(f"{SBER_TOPIC_PREFIX}/test/down/unknown", b"{}")
+        await hass.async_block_till_done()
+
+        assert writes == []
+
+    async def test_link_change_is_not_held_by_the_throttle(self, hass: HomeAssistant, entry: MockConfigEntry) -> None:
+        ids = self._own_entity_ids(hass, entry)
+        bridge = entry.runtime_data.bridge
+        await bridge._handle_mqtt_message(ERRORS_TOPIC, b"{}")  # opens a cooldown window
+        await hass.async_block_till_done()
+
+        bridge._mqtt_service._client = RecordingTransport()
+        bridge._mark_connected()
+        await hass.async_block_till_done()
+
+        assert hass.states.get(ids["connected"]).state == "on"
+
+    @staticmethod
+    def _connect_client(bridge: SberBridge) -> RecordingTransport:
+        """Give the bridge a live fake session, as MqttClientService does before its connect hook."""
+
+        class _Client(RecordingTransport):
+            messages: tuple[()] = ()
+
+            async def subscribe(self, topic: str) -> None:
+                return
+
+        client = _Client()
+        bridge._mqtt_service._client = client  # type: ignore[assignment]
+        bridge._mqtt_service._connected = True
+        return client
+
+    async def test_phase_follows_the_handshake_and_the_guard_timeout(
+        self, hass: HomeAssistant, entry: MockConfigEntry
+    ) -> None:
+        from custom_components.sber_mqtt_bridge.sber_bridge import RECONNECT_GRACE_TIMEOUT
+
+        phase = self._own_entity_ids(hass, entry)["phase"]
+        bridge = entry.runtime_data.bridge
+        assert hass.states.get(phase).state == "connecting"
+
+        client = self._connect_client(bridge)
+        await bridge._handle_mqtt_connected(client)  # type: ignore[arg-type]
+        await hass.async_block_till_done()
+        assert hass.states.get(phase).state == "awaiting_ack"
+
+        # Sber never answers: the guard's fallback timer clears it, with no
+        # MQTT message to carry the change.
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=RECONNECT_GRACE_TIMEOUT + 1))
+        await hass.async_block_till_done()
+        assert hass.states.get(phase).state == "ready"
+
+    async def test_phase_is_never_ready_before_sber_acknowledges_the_session(
+        self, hass: HomeAssistant, entry: MockConfigEntry
+    ) -> None:
+        phase = self._own_entity_ids(hass, entry)["phase"]
+        bridge = entry.runtime_data.bridge
+        writes = self._record_writes(hass, {phase})
+
+        client = self._connect_client(bridge)
+        await bridge._handle_mqtt_connected(client)  # type: ignore[arg-type]
+        await hass.async_block_till_done()
+        await bridge._handle_mqtt_message(f"{SBER_TOPIC_PREFIX}/test/down/status_request", b'{"devices": []}')
+        await hass.async_block_till_done()
+
+        assert [state for _, state in writes] == ["awaiting_ack", "ready"], (
+            "an automation on phase=ready fired before Sber had the device list"
+        )
+
+    async def test_phase_is_never_ready_when_ha_finishes_starting_mid_handshake(
+        self, hass: HomeAssistant, entry: MockConfigEntry
+    ) -> None:
+        phase = self._own_entity_ids(hass, entry)["phase"]
+        bridge = entry.runtime_data.bridge
+        bridge._ha_ready.clear()  # as after a cold HA start: connected before HA is up
+        writes = self._record_writes(hass, {phase})
+
+        client = self._connect_client(bridge)
+        handshake = asyncio.ensure_future(bridge._handle_mqtt_connected(client))  # type: ignore[arg-type]
+        async with asyncio.timeout(2):
+            while not writes:  # noqa: ASYNC110 — the handshake has no completion hook to await
+                await asyncio.sleep(0)
+        assert [state for _, state in writes] == ["starting"]
+        assert not handshake.done(), "the handshake must wait for HA before publishing"
+
+        bridge._on_homeassistant_started(None)  # type: ignore[arg-type]
+        await handshake
+        await hass.async_block_till_done()
+        await bridge.async_inject_sber_message("status_request", b'{"devices": []}')
+        await hass.async_block_till_done()
+
+        assert [state for _, state in writes] == ["starting", "awaiting_ack", "ready"]
+
+    async def test_injected_sber_messages_are_pushed_without_polling(
+        self, hass: HomeAssistant, entry: MockConfigEntry
+    ) -> None:
+        """DevTools Inject / Replay bypass the MQTT handler but change the same values."""
+        ids = self._own_entity_ids(hass, entry)
+        bridge = entry.runtime_data.bridge
+
+        await bridge.async_inject_sber_message("errors", b'{"code": 42}')
+        await hass.async_block_till_done()
+        assert hass.states.get(ids["sber_errors"]).state == "1"
+        assert hass.states.get(ids["last_sber_error"]).state == "42"
+
+        client = self._connect_client(bridge)
+        await bridge._handle_mqtt_connected(client)  # type: ignore[arg-type]
+        await hass.async_block_till_done()
+        assert hass.states.get(ids["phase"]).state == "awaiting_ack"
+        assert hass.states.get(ids["never_confirmed"]).state != "0"
+
+        await bridge.async_inject_sber_message("status_request", b'{"devices": []}')
+        await hass.async_block_till_done()
+        assert hass.states.get(ids["phase"]).state == "ready"
+        assert hass.states.get(ids["never_confirmed"]).state == "0"
+
+    async def test_entities_are_unavailable_once_the_bridge_stops(
+        self, hass: HomeAssistant, entry: MockConfigEntry
+    ) -> None:
+        ids = self._own_entity_ids(hass, entry)
+        assert all(hass.states.get(eid).state != "unavailable" for eid in ids.values())
+
+        await entry.runtime_data.bridge.async_stop()
+        await hass.async_block_till_done()
+
+        assert {key: hass.states.get(eid).state for key, eid in ids.items()} == dict.fromkeys(ids, "unavailable")
 
     async def test_own_entities_are_never_offered_for_export(
         self, hass: HomeAssistant, entry: MockConfigEntry, admin: Any

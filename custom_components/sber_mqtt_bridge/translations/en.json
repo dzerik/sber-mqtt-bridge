@@ -111,7 +111,7 @@
       },
       "awaiting_ack": {
         "label": "Awaiting Sber…",
-        "desc": "Connected, config published — waiting for Sber to acknowledge"
+        "desc": "Connected — sending the device config and waiting for Sber to acknowledge it"
       },
       "ready": {
         "label": "Ready",

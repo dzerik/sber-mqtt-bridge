@@ -586,7 +586,7 @@ export const EN_FALLBACK = {
   "phase.connecting.label": "Connecting…",
   "phase.connecting.desc": "Establishing MQTT connection to Sber cloud",
   "phase.awaiting_ack.label": "Awaiting Sber…",
-  "phase.awaiting_ack.desc": "Connected, config published — waiting for Sber to acknowledge",
+  "phase.awaiting_ack.desc": "Connected — sending the device config and waiting for Sber to acknowledge it",
   "phase.ready.label": "Ready",
   "phase.ready.desc": "Fully operational — accepting commands from Sber",
   "phase.auth_failed.label": "Login rejected",
