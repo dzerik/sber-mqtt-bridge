@@ -7,8 +7,12 @@ git clone https://github.com/dzerik/sber-mqtt-bridge.git
 cd sber-mqtt-bridge
 uv venv .venv
 source .venv/bin/activate
-uv pip install aiomqtt pytest pytest-asyncio pytest-homeassistant-custom-component pytest-cov ruff mypy
+uv pip install --constraint=.github/workflows/constraints.txt \
+  aiomqtt pytest pytest-asyncio pytest-homeassistant-custom-component pytest-cov ruff mypy
 ```
+
+`.github/workflows/constraints.txt` pins the same Home Assistant, ruff and mypy
+versions CI uses, so a local run reports what CI will.
 
 ## Running Tests
 
@@ -23,6 +27,11 @@ ruff check custom_components/
 ruff format custom_components/
 mypy custom_components/sber_mqtt_bridge/
 ```
+
+CI runs all three and fails on any finding.  mypy is a ratchet: modules that
+had type errors when the check was introduced are listed under
+`[[tool.mypy.overrides]]` in `pyproject.toml`.  Remove a module from that list
+once it is clean; never add one — new code must type-check.
 
 ## Adding a New Device Type
 

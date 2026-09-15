@@ -126,7 +126,7 @@ import json
 import logging
 import time
 from collections import deque
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
@@ -1601,7 +1601,7 @@ class ValidationCollector:
         payload: str | dict[str, Any],
         *,
         categories: dict[str, str] | None = None,
-        declared_features: dict[str, Iterable[str]] | None = None,
+        declared_features: Mapping[str, Iterable[str]] | None = None,
         check_completeness: bool = False,
     ) -> dict[str, list[ValidationIssue]]:
         """Parse a full Sber publish payload and record per-device issues.

@@ -67,7 +67,7 @@ def build_command_schema(entity: BaseEntity) -> list[dict[str, Any]]:
             if step is not None:
                 item["step"] = step
         elif value_type == "ENUM":
-            values = (spec.get("enum_values") or {}).get("values") or FEATURE_ENUM_VALUES.get(key, ())
+            values = (spec.get("enum_values") or {}).get("values") or FEATURE_ENUM_VALUES.get(key) or ()
             item["enum_values"] = sorted(values)
         elif value_type == "COLOUR":
             item["components"] = {name: list(bounds) for name, bounds in COLOUR_COMPONENT_RANGES.items()}

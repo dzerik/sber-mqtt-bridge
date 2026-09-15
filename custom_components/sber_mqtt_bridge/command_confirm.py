@@ -129,8 +129,8 @@ def values_match(sent: dict[str, Any], reported: dict[str, Any], tolerance: floa
             if a is None or b is None or abs(a - b) > slack:
                 return False
         return True
-    field_name = {"BOOL": "bool_value", "ENUM": "enum_value", "STRING": "string_value"}.get(str(kind))
-    return field_name is not None and sent.get(field_name) == reported.get(field_name)
+    plain_field = {"BOOL": "bool_value", "ENUM": "enum_value", "STRING": "string_value"}.get(str(kind))
+    return plain_field is not None and sent.get(plain_field) == reported.get(plain_field)
 
 
 def _state_entries(states: Iterable[Any]) -> Iterable[tuple[str, dict[str, Any]]]:

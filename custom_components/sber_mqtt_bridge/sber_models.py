@@ -909,7 +909,7 @@ def missing_obligatory_features(category: str, features: set[str]) -> set[str]:
     obligatory = _effective_obligatory_features(category)
     if obligatory is None:
         return set()
-    return obligatory - set(features)
+    return set(obligatory - set(features))
 
 
 def unknown_features_for_category(category: str, features: set[str]) -> set[str]:

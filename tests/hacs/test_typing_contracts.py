@@ -1,17 +1,13 @@
 """Тесты типизации: mypy-гейт и контракт ``DeviceData``.
 
-CLAUDE.md называет ``mypy custom_components/sber_mqtt_bridge/`` штатным шагом,
-но до сих пор ни один прогон его не выполнял — ни CI, ни pre-commit, ни тесты.
-Файл закрывает эту дыру для модулей «инфраструктурного» слоя (загрузчик
+Полный гейт — ``mypy custom_components/sber_mqtt_bridge/`` — выполняет CI
+(шаг «Mypy» в ``.github/workflows/ci.yaml``); модули, где ошибки типов ещё
+есть, перечислены в ``[[tool.mypy.overrides]]`` в pyproject.toml.  Этот тест —
+быстрая локальная проверка модулей «инфраструктурного» слоя (загрузчик
 сущностей, диспетчер команд, форвардер состояний, WebSocket API): если кто-то
 вернёт в них аннотацию ``object`` вместо реального типа или уронит narrowing —
-падает :func:`test_infrastructure_modules_typecheck_clean`, а не молчаливый
-конфиг, который никто не запускает.
-
-Устройства (``devices/``), ``sber_bridge.py``, ``sber_publisher.py``,
-``schema_validator.py`` и ``sber_models.py`` в список намеренно НЕ входят:
-там ошибки типов пока есть, и гейт по ним был бы вечно красным.  Список
-расширяется по мере починки соседних слоёв.
+падает :func:`test_infrastructure_modules_typecheck_clean` ещё до CI.  Если
+mypy не установлен, тест пропускается.
 """
 
 from __future__ import annotations
@@ -45,16 +41,6 @@ TYPED_MODULES = (
 )
 """Модули, для которых mypy обязан быть зелёным."""
 
-MYPY_PYTHON_VERSION = "3.14"
-"""Версия синтаксиса для mypy.
-
-``[tool.mypy] python_version = "3.13"`` в pyproject.toml делает прогон
-невозможным: mypy разбирает исходники установленного Home Assistant, а те
-используют синтаксис 3.14 (``except`` без скобок в ``config_entries.py``), и
-проверка падает на первом же файле, не дойдя до нашего кода.  Тесты проекта
-всё равно идут на 3.14 — флаг командной строки перекрывает конфиг.
-"""
-
 MYPY_CACHE_DIR = Path(tempfile.gettempdir()) / "sber-mqtt-bridge-mypy-cache"
 """Кэш вне репозитория: повторный прогон занимает секунды, а рабочее дерево
 не обрастает неотслеживаемым ``.mypy_cache/``."""
@@ -77,8 +63,6 @@ def test_infrastructure_modules_typecheck_clean() -> None:
             sys.executable,
             "-m",
             "mypy",
-            "--python-version",
-            MYPY_PYTHON_VERSION,
             "--cache-dir",
             str(MYPY_CACHE_DIR),
             *TYPED_MODULES,

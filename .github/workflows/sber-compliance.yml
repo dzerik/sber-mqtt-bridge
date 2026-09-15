@@ -9,18 +9,26 @@ on:
     - cron: "7 6 * * 1"  # Mondays 06:07 UTC
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 jobs:
   fetch-and-check:
     name: Fetch Sber schemas + detect drift
     runs-on: ubuntu-latest
+    permissions:
+      # Only the final step needs these: it pushes bot/sber-spec-drift and
+      # opens the drift PR.
+      contents: write
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The scraper and codegen run before the PR step; keep the write
+          # token out of .git/config while they do.  create-pull-request
+          # configures its own git auth from its `token` input.
+          persist-credentials: false
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
 
@@ -95,7 +103,7 @@ jobs:
 
       - name: Create drift PR
         if: steps.drift.outputs.drift == 'true'
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           branch: bot/sber-spec-drift
           delete-branch: true

@@ -61,7 +61,13 @@ ignore = [
 "tests/**" = ["S101", "S106"]
 
 [tool.mypy]
-python_version = "3.13"
+# Must match the interpreter Home Assistant is installed into: HA 2026.4+
+# requires Python 3.14 and its sources use 3.14-only syntax (unparenthesised
+# `except A, B:`), so with "3.13" mypy aborts on a syntax error inside
+# homeassistant/ before checking a single module of ours.  The integration
+# itself still runs on 3.13 — this only selects the grammar mypy parses with;
+# 3.13-compatible syntax in our code is enforced by ruff `target-version`.
+python_version = "3.14"
 show_error_codes = true
 follow_imports = "silent"
 strict_equality = true
@@ -74,6 +80,31 @@ disallow_incomplete_defs = true
 disallow_untyped_defs = true
 warn_return_any = true
 disable_error_code = ["import-not-found", "import-untyped"]
+
+# ratchet: remove a module once it is clean; new modules must pass.
+# These modules had type errors when mypy was added to CI (CI runs
+# `mypy custom_components/sber_mqtt_bridge/`).  Everything not listed here
+# is checked strictly and must stay clean.  Never add a module to this
+# list to get a PR green — fix the types instead.  Module names have no
+# `custom_components.` prefix: that directory is not a package, so mypy
+# roots the modules at `sber_mqtt_bridge`.
+[[tool.mypy.overrides]]
+module = [
+    "sber_mqtt_bridge.devices.base_entity",
+    "sber_mqtt_bridge.devices.battery_signal_mixin",
+    "sber_mqtt_bridge.devices.climate",
+    "sber_mqtt_bridge.devices.curtain",
+    "sber_mqtt_bridge.devices.fan_speed_mixin",
+    "sber_mqtt_bridge.devices.humidifier",
+    "sber_mqtt_bridge.devices.humidity_sensor",
+    "sber_mqtt_bridge.devices.light",
+    "sber_mqtt_bridge.devices.on_off_entity",
+    "sber_mqtt_bridge.devices.sensor_air",
+    "sber_mqtt_bridge.devices.sensor_temp",
+    "sber_mqtt_bridge.devices.tv",
+    "sber_mqtt_bridge.devices.vacuum_cleaner",
+]
+ignore_errors = true
 
 # NOTE: this section is NOT the effective pytest config.  Every invocation
 # targets `tests/hacs/`, so pytest picks `tests/hacs/pytest.ini` as its

@@ -13,7 +13,7 @@ import asyncio
 import logging
 import math
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from functools import cached_property
@@ -1097,7 +1097,7 @@ class SberBridge:
         """Clear the DevTools message log (delegates to hub)."""
         self._devtools.clear_message_log()
 
-    def _load_settings_from_options(self, options: dict) -> None:
+    def _load_settings_from_options(self, options: Mapping[str, Any]) -> None:
         """Load operational settings from ``config_entry.options`` dict.
 
         Drives attribute assignment from ``SETTINGS_DEFAULTS`` so that every
@@ -1122,7 +1122,7 @@ class SberBridge:
             options.get(CONF_HA_SERIAL_NUMBER, SETTINGS_DEFAULTS[CONF_HA_SERIAL_NUMBER])
         )
         # verify_ssl has a special path: config_entry.data fallback for migrated entries
-        self._verify_ssl: bool = bool(
+        self._verify_ssl = bool(
             options.get(
                 CONF_SBER_VERIFY_SSL,
                 self._entry.data.get(CONF_SBER_VERIFY_SSL, SETTINGS_DEFAULTS[CONF_SBER_VERIFY_SSL]),
@@ -1360,7 +1360,7 @@ class SberBridge:
         from homeassistant.helpers import instance_id
 
         full_uuid = await instance_id.async_get(self._hass)
-        self._ha_instance_id_prefix: str = full_uuid[:8]
+        self._ha_instance_id_prefix = full_uuid[:8]
         self._load_exposed_entities()
         self._subscribe_ha_events()
         self._unsub_lifecycle_listeners.append(

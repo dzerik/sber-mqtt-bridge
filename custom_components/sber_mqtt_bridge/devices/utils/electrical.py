@@ -178,7 +178,7 @@ def to_sber_energy_value(
             "(expected one of %s) — the reading is ignored; link a sensor that measures %s",
             feature,
             unit,
-            sorted(spec.converter.VALID_UNITS),
+            sorted(str(valid) for valid in spec.converter.VALID_UNITS if valid is not None),
             feature,
         )
         return None

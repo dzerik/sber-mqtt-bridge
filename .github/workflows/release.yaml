@@ -5,10 +5,9 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: write
-  # Required by sigstore/gh-action-sigstore-python for keyless OIDC signing.
-  id-token: write
+# Nothing by default; each job asks for exactly what it needs.  The CI gate
+# only reads the code, so it must not inherit the release job's write token.
+permissions: {}
 
 jobs:
   # Gate: the full CI workflow (lint + test matrix) must be green for the
@@ -17,14 +16,25 @@ jobs:
   ci:
     name: CI
     uses: ./.github/workflows/ci.yaml
+    permissions:
+      contents: read
 
   release:
     name: Create Release
     needs: ci
     runs-on: ubuntu-latest
+    permissions:
+      # Upload the GitHub release and its assets.
+      contents: write
+      # Required by sigstore/gh-action-sigstore-python for keyless OIDC signing.
+      id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes with git; do not leave the write token in
+          # .git/config for the build steps.
+          persist-credentials: false
 
       - name: Extract version from tag
         id: version
@@ -50,7 +60,7 @@ jobs:
       # (older v3.0.x wrote <input>.sigstore) — any downstream consumer
       # can verify it with `sigstore verify identity`.
       - name: Sign release artifact (sigstore)
-        uses: sigstore/gh-action-sigstore-python@v3.5.0
+        uses: sigstore/gh-action-sigstore-python@790bc6befb9d733738f18d8f895854b453640ec9 # v3.5.0
         with:
           inputs: sber_mqtt_bridge.zip
 
@@ -74,7 +84,7 @@ jobs:
           fi
 
       - name: Create Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           generate_release_notes: true
           files: |
