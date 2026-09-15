@@ -58,7 +58,14 @@ async def test_create_entry_success(mock_validate, hass: HomeAssistant) -> None:
     """Test successful entry creation."""
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], MOCK_USER_INPUT)
+    # The created entry is set up right away; a real bridge would start an
+    # MQTT client whose socket attempt races the test teardown (flaky
+    # "the test opens sockets" error under a loaded xdist run).
+    with (
+        patch("custom_components.sber_mqtt_bridge.async_setup_entry", return_value=True),
+        patch("custom_components.sber_mqtt_bridge.async_unload_entry", return_value=True),
+    ):
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], MOCK_USER_INPUT)
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Sber (test_user)"
