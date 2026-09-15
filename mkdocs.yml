@@ -81,6 +81,7 @@ nav:
   - Configuration: configuration.md
   - Supported Devices: devices.md
   - Troubleshooting: troubleshooting.md
+  - Removal: removal.md
   - Sber C2C Spec:
       - Overview: sber-c2c-spec/README.md
       - Data Structures: sber-c2c-spec/data-structures.md
