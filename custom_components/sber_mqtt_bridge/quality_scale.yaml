@@ -2,53 +2,93 @@ rules:
   # Bronze
   action-setup:
     status: exempt
-    comment: No custom service actions
+    comment: No service actions are registered; the panel talks to the bridge over WebSocket commands
   appropriate-polling:
-    status: exempt
-    comment: Push-based via MQTT, not polling
+    status: done
+    comment: >-
+      Only the diagnostic entities poll, reading in-memory bridge counters every 30 s
+      (entity.py SCAN_INTERVAL); connection changes are pushed at once via a status listener
   brands:
-    status: todo
+    status: done
+    comment: Local brand images in brand/ (icon, logo, @2x), shown by HA 2026.3+
   common-modules: done
-  config-flow: done
-  config-flow-test-coverage: done
+  config-flow:
+    status: todo
+    comment: >-
+      The user step has data_description for every field, the reauth_confirm step does not
+      (strings.json config.step.reauth_confirm)
+  config-flow-test-coverage:
+    status: todo
+    comment: >-
+      config_flow.py is at 93% (options flow branches uncovered); the rule requires full
+      coverage (tests/hacs/test_config_flow.py, test_config_flow_options.py)
   dependency-transparency: done
   docs-actions:
     status: exempt
-    comment: No custom service actions
+    comment: No service actions are registered
+  docs-conditions:
+    status: exempt
+    comment: No conditions are provided
   docs-high-level-description: done
   docs-installation-instructions: done
-  docs-removal-instructions: done
+  docs-removal-instructions:
+    status: todo
+    comment: Neither README.md, README_ENG.md nor docs/ explain how to remove the integration
+  docs-triggers:
+    status: exempt
+    comment: No triggers are provided
   entity-event-setup: done
-  entity-unique-id:
-    status: exempt
-    comment: Service integration, does not create HA entities
-  has-entity-name:
-    status: exempt
-    comment: Service integration, does not create HA entities
+  entity-unique-id: done
+  has-entity-name: done
   runtime-data: done
   test-before-configure: done
-  test-before-setup: done
-  unique-config-entry: done
+  test-before-setup:
+    status: todo
+    comment: >-
+      async_setup_entry (__init__.py) starts a background reconnect loop and returns True
+      without checking the broker; bad credentials or an unreachable broker surface only
+      later, never as ConfigEntryNotReady / ConfigEntryAuthFailed at setup
+  unique-config-entry:
+    status: done
+    comment: single_config_entry in manifest.json; the config flow also sets the MQTT login as unique_id
 
   # Silver
   action-exceptions:
     status: exempt
-    comment: No custom service actions
+    comment: No service actions are registered
   config-entry-unloading: done
-  docs-configuration-parameters: done
+  docs-configuration-parameters:
+    status: todo
+    comment: >-
+      The options flow "Device sync timing" step (config_settle_delay, config_max_wait in
+      config_flow.py async_step_device_sync) is not documented
   docs-installation-parameters: done
   entity-unavailable:
     status: exempt
-    comment: Service integration, does not create HA entities
+    comment: >-
+      The only entities are diagnostics of the bridge itself, read from its in-memory state,
+      which is always readable; a lost Sber link is their value (binary_sensor.py connected,
+      sensor.py phase), not a reason to go unavailable
   integration-owner: done
-  log-when-unavailable: done
+  log-when-unavailable:
+    status: todo
+    comment: >-
+      A WARNING is logged on every reconnect attempt (sber_bridge.py _handle_disconnect), and an
+      unexpected error logs its traceback twice (mqtt_client_service.py run loop and
+      sber_bridge.py _handle_disconnect)
   parallel-updates:
-    status: exempt
-    comment: Push-based, not polling
-  reauthentication-flow: done
-  test-coverage:
+    status: todo
+    comment: PARALLEL_UPDATES is not set in binary_sensor.py or sensor.py
+  reauthentication-flow:
     status: done
-    comment: 82% coverage, 219 tests (target was 80%)
+    comment: >-
+      A refused login stops reconnecting and starts reauth (sber_bridge.py _handle_auth_failure);
+      config_flow.py async_step_reauth_confirm (tests/hacs/test_config_flow.py)
+  test-coverage:
+    status: todo
+    comment: >-
+      97.7% overall, but below 95% in __init__.py, command_schema.py, config_flow.py,
+      websocket_api/io_export.py, websocket_api/links.py, websocket_api/status.py
 
   # Gold (future)
   diagnostics:
