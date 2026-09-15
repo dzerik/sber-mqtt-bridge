@@ -14,10 +14,11 @@ publish, ack-guard, message routing) is injected via hooks.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import random
 import ssl
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -60,8 +61,11 @@ class MqttServiceHooks:
         on_message: Invoked for every incoming MQTT message (topic, payload).
         on_connected: Invoked once per successful handshake; used by the
             bridge to perform initial publish + subscription setup.
-        on_disconnected: Invoked after an MQTT / network error; returns
-            ``True`` to continue reconnect loop, ``False`` to stop.
+        on_disconnected: Invoked after an MQTT / network error with the error
+            and whether it was unexpected (not an ``aiomqtt.MqttError``);
+            returns ``True`` to continue reconnect loop, ``False`` to stop.
+            The service does not log these errors itself: the hook owns the
+            logging, so each failure (and each traceback) is reported once.
     """
 
     on_message: Callable[[str, bytes], Awaitable[None]]
@@ -117,6 +121,8 @@ class MqttClientService:
 
         self._client: aiomqtt.Client | None = None
         self._connected = False
+        self._pending_session: tuple[contextlib.AsyncExitStack, aiomqtt.Client] | None = None
+        """Session opened by :meth:`async_connect` that :meth:`run` has not taken over yet."""
         self._running = False
         self._stable_handle: asyncio.TimerHandle | None = None
         """Pending "session is stable" timer that resets the backoff; ``None`` when disarmed."""
@@ -167,6 +173,98 @@ class MqttClientService:
             verify_ssl=verify_ssl,
         )
 
+    async def async_connect(self, connect_timeout: float) -> None:
+        """Open the first session up front and keep it for :meth:`run`.
+
+        Used by the integration setup to find out whether the broker can be
+        reached with the configured credentials before the entry is
+        considered loaded.  The connected client is not thrown away: the
+        next :meth:`run` continues with it instead of connecting again, so a
+        successful check costs exactly one connection.
+
+        The attempt is bounded by ``connect_timeout``.  A connection that is still
+        being established when the time is up (or when the caller is
+        cancelled) is not interrupted — cancelling ``aiomqtt`` in the middle
+        of its executor-side socket connect can leave a socket open behind
+        it — but abandoned: it finishes on its own and, if it succeeds, is
+        closed straight away.
+
+        Args:
+            connect_timeout: Seconds the whole attempt (SSL context included) may take.
+
+        Raises:
+            aiomqtt.MqttError: The broker refused the connection or could not
+                be reached (use :func:`.mqtt_errors.is_auth_failure` to tell a
+                refused login from a transient failure).
+            TimeoutError: The broker did not complete the handshake in time.
+        """
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + connect_timeout
+        async with asyncio.timeout_at(deadline):
+            ssl_context = await self._hass.async_add_executor_job(create_ssl_context, self._credentials.verify_ssl)
+        stack = contextlib.AsyncExitStack()
+        attempt = self._hass.async_create_background_task(
+            self._enter_session(stack, self._build_client(ssl_context)),
+            "sber_mqtt_first_connect",
+            eager_start=True,
+        )
+        try:
+            done, _ = await asyncio.wait((attempt,), timeout=max(deadline - loop.time(), 0.0))
+        except asyncio.CancelledError:
+            self._abandon_attempt(attempt, stack)
+            raise
+        if not done:
+            self._abandon_attempt(attempt, stack)
+            raise TimeoutError(
+                f"Sber MQTT broker {self._credentials.broker}:{self._credentials.port} "
+                f"did not answer within {connect_timeout:g}s"
+            )
+        self._pending_session = (stack, attempt.result())
+
+    @staticmethod
+    async def _enter_session(stack: contextlib.AsyncExitStack, client: aiomqtt.Client) -> aiomqtt.Client:
+        """Connect ``client`` under ``stack``, which then owns the disconnect."""
+        await stack.enter_async_context(client)
+        return client
+
+    def _abandon_attempt(self, attempt: asyncio.Task[aiomqtt.Client], stack: contextlib.AsyncExitStack) -> None:
+        """Let a connection attempt nobody waits for finish, then close what it opened."""
+
+        def _on_done(task: asyncio.Task[aiomqtt.Client]) -> None:
+            if task.cancelled() or task.exception() is not None:
+                return
+            self._hass.async_create_background_task(
+                self._close_session(stack), "sber_mqtt_abandoned_connect_close", eager_start=True
+            )
+
+        attempt.add_done_callback(_on_done)
+
+    @staticmethod
+    async def _close_session(stack: contextlib.AsyncExitStack) -> None:
+        """Disconnect a session no loop runs on; a failing disconnect is not an error."""
+        try:
+            await stack.aclose()
+        except aiomqtt.MqttError:  # the session is being discarded either way
+            _LOGGER.debug("Closing an unused Sber MQTT session failed", exc_info=True)
+
+    @contextlib.asynccontextmanager
+    async def _session(self) -> AsyncIterator[aiomqtt.Client]:
+        """Yield a connected client: the session from :meth:`async_connect` or a new one.
+
+        The SSL context of a new session is rebuilt on every attempt so a
+        runtime ``verify_ssl`` change (:meth:`update_verify_ssl`) takes
+        effect on the next reconnect.
+        """
+        pending, self._pending_session = self._pending_session, None
+        if pending is not None:
+            stack, client = pending
+            async with stack:
+                yield client
+            return
+        ssl_context = await self._hass.async_add_executor_job(create_ssl_context, self._credentials.verify_ssl)
+        async with self._build_client(ssl_context) as client:
+            yield client
+
     async def run(self) -> None:
         """Maintain a persistent MQTT connection until ``stop()`` is called.
 
@@ -181,19 +279,17 @@ class MqttClientService:
         away must see the delay grow to ``reconnect_max`` like any other
         failure.
 
-        The SSL context is rebuilt on every connection attempt so a runtime
-        ``verify_ssl`` change (:meth:`update_verify_ssl`) takes effect on
-        the next reconnect.  Any non-cancellation exception is treated as a
-        recoverable connection failure: the loop never dies silently.
+        The first iteration continues the session opened by
+        :meth:`async_connect`, if any (see :meth:`_session`).  Any
+        non-cancellation exception is treated as a recoverable connection
+        failure: the loop never dies silently.  Errors are reported through
+        ``hooks.on_disconnected`` only, which logs them.
         """
         self._running = True
         try:
             while self._running:
                 try:
-                    ssl_context = await self._hass.async_add_executor_job(
-                        create_ssl_context, self._credentials.verify_ssl
-                    )
-                    async with self._build_client(ssl_context) as client:
+                    async with self._session() as client:
                         self._client = client
                         self._connected = True
                         self._arm_stable_timer()
@@ -210,8 +306,10 @@ class MqttClientService:
                         break
                 except asyncio.CancelledError:
                     break
-                except Exception as err:  # last-resort barrier: reconnect loop must survive
-                    _LOGGER.exception("Unexpected error in MQTT connection loop")
+                except Exception as err:  # noqa: BLE001 — last-resort barrier, logged by the hook
+                    # Not logged here: the on_disconnected hook reports it
+                    # (with its traceback) — logging in both places printed
+                    # every unexpected error twice.
                     if not await self._after_error(err, unexpected=True):
                         break
         finally:
@@ -257,8 +355,15 @@ class MqttClientService:
         self._reconnect_interval = self._reconnect_min
 
     async def stop(self) -> None:
-        """Request the reconnect loop to exit at the next opportunity."""
+        """Request the reconnect loop to exit at the next opportunity.
+
+        Also closes the session opened by :meth:`async_connect` when
+        :meth:`run` never took it over (setup failed after connecting).
+        """
         self._running = False
+        pending, self._pending_session = self._pending_session, None
+        if pending is not None:
+            await self._close_session(pending[0])
 
     def _build_client(self, ssl_context: ssl.SSLContext) -> aiomqtt.Client:
         """Construct a fresh ``aiomqtt.Client`` configured for Sber broker."""

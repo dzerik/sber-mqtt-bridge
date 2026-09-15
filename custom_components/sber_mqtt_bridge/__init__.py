@@ -7,20 +7,23 @@ import pathlib
 from dataclasses import dataclass
 from typing import Any
 
+import aiomqtt
 import voluptuous as vol
 from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError, ConfigEntryNotReady
 
 from .cloud_device_registry import CloudDeviceRegistry, ModelIdentityMigration
 from .conflict import async_track_conflicts
+from .const import CONF_SBER_BROKER, CONF_SBER_LOGIN, CONF_SBER_PORT
 from .const import DOMAIN as DOMAIN
 from .custom_capabilities import YAML_CONFIG_KEY, YAML_CONFIG_SCHEMA, parse_yaml_config
+from .mqtt_errors import is_auth_failure
 from .repairs import async_delete_all_issues
-from .sber_bridge import SberBridge
+from .sber_bridge import SETUP_CONNECT_TIMEOUT, SberBridge
 from .sber_protocol import VERSION as INTEGRATION_VERSION
 from .websocket_api import async_setup_websocket_api
 
@@ -164,14 +167,65 @@ def _release_single_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         domain_data.pop(ACTIVE_ENTRY_KEY)
 
 
+async def _async_connect_bridge(bridge: SberBridge, entry: SberBridgeConfigEntry) -> None:
+    """Make the setup's connection check and translate its failure for HA.
+
+    The session opened here is kept by the bridge (see
+    :meth:`.SberBridge.async_connect`).  A refused login or password is the
+    only failure retrying cannot fix, so it asks the user for new
+    credentials; everything else — broker or network down, TLS failure, no
+    answer in time — is left to HA's setup retry with backoff.
+
+    Args:
+        bridge: Bridge created for ``entry``, not started yet.
+        entry: Config entry being set up.
+
+    Raises:
+        ConfigEntryAuthFailed: The broker refused the credentials; HA starts
+            the reauth flow.
+        ConfigEntryNotReady: The broker could not be reached in time.
+    """
+    broker = f"{entry.data[CONF_SBER_BROKER]}:{entry.data[CONF_SBER_PORT]}"
+    try:
+        await bridge.async_connect()
+    except aiomqtt.MqttError as err:
+        if is_auth_failure(err):
+            raise ConfigEntryAuthFailed(
+                translation_domain=DOMAIN,
+                translation_key="invalid_auth",
+                translation_placeholders={"broker": broker, "login": entry.data[CONF_SBER_LOGIN]},
+            ) from err
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="cannot_connect",
+            translation_placeholders={"broker": broker, "error": str(err)},
+        ) from err
+    except TimeoutError as err:
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="connect_timeout",
+            translation_placeholders={"broker": broker, "timeout": f"{SETUP_CONNECT_TIMEOUT:g}"},
+        ) from err
+    except OSError as err:
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="cannot_connect",
+            translation_placeholders={"broker": broker, "error": str(err)},
+        ) from err
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> bool:
     """Set up Sber MQTT Bridge from a config entry.
 
-    The bridge starts in background-reconnect mode: entity loading and HA event
-    subscription happen immediately, while the MQTT connection is established
-    asynchronously. Connection failures are logged and retried with backoff.
+    The broker is checked first (HA quality rule ``test-before-setup``):
+    one connection attempt bounded by
+    :data:`~.sber_bridge.SETUP_CONNECT_TIMEOUT`, made before the bridge
+    loads entities or subscribes to anything, so a failed check leaves
+    nothing to undo.  The connected session is kept and the bridge runs on
+    it; losing the connection later is handled by the bridge's own
+    reconnect loop and does not unload the entry.
 
-    Every step after ``bridge.async_start()`` is rolled back on failure: a
+    Every step after the connection check is rolled back on failure: a
     started bridge holds an MQTT client, background tasks and
     ``state_changed`` subscriptions, so leaving it running for an entry HA
     considers *not loaded* would keep publishing to Sber from a dead entry
@@ -187,14 +241,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
     Raises:
         ConfigEntryError: Another config entry of this integration already
             runs the bridge (see :func:`_claim_single_entry`).
-        ConfigEntryNotReady: If frontend/WebSocket registration failed; the
-            bridge is stopped first and HA retries the whole setup.
+        ConfigEntryAuthFailed: The broker refused the login or password.
+        ConfigEntryNotReady: The broker could not be reached, or
+            frontend/WebSocket registration failed; the bridge is stopped
+            first and HA retries the whole setup.
     """
     _claim_single_entry(hass, entry)
     try:
         _async_migrate_model_identity(hass, entry)
         bridge = SberBridge(hass, entry)
-        await bridge.async_start()
+        await _async_connect_bridge(bridge, entry)
+        try:
+            await bridge.async_start()
+        except BaseException:
+            # The connected session (and whatever the start got to) must not
+            # outlive the failed setup; the original error is re-raised.
+            await _async_stop_quietly(bridge)
+            raise
     except BaseException:
         _release_single_entry(hass, entry)
         raise
@@ -253,6 +316,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
         raise ConfigEntryNotReady(f"Sber MQTT Bridge frontend registration failed: {err}") from err
 
     return True
+
+
+async def _async_stop_quietly(bridge: SberBridge) -> None:
+    """Stop ``bridge`` during a setup rollback without masking the original error.
+
+    Args:
+        bridge: Bridge whose start failed.
+    """
+    try:
+        await bridge.async_stop()
+    except Exception:  # the setup error being propagated matters more
+        _LOGGER.exception("Stopping the Sber MQTT Bridge after a failed start raised")
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> bool:

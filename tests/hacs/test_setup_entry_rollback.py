@@ -44,6 +44,7 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 def fake_bridge():
     """Replace SberBridge with a mock exposing async start/stop."""
     bridge = MagicMock()
+    bridge.async_connect = AsyncMock()
     bridge.async_start = AsyncMock()
     bridge.async_stop = AsyncMock()
     with patch("custom_components.sber_mqtt_bridge.SberBridge", return_value=bridge):
@@ -119,11 +120,11 @@ async def test_static_path_failure_stops_the_bridge(hass: HomeAssistant, fake_br
 
 @pytest.mark.asyncio(loop_scope="function")
 async def test_bridge_start_failure_is_not_masked(hass: HomeAssistant, fake_bridge, fake_http) -> None:
-    """Failures of ``async_start`` itself propagate unchanged.
+    """Failures of ``async_start`` itself propagate unchanged, and the bridge is stopped once.
 
-    The rollback guard must not widen its scope over the start call, or a
-    half-started bridge would be stopped twice and the original error type
-    would be lost.
+    The setup's connection check has already opened the MQTT session the
+    bridge runs on, so a failing start must not leave it open; the original
+    error type must still reach HA.
     """
     entry = _entry(hass)
     fake_bridge.async_start.side_effect = OSError("broker unreachable")
@@ -134,7 +135,23 @@ async def test_bridge_start_failure_is_not_masked(hass: HomeAssistant, fake_brid
     ):
         await async_setup_entry(hass, entry)
 
-    fake_bridge.async_stop.assert_not_awaited()
+    fake_bridge.async_stop.assert_awaited_once()
+    assert ACTIVE_ENTRY_KEY not in hass.data[DOMAIN]
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_failing_stop_does_not_mask_start_failure(
+    hass: HomeAssistant, fake_bridge, fake_http, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A rollback stop that raises is logged; HA still gets the start error."""
+    entry = _entry(hass)
+    fake_bridge.async_start.side_effect = OSError("storage broken")
+    fake_bridge.async_stop.side_effect = RuntimeError("stop broken")
+
+    with pytest.raises(OSError, match="storage broken"):
+        await async_setup_entry(hass, entry)
+
+    assert "after a failed start raised" in caplog.text
 
 
 # ---------------------------------------------------------------------------

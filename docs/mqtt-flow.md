@@ -4,15 +4,19 @@
 
 ```mermaid
 stateDiagram-v2
-    [*] --> async_start: Integration loaded
+    [*] --> SetupCheck: async_setup_entry
+
+    SetupCheck --> [*]: refused login → ConfigEntryAuthFailed (reauth)
+    SetupCheck --> [*]: unreachable / 10s timeout → ConfigEntryNotReady (HA retries)
+    SetupCheck --> async_start: bridge.async_connect() OK — session kept
 
     async_start --> LoadEntities: _load_exposed_entities()
     LoadEntities --> SubscribeHA: _subscribe_ha_events()
     SubscribeHA --> MqttLoop: asyncio.create_task(_mqtt_connection_loop)
 
     state MqttLoop {
-        [*] --> Connecting: aiomqtt.Client()
-        Connecting --> Connected: TLS handshake OK
+        [*] --> Connected: first session = the one from the setup check
+        Connecting --> Connected: TLS handshake OK (reconnects)
         Connected --> Subscribe: client.subscribe(down/#) — awaits SUBACK
         Subscribe --> WaitHA: _ha_ready not set?
         Subscribe --> PublishFirst: _ha_ready already set

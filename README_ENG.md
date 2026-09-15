@@ -329,7 +329,7 @@ After entities are exposed:
 
 | Problem | Solution |
 |---------|----------|
-| Cannot connect | Verify credentials in Sber Studio. Check that your project is active. |
+| Cannot connect | Verify credentials in Sber Studio. Check that your project is active. If the broker is unreachable at startup, Home Assistant retries the integration setup on its own; if the broker rejects the password, it asks you to re-authenticate. |
 | SSL errors | Try disabling "Verify SSL" in integration settings (for custom CA). |
 | Entities not in Sber | Check Options > select entities. Check HA logs for mapping warnings. |
 | Devices appear/disappear | Check HA logs for reconnection messages. Ensure stable internet. |

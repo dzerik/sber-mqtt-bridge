@@ -80,6 +80,19 @@ After a reconnect, the bridge publishes HA states and waits for Sber to
 acknowledge them (via status_request or config_request) before accepting
 commands.  This timeout is a fallback in case Sber never sends a request."""
 
+SETUP_CONNECT_TIMEOUT = 10.0
+"""Seconds the integration setup waits for the first connection to the broker.
+
+Setup checks the broker before the entry counts as loaded (HA quality rule
+``test-before-setup``).  HA puts no timeout of its own on a config entry
+setup and its startup waits for it, so this bound is what caps how long a
+black-holed network can hold up HA startup.  Ten seconds is the CONNACK
+timeout ``aiomqtt`` applies to every connect, the config flow's credential
+check included, so a broker the config flow accepted is not rejected here
+for being slow; a refused login, a DNS failure or a closed port answer far
+sooner.  An entry that runs out of it is retried by HA (after startup, then
+with a growing delay)."""
+
 PRE_PUBLISH_DISCARDED_SUFFIXES: frozenset[str] = frozenset(
     {MqttTopicSuffix.COMMANDS, MqttTopicSuffix.STATUS_REQUEST, MqttTopicSuffix.CONFIG_REQUEST}
 )
@@ -252,6 +265,10 @@ class SberBridge:
         self._running = False
         self._auth_failed = False
         """True once the broker refused the credentials; the reconnect loop is stopped until reauth reloads the entry."""
+        self._outage_logged = False
+        """True once the current loss of the broker link has been logged; cleared (with an info) when it is back."""
+        self._outage_tracebacks: set[str] = set()
+        """Exception types whose traceback was already logged during the current outage."""
 
         # Configurable operational settings loaded from ``config_entry.options``.
         # All defaults live in ``SETTINGS_DEFAULTS`` (const.py) — this avoids
@@ -1385,12 +1402,31 @@ class SberBridge:
         """Periodic tick: close DevTools traces idle beyond their timeout."""
         self._devtools.sweep_traces()
 
+    async def async_connect(self) -> None:
+        """Connect to the Sber broker once, for :meth:`async_start` to continue on.
+
+        Called by the integration setup before :meth:`async_start`, so an
+        unreachable broker or refused credentials fail the setup instead of
+        leaving a loaded entry that silently retries in the background.  The
+        session stays open and becomes the first session of the reconnect
+        loop.  Nothing is logged here: the caller turns the error into the
+        setup outcome that HA reports.
+
+        Raises:
+            aiomqtt.MqttError: The broker refused the connection or could not
+                be reached.
+            TimeoutError: No completed handshake within
+                :data:`SETUP_CONNECT_TIMEOUT` seconds.
+        """
+        await self._mqtt_service.async_connect(SETUP_CONNECT_TIMEOUT)
+
     async def async_start(self) -> None:
         """Start the bridge: load entities, subscribe to HA events, connect MQTT.
 
         HA state events are subscribed immediately (independent of MQTT connectivity)
         so that no state changes are lost while waiting for the first connection.
-        MQTT connection is established in a background task with exponential backoff.
+        MQTT connection is established in a background task with exponential backoff;
+        it continues the session opened by :meth:`async_connect` when there is one.
         """
         self._running = True
         # Cache the HA instance UUID prefix so the publish hot-path stays sync.
@@ -1750,10 +1786,7 @@ class SberBridge:
         await self._wait_for_ha_ready()
         await self._perform_initial_publish()
         self._ack_audit.activate_post_connect()
-        _LOGGER.info(
-            "Connected: subscribed to commands, published config & states (awaiting Sber ack, timeout %.0fs)",
-            RECONNECT_GRACE_TIMEOUT,
-        )
+        self._log_session_ready()
         # Message consumption is handled by MqttClientService itself —
         # it will call ``_handle_mqtt_message`` for each incoming message.
 
@@ -1770,11 +1803,40 @@ class SberBridge:
         self._connected = True
         self._stats.connected_since = time.monotonic()
         self._notify_status_listeners()
-        _LOGGER.info(
+        _LOGGER.debug(
             "Connected to Sber MQTT broker %s:%d (entities: %d)",
             self._broker,
             self._port,
             len(self._entities),
+        )
+
+    def _log_session_ready(self) -> None:
+        """Log once that the session is up, at the end of a completed connect handshake.
+
+        "Restored" when the session ends an outage :meth:`_handle_disconnect`
+        reported, "connected" otherwise (the first session, or a reload).
+        Logged after the handshake rather than on CONNACK: a session that
+        fails its subscribe or initial publish has not restored anything,
+        and logging it would print a "restored" line — and reset the
+        once-per-outage logging — on every failed attempt.
+        """
+        if self._outage_logged:
+            self._outage_logged = False
+            self._outage_tracebacks.clear()
+            _LOGGER.info(
+                "Connection to Sber MQTT broker %s:%d restored: config & states republished (entities: %d)",
+                self._broker,
+                self._port,
+                len(self._entities),
+            )
+            return
+        _LOGGER.info(
+            "Connected to Sber MQTT broker %s:%d: subscribed to commands, published config & states "
+            "(entities: %d, awaiting Sber ack, timeout %.0fs)",
+            self._broker,
+            self._port,
+            len(self._entities),
+            RECONNECT_GRACE_TIMEOUT,
         )
 
     async def _wait_for_ha_ready(self) -> None:
@@ -1892,9 +1954,17 @@ class SberBridge:
         successful reauth updates the entry and reloads it, which builds a
         fresh bridge with the new credentials.
 
+        Logging follows HA's ``log-when-unavailable`` rule: the first failure
+        of an outage is logged once (a warning, or an error with traceback
+        when it is unexpected), every further failed attempt only at debug
+        level, and :meth:`_log_session_ready` logs once when the link is back.
+        An unexpected error of a type not yet seen in this outage still gets
+        its traceback, so a second, different bug is not hidden.  This hook
+        is the only place these errors are logged.
+
         Args:
             err: The exception that caused disconnection.
-            unexpected: True for non-MqttError exceptions (logged at exception level).
+            unexpected: True for non-MqttError exceptions (logged with traceback).
 
         Returns:
             True if the loop should continue reconnecting, False if it should stop.
@@ -1908,6 +1978,7 @@ class SberBridge:
         # false "silent rejection" warnings / repair issues that mask the
         # real (network) problem.  Reconnect re-arms it via publish_config.
         self._ack_audit.cancel()
+        was_connected = self._stats.connected_since is not None
         self._stats.connected_since = None
         self._stats.reconnect_count += 1
         if not self._running:
@@ -1915,22 +1986,49 @@ class SberBridge:
         if is_auth_failure(err):
             self._handle_auth_failure(err)
             return False
+        self._log_connection_failure(err, unexpected=unexpected, was_connected=was_connected)
+        await check_and_create_issues(self._hass, self)
+        return True
+
+    def _log_connection_failure(self, err: Exception, *, unexpected: bool, was_connected: bool) -> None:
+        """Log a failed session or reconnect attempt once per outage (see :meth:`_handle_disconnect`).
+
+        Args:
+            err: The exception that ended the session or the attempt.
+            unexpected: True for non-MqttError exceptions.
+            was_connected: True when a session was up (the link was lost),
+                False when the attempt never got a session.
+        """
         interval = self._mqtt_service.reconnect_interval
-        if unexpected:
+        error_type = type(err).__qualname__
+        if unexpected and error_type not in self._outage_tracebacks:
+            self._outage_tracebacks.add(error_type)
+            self._outage_logged = True
             _LOGGER.error(
-                "Unexpected MQTT error. Reconnecting in %ds...",
+                "Unexpected error in the Sber MQTT connection: %s. Reconnecting in %ds",
+                err,
                 interval,
                 exc_info=err,
             )
-        else:
+        elif not self._outage_logged:
+            self._outage_logged = True
             _LOGGER.warning(
-                "Sber MQTT connection lost: %s. Reconnecting in %ds... (attempt #%d)",
+                "%s Sber MQTT broker %s:%d: %s. Reconnecting in %ds; "
+                "failed attempts are logged at debug level until the connection is restored",
+                "Lost connection to" if was_connected else "Cannot connect to",
+                self._broker,
+                self._port,
+                err,
+                interval,
+            )
+        else:
+            _LOGGER.debug(
+                "Sber MQTT reconnect attempt failed: %s. Next attempt in %ds (disconnect #%d)",
                 err,
                 interval,
                 self._stats.reconnect_count,
+                exc_info=err if unexpected else None,
             )
-        await check_and_create_issues(self._hass, self)
-        return True
 
     def _handle_auth_failure(self, err: Exception) -> None:
         """React once to the broker refusing the configured credentials.

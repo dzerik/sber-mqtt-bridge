@@ -88,16 +88,24 @@ class FakeMqttClient:
         otherwise it is dropped.
         """
         self.connect_count = 0
+        self.exit_count = 0
         self.fail_connects = fail_connects
+        self.connect_gate: asyncio.Event | None = None
+        """When set, every handshake waits for the event first (a broker that does not answer)."""
+        self.subscribe_errors: list[Exception] = []
+        """Errors raised by the next ``subscribe`` calls, one per call (e.g. a bug hit in the handshake)."""
         self._queue: asyncio.Queue = asyncio.Queue()
 
     async def __aenter__(self) -> FakeMqttClient:
         self.connect_count += 1
+        if self.connect_gate is not None:
+            await self.connect_gate.wait()
         if self.connect_count <= self.fail_connects:
             raise self.connect_error or aiomqtt.MqttError("connection refused (fake)")
         return self
 
     async def __aexit__(self, *exc: object) -> bool:
+        self.exit_count += 1
         return False
 
     async def publish(self, topic: str, payload: str | bytes) -> None:
@@ -109,6 +117,8 @@ class FakeMqttClient:
                 self.push_message(reply_topic, reply_payload)
 
     async def subscribe(self, pattern: str) -> None:
+        if self.subscribe_errors:
+            raise self.subscribe_errors.pop(0)
         self.subscribed.append(pattern)
         self.events.append(("subscribe", pattern))
 
@@ -857,6 +867,139 @@ async def test_publish_raw_transport_error_counts_publish_error(hass: HomeAssist
     with pytest.raises(aiomqtt.MqttError):
         await bridge.async_publish_raw("{}", "status")
     assert bridge.stats["publish_errors"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Logging while the broker is unavailable (HA rule log-when-unavailable)
+# ---------------------------------------------------------------------------
+
+_CONNECTION_LOGGERS = (
+    "custom_components.sber_mqtt_bridge.sber_bridge",
+    "custom_components.sber_mqtt_bridge.mqtt_client_service",
+)
+
+
+def _connection_records(caplog: pytest.LogCaptureFixture, level: int) -> list[logging.LogRecord]:
+    """Records of exactly ``level`` from the bridge and its transport."""
+    return [r for r in caplog.records if r.name in _CONNECTION_LOGGERS and r.levelno == level]
+
+
+def _messages(records: list[logging.LogRecord]) -> list[str]:
+    return [r.getMessage() for r in records]
+
+
+async def test_outage_logs_one_warning_debug_attempts_and_one_restore(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Lost link → N failed reconnects → back: one warning, debug per attempt, one info."""
+    hass.states.async_set("switch.lamp", "on")
+    entry = _make_entry(
+        hass,
+        options={"exposed_entities": ["switch.lamp"], CONF_RECONNECT_MIN: 0, CONF_RECONNECT_MAX: 0},
+    )
+    fake = FakeMqttClient()
+    _install_fake_mqtt(monkeypatch, fake)
+    bridge = SberBridge(hass, entry)
+    failed_attempts = 4
+
+    try:
+        caplog.set_level(logging.DEBUG, logger="custom_components.sber_mqtt_bridge")
+        await bridge.async_start()
+        await _wait_until(lambda: bridge.connection_phase == "awaiting_ack")
+        first = _messages(_connection_records(caplog, logging.INFO))
+        assert len(first) == 1
+        assert "Connected to Sber MQTT broker" in first[0]
+        caplog.clear()
+
+        fake.fail_connects = fake.connect_count + failed_attempts
+        fake.push_error(aiomqtt.MqttError("broker went away"))
+        await _wait_until(lambda: fake.connect_count == failed_attempts + 2)
+        await _wait_until(lambda: bridge.connection_phase == "awaiting_ack")
+
+        warnings = _messages(_connection_records(caplog, logging.WARNING))
+        assert len(warnings) == 1, warnings
+        assert "Lost connection" in warnings[0]
+        assert "broker went away" in warnings[0]
+        infos = _messages(_connection_records(caplog, logging.INFO))
+        assert len(infos) == 1, infos
+        assert "restored" in infos[0]
+        attempts = [m for m in _messages(_connection_records(caplog, logging.DEBUG)) if "reconnect attempt failed" in m]
+        assert len(attempts) == failed_attempts
+        assert _connection_records(caplog, logging.ERROR) == []
+
+        # The next outage is reported again: the restore re-armed the warning.
+        caplog.clear()
+        fake.push_error(aiomqtt.MqttError("second outage"))
+        await _wait_until(lambda: fake.connect_count == failed_attempts + 3)
+        await _wait_until(lambda: bridge.connection_phase == "awaiting_ack")
+        warnings = _messages(_connection_records(caplog, logging.WARNING))
+        assert len(warnings) == 1, warnings
+        assert "second outage" in warnings[0]
+        assert len(_connection_records(caplog, logging.INFO)) == 1
+    finally:
+        await asyncio.wait_for(bridge.async_stop(), timeout=2)
+
+
+async def test_repeated_unexpected_error_logs_one_traceback(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The same bug on every reconnect: one traceback in total, then one restore line."""
+    hass.states.async_set("switch.lamp", "on")
+    entry = _make_entry(
+        hass,
+        options={"exposed_entities": ["switch.lamp"], CONF_RECONNECT_MIN: 0, CONF_RECONNECT_MAX: 0},
+    )
+    fake = FakeMqttClient()
+    # The handshake breaks on three connects in a row (CONNACK accepted each time).
+    fake.subscribe_errors = [AttributeError("handshake bug") for _ in range(3)]
+    _install_fake_mqtt(monkeypatch, fake)
+    bridge = SberBridge(hass, entry)
+
+    try:
+        caplog.set_level(logging.DEBUG, logger="custom_components.sber_mqtt_bridge")
+        await bridge.async_start()
+        await _wait_until(lambda: bridge.connection_phase == "awaiting_ack")
+
+        with_traceback = [r for r in caplog.records if r.exc_info and r.levelno >= logging.WARNING]
+        assert len(with_traceback) == 1, _messages(with_traceback)
+        assert with_traceback[0].name == "custom_components.sber_mqtt_bridge.sber_bridge"
+        assert "handshake bug" in with_traceback[0].getMessage()
+        assert _connection_records(caplog, logging.WARNING) == []
+        infos = _messages(_connection_records(caplog, logging.INFO))
+        assert len(infos) == 1, infos
+        assert "restored" in infos[0]
+        assert fake.connect_count == 4
+    finally:
+        await asyncio.wait_for(bridge.async_stop(), timeout=2)
+
+
+async def test_different_unexpected_error_in_same_outage_gets_its_traceback(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A second, different bug during an outage is not hidden behind the first report."""
+    entry = _make_entry(hass, options={CONF_RECONNECT_MIN: 0, CONF_RECONNECT_MAX: 0})
+    fake = FakeMqttClient()
+    fake.subscribe_errors = [
+        aiomqtt.MqttError("dropped"),
+        KeyError("bug one"),
+        KeyError("bug one"),
+        TypeError("bug two"),
+    ]
+    _install_fake_mqtt(monkeypatch, fake)
+    bridge = SberBridge(hass, entry)
+
+    try:
+        caplog.set_level(logging.DEBUG, logger="custom_components.sber_mqtt_bridge")
+        await bridge.async_start()
+        await _wait_until(lambda: bridge.connection_phase == "awaiting_ack")
+
+        assert len(_connection_records(caplog, logging.WARNING)) == 1
+        errors = _connection_records(caplog, logging.ERROR)
+        assert [type(r.exc_info[1]).__name__ for r in errors if r.exc_info] == ["KeyError", "TypeError"]
+        assert len(errors) == 2
+        assert len(_connection_records(caplog, logging.INFO)) == 1
+    finally:
+        await asyncio.wait_for(bridge.async_stop(), timeout=2)
 
 
 # ---------------------------------------------------------------------------

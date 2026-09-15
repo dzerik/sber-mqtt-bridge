@@ -690,6 +690,15 @@
   "exceptions": {
     "single_entry_only": {
       "message": "Sber MQTT Bridge поддерживает только одну запись интеграции, и «{active}» уже работает. Удалите эту лишнюю запись."
+    },
+    "invalid_auth": {
+      "message": "MQTT-брокер Sber {broker} отклонил логин «{login}». Введите актуальный пароль MQTT в запросе повторной аутентификации интеграции."
+    },
+    "cannot_connect": {
+      "message": "Не удалось подключиться к MQTT-брокеру Sber {broker}: {error}"
+    },
+    "connect_timeout": {
+      "message": "MQTT-брокер Sber {broker} не ответил за {timeout} с."
     }
   }
 }

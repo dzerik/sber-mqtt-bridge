@@ -40,6 +40,9 @@ class _StubHass:
     async def async_add_executor_job(self, func, *args):
         return func(*args)
 
+    def async_create_background_task(self, target, name, eager_start=True):
+        return asyncio.get_running_loop().create_task(target, name=name)
+
 
 class _FakeMessage:
     """Minimal aiomqtt message stand-in (topic + payload)."""
@@ -78,20 +81,26 @@ class _MessageStream:
 class _FakeClient:
     """Fake aiomqtt.Client: async context manager + scripted message stream."""
 
-    def __init__(self, *, connect_error: Exception | None = None) -> None:
+    def __init__(self, *, connect_error: Exception | None = None, connect_gate: asyncio.Event | None = None) -> None:
         self.connect_error = connect_error
+        self.connect_gate = connect_gate
+        """When set, the handshake does not complete until the event is set (a silent broker)."""
         self.stream = _MessageStream()
         self.published: list[tuple[str, Any]] = []
         self.subscribed: list[str] = []
         self.entered = False
+        self.exit_count = 0
 
     async def __aenter__(self) -> _FakeClient:
+        if self.connect_gate is not None:
+            await self.connect_gate.wait()
         if self.connect_error is not None:
             raise self.connect_error
         self.entered = True
         return self
 
     async def __aexit__(self, *exc_info) -> bool:
+        self.exit_count += 1
         return False
 
     @property
@@ -803,3 +812,147 @@ def test_parse_status_request_deeply_nested_no_crash() -> None:
     """Deep nesting must not raise RecursionError."""
     payload = b"[" * 100_000 + b"]" * 100_000
     assert parse_sber_status_request(payload) == []
+
+
+# ---------------------------------------------------------------------------
+# async_connect: the setup's connection check hands its session to run()
+# ---------------------------------------------------------------------------
+
+
+async def test_async_connect_session_is_the_first_session_of_run(monkeypatch, hooks, stub_ssl) -> None:
+    """A successful check costs one connection: run() continues on the same client."""
+    only = _FakeClient()
+    factory = _install_factory(monkeypatch, [only])
+    service = _make_service(hooks)
+
+    await service.async_connect(5)
+    assert only.entered
+    assert not service.is_connected, "no publish may go out before run() has subscribed"
+
+    task = asyncio.create_task(service.run())
+    try:
+        await _wait_for(lambda: hooks.connected_count == 1)
+        assert service.client is only
+        assert len(factory.calls) == 1, "the factory raises on a second connection"
+    finally:
+        task.cancel()
+        await asyncio.wait_for(task, 1.0)
+    assert only.exit_count == 1
+
+
+async def test_async_connect_failure_propagates_and_keeps_nothing(monkeypatch, hooks, stub_ssl) -> None:
+    """A refused connection raises to the caller; run() then connects afresh."""
+    refused = _FakeClient(connect_error=aiomqtt.MqttError("[Errno 111] Connection refused"))
+    fresh = _FakeClient()
+    factory = _install_factory(monkeypatch, [refused, fresh])
+    service = _make_service(hooks)
+
+    with pytest.raises(aiomqtt.MqttError, match="refused"):
+        await service.async_connect(5)
+    assert hooks.disconnects == [], "a setup check is not a runtime disconnect"
+
+    task = asyncio.create_task(service.run())
+    try:
+        await _wait_for(lambda: hooks.connected_count == 1)
+        assert service.client is fresh
+        assert len(factory.calls) == 2
+    finally:
+        task.cancel()
+        await asyncio.wait_for(task, 1.0)
+
+
+async def test_async_connect_timeout_abandons_attempt_and_closes_it_later(monkeypatch, hooks, stub_ssl) -> None:
+    """No answer in time: TimeoutError now, and the late session is closed, not leaked."""
+    gate = asyncio.Event()
+    slow = _FakeClient(connect_gate=gate)
+    _install_factory(monkeypatch, [slow])
+    service = _make_service(hooks)
+    tasks_before = set(asyncio.all_tasks())
+
+    with pytest.raises(TimeoutError, match=r"broker\.test:8883"):
+        await service.async_connect(0.01)
+
+    gate.set()
+    await _wait_for(lambda: slow.exit_count == 1)
+    assert slow.entered
+    await _wait_for(lambda: not [t for t in asyncio.all_tasks() - tasks_before if not t.done()])
+    await service.stop()
+    assert slow.exit_count == 1, "the abandoned session is not the service's to close again"
+
+
+async def test_async_connect_timeout_attempt_that_fails_later_needs_no_close(monkeypatch, hooks, stub_ssl) -> None:
+    """An abandoned attempt that ends in an error leaves nothing to close and no stray error."""
+    gate = asyncio.Event()
+    slow = _FakeClient(connect_gate=gate, connect_error=aiomqtt.MqttError("late refusal"))
+    _install_factory(monkeypatch, [slow])
+    service = _make_service(hooks)
+    tasks_before = set(asyncio.all_tasks())
+
+    with pytest.raises(TimeoutError):
+        await service.async_connect(0.01)
+    gate.set()
+    await _wait_for(lambda: not [t for t in asyncio.all_tasks() - tasks_before if not t.done()])
+    assert slow.exit_count == 0
+
+
+async def test_async_connect_cancelled_abandons_attempt(monkeypatch, hooks, stub_ssl) -> None:
+    """Cancelling the check (HA shutting down) also closes a session that arrives late."""
+    gate = asyncio.Event()
+    slow = _FakeClient(connect_gate=gate)
+    _install_factory(monkeypatch, [slow])
+    service = _make_service(hooks)
+
+    check = asyncio.create_task(service.async_connect(5))
+    await asyncio.sleep(0)
+    check.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await check
+    gate.set()
+    await _wait_for(lambda: slow.exit_count == 1)
+
+
+async def test_stop_closes_session_run_never_took(monkeypatch, hooks, stub_ssl) -> None:
+    """Setup failing after the check must not leave the checked session open."""
+    only = _FakeClient()
+    _install_factory(monkeypatch, [only])
+    service = _make_service(hooks)
+
+    await service.async_connect(5)
+    await service.stop()
+    assert only.exit_count == 1
+    await service.stop()
+    assert only.exit_count == 1
+
+
+async def test_unexpected_error_is_not_logged_by_the_transport(monkeypatch, hooks, stub_ssl, caplog) -> None:
+    """The on_disconnected hook owns the report; the transport adds no second traceback."""
+    first = _FakeClient()
+    second = _FakeClient()
+    _install_factory(monkeypatch, [first, second])
+    hooks.on_connected_error = AttributeError("boom in initial publish")
+    service = _make_service(hooks, reconnect_min=0, reconnect_max=0)
+
+    task = asyncio.create_task(service.run())
+    try:
+        await _wait_for(lambda: hooks.connected_count == 2)
+    finally:
+        task.cancel()
+        await asyncio.wait_for(task, 1.0)
+    assert hooks.disconnects[0][1] is True
+    assert [r for r in caplog.records if r.name == mcs_module.__name__] == []
+
+
+async def test_stop_tolerates_a_failing_disconnect_of_the_unused_session(monkeypatch, hooks, stub_ssl) -> None:
+    """A broker that does not acknowledge DISCONNECT must not fail the unload."""
+    only = _FakeClient()
+
+    async def _exit_times_out(*_exc_info: object) -> bool:
+        raise aiomqtt.MqttError("Operation timed out")
+
+    monkeypatch.setattr(_FakeClient, "__aexit__", lambda self, *exc: _exit_times_out())
+    _install_factory(monkeypatch, [only])
+    service = _make_service(hooks)
+
+    await service.async_connect(5)
+    await service.stop()
+    await service.stop()

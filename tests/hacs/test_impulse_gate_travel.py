@@ -1421,6 +1421,8 @@ def _no_mqtt_loop(monkeypatch: pytest.MonkeyPatch) -> None:
         return
 
     monkeypatch.setattr(SberBridge, "_mqtt_connection_loop", _noop)
+    # Проверка брокера при настройке записи — та же граница с сетью.
+    monkeypatch.setattr(SberBridge, "async_connect", _noop)
 
 
 def register_gate_hardware(hass: HomeAssistant) -> str:

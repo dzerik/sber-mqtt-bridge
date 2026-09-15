@@ -690,6 +690,15 @@
   "exceptions": {
     "single_entry_only": {
       "message": "Sber MQTT Bridge supports a single config entry, and \"{active}\" is already running. Delete this extra entry."
+    },
+    "invalid_auth": {
+      "message": "The Sber MQTT broker {broker} rejected login \"{login}\". Enter the current MQTT password in the re-authentication prompt of the integration."
+    },
+    "cannot_connect": {
+      "message": "Cannot connect to the Sber MQTT broker {broker}: {error}"
+    },
+    "connect_timeout": {
+      "message": "The Sber MQTT broker {broker} did not answer within {timeout} seconds."
     }
   }
 }

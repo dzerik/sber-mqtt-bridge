@@ -138,6 +138,8 @@ def _no_mqtt_reconnect_loop(monkeypatch: pytest.MonkeyPatch) -> None:
         return
 
     monkeypatch.setattr(SberBridge, "_mqtt_connection_loop", _noop)
+    # The broker check of the entry setup is the same network boundary.
+    monkeypatch.setattr(SberBridge, "async_connect", _noop)
 
 
 def _register_devices(hass: HomeAssistant) -> None:
