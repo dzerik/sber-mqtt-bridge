@@ -502,6 +502,106 @@ class TestStatusModule:
         assert response["success"] is False
         assert response["error"]["code"] == "not_found"
 
+    async def test_devices_carry_the_links_of_a_linked_primary(
+        self, hass: HomeAssistant, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        """The device list shows which sensors a device borrows its readings from."""
+        await ok(admin, "set_entity_links", entity_id=LAMP, links={"temperature": LAMP_TEMP})
+        await hass.async_block_till_done()
+
+        (lamp,) = (await ok(admin, "devices"))["devices"]
+
+        assert lamp["linked_entities"] == {"temperature": LAMP_TEMP}
+
+    async def test_related_sensors_lists_same_device_sensors_only(self, hass: HomeAssistant, admin: Any) -> None:
+        """Siblings of the lamp are offered; a device-less or unknown entity has none."""
+        er.async_get(hass).async_get_or_create("sensor", "test_devices", "loose", suggested_object_id="loose")
+
+        lamp = await ok(admin, "related_sensors", entity_id=LAMP)
+        loose = await ok(admin, "related_sensors", entity_id="sensor.loose")
+        unknown = await ok(admin, "related_sensors", entity_id="sensor.nowhere")
+
+        assert [sensor["entity_id"] for sensor in lamp["sensors"]] == [LAMP_TEMP]
+        assert loose == {"sensors": []}
+        assert unknown == {"sensors": []}
+
+    async def test_device_detail_of_an_entity_that_never_reported(
+        self, hass: HomeAssistant, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        """An exposed entity without HA state still opens: empty model, no state, no device.
+
+        Such an entity cannot produce a Sber descriptor yet; the dialog must
+        say so instead of failing the whole request.
+        """
+        er.async_get(hass).async_get_or_create("switch", "test_devices", "silent", suggested_object_id="silent")
+        await ok(admin, "add_entities", entity_ids=["switch.silent"])
+        await hass.async_block_till_done()
+        assert "switch.silent" in entry.runtime_data.bridge.entities
+
+        detail = await ok(admin, "device_detail", entity_id="switch.silent")
+
+        assert detail["is_filled"] is False
+        assert detail["sber_model"] == {}
+        assert detail["ha_state"] is None
+        assert detail["ha_attributes"] == {}
+        assert "device_info" not in detail
+
+    async def test_device_detail_survives_an_entity_that_cannot_build_its_state(
+        self, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        """A device class raising while serialising its state costs only that section."""
+        lamp = entry.runtime_data.bridge.entities[LAMP]
+        with patch.object(lamp, "to_sber_current_state", side_effect=ValueError("broken attribute")):
+            detail = await ok(admin, "device_detail", entity_id=LAMP)
+
+        assert detail["sber_states"] == []
+        assert detail["sber_model"]["category"] == "light"
+        assert detail["ha_state"] == "on"
+
+    async def test_device_detail_names_links_the_same_way_whatever_is_left_of_them(
+        self, hass: HomeAssistant, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        """A link keeps a readable name when its sensor lost its state or vanished entirely."""
+        entity_reg = er.async_get(hass)
+        entity_reg.async_get_or_create(
+            "sensor",
+            "test_devices",
+            "lamp-battery-uid",
+            suggested_object_id="lamp_battery",
+            original_name="Lamp battery",
+            original_device_class="battery",
+        )
+        links = {"temperature": LAMP_TEMP, "battery": "sensor.lamp_battery", "signal_strength": "sensor.gone"}
+        await ok(admin, "set_entity_links", entity_id=LAMP, links=links)
+        await hass.async_block_till_done()
+
+        detail = await ok(admin, "device_detail", entity_id=LAMP)
+        by_role = {link["role"]: link for link in detail["linked_entities"]}
+
+        # State present → HA's friendly name (none set, so the id).
+        assert by_role["temperature"]["friendly_name"] == LAMP_TEMP
+        assert by_role["temperature"]["state"] == "21.5"
+        # Registry only → the registry name.
+        assert by_role["battery"]["friendly_name"] == "Lamp battery"
+        assert by_role["battery"]["state"] is None
+        assert by_role["battery"]["device_class"] == "battery"
+        # Neither → the entity id itself.
+        assert by_role["signal_strength"] == {
+            "role": "signal_strength",
+            "entity_id": "sensor.gone",
+            "friendly_name": "sensor.gone",
+            "state": None,
+            "device_class": None,
+        }
+
+    async def test_device_detail_includes_the_sber_side_name_and_room(self, admin: Any) -> None:
+        """What the user renamed for Sber is shown next to the HA data."""
+        await ok(admin, "update_redefinitions", entity_id=LAMP, name="Люстра", room="Зал")
+
+        detail = await ok(admin, "device_detail", entity_id=LAMP)
+
+        assert detail["redefinitions"] == {"name": "Люстра", "room": "Зал"}
+
 
 class TestDevicesGroupedModule:
     """``devices_grouped.py`` — the add-device wizard."""
@@ -713,6 +813,68 @@ class TestLinksModule:
 
         assert await ok(admin, "auto_link_all") == {"linked_count": 0, "devices_affected": 1}
 
+    async def test_set_entity_links_refuses_to_link_a_primary_or_the_entity_itself(
+        self, hass: HomeAssistant, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        """A device that has links cannot become someone's sensor, nor can a device link itself."""
+        await ok(admin, "add_entities", entity_ids=[PUMP])
+        await ok(admin, "set_entity_links", entity_id=LAMP, links={"temperature": LAMP_TEMP})
+        await hass.async_block_till_done()
+
+        circular = await call(admin, "set_entity_links", entity_id=PUMP, links={"temperature": LAMP})
+        itself = await call(admin, "set_entity_links", entity_id=PUMP, links={"temperature": PUMP})
+
+        assert circular["error"]["code"] == "circular_link"
+        assert itself["error"]["code"] == "self_link"
+        assert entry.options[CONF_ENTITY_LINKS] == {LAMP: {"temperature": LAMP_TEMP}}
+
+    async def test_set_entity_links_with_no_links_unlinks_the_device(
+        self, hass: HomeAssistant, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        await ok(admin, "set_entity_links", entity_id=LAMP, links={"temperature": LAMP_TEMP})
+        await hass.async_block_till_done()
+
+        result = await ok(admin, "set_entity_links", entity_id=LAMP, links={})
+        await hass.async_block_till_done()
+
+        assert result == {"success": True, "links": {}}
+        assert entry.options[CONF_ENTITY_LINKS] == {}
+        assert entry.runtime_data.bridge.entity_links == {}
+
+    async def test_auto_link_all_skips_devices_it_cannot_link(
+        self, hass: HomeAssistant, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        """No HA device, or a category that accepts no sensors: nothing is linked.
+
+        Both get a battery sensor they could otherwise pick up — the device-less
+        switch through nothing at all, the scenario button through its device.
+        """
+        entity_reg = er.async_get(hass)
+        lamp_device_id = entity_reg.async_get(LAMP).device_id
+        entity_reg.async_get_or_create("switch", "test_devices", "loose", suggested_object_id="loose")
+        entity_reg.async_get_or_create(
+            "input_boolean", "test_devices", "scene", suggested_object_id="scene", device_id=lamp_device_id
+        )
+        hass.states.async_set("switch.loose", "off")
+        hass.states.async_set("input_boolean.scene", "off")
+        await ok(admin, "remove_entities", entity_ids=[LAMP])
+        await ok(admin, "add_entities", entity_ids=["switch.loose", "input_boolean.scene"])
+        await hass.async_block_till_done()
+        entity_reg.async_get_or_create(
+            "sensor",
+            "test_devices",
+            "lamp-battery-uid",
+            suggested_object_id="lamp_battery",
+            device_id=lamp_device_id,
+            original_device_class="battery",
+        )
+        assert set(entry.runtime_data.bridge.entities) == {"switch.loose", "input_boolean.scene"}
+
+        result = await ok(admin, "auto_link_all")
+
+        assert result == {"linked_count": 0, "devices_affected": 0}
+        assert entry.options.get(CONF_ENTITY_LINKS, {}) == {}
+
 
 class TestSettingsModule:
     """``settings.py`` — get / update."""
@@ -773,6 +935,48 @@ class TestIoExportModule:
         response = await call(admin, "import", config={"entity_links": [LAMP]})
         assert response["error"]["code"] == "invalid_config"
         assert entry.options[CONF_EXPOSED_ENTITIES] == [LAMP]
+
+    async def test_update_redefinitions_of_an_entity_the_bridge_does_not_have(
+        self, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        response = await call(admin, "update_redefinitions", entity_id=PUMP, name="Насос")
+
+        assert response["error"]["code"] == "not_found"
+        assert PUMP not in entry.runtime_data.bridge.redefinitions
+
+    async def test_update_redefinitions_reports_a_republish_that_did_not_reach_sber(
+        self, admin: Any, entry: MockConfigEntry, transport: RecordingTransport, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Connected, but the broker drops the publish: the panel gets an error, not a success.
+
+        Regression: the publisher reports the failure by returning ``False``,
+        so the "publish failed" branch never fired and the panel showed the
+        rename as done while Sber kept the old name.  The rename itself is
+        kept — saving again only has to republish.
+        """
+
+        async def broken_publish(topic: str, payload: str | bytes) -> None:
+            raise aiomqtt.MqttError("connection lost")
+
+        monkeypatch.setattr(transport, "publish", broken_publish)
+        bridge = entry.runtime_data.bridge
+
+        response = await call(admin, "update_redefinitions", entity_id=LAMP, name="Люстра")
+
+        assert response["success"] is False
+        assert response["error"]["code"] == "publish_failed"
+        assert bridge.stats["publish_errors"] == 1
+        assert bridge.redefinitions[LAMP] == {"name": "Люстра"}
+
+    async def test_update_redefinitions_while_offline_is_saved_for_the_reconnect(
+        self, admin: Any, entry: MockConfigEntry
+    ) -> None:
+        """No session: nothing to publish now, the reconnect sends the full list — no error."""
+        assert entry.runtime_data.bridge.is_connected is False
+
+        result = await ok(admin, "update_redefinitions", entity_id=LAMP, name="Люстра")
+
+        assert result == {"entity_id": LAMP, "redefinitions": {"name": "Люстра"}}
 
 
 class TestRawModule:

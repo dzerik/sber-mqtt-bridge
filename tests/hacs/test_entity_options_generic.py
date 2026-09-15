@@ -42,6 +42,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import aiomqtt
 import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
@@ -809,6 +810,38 @@ class TestGenericCommandSavesWithoutReload:
         statuses = payloads(bridge, "up/status")
         assert statuses, "состояние изменённой сущности обязано быть переопубликовано"
         assert set(statuses[-1]["devices"]) == {GATE}
+
+    async def test_config_that_did_not_reach_sber_is_reported(
+        self,
+        hass: HomeAssistant,
+        hass_ws_client: Any,
+        entry: MockConfigEntry,
+    ) -> None:
+        """Связь есть, а публикация конфигурации сорвалась — панель получает ошибку.
+
+        Опция при этом уже сохранена и применена: повторное «сохранить»
+        только перепубликует.  Раньше публикатор сообщал о сбое через
+        ``False``, обработчик этого не видел и отвечал успехом, хотя
+        облако осталось со старой моделью устройства.
+        """
+        bridge = arm_publish_capture(entry)
+        bridge._mqtt_service.publish.side_effect = aiomqtt.MqttError("connection lost")
+        client = await hass_ws_client(hass)
+
+        response = await ws_call(
+            client,
+            {
+                "type": "sber_mqtt_bridge/update_entity_options",
+                "entity_id": GATE,
+                "options": {"travel_time": 12.5},
+            },
+        )
+        await hass.async_block_till_done()
+
+        assert response["success"] is False
+        assert response["error"]["code"] == "publish_failed"
+        assert entry.options[CONF_ENTITY_OPTIONS] == {GATE: {"travel_time": 12.5}}
+        assert live(entry, GATE).travel_time == 12.5
 
 
 # ---------------------------------------------------------------------------

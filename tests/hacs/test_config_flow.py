@@ -286,3 +286,107 @@ async def test_user_step_shows_classified_error(hass: HomeAssistant, error: Base
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": expected}
+
+
+# ---------------------------------------------------------------------------
+# Recovery and duplicates — the user must be able to fix a mistake in place
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio(loop_scope="function")
+@pytest.mark.parametrize("error", ["cannot_connect", "invalid_auth"])
+async def test_user_flow_recovers_after_an_error(hass: HomeAssistant, no_real_setup, error: str) -> None:
+    """A failed attempt keeps the form open and a corrected retry creates the entry.
+
+    The form is refilled with what the user typed, so a wrong password does
+    not cost them the login and broker they already entered.
+    """
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+
+    with patch(
+        "custom_components.sber_mqtt_bridge.config_flow._validate_sber_connection",
+        side_effect=[error, None],
+    ) as validate:
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], MOCK_USER_INPUT)
+        assert result["type"] is FlowResultType.FORM
+        assert result["errors"] == {"base": error}
+        suggested = {
+            str(key): key.description["suggested_value"]
+            for key in result["data_schema"].schema
+            if key.description and "suggested_value" in key.description
+        }
+        assert suggested[CONF_SBER_LOGIN] == "test_user"
+
+        retry = {**MOCK_USER_INPUT, CONF_SBER_PASSWORD: "right_pass"}
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], retry)
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_SBER_PASSWORD] == "right_pass"
+    assert validate.call_count == 2
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 1
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_reauth_recovers_after_an_error(hass: HomeAssistant, no_real_setup) -> None:
+    """A rejected password during reauth can be retried in the same flow."""
+    entry = MockConfigEntry(domain=DOMAIN, data=MOCK_USER_INPUT, unique_id="test_user")
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.sber_mqtt_bridge.config_flow._validate_sber_connection",
+        side_effect=["invalid_auth", None],
+    ):
+        result = await entry.start_reauth_flow(hass)
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_SBER_PASSWORD: "typo"})
+        assert result["type"] is FlowResultType.FORM
+        assert result["step_id"] == "reauth_confirm"
+        assert result["errors"] == {"base": "invalid_auth"}
+
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_SBER_PASSWORD: "new_pass"})
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    assert entry.data[CONF_SBER_PASSWORD] == "new_pass"
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_same_account_added_while_the_form_was_open_is_refused(hass: HomeAssistant) -> None:
+    """The login is the unique id: an account configured meanwhile is not added twice.
+
+    The single-entry guard only runs when a flow starts, so a form left
+    open while the account got configured elsewhere is caught by the
+    unique-id check — before the broker is even contacted.
+    """
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    MockConfigEntry(domain=DOMAIN, data=MOCK_USER_INPUT, unique_id="test_user").add_to_hass(hass)
+
+    with patch("custom_components.sber_mqtt_bridge.config_flow._validate_sber_connection") as validate:
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], MOCK_USER_INPUT)
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    validate.assert_not_called()
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 1
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_same_account_in_two_open_forms_is_refused_in_the_second(hass: HomeAssistant) -> None:
+    """Two setup dialogs for one login: the second submit is aborted, not duplicated."""
+    first = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    second = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+
+    with patch(
+        "custom_components.sber_mqtt_bridge.config_flow._validate_sber_connection",
+        return_value="cannot_connect",
+    ):
+        # The first dialog claims the login and stays open with an error.
+        result = await hass.config_entries.flow.async_configure(first["flow_id"], MOCK_USER_INPUT)
+        assert result["errors"] == {"base": "cannot_connect"}
+
+        result = await hass.config_entries.flow.async_configure(second["flow_id"], MOCK_USER_INPUT)
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_in_progress"
+    assert hass.config_entries.async_entries(DOMAIN) == []

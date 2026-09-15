@@ -6,6 +6,9 @@
         "description": "The Sber MQTT broker rejected the saved password for this integration. Enter the new MQTT password from the Sber Studio integration project.",
         "data": {
           "sber_password": "New MQTT Password"
+        },
+        "data_description": {
+          "sber_password": "The new password from the Sber Studio integration project. The login, broker and port stay as they were configured"
         }
       },
       "user": {
@@ -34,6 +37,7 @@
     },
     "abort": {
       "already_configured": "This Sber account is already configured",
+      "already_in_progress": "A setup for this Sber account is already in progress",
       "reauth_successful": "Re-authentication successful"
     }
   },
@@ -542,6 +546,9 @@
         "description": "{entity_summary}\n\n---\n\nUse the **Sber Bridge** panel in the sidebar for full device management (recommended).\n\nChoose 'Advanced' below only if you need fallback entity management.",
         "data": {
           "action": "What would you like to do?"
+        },
+        "data_description": {
+          "action": "The panel covers everything; the preview lists how each exposed entity appears in Sber, and advanced management is the fallback without the panel"
         }
       },
       "entity_preview": {
@@ -560,6 +567,9 @@
         "title": "Entity Selection Mode",
         "data": {
           "selection_mode": "How to select entities"
+        },
+        "data_description": {
+          "selection_mode": "Pick entities one by one, add every entity of chosen domains or labels, add everything supported, or remove all entities from Sber"
         }
       },
       "select_entities": {
@@ -576,6 +586,9 @@
         "description": "Select domains to add all their entities to Sber. Existing selections will be preserved.",
         "data": {
           "domains": "Domains to add"
+        },
+        "data_description": {
+          "domains": "Enabled entities of the selected domains are added, one per HA device — the one Sber can control best. The number in brackets counts the domain's enabled entities"
         }
       },
       "select_labels": {
@@ -583,6 +596,9 @@
         "description": "Select labels to add all entities with those labels to Sber. Existing selections will be preserved.",
         "data": {
           "labels": "Labels"
+        },
+        "data_description": {
+          "labels": "Every supported entity carrying at least one of the selected labels is added"
         }
       },
       "type_overrides": {
@@ -595,8 +611,15 @@
         "data": {
           "config_settle_delay": "Settle delay (seconds)",
           "config_max_wait": "Max wait for devices (seconds)"
+        },
+        "data_description": {
+          "config_settle_delay": "While devices are still loading, the device list is published once no new device has reported for this many seconds (0–300). When every device has already loaded, the list goes out at once",
+          "config_max_wait": "The device list is published after this many seconds even if some devices have still not loaded (1–900)"
         }
       }
+    },
+    "abort": {
+      "no_exposed_entities": "No entities are exposed to Sber yet. Add entities first, then set their device types."
     }
   },
   "issues": {

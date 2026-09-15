@@ -42,10 +42,10 @@ from collections.abc import AsyncGenerator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiomqtt
 import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
@@ -1889,24 +1889,49 @@ class TestGateOptionsSavedWithoutReload:
         ошибку и нажать «сохранить» ещё раз, а не радоваться зелёной
         галочке.
         """
-        arm_publish_capture(gate_entry)
+        bridge = arm_publish_capture(gate_entry)
+        # Настоящий сбой транспорта: публикатор его ловит и возвращает
+        # False, исключения наружу не летит.  Раньше тест подменял
+        # ``_publish_config`` исключением, которого в работе не бывает,
+        # и потому не заметил, что панель на самом деле видела успех.
+        bridge._mqtt_service.publish.side_effect = aiomqtt.MqttError("broker is down")
         client = await hass_ws_client(hass)
 
-        with patch.object(
-            SberBridge,
-            "_publish_config",
-            new_callable=AsyncMock,
-            side_effect=HomeAssistantError("broker is down"),
-        ) as publish_mock:
-            response = await ws_call(
-                client,
-                {"type": "sber_mqtt_bridge/update_gate_options", "entity_id": RELAY, "travel_time": 12.5},
-            )
-            await hass.async_block_till_done()
+        response = await ws_call(
+            client,
+            {"type": "sber_mqtt_bridge/update_gate_options", "entity_id": RELAY, "travel_time": 12.5},
+        )
+        await hass.async_block_till_done()
 
         assert response["success"] is False
         assert response["error"]["code"] == "publish_failed"
-        publish_mock.assert_awaited()
+        assert bridge._mqtt_service.publish.await_count >= 1
+        # Сама опция сохранена: повторное «сохранить» лишь перепубликует.
+        assert gate_entry.options[CONF_GATE_OPTIONS] == {RELAY: {"travel_time": 12.5}}
+
+    async def test_offline_bridge_saves_without_an_error(
+        self,
+        hass: HomeAssistant,
+        hass_ws_client: Any,
+        gate_entry: MockConfigEntry,
+    ) -> None:
+        """Без связи публиковать нечего — это не ошибка сохранения.
+
+        Список устройств уйдёт в Sber при переподключении целиком, так
+        что панель не должна пугать пользователя ошибкой, которую ему
+        нечем исправить.
+        """
+        client = await hass_ws_client(hass)
+        assert gate_entry.runtime_data.bridge.is_connected is False
+
+        response = await ws_call(
+            client,
+            {"type": "sber_mqtt_bridge/update_gate_options", "entity_id": RELAY, "travel_time": 12.5},
+        )
+        await hass.async_block_till_done()
+
+        assert response["success"] is True
+        assert gate_entry.options[CONF_GATE_OPTIONS] == {RELAY: {"travel_time": 12.5}}
 
     async def test_missing_contact_state_does_not_block_saving(
         self,

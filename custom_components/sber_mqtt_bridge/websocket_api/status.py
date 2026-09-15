@@ -308,9 +308,7 @@ def _section_ha_state(hass: HomeAssistant, entity_id: str) -> dict[str, Any]:
 
 def _section_device_info(entry: Any, device_reg: Any, area_reg: Any) -> dict[str, Any] | None:
     """Return HA device-registry info, or None if no device linked."""
-    if not entry or not entry.device_id:
-        return None
-    device = device_reg.async_get(entry.device_id)
+    device = device_reg.async_get(entry.device_id) if entry and entry.device_id else None
     if device is None:
         return None
     area_obj = area_reg.async_get_area(device.area_id) if device.area_id else None

@@ -9,9 +9,11 @@ Sber could send.
 
 from __future__ import annotations
 
-from custom_components.sber_mqtt_bridge.command_schema import build_command_schema
+from custom_components.sber_mqtt_bridge._generated import FEATURE_TYPES, FEATURE_USAGE_MODES
+from custom_components.sber_mqtt_bridge.command_schema import WRITABLE_USAGE_MODES, build_command_schema
 from custom_components.sber_mqtt_bridge.devices.light import LightEntity
 from custom_components.sber_mqtt_bridge.devices.sensor_temp import SensorTempEntity
+from custom_components.sber_mqtt_bridge.devices.tv import TvEntity
 
 
 def _lamp() -> LightEntity:
@@ -61,3 +63,31 @@ def test_sensor_has_nothing_to_command() -> None:
 def test_schema_is_sorted_by_key() -> None:
     keys = [f["key"] for f in build_command_schema(_lamp())]
     assert keys == sorted(keys)
+
+
+def test_number_without_declared_bounds_falls_back_to_the_documented_range() -> None:
+    """A TV declares ``volume_int`` without allowed values: the builder still bounds it.
+
+    Without the fallback the builder would offer a free-form number that
+    Sber itself could never send.
+    """
+    tv = TvEntity({"entity_id": "media_player.tv", "name": "TV"})
+    tv.fill_by_ha_state(
+        {
+            "entity_id": "media_player.tv",
+            "state": "on",
+            "attributes": {"volume_level": 0.3, "supported_features": 0xFFFFF},
+        }
+    )
+    assert "volume_int" not in tv.create_allowed_values_list()
+
+    volume = _by_key(build_command_schema(tv))["volume_int"]
+
+    assert volume == {"key": "volume_int", "type": "INTEGER", "field": "integer_value", "min": 0, "max": 999}
+
+
+def test_every_commandable_feature_has_a_value_type() -> None:
+    """The builder relies on it: a writable feature without a type could not be offered."""
+    writable = {key for key, mode in FEATURE_USAGE_MODES.items() if mode in WRITABLE_USAGE_MODES}
+    assert writable
+    assert writable - set(FEATURE_TYPES) == set()

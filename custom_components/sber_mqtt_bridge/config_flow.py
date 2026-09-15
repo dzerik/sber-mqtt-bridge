@@ -818,12 +818,20 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
         current_overrides: dict[str, str] = dict(self.config_entry.options.get(CONF_ENTITY_TYPE_OVERRIDES, {}))
 
         if user_input is not None:
-            # Parse overrides from user input
-            new_overrides: dict[str, str] = {}
+            # Only the entities the form actually showed are rewritten.  An
+            # exposed entity missing from the entity registry gets no
+            # selector, so its key is absent from the submission — reading
+            # that as "auto" silently deleted an override the user never
+            # touched.
+            new_overrides = dict(current_overrides)
             for entity_id in exposed:
                 key = f"override_{entity_id}"
-                selected = user_input.get(key, "auto")
-                if selected != "auto":
+                if key not in user_input:
+                    continue
+                selected = user_input[key]
+                if selected == "auto":
+                    new_overrides.pop(entity_id, None)
+                else:
                     new_overrides[entity_id] = selected
 
             _LOGGER.info("Entity type overrides updated: %s", new_overrides)
@@ -835,12 +843,9 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
             )
 
         if not exposed:
-            # No entities exposed — show empty form
-            return self.async_show_form(
-                step_id="type_overrides",
-                data_schema=vol.Schema({}),
-                description_placeholders={"entities_info": "No entities are exposed yet."},
-            )
+            # Nothing to override: an empty form would only offer a Submit
+            # button with no explanation, so say why and stop here.
+            return self.async_abort(reason="no_exposed_entities")
 
         # Build form with one selector per exposed entity
         entity_reg = er.async_get(self.hass)

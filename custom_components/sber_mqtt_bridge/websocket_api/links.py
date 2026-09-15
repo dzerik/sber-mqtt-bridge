@@ -97,10 +97,9 @@ async def ws_auto_link_all(
     entry: Any,
 ) -> None:
     """Auto-link all exposed entities by shared device_id."""
-    bridge = get_bridge(hass)
-    if bridge is None:
-        connection.send_error(msg["id"], "not_found", "Bridge or config entry not found")
-        return
+    # ``requires_entry`` only passes a loaded entry, and a loaded entry
+    # always carries the bridge (set before setup returns).
+    bridge = entry.runtime_data.bridge
 
     entity_reg = er.async_get(hass)
     all_links: dict[str, dict[str, str]] = dict(entry.options.get(CONF_ENTITY_LINKS, {}))

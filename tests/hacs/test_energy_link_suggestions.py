@@ -455,10 +455,10 @@ async def _auto_link(hass, entity_reg, exposed: dict[str, object], options: dict
     entry.options = options
     bridge = MagicMock()
     bridge.entities = exposed
+    entry.runtime_data.bridge = bridge
     module = "custom_components.sber_mqtt_bridge.websocket_api.links"
     with (
         patch(f"{module}.get_config_entry", return_value=entry),
-        patch(f"{module}.get_bridge", return_value=bridge),
         patch(f"{module}.er") as mock_er,
     ):
         mock_er.async_get.return_value = entity_reg

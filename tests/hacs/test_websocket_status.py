@@ -25,7 +25,8 @@ from _ws_dispatch import dispatch
 from homeassistant.exceptions import Unauthorized
 
 from custom_components.sber_mqtt_bridge.const import CONF_HUB_AUTO_PARENT, SETTINGS_DEFAULTS
-from custom_components.sber_mqtt_bridge.websocket_api.status import ws_get_status
+from custom_components.sber_mqtt_bridge.devices.relay import RelayEntity
+from custom_components.sber_mqtt_bridge.websocket_api.status import _section_entity_options, ws_get_status
 
 _STATUS_MODULE = "custom_components.sber_mqtt_bridge.websocket_api.status"
 
@@ -115,3 +116,20 @@ async def test_status_is_admin_only() -> None:
         await dispatch(ws_get_status, hass, connection, {"id": 1}, is_admin=False)
 
     connection.send_result.assert_not_called()
+
+
+def test_device_detail_omits_an_option_block_with_nothing_in_it() -> None:
+    """No values to show means no option block in ``device_detail``, even for a class that has options.
+
+    The option keys are set on the instance: a throwaway subclass would
+    register itself as a device class and leak into the class-registry
+    checks of other tests.
+    """
+    entity = RelayEntity({"entity_id": "switch.x", "name": "X"})
+    assert _section_entity_options(entity) is None
+
+    entity.ENTITY_OPTION_KEYS = ("travel_time",)
+    assert entity.supports_entity_options
+    assert entity.entity_options_state() == {}
+
+    assert _section_entity_options(entity) is None

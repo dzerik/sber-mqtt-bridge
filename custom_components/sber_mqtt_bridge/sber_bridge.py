@@ -23,6 +23,7 @@ import aiomqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_track_time_interval
 
 from ._generated import FEATURE_RANGES
@@ -913,13 +914,35 @@ class SberBridge:
 
         Raises:
             KeyError: If ``entity_id`` is not loaded in the bridge.
-            HomeAssistantError: If the follow-up config publish fails.
+            HomeAssistantError: If the follow-up config publish fails on a
+                live session (see :meth:`_republish_config_after_edit`).
         """
         if entity_id not in self._entities:
             raise KeyError(entity_id)
         existing = await self._redef_store.async_update(entity_id, fields)
-        await self._publish_config()
+        await self._republish_config_after_edit(entity_id)
         return existing
+
+    async def _republish_config_after_edit(self, entity_id: str) -> None:
+        """Republish the device list after a user edit and report a failed publish.
+
+        The edit itself is already stored and applied.  When the bridge is
+        offline nothing is lost: the reconnect handshake publishes the full
+        device list, so the edit reaches Sber then.  A publish that was
+        attempted on a live session and did not go out is different — the
+        panel used to report success while Sber kept the old descriptor
+        (``SberPublisher.publish_config`` reports the failure as ``False``
+        and never raises), so it is raised for the caller to show.
+
+        Args:
+            entity_id: Entity whose edit triggered the republish (for the message).
+
+        Raises:
+            HomeAssistantError: If the publish was attempted and failed.
+        """
+        attempted = self.is_connected
+        if not await self._publish_config() and attempted:
+            raise HomeAssistantError(f"Device list with the change to {entity_id} was not delivered to Sber")
 
     async def async_update_entity_options(self, entity_id: str, fields: dict[str, Any]) -> dict[str, Any]:
         """Merge per-entity device options for one entity and apply them live.
@@ -960,7 +983,8 @@ class SberBridge:
             KeyError: If ``entity_id`` is not loaded in the bridge.
             TypeError: If the entity's class accepts no options.
             ValueError: If the entity rejects one of the submitted values.
-            HomeAssistantError: If the follow-up publish fails.
+            HomeAssistantError: If the follow-up config publish fails on a
+                live session (see :meth:`_republish_config_after_edit`).
         """
         entity = self._entities.get(entity_id)
         if entity is None:
@@ -987,7 +1011,7 @@ class SberBridge:
         # — and fires a redundant forced publish for a movement that was
         # cancelled long before.
         self._sync_deferred_confirm(entity_id)
-        await self._publish_config()
+        await self._republish_config_after_edit(entity_id)
         await self._publish_states([entity_id], force=True)
         return merged
 

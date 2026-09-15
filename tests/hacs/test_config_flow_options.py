@@ -24,13 +24,15 @@ from unittest.mock import patch
 
 import pytest
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.sber_mqtt_bridge import config_flow as cf
 from custom_components.sber_mqtt_bridge.const import (
+    CONF_CONFIG_MAX_WAIT,
+    CONF_CONFIG_SETTLE_DELAY,
     CONF_DEBOUNCE_DELAY,
     CONF_ENTITY_LINKS,
     CONF_ENTITY_TYPE_OVERRIDES,
@@ -566,3 +568,230 @@ async def test_preview_renders_category_labels_per_entity(hass: HomeAssistant, n
     assert "Not found" in preview
     assert "LED strip: 1" in summary
     assert "**Exposed: 4 entities**" in summary
+
+
+# ---------------------------------------------------------------------------
+# Options Flow — every branch a user can reach
+# ---------------------------------------------------------------------------
+
+
+async def _open_advanced_step(hass: HomeAssistant, entry: MockConfigEntry, step: str) -> dict:
+    """Walk init → advanced menu → ``step`` and return that step's result."""
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"action": "advanced"})
+    return await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": step})
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_choosing_the_panel_closes_without_changing_options(hass: HomeAssistant, no_real_setup) -> None:
+    """ "Open the panel" finishes the dialog and leaves every option as it was."""
+    entry = _add_entry(hass, dict(FULL_OPTIONS))
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"action": "panel"})
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert dict(entry.options) == FULL_OPTIONS
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_summary_and_preview_explain_an_empty_export(hass: HomeAssistant, no_real_setup) -> None:
+    """With nothing exposed the dialog says so instead of rendering empty text."""
+    entry = _add_entry(hass, {})
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["description_placeholders"]["entity_summary"] == "No entities exposed yet"
+
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"action": "preview"})
+    assert result["step_id"] == "entity_preview"
+    assert result["description_placeholders"]["preview"] == "No entities exposed yet. Add entities first."
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_preview_submit_returns_to_the_start(hass: HomeAssistant, no_real_setup) -> None:
+    """Confirming the preview goes back to the action choice, nothing is saved."""
+    entry = _add_entry(hass, dict(FULL_OPTIONS))
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"action": "preview"})
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {})
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "init"
+    assert dict(entry.options) == FULL_OPTIONS
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_domain_choice_counts_only_entities_that_can_be_exported(hass: HomeAssistant, no_real_setup) -> None:
+    """Disabled entities and the bridge's own entities are not offered or counted.
+
+    Submitting without picking a domain closes the dialog unchanged.
+    """
+    entry = _add_entry(hass, dict(FULL_OPTIONS))
+    ent_reg = er.async_get(hass)
+    ent_reg.async_get_or_create("switch", "demo", "pump", suggested_object_id="pump")
+    ent_reg.async_get_or_create(
+        "switch", "demo", "old", suggested_object_id="old", disabled_by=er.RegistryEntryDisabler.USER
+    )
+    ent_reg.async_get_or_create("binary_sensor", DOMAIN, "connected", suggested_object_id="sber_connected")
+
+    result = await _open_advanced_step(hass, entry, "select_entities_menu")
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"selection_mode": "by_domain"})
+
+    options = {opt["value"]: opt["label"] for opt in result["data_schema"].schema["domains"].config["options"]}
+    assert options == {"switch": f"{cf.DOMAIN_LABELS['switch']} (1)"}
+
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"domains": []})
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert dict(entry.options) == FULL_OPTIONS
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_label_choice_offers_and_adds_only_exportable_entities(hass: HomeAssistant, no_real_setup) -> None:
+    """A label shared by unexportable entities neither offers them nor adds them.
+
+    Disabled entities, the bridge's own entities and domains Sber has no
+    category for all carry the label, yet only the light is added.
+    """
+    entry = _add_entry(hass, {})
+    ent_reg = er.async_get(hass)
+    ent_reg.async_get_or_create("light", "demo", "hall", suggested_object_id="hall")
+    ent_reg.async_get_or_create(
+        "light", "demo", "old", suggested_object_id="old", disabled_by=er.RegistryEntryDisabler.USER
+    )
+    ent_reg.async_get_or_create("binary_sensor", DOMAIN, "connected", suggested_object_id="sber_connected")
+    ent_reg.async_get_or_create("automation", "demo", "wake", suggested_object_id="wake")
+    ent_reg.async_get_or_create("switch", DOMAIN, "own", suggested_object_id="own")
+    for entity_id in ("light.hall", "light.old", "binary_sensor.sber_connected", "automation.wake"):
+        ent_reg.async_update_entity(entity_id, labels={"sber"})
+    # Labels of unexportable entities alone must not appear in the picker.
+    ent_reg.async_update_entity("light.old", labels={"sber", "retired"})
+    ent_reg.async_update_entity("switch.own", labels={"internal"})
+
+    result = await _open_advanced_step(hass, entry, "select_entities_menu")
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"selection_mode": "by_label"})
+    offered = [opt["value"] for opt in result["data_schema"].schema["labels"].config["options"]]
+    assert offered == ["sber"]
+
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"labels": ["sber"]})
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_EXPOSED_ENTITIES] == ["light.hall"]
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_label_choice_without_any_labels_closes_unchanged(hass: HomeAssistant, no_real_setup) -> None:
+    """No labels in the registry: an optional, empty picker that saves nothing."""
+    entry = _add_entry(hass, dict(FULL_OPTIONS))
+    er.async_get(hass).async_get_or_create("light", "demo", "hall", suggested_object_id="hall")
+
+    result = await _open_advanced_step(hass, entry, "select_entities_menu")
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"selection_mode": "by_label"})
+    assert result["step_id"] == "select_labels"
+    assert result["data_schema"].schema["labels"].config["options"] == []
+
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {})
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert dict(entry.options) == FULL_OPTIONS
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_add_all_keeps_the_richest_entity_whatever_the_registry_order(hass: HomeAssistant) -> None:
+    """A switch registered before the light of the same device is replaced by the light."""
+    entry = _add_entry(hass, {})
+    device = _make_device(hass, entry, "kitchen_dev")
+    ent_reg = er.async_get(hass)
+    ent_reg.async_get_or_create("switch", "demo", "kitchen_sw", device_id=device.id, suggested_object_id="kitchen")
+    ent_reg.async_get_or_create("light", "demo", "kitchen_light", device_id=device.id, suggested_object_id="kitchen")
+
+    assert cf._get_entities_by_domains(hass, SUPPORTED_DOMAINS) == ["light.kitchen"]
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_type_overrides_without_exposed_entities_explains_and_stops(hass: HomeAssistant, no_real_setup) -> None:
+    """Nothing exposed: the step aborts with a translated reason.
+
+    Regression: it used to render an empty form whose explanation was
+    never shown (the step text had no placeholder for it), and submitting
+    that form rewrote the stored overrides to an empty mapping.
+    """
+    options = {CONF_EXPOSED_ENTITIES: [], CONF_ENTITY_TYPE_OVERRIDES: {"light.kept": "led_strip"}}
+    entry = _add_entry(hass, options)
+
+    result = await _open_advanced_step(hass, entry, "type_overrides")
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "no_exposed_entities"
+    assert dict(entry.options) == options
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_type_overrides_keep_the_override_of_an_entity_missing_from_the_registry(
+    hass: HomeAssistant, no_real_setup
+) -> None:
+    """An exposed entity the form cannot show keeps its stored override.
+
+    Regression: an entity absent from the entity registry gets no
+    selector, so its key is missing from the submission — and a missing
+    key used to be read as "auto", deleting an override the user never
+    saw, let alone changed.
+    """
+    entry = _add_entry(
+        hass,
+        {
+            CONF_EXPOSED_ENTITIES: ["light.living_room", "light.ghost"],
+            CONF_ENTITY_TYPE_OVERRIDES: {"light.ghost": "led_strip"},
+        },
+    )
+    er.async_get(hass).async_get_or_create("light", "demo", "lr", suggested_object_id="living_room")
+
+    result = await _open_type_overrides(hass, entry)
+    assert [str(key) for key in result["data_schema"].schema] == ["override_light.living_room"]
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"override_light.living_room": "led_strip"}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_ENTITY_TYPE_OVERRIDES] == {
+        "light.living_room": "led_strip",
+        "light.ghost": "led_strip",
+    }
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_device_sync_rejects_an_out_of_range_wait_and_accepts_the_fix(hass: HomeAssistant, no_real_setup) -> None:
+    """An out-of-range value is refused without saving; the corrected form saves.
+
+    The form starts from the stored values, and a save keeps every other
+    option.
+    """
+    entry = _add_entry(hass, {**FULL_OPTIONS, CONF_CONFIG_SETTLE_DELAY: 7.0})
+
+    result = await _open_advanced_step(hass, entry, "device_sync")
+    assert result["step_id"] == "device_sync"
+    defaults = {str(key): key.default() for key in result["data_schema"].schema}
+    assert defaults[CONF_CONFIG_SETTLE_DELAY] == 7.0
+
+    with pytest.raises(InvalidData):
+        await hass.config_entries.options.async_configure(
+            result["flow_id"], {CONF_CONFIG_SETTLE_DELAY: 7.0, CONF_CONFIG_MAX_WAIT: 5000}
+        )
+    assert CONF_CONFIG_MAX_WAIT not in entry.options
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_CONFIG_SETTLE_DELAY: 30, CONF_CONFIG_MAX_WAIT: 600}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_CONFIG_SETTLE_DELAY] == 30.0
+    assert entry.options[CONF_CONFIG_MAX_WAIT] == 600.0
+    assert entry.options[CONF_ENTITY_TYPE_OVERRIDES] == FULL_OPTIONS[CONF_ENTITY_TYPE_OVERRIDES]

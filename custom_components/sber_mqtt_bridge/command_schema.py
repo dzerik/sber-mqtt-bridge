@@ -51,9 +51,9 @@ def build_command_schema(entity: BaseEntity) -> list[dict[str, Any]]:
     for key in sorted(set(entity.get_final_features_list())):
         if FEATURE_USAGE_MODES.get(key) not in WRITABLE_USAGE_MODES:
             continue
-        value_type = FEATURE_TYPES.get(key)
-        if value_type is None:
-            continue
+        # Both tables are generated from the same documented function list,
+        # where the value type is mandatory: a usage mode implies a type.
+        value_type = FEATURE_TYPES[key]
         item: dict[str, Any] = {"key": key, "type": value_type, "field": VALUE_FIELD_BY_TYPE[value_type]}
         spec = allowed.get(key) or {}
         if value_type in ("INTEGER", "FLOAT"):
