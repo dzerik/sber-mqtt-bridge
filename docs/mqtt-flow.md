@@ -13,20 +13,22 @@ stateDiagram-v2
     state MqttLoop {
         [*] --> Connecting: aiomqtt.Client()
         Connecting --> Connected: TLS handshake OK
-        Connected --> WaitHA: _ha_ready not set?
-        Connected --> PublishFirst: _ha_ready already set
+        Connected --> Subscribe: client.subscribe(down/#) — awaits SUBACK
+        Subscribe --> WaitHA: _ha_ready not set?
+        Subscribe --> PublishFirst: _ha_ready already set
         WaitHA --> PublishFirst: _ha_ready.wait() unblocked
 
         PublishFirst --> PubConfig: _publish_config()
         PubConfig --> PubStates: _publish_states(force=True)
 
-        PubStates --> Subscribe: client.subscribe(down/#)
-        Subscribe --> GracePeriod: start 5s grace timer
+        PubStates --> GracePeriod: arm reconnect guard (30s)
 
         GracePeriod --> Listening: async for message
 
         Listening --> Listening: process messages
         Listening --> Disconnected: MqttError / OSError
+        Listening --> StableSession: connected for 60s
+        StableSession --> Listening: backoff reset to reconnect_min
         Disconnected --> Backoff: exponential wait
         Backoff --> Connecting: retry
     }
@@ -34,7 +36,7 @@ stateDiagram-v2
     MqttLoop --> [*]: async_stop()
 ```
 
-## (Re)connect Sequence — Publish Before Subscribe
+## (Re)connect Sequence — Subscribe Before Publish
 
 ```mermaid
 sequenceDiagram
@@ -45,23 +47,30 @@ sequenceDiagram
 
     Note over Bridge,Broker: TLS connection established
 
+    rect rgb(220, 230, 255)
+        Note over Bridge,Broker: Phase 1 — Subscribe (nothing published yet)
+        Bridge->>Broker: SUBSCRIBE down/#
+        Broker-->>Bridge: SUBACK
+        Bridge->>Broker: SUBSCRIBE global_config
+        Broker-->>Bridge: SUBACK
+        Note over Bridge: Inbound messages are queued until the handshake ends
+    end
+
     Bridge->>Bridge: Wait for HA ready (_ha_ready)
+    Cloud-->>Bridge: down/commands, down/status_request (queued while HA starts)
     HA-->>Bridge: HA started event (entities available)
 
     rect rgb(220, 245, 220)
-        Note over Bridge,Cloud: Phase 1 — Publish (HA is authoritative)
+        Note over Bridge,Cloud: Phase 2 — Publish (HA is authoritative)
+        Note over Bridge: Count the queued backlog — it predates the publish
         Bridge->>Broker: PUBLISH up/config (device list)
         Broker->>Cloud: Forward config
+        Cloud-->>Bridge: down/errors or down/status_request (queued, not lost)
         Bridge->>Broker: PUBLISH up/status (all entity states)
         Broker->>Cloud: Forward states
         Note over Cloud: Sber now knows real HA state
-    end
-
-    rect rgb(220, 230, 255)
-        Note over Bridge,Broker: Phase 2 — Subscribe (buffer is empty)
-        Bridge->>Broker: SUBSCRIBE down/#
-        Bridge->>Broker: SUBSCRIBE global_config
-        Note over Bridge: Start 5s grace period
+        Note over Bridge: Arm reconnect guard (30s), then dispatch queued messages
+        Note over Bridge: Backlog commands / status & config requests discarded (no ack); errors handled
     end
 
     rect rgb(255, 240, 220)
@@ -152,7 +161,10 @@ flowchart TD
     E --> F["sleep(reconnect_interval)"]
     F --> G["reconnect_interval *= 2\n(capped at reconnect_max)"]
     G --> H[Reconnect attempt]
-    H -- Success --> I["reconnect_interval = reconnect_min\nPublish config + states\nSubscribe + grace period"]
+    H -- Success --> I["Subscribe\nPublish config + states\nGrace period"]
+    I --> J{"Connected for 60s?"}
+    J -- Yes --> K["reconnect_interval = reconnect_min"]
+    J -- "No, dropped" --> B
     H -- Failure --> B
 ```
 

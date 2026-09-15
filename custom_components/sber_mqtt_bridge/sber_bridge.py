@@ -80,6 +80,20 @@ After a reconnect, the bridge publishes HA states and waits for Sber to
 acknowledge them (via status_request or config_request) before accepting
 commands.  This timeout is a fallback in case Sber never sends a request."""
 
+PRE_PUBLISH_DISCARDED_SUFFIXES: frozenset[str] = frozenset(
+    {MqttTopicSuffix.COMMANDS, MqttTopicSuffix.STATUS_REQUEST, MqttTopicSuffix.CONFIG_REQUEST}
+)
+"""``down/*`` suffixes discarded when the message was queued before the initial publish.
+
+The connect handshake subscribes before it publishes, and HA startup can
+keep it waiting for minutes, so messages sent to the previous state of the
+bridge pile up in the client's queue.  A command among them is stale by
+definition (HA state is authoritative) and a ``status_request`` /
+``config_request`` among them was asked before Sber saw the published
+state, so it must not count as the acknowledgement the reconnect guard
+waits for; the initial publish already answers both requests.  Errors,
+room moves and renames carry no such risk and are handled as usual."""
+
 DEFERRED_CONFIRM_SLOT_SUFFIX = "#deferred"
 """Suffix of the ``_confirm_tasks`` slot holding an entity-requested republish.
 
@@ -257,6 +271,9 @@ class SberBridge:
 
         # Delayed confirm tasks per entity (dedup: cancel previous on new command)
         self._confirm_tasks: dict[str, asyncio.Task] = {}
+
+        self._pre_publish_backlog = 0
+        """Inbound messages still to dispatch that were queued before this session's initial publish."""
 
         # MQTT transport service: owns reconnect loop + publish + subscribe
         self._mqtt_service = MqttClientService(
@@ -1701,18 +1718,37 @@ class SberBridge:
 
         The service already owns the connection state (``client`` /
         ``connected`` flags); this hook only executes the Sber-specific
-        handshake dance (initial publish, subscribe, ack-guard).
+        handshake dance (subscribe, initial publish, ack-guard).
+
+        Subscribing comes FIRST, before anything can be published on this
+        session: the broker discards whatever it routes to a topic nobody
+        has subscribed to yet, so a Sber reply (an error report on
+        ``down/errors``, a ``status_request``) that happened to beat a
+        SUBSCRIBE sent after the publish was lost.  ``aiomqtt.Client.subscribe``
+        returns only after the broker's SUBACK, so every publish below is
+        covered.  The config gate and the state forwarder may publish on
+        their own while the handshake waits for HA, which is why the
+        subscription cannot sit right before the initial publish.
+
+        Subscribing early must not let anything in early: inbound messages
+        are queued by ``aiomqtt`` and dispatched only after this hook
+        returns, and those queued before the initial publish (possibly
+        minutes old after an HA restart) are neutralised by
+        :meth:`_perform_initial_publish` / :meth:`_handle_mqtt_message` —
+        see :data:`PRE_PUBLISH_DISCARDED_SUFFIXES`.  Only a message sent
+        after the published state can acknowledge it and clear the guard.
 
         Args:
             client: Live ``aiomqtt.Client`` from the service.
         """
+        self._pre_publish_backlog = 0
         self._mark_connected()
+        await self._subscribe_down_topics(client)
         await self._wait_for_ha_ready()
         await self._perform_initial_publish()
-        await self._subscribe_down_topics(client)
         self._ack_audit.activate_post_connect()
         _LOGGER.info(
-            "Connected & published states → subscribed to commands (awaiting Sber ack, timeout %.0fs)",
+            "Connected: subscribed to commands, published config & states (awaiting Sber ack, timeout %.0fs)",
             RECONNECT_GRACE_TIMEOUT,
         )
         # Message consumption is handled by MqttClientService itself —
@@ -1751,13 +1787,22 @@ class SberBridge:
         await self._ha_ready.wait()
 
     async def _perform_initial_publish(self) -> None:
-        """Publish authoritative config + states BEFORE subscribing.
+        """Publish authoritative config + states for a fresh session.
 
-        HA state is authoritative.  We publish config + states FIRST so
-        that Sber cloud knows the real device state BEFORE it can send
-        any commands.  MQTT broker delivers messages on down/# only after
-        SUBSCRIBE, so the message buffer is guaranteed to be empty of
-        stale "corrective" commands when we start listening.
+        HA state is authoritative.  Config and states go out before any
+        inbound message is dispatched (messages are consumed only after the
+        connect hook returns), so Sber cloud knows the real device state
+        before a command can reach HA; a command that arrives before Sber
+        acknowledges that state is rejected by the reconnect guard.
+
+        Right before the config goes out, the messages already waiting in
+        the client's queue are counted: they were sent before Sber could
+        see this publish, and :meth:`_handle_mqtt_message` discards the
+        commands and requests among them instead of letting a stale
+        ``status_request`` clear the guard for a stale command queued
+        behind it.  A message still in the socket buffer at that instant
+        escapes the count — a window of milliseconds, against the minutes
+        of HA startup the count covers.
         """
         # Wait for the entity set to finish loading before the very first
         # publish: Sber reads every config payload as the complete device
@@ -1765,6 +1810,8 @@ class SberBridge:
         # devices up makes the cloud drop and later re-create them, losing
         # their room (issue #44).  Bounded by the gate's hard cap.
         await self._config_gate.wait_until_ready()
+        service = self._mqtt_service
+        self._pre_publish_backlog = service.queued_inbound_count if service is not None else 0
         if not await self._config_gate.flush_now():
             # The handshake used to continue in silence here: it subscribed,
             # served commands and looked healthy while Sber had never
@@ -1851,6 +1898,7 @@ class SberBridge:
         """
         self._connected = False
         self._mqtt_client = None
+        self._pre_publish_backlog = 0
         self._notify_status_listeners()
         # Cancel the pending silent-rejection audit: with the link down no
         # ack can physically arrive, so letting the timer fire would create
@@ -1918,6 +1966,11 @@ class SberBridge:
         """
         self._stats.messages_received += 1
         _LOGGER.debug("MQTT <- %s (%d bytes)", topic, len(payload) if payload else 0)
+        # Consumed per message, before any early return, so the count stays
+        # aligned with the FIFO queue it was taken from.
+        pre_publish = self._pre_publish_backlog > 0
+        if pre_publish:
+            self._pre_publish_backlog -= 1
 
         # Payload size guard (M2) — MUST run before decode / DevTools logging
         # so a hostile 256 MB MQTT message costs no memory beyond the socket.
@@ -1947,6 +2000,13 @@ class SberBridge:
         handler = self._mqtt_dispatch.get(suffix)
         if handler is None:
             _LOGGER.debug("Unhandled MQTT topic suffix: %s", suffix)
+            return
+        if pre_publish and suffix in PRE_PUBLISH_DISCARDED_SUFFIXES:
+            _LOGGER.log(
+                logging.WARNING if suffix == MqttTopicSuffix.COMMANDS else logging.INFO,
+                "Discarding Sber %s sent before the initial publish of this session (HA state is authoritative)",
+                suffix,
+            )
             return
         try:
             await handler(payload)

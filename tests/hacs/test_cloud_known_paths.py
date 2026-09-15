@@ -84,12 +84,15 @@ class RecordingTransport:
     """In-memory замена подключённого ``aiomqtt.Client``.
 
     Используется только ``publish``: цикл переподключения выключен, так
-    что мост через этот объект ничего не читает.
+    что мост через этот объект ничего не читает — очередь входящих
+    (``messages``) всегда пуста.
     """
 
     def __init__(self) -> None:
         """Начать с пустого журнала публикаций."""
         self.published: list[tuple[str, str | bytes]] = []
+        self.messages: tuple[object, ...] = ()
+        """Пустая очередь входящих сообщений: ``len()`` как у ``aiomqtt``."""
 
     async def publish(self, topic: str, payload: str | bytes) -> None:
         """Записать исходящую публикацию вместо обращения к сети."""

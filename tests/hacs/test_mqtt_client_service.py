@@ -71,6 +71,9 @@ class _MessageStream:
             raise item
         return item
 
+    def __len__(self) -> int:
+        return self.queue.qsize()
+
 
 class _FakeClient:
     """Fake aiomqtt.Client: async context manager + scripted message stream."""
@@ -235,6 +238,35 @@ async def _wait_for(predicate) -> None:
             await asyncio.sleep(0)
 
 
+async def test_queued_inbound_count_reports_backlog_seen_by_connect_hook(monkeypatch, hooks, stub_ssl) -> None:
+    """The connect hook sees how many messages already wait; consumption drains the count."""
+    client = _FakeClient()
+    _install_factory(monkeypatch, [client])
+    service = _make_service(hooks)
+    assert service.queued_inbound_count == 0, "no client, no backlog"
+
+    seen_in_hook: list[int] = []
+    recording = hooks.as_hooks()
+
+    async def _on_connected(live_client) -> None:
+        client.stream.queue.put_nowait(_FakeMessage("down/status_request", b"{}"))
+        client.stream.queue.put_nowait(_FakeMessage("down/commands", b"{}"))
+        seen_in_hook.append(service.queued_inbound_count)
+        await recording.on_connected(live_client)
+
+    service._hooks = MqttServiceHooks(
+        on_message=recording.on_message, on_connected=_on_connected, on_disconnected=recording.on_disconnected
+    )
+    task = asyncio.create_task(service.run())
+    try:
+        await _wait_for(lambda: len(hooks.messages) == 2)
+        assert seen_in_hook == [2]
+        assert service.queued_inbound_count == 0
+    finally:
+        task.cancel()
+        await asyncio.wait_for(task, 1.0)
+
+
 # ---------------------------------------------------------------------------
 # Message barrier: one bad message must not kill the transport
 # ---------------------------------------------------------------------------
@@ -331,28 +363,182 @@ async def test_backoff_grows_exponentially_and_clamps(monkeypatch, hooks, stub_s
     assert service.client is None
 
 
-async def test_backoff_resets_after_successful_connect(monkeypatch, hooks, stub_ssl, fast_sleep, no_jitter) -> None:
-    """A successful handshake resets the backoff interval to reconnect_min."""
-    ok = _FakeClient()
-    ok.stream.queue.put_nowait(None)  # clean stream end right after connect
-    clients = [
-        _FakeClient(connect_error=aiomqtt.MqttError("refused")),
-        _FakeClient(connect_error=aiomqtt.MqttError("refused")),
-        ok,
-        _FakeClient(connect_error=aiomqtt.MqttError("refused")),
-    ]
+def _dropping_client() -> _FakeClient:
+    """A client whose CONNACK succeeds and whose session the broker drops at once.
+
+    The shape of a session takeover (another client logged in with the same
+    credentials), an ACL rejection or a broker-side kick.
+    """
+    client = _FakeClient()
+    client.stream.queue.put_nowait(aiomqtt.MqttError("session taken over"))
+    return client
+
+
+class _ManualTimers:
+    """Stand-in for ``loop.call_later`` that lets the test decide when time passes.
+
+    Handles are real ``asyncio.TimerHandle`` objects that are never put on the
+    loop, so ``cancel()`` behaves as in production while :meth:`elapse` plays
+    the part of the clock running out — deterministic, no real waiting.
+    """
+
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        self._loop = loop
+        self.handles: list[tuple[float, asyncio.TimerHandle]] = []
+
+    def call_later(self, delay: float, callback: Any, *args: Any, context: Any = None) -> asyncio.TimerHandle:
+        handle = asyncio.TimerHandle(self._loop.time() + delay, callback, args, self._loop, context=context)
+        self.handles.append((delay, handle))
+        return handle
+
+    @property
+    def pending(self) -> list[asyncio.TimerHandle]:
+        return [handle for _delay, handle in self.handles if not handle.cancelled()]
+
+    def elapse(self) -> None:
+        """Fire every timer that is still armed, as the loop would once it is due."""
+        for _delay, handle in list(self.handles):
+            if not handle.cancelled():
+                handle._run()
+                handle.cancel()
+
+
+@pytest.fixture
+async def manual_timers(monkeypatch: pytest.MonkeyPatch) -> _ManualTimers:
+    """Route the running loop's ``call_later`` through :class:`_ManualTimers`."""
+    loop = asyncio.get_running_loop()
+    timers = _ManualTimers(loop)
+    monkeypatch.setattr(loop, "call_later", timers.call_later)
+    return timers
+
+
+async def test_flapping_session_grows_backoff_to_max(monkeypatch, hooks, stub_ssl, fast_sleep, no_jitter) -> None:
+    """Connect OK then an immediate drop, over and over, backs off like any failure.
+
+    Resetting the delay on CONNACK used to pin a flapping bridge at
+    ``reconnect_min`` forever: every accepted-then-dropped session looked
+    like a recovery.
+    """
+    clients = [_dropping_client() for _ in range(6)]
     _install_factory(monkeypatch, clients)
-    hooks.keep_running_answers = [True, True, False]
+    hooks.keep_running_answers = [True, True, True, True, True, False]
 
     service = _make_service(hooks, reconnect_min=1, reconnect_max=8)
     await asyncio.wait_for(service.run(), 5.0)
 
-    # fail(sleep 1) fail(sleep 2) success fail(sleep would be 1 again, but
-    # keep_running=False stops before sleeping) → recorded [1, 2].
-    assert fast_sleep == [1, 2]
-    assert hooks.connected_count == 1
-    # The post-success failure was offered reconnect_min, not 4.
-    assert service.reconnect_interval == 1
+    assert hooks.connected_count == 6, "every attempt reached a live session"
+    assert [d for d in fast_sleep if d > 0] == [1, 2, 4, 8, 8]
+    assert service.reconnect_interval == 8
+
+
+async def test_stable_session_resets_backoff(
+    monkeypatch, hooks, stub_ssl, fast_sleep, no_jitter, manual_timers
+) -> None:
+    """A session that stays up past the threshold earns the minimum delay again."""
+    stable = _FakeClient()
+    clients = [
+        _FakeClient(connect_error=aiomqtt.MqttError("refused")),
+        _FakeClient(connect_error=aiomqtt.MqttError("refused")),
+        stable,
+        _FakeClient(connect_error=aiomqtt.MqttError("refused")),
+    ]
+    _install_factory(monkeypatch, clients)
+    hooks.keep_running_answers = [True, True, True, False]
+
+    service = _make_service(hooks, reconnect_min=1, reconnect_max=8)
+    task = asyncio.create_task(service.run())
+    try:
+        await _wait_for(lambda: service.is_connected)
+        assert service.reconnect_interval == 4, "CONNACK alone must not reset the backoff"
+        assert [delay for delay, _handle in manual_timers.handles] == [mcs_module.STABLE_SESSION_SECONDS]
+
+        manual_timers.elapse()
+        assert service.reconnect_interval == 1, "a stable session must reset the backoff"
+
+        stable.stream.queue.put_nowait(aiomqtt.MqttError("broker restart"))
+        await asyncio.wait_for(task, 1.0)
+        # fail(1) fail(2) stable-then-drop(1 again), final failure stops.
+        assert [d for d in fast_sleep if d > 0] == [1, 2, 1]
+    finally:
+        if not task.done():
+            task.cancel()
+            await asyncio.wait_for(task, 1.0)
+
+
+async def test_short_session_timer_does_not_reset_next_session(
+    monkeypatch, hooks, stub_ssl, fast_sleep, no_jitter, manual_timers
+) -> None:
+    """A dropped session's pending reset is disarmed and cannot credit the next session.
+
+    Session A is dropped early; session B connects right after and is still
+    young when A's threshold would have run out.  Were A's timer left armed,
+    it would find the bridge connected (B) and reset the delay although no
+    session has been stable yet.
+    """
+    second = _FakeClient()
+    _install_factory(monkeypatch, [_dropping_client(), second])
+
+    service = _make_service(hooks, reconnect_min=1, reconnect_max=8)
+    task = asyncio.create_task(service.run())
+    try:
+        await _wait_for(lambda: hooks.connected_count == 2 and service.is_connected)
+        assert service.reconnect_interval == 2
+        # A's threshold runs out; B's timer is armed but not yet due.
+        first_session_timer = manual_timers.handles[0][1]
+        if not first_session_timer.cancelled():
+            first_session_timer._run()
+        assert service.reconnect_interval == 2, "a dropped session was credited as stable"
+    finally:
+        task.cancel()
+        await asyncio.wait_for(task, 1.0)
+
+
+async def test_backoff_sleep_does_not_count_as_stable_session(
+    monkeypatch, hooks, stub_ssl, no_jitter, manual_timers
+) -> None:
+    """Time spent waiting to reconnect never credits the dropped session.
+
+    With a long backoff (up to ``reconnect_max``, far above the stable
+    threshold) a reset left armed by the dropped session would run out during
+    the wait and knock the delay back to the minimum on every round.
+    """
+    recorded: list[float] = []
+    real_sleep = asyncio.sleep
+
+    async def _sleep_and_let_time_pass(delay: float, *args: Any) -> None:
+        if delay > 0:
+            recorded.append(delay)
+            manual_timers.elapse()
+        await real_sleep(0)
+
+    monkeypatch.setattr(asyncio, "sleep", _sleep_and_let_time_pass)
+    _install_factory(monkeypatch, [_dropping_client() for _ in range(5)])
+    hooks.keep_running_answers = [True, True, True, True, False]
+
+    service = _make_service(hooks, reconnect_min=1, reconnect_max=8)
+    await asyncio.wait_for(service.run(), 5.0)
+
+    assert recorded == [1, 2, 4, 8]
+    assert service.reconnect_interval == 8
+
+
+async def test_stop_mid_session_disarms_backoff_reset(
+    monkeypatch, hooks, stub_ssl, fast_sleep, no_jitter, manual_timers
+) -> None:
+    """Unloading while connected cancels the pending reset along with the loop."""
+    clients = [_FakeClient(connect_error=aiomqtt.MqttError("refused")), _FakeClient()]
+    _install_factory(monkeypatch, clients)
+
+    service = _make_service(hooks, reconnect_min=1, reconnect_max=8)
+    task = asyncio.create_task(service.run())
+    await _wait_for(lambda: service.is_connected)
+    assert len(manual_timers.pending) == 1
+    task.cancel()
+    await asyncio.wait_for(task, 1.0)
+
+    assert manual_timers.pending == [], "the backoff reset outlived the connection loop"
+    manual_timers.elapse()
+    assert service.reconnect_interval == 2
 
 
 async def test_backoff_jitter_scales_sleep(monkeypatch, hooks, stub_ssl, fast_sleep) -> None:

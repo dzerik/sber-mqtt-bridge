@@ -144,8 +144,8 @@ class ConfigPublishGate:
     async def wait_until_ready(self) -> bool:
         """Block until every enabled entity has state, or the cap expires.
 
-        Used by the connect handshake, which publishes config before states
-        and before subscribing: firing it while entities are still loading
+        Used by the connect handshake, which publishes config before states:
+        firing it while entities are still loading
         would ship the very partial list this gate exists to prevent.
 
         Returns:

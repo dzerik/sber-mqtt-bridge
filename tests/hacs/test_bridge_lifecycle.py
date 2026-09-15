@@ -3,7 +3,8 @@
 Covers the previously untested race-prone paths:
 
 - ``async_start`` / ``async_stop`` (task hygiene, idempotency)
-- connect handshake ordering (config before states, publish-before-subscribe)
+- connect handshake ordering (subscribe before any publish, config before states)
+- Sber replies to the initial config publish are not lost
 - HA-startup gating of the initial publish
 - disconnect handling (state reset, audit-timer cancellation, reconnect)
 - a refused login/password: one reauth flow, no reconnect storm
@@ -34,7 +35,11 @@ from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from paho.mqtt.client import convert_connack_rc_to_reason_code
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+    async_mock_service,
+)
 
 from custom_components.sber_mqtt_bridge.const import (
     CONF_MAX_MQTT_PAYLOAD,
@@ -73,6 +78,15 @@ class FakeMqttClient:
         self.connect_error = connect_error
         self.published: list[tuple[str, str | bytes]] = []
         self.subscribed: list[str] = []
+        self.events: list[tuple[str, str]] = []
+        """Publishes and subscribes in call order: ``("publish" | "subscribe", topic)``."""
+        self.cloud_replies: dict[str, tuple[str, bytes]] = {}
+        """Topic suffix → (reply topic, payload) the cloud answers the next such publish with.
+
+        One-shot, and delivered like a real broker does: only when a
+        subscription covers the reply topic at the moment it is routed,
+        otherwise it is dropped.
+        """
         self.connect_count = 0
         self.fail_connects = fail_connects
         self._queue: asyncio.Queue = asyncio.Queue()
@@ -88,9 +102,22 @@ class FakeMqttClient:
 
     async def publish(self, topic: str, payload: str | bytes) -> None:
         self.published.append((topic, payload))
+        self.events.append(("publish", topic))
+        for suffix in [s for s in self.cloud_replies if topic.endswith(s)]:
+            reply_topic, reply_payload = self.cloud_replies.pop(suffix)
+            if self._is_subscribed(reply_topic):
+                self.push_message(reply_topic, reply_payload)
 
     async def subscribe(self, pattern: str) -> None:
         self.subscribed.append(pattern)
+        self.events.append(("subscribe", pattern))
+
+    def _is_subscribed(self, topic: str) -> bool:
+        """Return True when a current subscription covers ``topic``."""
+        return any(
+            topic == pattern or (pattern.endswith("/#") and topic.startswith(pattern[:-1]))
+            for pattern in self.subscribed
+        )
 
     def push_message(self, topic: str, payload: bytes) -> None:
         """Queue an inbound MQTT message for the consume loop."""
@@ -101,16 +128,28 @@ class FakeMqttClient:
         self._queue.put_nowait(exc)
 
     @property
-    def messages(self):
-        """Async iterator over queued messages (blocks until pushed)."""
-        return self._iter()
+    def messages(self) -> _FakeMessages:
+        """Async iterator over queued messages (blocks until pushed); ``len()`` is the queue size."""
+        return _FakeMessages(self._queue)
 
-    async def _iter(self):
-        while True:
-            item = await self._queue.get()
-            if isinstance(item, Exception):
-                raise item
-            yield item
+
+class _FakeMessages:
+    """Dynamic view of the fake client's inbound queue, like ``aiomqtt.MessagesIterator``."""
+
+    def __init__(self, queue: asyncio.Queue) -> None:
+        self._queue = queue
+
+    def __aiter__(self) -> _FakeMessages:
+        return self
+
+    async def __anext__(self) -> SimpleNamespace:
+        item = await self._queue.get()
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    def __len__(self) -> int:
+        return self._queue.qsize()
 
 
 class SpyBytes(bytes):
@@ -177,10 +216,10 @@ async def _drain_leftover_tasks(before: set[asyncio.Task]) -> list[asyncio.Task]
 # ---------------------------------------------------------------------------
 
 
-async def test_connect_handshake_publishes_config_before_states_then_subscribes(
+async def test_connect_handshake_subscribes_then_publishes_config_before_states(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """After MQTT connect: config first, states second, then down/# subscribe."""
+    """After MQTT connect: down/# subscribe first, then config, then states."""
     registry = er.async_get(hass)
     registry.async_get_or_create("switch", "test", "lamp-uid", suggested_object_id="lamp")
     hass.states.async_set("switch.lamp", "on")
@@ -191,7 +230,8 @@ async def test_connect_handshake_publishes_config_before_states_then_subscribes(
 
     try:
         await bridge.async_start()
-        await _wait_until(lambda: fake.subscribed)
+        await _wait_until(lambda: any(t.endswith("up/status") for t in _topics(fake)))
+        await _wait_until(lambda: bridge.connection_phase == "awaiting_ack")
 
         assert bridge.is_connected
         topics = _topics(fake)
@@ -203,9 +243,11 @@ async def test_connect_handshake_publishes_config_before_states_then_subscribes(
         config_payload = json.loads(fake.published[config_idx][1])
         assert any(device.get("id") == "switch.lamp" for device in config_payload["devices"])
 
-        # Commands subscription happens only after the initial publish
-        assert any("down/#" in s for s in fake.subscribed)
-        assert bridge.connection_phase == "awaiting_ack"
+        # Every inbound topic is subscribed before the first publish of the
+        # session, so no reply to that publish can be routed to nobody.
+        first_publish = next(i for i, (kind, _) in enumerate(fake.events) if kind == "publish")
+        subscribed_before = {topic for kind, topic in fake.events[:first_publish] if kind == "subscribe"}
+        assert subscribed_before == {"sberdevices/v1/test/down/#", "sberdevices/v1/__config"}
     finally:
         await bridge.async_stop()
 
@@ -230,12 +272,103 @@ async def test_initial_publish_waits_for_ha_started(hass: HomeAssistant, monkeyp
 
         hass.set_state(CoreState.running)
         hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
-        await _wait_until(lambda: fake.subscribed)
+        await _wait_until(lambda: any(t.endswith("up/status") for t in _topics(fake)))
 
         assert any(t.endswith("up/config") for t in _topics(fake))
-        assert any(t.endswith("up/status") for t in _topics(fake))
     finally:
         await bridge.async_stop()
+
+
+async def test_sber_replies_to_initial_config_publish_are_handled(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Sber's answers to the handshake's publishes reach the bridge, however fast.
+
+    The fake cloud answers ``up/config`` with an error report on
+    ``down/errors`` and ``up/status`` with a ``status_request`` the moment
+    they are published.  With the subscription made only after the initial
+    publish, a reply routed before the SUBSCRIBE was dropped by the broker —
+    the error vanished and the acknowledgement never reached the reconnect
+    guard, which stayed armed until its timeout.
+    """
+    hass.states.async_set("switch.lamp", "on")
+    entry = _make_entry(hass, options={"exposed_entities": ["switch.lamp"]})
+    fake = FakeMqttClient()
+    error_payload = json.dumps({"code": "invalid_device", "device_id": "switch.lamp"}).encode()
+    fake.cloud_replies = {
+        "/up/config": ("sberdevices/v1/test/down/errors", error_payload),
+        "/up/status": ("sberdevices/v1/test/down/status_request", json.dumps({"devices": ["switch.lamp"]}).encode()),
+    }
+    _install_fake_mqtt(monkeypatch, fake)
+    bridge = SberBridge(hass, entry)
+
+    try:
+        await bridge.async_start()
+        await _wait_until(lambda: bridge.stats["errors_from_sber"] == 1)
+        assert "invalid_device" in bridge.stats["last_error_detail"]
+
+        await _wait_until(lambda: bridge.connection_phase == "ready")
+        assert bridge.stats["status_requests"] >= 1
+    finally:
+        await asyncio.wait_for(bridge.async_stop(), timeout=2)
+
+
+async def test_messages_queued_before_initial_publish_do_not_ack_or_command(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A request + command queued during HA startup can neither clear the guard nor reach HA.
+
+    The subscription is made before HA has started, so the client queues
+    whatever the cloud sends meanwhile.  Those messages predate the state
+    the bridge is about to publish: a ``status_request`` among them is no
+    acknowledgement of it, and a command behind that request must not
+    switch a real device.  Only messages sent after the initial publish
+    count — and an error report is still recorded whenever it came.
+    """
+    registry = er.async_get(hass)
+    registry.async_get_or_create("switch", "test", "lamp-uid", suggested_object_id="lamp")
+    hass.states.async_set("switch.lamp", "off")
+    turn_on_calls = async_mock_service(hass, "switch", "turn_on")
+    entry = _make_entry(hass, options={"exposed_entities": ["switch.lamp"]})
+    fake = FakeMqttClient()
+    _install_fake_mqtt(monkeypatch, fake)
+    down = "sberdevices/v1/test/down"
+    status_request = json.dumps({"devices": ["switch.lamp"]}).encode()
+    command = json.dumps(
+        {"devices": {"switch.lamp": {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": True}}]}}}
+    ).encode()
+
+    hass.set_state(CoreState.not_running)
+    bridge = SberBridge(hass, entry)
+
+    try:
+        await bridge.async_start()
+        await _wait_until(lambda: fake.subscribed)
+
+        # Sent while HA is still starting, i.e. before anything was published.
+        fake.push_message(f"{down}/status_request", status_request)
+        fake.push_message(f"{down}/errors", json.dumps({"code": "stale_error"}).encode())
+        fake.push_message(f"{down}/commands", command)
+
+        hass.set_state(CoreState.running)
+        hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
+        await _wait_until(lambda: bridge.stats["messages_received"] == 3)
+        await hass.async_block_till_done()
+
+        assert turn_on_calls == [], "a command queued before the initial publish switched the device"
+        assert bridge.connection_phase == "awaiting_ack", "a stale status_request cleared the reconnect guard"
+        assert bridge.stats["errors_from_sber"] == 1
+
+        # The same request sent after the publish is the acknowledgement,
+        # and a command after it is served normally.
+        fake.push_message(f"{down}/status_request", status_request)
+        await _wait_until(lambda: bridge.connection_phase == "ready")
+        fake.push_message(f"{down}/commands", command)
+        await _wait_until(lambda: bridge.stats["messages_received"] == 5)
+        await hass.async_block_till_done()
+        assert len(turn_on_calls) == 1
+    finally:
+        await asyncio.wait_for(bridge.async_stop(), timeout=2)
 
 
 # ---------------------------------------------------------------------------
