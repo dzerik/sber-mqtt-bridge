@@ -902,7 +902,7 @@ async def test_auth_failure_starts_one_reauth_and_stops_reconnecting(
         assert len(_reauth_flows(hass, entry)) == 1
         assert bridge.auth_failed
         assert not bridge.is_connected
-        assert bridge.connection_phase == "disconnected"
+        assert bridge.connection_phase == "auth_failed"
         errors = [r for r in caplog.records if r.levelno >= logging.ERROR and "rejected login" in r.getMessage()]
         assert len(errors) == 1
         assert "Reconnecting in" not in caplog.text

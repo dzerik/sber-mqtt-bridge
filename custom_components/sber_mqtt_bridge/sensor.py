@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 __all__ = ["SCAN_INTERVAL", "async_setup_entry"]
 
-PHASES = ["starting", "connecting", "awaiting_ack", "ready", "disconnected"]
+PHASES = ["starting", "connecting", "awaiting_ack", "ready", "auth_failed", "disconnected"]
 """Every value :attr:`SberBridge.connection_phase` can take."""
 
 

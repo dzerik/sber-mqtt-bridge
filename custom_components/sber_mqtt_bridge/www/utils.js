@@ -275,3 +275,41 @@ export function loadedPanelVersion(moduleUrl) {
 export function isPanelStale(loaded, running) {
   return Boolean(loaded && running && loaded !== running);
 }
+
+/**
+ * Integration page where Home Assistant offers the pending re-authentication.
+ *
+ * A reauth flow started by the bridge is listed there with its own
+ * "Reconfigure" button, so this is one click away from the password form.
+ */
+export const REAUTH_PATH = "/config/integrations/integration/sber_mqtt_bridge";
+
+/**
+ * Whether the bridge is waiting for a new MQTT password.
+ *
+ * The broker refusing the credentials stops the reconnect loop for good:
+ * unlike a network outage it never heals by itself, so the panel has to
+ * say so instead of showing a plain "disconnected".
+ *
+ * @param {object|null|undefined} status Response of ``sber_mqtt_bridge/status``.
+ * @returns {boolean}
+ */
+export function needsReauth(status) {
+  return Boolean(status && (status.auth_failed === true || status.phase === "auth_failed"));
+}
+
+/**
+ * Navigate the Home Assistant frontend to ``path`` without a page reload.
+ *
+ * Same contract as the frontend's own ``navigate()``: push the history
+ * entry, then fire ``location-changed`` on the window so the app router
+ * picks up the new URL.
+ *
+ * @param {string} path Absolute frontend path, e.g. {@link REAUTH_PATH}.
+ * @param {Window} [win] Window to navigate (injectable for tests).
+ * @returns {void}
+ */
+export function navigateTo(path, win = globalThis) {
+  win.history.pushState(null, "", path);
+  win.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+}

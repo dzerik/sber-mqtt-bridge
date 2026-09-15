@@ -428,7 +428,7 @@ class SberToolbar extends LitElement {
         ${t(this.hass, "toolbar.device_counter", { total: this.totalDevices, known: this.cloudKnownCount })}
       </span>
 
-      <span class="status">
+      <span class="status" title=${this.phase === "auth_failed" ? t(this.hass, "phase.auth_failed.desc") : ""}>
         <span class="dot ${this._phaseDot}"></span>
         ${this._phaseLabel}
       </span>
@@ -445,13 +445,20 @@ class SberToolbar extends LitElement {
   }
 
   get _phaseDot() {
-    const m = { ready: "dot-green", starting: "dot-yellow", connecting: "dot-yellow", awaiting_ack: "dot-orange", disconnected: "dot-red" };
+    const m = {
+      ready: "dot-green",
+      starting: "dot-yellow",
+      connecting: "dot-yellow",
+      awaiting_ack: "dot-orange",
+      auth_failed: "dot-red",
+      disconnected: "dot-red",
+    };
     return m[this.phase] || "dot-red";
   }
 
   get _phaseLabel() {
     // Same vocabulary as the status card — one state, one name.
-    const known = ["ready", "starting", "connecting", "awaiting_ack", "disconnected"];
+    const known = ["ready", "starting", "connecting", "awaiting_ack", "auth_failed", "disconnected"];
     const phase = known.includes(this.phase) ? this.phase : "disconnected";
     return t(this.hass, `phase.${phase}.label`);
   }

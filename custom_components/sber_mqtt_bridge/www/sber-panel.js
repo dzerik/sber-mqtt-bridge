@@ -33,7 +33,7 @@ await Promise.all([
 const { LitElement, html, css } = await import(`./lit-base.js${_q}`);
 const { messageBus } = await import(`./message-bus.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`./localize.js${_q}`);
-const { loadedPanelVersion, isPanelStale } = await import(`./utils.js${_q}`);
+const { loadedPanelVersion, isPanelStale, needsReauth, navigateTo, REAUTH_PATH } = await import(`./utils.js${_q}`);
 
 /** Bridge version this panel code was loaded from (see ``isPanelStale``). */
 const PANEL_VERSION = loadedPanelVersion(import.meta.url);
@@ -618,6 +618,23 @@ class SberMqttPanel extends LitElement {
         cursor: pointer;
         font: inherit;
       }
+      .auth-banner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+      }
+      .auth-banner span { flex: 1 1 16em; }
+      .auth-reauth {
+        background: #fff;
+        color: var(--error-color, #f44336);
+        border: none;
+        border-radius: 4px;
+        padding: 6px 14px;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 500;
+      }
       .warning-banner {
         background: rgba(255, 152, 0, 0.12);
         color: var(--warning-color, #ff9800);
@@ -678,6 +695,7 @@ class SberMqttPanel extends LitElement {
 
       ${this._error ? html`<div class="error-banner">${this._error}</div>` : ""}
       ${this._renderStaleBanner()}
+      ${this._renderAuthFailedBanner()}
       ${this._renderConflictBanner()}
 
       <div class="toolbar-wrapper">
@@ -780,6 +798,24 @@ class SberMqttPanel extends LitElement {
     return html`<div class="warning-banner stale-banner" role="alert">
       <span>${t(this.hass, "panel.stale_frontend", { loaded: PANEL_VERSION, running })}</span>
       <button class="stale-reload" @click=${() => location.reload()}>${t(this.hass, "panel.reload")}</button>
+    </div>`;
+  }
+
+  /**
+   * Ask for a new MQTT password when Sber refused the current one.
+   *
+   * Shown on every tab: the bridge stops reconnecting after the refusal,
+   * and Home Assistant's own re-authentication prompt is easy to miss.
+   *
+   * @returns {unknown} Lit template, or "" while the credentials are fine.
+   */
+  _renderAuthFailedBanner() {
+    if (!needsReauth(this._status)) return "";
+    return html`<div class="error-banner auth-banner" role="alert">
+      <span>${t(this.hass, "panel.auth_failed")}</span>
+      <button class="auth-reauth" @click=${() => navigateTo(REAUTH_PATH)}>
+        ${t(this.hass, "panel.auth_failed_action")}
+      </button>
     </div>`;
   }
 

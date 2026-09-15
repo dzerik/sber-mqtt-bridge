@@ -2,7 +2,9 @@
  * Sber MQTT Bridge — Connection status card component.
  *
  * Displays MQTT connection lifecycle phase with a coloured dot indicator
- * and descriptive text. Phases: starting, connecting, awaiting_ack, ready, disconnected.
+ * and descriptive text. Phases: starting, connecting, awaiting_ack, ready,
+ * auth_failed, disconnected.  ``auth_failed`` also offers a button that
+ * opens Home Assistant's re-authentication prompt.
  */
 
 /* Cache-busting: propagate our own ?v= down the import graph (lit-base.js
@@ -11,6 +13,7 @@
 const _q = new URL(import.meta.url).search;
 const { LitElement, html, css } = await import(`../lit-base.js${_q}`);
 const { t, ensurePanelTranslations } = await import(`../localize.js${_q}`);
+const { navigateTo, REAUTH_PATH } = await import(`../utils.js${_q}`);
 
 /**
  * Phase → dot colour class.
@@ -24,6 +27,7 @@ const PHASE_DOTS = {
   connecting: "dot-yellow",
   awaiting_ack: "dot-orange",
   ready: "dot-green",
+  auth_failed: "dot-red",
   disconnected: "dot-red",
 };
 
@@ -60,6 +64,20 @@ class SberStatusCard extends LitElement {
         color: var(--secondary-text-color);
         margin-top: 4px;
         margin-left: 20px;
+      }
+      .reauth {
+        margin: 8px 0 0 20px;
+        background: var(--error-color, #f44336);
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 14px;
+        cursor: pointer;
+        font: inherit;
+      }
+      .reauth:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
       }
       .dot {
         width: 12px;
@@ -103,6 +121,11 @@ class SberStatusCard extends LitElement {
       </div>
       ${phase !== "ready" && phase !== "disconnected"
         ? html`<div class="phase-desc">${t(this.hass, `phase.${phase}.desc`)}</div>`
+        : ""}
+      ${phase === "auth_failed"
+        ? html`<button class="reauth" @click=${() => navigateTo(REAUTH_PATH)}>
+            ${t(this.hass, "panel.auth_failed_action")}
+          </button>`
         : ""}
     `;
   }

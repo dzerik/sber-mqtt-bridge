@@ -117,6 +117,10 @@
         "label": "Ready",
         "desc": "Fully operational — accepting commands from Sber"
       },
+      "auth_failed": {
+        "label": "Login rejected",
+        "desc": "Sber rejected the MQTT login or password — enter a new password"
+      },
       "disconnected": {
         "label": "Disconnected",
         "desc": "Not connected to Sber MQTT broker"
@@ -212,7 +216,9 @@
       "conflict_same_account": "Another Sber bridge exports devices to the same Sber account: {integrations}. Each one replaces the device list of the other, so devices appear and disappear in the Sber app. Keep only one of them.",
       "conflict_other_account": "Another Sber bridge is installed: {integrations}. It uses a different Sber account, but the same device may show up twice in the Sber app.",
       "stale_frontend": "This page still runs the panel of version {loaded}, while the bridge already runs {running}. Reload the page to get the new panel.",
-      "reload": "Reload"
+      "reload": "Reload",
+      "auth_failed": "Sber rejected the MQTT login or password — enter a new password. The bridge stopped reconnecting until you do.",
+      "auth_failed_action": "Enter password"
     },
     "diff": {
       "title": "State Diffs",
@@ -663,6 +669,7 @@
           "connecting": "Connecting",
           "awaiting_ack": "Waiting for Sber",
           "ready": "Ready",
+          "auth_failed": "Login or password rejected",
           "disconnected": "Disconnected"
         }
       },

@@ -48,6 +48,7 @@ import json
 from collections.abc import AsyncGenerator, Callable
 from datetime import timedelta
 from typing import Any
+from unittest.mock import patch
 
 import aiomqtt
 import pytest
@@ -1414,7 +1415,7 @@ class TestSystemHealth:
         info = (await get_info(hass))[DOMAIN]
 
         assert info["exposed_entities"] >= 1
-        assert info["connection"] in {"starting", "connecting", "awaiting_ack", "ready", "disconnected"}
+        assert info["connection"] in {"starting", "connecting", "awaiting_ack", "ready", "auth_failed", "disconnected"}
         assert info["other_sber_bridges"] == 0
         assert "test" not in {str(v) for v in info.values()}, "the login must not appear"
 
@@ -1472,6 +1473,78 @@ class TestDiagnosticEntities:
             result = await ok(admin, "list_devices_for_category", category=category)
             offered = {d["primary"]["entity_id"] for d in result["devices"]}
             assert not own & offered, category
+
+
+class TestAuthFailureIsVisible:
+    """A refused MQTT password is reported as such everywhere, not as "disconnected".
+
+    The bridge stops reconnecting once the broker refuses the credentials,
+    so a user who missed Home Assistant's re-authentication prompt only saw
+    "disconnected" — indistinguishable from a network outage that heals by
+    itself.  Every surface must name the real cause, and a successful
+    reauth (which reloads the entry) must clear it.
+    """
+
+    @staticmethod
+    async def _surfaces(hass: HomeAssistant, entry: MockConfigEntry, client: Any) -> dict[str, Any]:
+        from custom_components.sber_mqtt_bridge.diagnostics import async_get_config_entry_diagnostics
+        from custom_components.sber_mqtt_bridge.system_health import system_health_info
+
+        await hass.async_block_till_done()
+        ids = TestDiagnosticEntities._own_entity_ids(hass, entry)
+        diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+        return {
+            "status": await ok(client, "status"),
+            "phase_sensor": hass.states.get(ids["phase"]).state,
+            "connected_sensor": hass.states.get(ids["connected"]).state,
+            "diagnostics": diagnostics["bridge"],
+            "system_health": (await system_health_info(hass))["connection"],
+        }
+
+    async def test_refused_password_is_shown_and_cleared_by_reauth(
+        self, hass: HomeAssistant, entry: MockConfigEntry, admin: Any
+    ) -> None:
+        from aiomqtt.exceptions import MqttConnectError
+        from homeassistant.config_entries import SOURCE_REAUTH
+        from paho.mqtt.client import convert_connack_rc_to_reason_code
+
+        bridge = entry.runtime_data.bridge
+        # Negative CONNACK exactly as aiomqtt raises it for a wrong password.
+        keep_retrying = await bridge._handle_disconnect(MqttConnectError(convert_connack_rc_to_reason_code(4)))
+        assert keep_retrying is False
+
+        failed = await self._surfaces(hass, entry, admin)
+        status = failed["status"]
+        assert status["phase"] == "auth_failed"
+        assert status["auth_failed"] is True
+        assert status["health"]["score"] == "unhealthy"
+        assert "MQTT login or password rejected by Sber" in status["health"]["issues"]
+        assert "disconnected" not in status["health"]["issues"]
+        assert failed["phase_sensor"] == "auth_failed"
+        assert failed["connected_sensor"] == "off"
+        assert failed["diagnostics"]["phase"] == "auth_failed"
+        assert failed["diagnostics"]["auth_failed"] is True
+        assert failed["system_health"] == "auth_failed"
+
+        # The user enters the new password in the reauth flow the bridge opened.
+        flows = [f for f in hass.config_entries.flow.async_progress() if f["context"]["source"] == SOURCE_REAUTH]
+        assert len(flows) == 1
+        with patch.object(cf, "_validate_sber_connection", return_value=None):
+            result = await hass.config_entries.flow.async_configure(
+                flows[0]["flow_id"], {CONF_SBER_PASSWORD: "new_pass"}
+            )
+            await hass.async_block_till_done()
+        assert result["reason"] == "reauth_successful"
+        assert entry.state is ConfigEntryState.LOADED
+        assert entry.runtime_data.bridge is not bridge, "reauth must restart the bridge with the new password"
+
+        recovered = await self._surfaces(hass, entry, admin)
+        assert recovered["status"]["auth_failed"] is False
+        assert recovered["status"]["phase"] != "auth_failed"
+        assert "MQTT login or password rejected by Sber" not in recovered["status"]["health"]["issues"]
+        assert recovered["phase_sensor"] != "auth_failed"
+        assert recovered["diagnostics"]["auth_failed"] is False
+        assert recovered["system_health"] != "auth_failed"
 
 
 # ---------------------------------------------------------------------------

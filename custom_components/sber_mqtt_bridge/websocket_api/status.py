@@ -111,6 +111,11 @@ async def ws_get_status(
 
     # Compute health score
     stats = bridge.stats
+    phase = bridge.connection_phase
+    # Read from the phase rather than a separate flag: the phase is the one
+    # answer every surface (sensor, system health, panel) shows, so the
+    # flag below can never contradict it.
+    auth_failed = phase == "auth_failed"
     unack = bridge.unacknowledged_entities
     # Health must not degrade just because Home Assistant restarted: the
     # acknowledgement mark is per-session, so `unack` holds everything for
@@ -124,7 +129,11 @@ async def ws_get_status(
         issues.append(f"{stats['errors_from_sber']} Sber error(s)")
     if stats.get("publish_errors", 0) > 0:
         issues.append(f"{stats['publish_errors']} publish error(s)")
-    if not bridge.is_connected:
+    if auth_failed:
+        # "disconnected" alone reads like a network problem that fixes
+        # itself; this one needs the user to enter a new password.
+        issues.append("MQTT login or password rejected by Sber")
+    elif not bridge.is_connected:
         issues.append("disconnected")
     conflicts = detect_conflicts(hass, entry.data.get(CONF_SBER_LOGIN) if entry else None)
     if conflicts:
@@ -150,7 +159,8 @@ async def ws_get_status(
         msg["id"],
         {
             "connected": bridge.is_connected,
-            "phase": bridge.connection_phase,
+            "phase": phase,
+            "auth_failed": auth_failed,
             "stats": stats,
             "last_error": last_error,
             "entities_count": bridge.entities_count,

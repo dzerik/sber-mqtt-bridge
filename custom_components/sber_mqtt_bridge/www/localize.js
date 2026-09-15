@@ -157,6 +157,9 @@ export const EN_FALLBACK = {
   "panel.stale_frontend":
     "This page still runs the panel of version {loaded}, while the bridge already runs {running}. Reload the page to get the new panel.",
   "panel.reload": "Reload",
+  "panel.auth_failed":
+    "Sber rejected the MQTT login or password — enter a new password. The bridge stopped reconnecting until you do.",
+  "panel.auth_failed_action": "Enter password",
   "panel.unconfirmed": "{action} was accepted but the bridge did not confirm it — press Refresh.",
   "panel.action_removal": "Removal",
   "panel.action_clear_all": "Clear all",
@@ -586,6 +589,8 @@ export const EN_FALLBACK = {
   "phase.awaiting_ack.desc": "Connected, config published — waiting for Sber to acknowledge",
   "phase.ready.label": "Ready",
   "phase.ready.desc": "Fully operational — accepting commands from Sber",
+  "phase.auth_failed.label": "Login rejected",
+  "phase.auth_failed.desc": "Sber rejected the MQTT login or password — enter a new password",
   "phase.disconnected.label": "Disconnected",
   "phase.disconnected.desc": "Not connected to Sber MQTT broker",
 

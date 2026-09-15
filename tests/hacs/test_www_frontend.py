@@ -3059,6 +3059,134 @@ class TestStalePanel:
         assert "location.reload()" in banner
         assert "loadedPanelVersion(import.meta.url)" in src
 
+# Stand-ins for lit's ``html`` and the panel's ``t`` so a shipped render
+# method runs in node: templates become plain objects whose text and
+# listeners the test can inspect and trigger.
+_RENDER_STUBS = """
+const html = (strings, ...values) => ({ strings: [...strings], values });
+const t = (_hass, key) => `T:${key}`;
+function flatten(node, out = { text: [], handlers: [] }) {
+  if (node && Array.isArray(node.strings)) {
+    out.text.push(node.strings.join(""));
+    node.values.forEach((v) => flatten(v, out));
+  } else if (typeof node === "function") {
+    out.handlers.push(node);
+  } else if (node !== "" && node !== undefined && node !== null) {
+    out.text.push(String(node));
+  }
+  return out;
+}
+const navigations = [];
+const navigateTo = (path) => navigations.push(path);
+"""
+
+
+@requires_node
+class TestAuthFailedPanel:
+    """A refused MQTT password is shown as such, with a way to enter a new one."""
+
+    @pytest.mark.parametrize(
+        ("status", "expected"),
+        [
+            (None, False),
+            ({}, False),
+            ({"phase": "disconnected", "auth_failed": False}, False),
+            ({"phase": "connecting"}, False),
+            ({"phase": "auth_failed", "auth_failed": True}, True),
+            ({"phase": "auth_failed"}, True),
+        ],
+    )
+    def test_needs_reauth(self, tmp_path, status, expected):
+        out = _run_utils(tmp_path, f"console.log(JSON.stringify(u.needsReauth({json.dumps(status)})));")
+        assert out is expected
+
+    def test_navigate_to_moves_the_frontend_router(self, tmp_path):
+        out = _run_utils(
+            tmp_path,
+            "const calls = [];\n"
+            "const win = { history: { pushState: (s, title, url) => calls.push(['push', url]) },"
+            " dispatchEvent: (e) => calls.push(['event', e.type, e.detail]) };\n"
+            "u.navigateTo(u.REAUTH_PATH, win);\n"
+            "console.log(JSON.stringify(calls));",
+        )
+        assert out == [
+            ["push", "/config/integrations/integration/sber_mqtt_bridge"],
+            ["event", "location-changed", {"replace": False}],
+        ]
+
+    def test_banner_asks_for_a_password_and_opens_the_integration(self, tmp_path):
+        src = _read("sber-panel.js")
+        render = _method_body(src, "render")
+        assert render.index("_renderAuthFailedBanner()") < render.index("_renderConflictBanner()")
+        method = _method_source(src, "_renderAuthFailedBanner")
+        driver = (
+            'import { needsReauth, REAUTH_PATH } from "./utils.mjs";\n'
+            + _RENDER_STUBS
+            + f"const panel = {{ hass: {{}}, _status: null, {method} }};\n"
+            "const out = {};\n"
+            "out.noStatus = panel._renderAuthFailedBanner();\n"
+            'panel._status = { phase: "disconnected", auth_failed: false };\n'
+            "out.offline = panel._renderAuthFailedBanner();\n"
+            'panel._status = { phase: "auth_failed", auth_failed: true };\n'
+            "const banner = flatten(panel._renderAuthFailedBanner());\n"
+            "out.text = banner.text.join(' ');\n"
+            "banner.handlers.forEach((h) => h());\n"
+            "out.navigations = navigations;\n"
+            "console.log(JSON.stringify(out));\n"
+        )
+        out = _run_node(tmp_path, driver, extra_files={"utils.mjs": _read("utils.js")})
+        assert out["noStatus"] == ""
+        assert out["offline"] == "", "a plain network outage must not ask for a password"
+        assert "T:panel.auth_failed" in out["text"]
+        assert "T:panel.auth_failed_action" in out["text"]
+        assert 'role="alert"' in out["text"]
+        assert out["navigations"] == ["/config/integrations/integration/sber_mqtt_bridge"]
+
+    @pytest.mark.parametrize(
+        ("phase", "label", "has_button"),
+        [
+            ("auth_failed", "T:phase.auth_failed.label", True),
+            ("disconnected", "T:phase.disconnected.label", False),
+            ("ready", "T:phase.ready.label", False),
+        ],
+    )
+    def test_status_card_explains_the_refusal(self, tmp_path, phase, label, has_button):
+        src = _read("components/sber-status-card.js")
+        dots = re.search(r"^const PHASE_DOTS = \{.*?^\};", src, re.MULTILINE | re.DOTALL)
+        assert dots is not None
+        driver = (
+            'import { REAUTH_PATH } from "./utils.mjs";\n'
+            + _RENDER_STUBS
+            + dots.group(0)
+            + f"\nconst card = {{ hass: {{}}, phase: {json.dumps(phase)}, {_method_source(src, 'render')} }};\n"
+            "const view = flatten(card.render());\n"
+            "view.handlers.forEach((h) => h());\n"
+            "console.log(JSON.stringify({ text: view.text.join(' '), navigations }));\n"
+        )
+        out = _run_node(tmp_path, driver, extra_files={"utils.mjs": _read("utils.js")})
+        assert label in out["text"]
+        assert ("T:phase.auth_failed.desc" in out["text"]) is has_button
+        assert ("T:panel.auth_failed_action" in out["text"]) is has_button
+        assert out["navigations"] == (["/config/integrations/integration/sber_mqtt_bridge"] if has_button else [])
+
+    @pytest.mark.parametrize(
+        ("phase", "label", "dot"),
+        [
+            ("auth_failed", "T:phase.auth_failed.label", "dot-red"),
+            ("disconnected", "T:phase.disconnected.label", "dot-red"),
+            ("bogus", "T:phase.disconnected.label", "dot-red"),
+        ],
+    )
+    def test_toolbar_names_the_phase(self, tmp_path, phase, label, dot):
+        src = _read("components/sber-toolbar.js")
+        driver = (
+            _RENDER_STUBS + f"const bar = {{ hass: {{}}, phase: {json.dumps(phase)},"
+            f" {_method_source(src, '_phaseDot')}, {_method_source(src, '_phaseLabel')} }};\n"
+            "console.log(JSON.stringify([bar._phaseLabel, bar._phaseDot]));\n"
+        )
+        assert _run_node(tmp_path, driver) == [label, dot]
+
+
 @requires_node
 class TestMessageLogFilter:
     def test_topic_suffix_drops_the_account_prefix(self, tmp_path):

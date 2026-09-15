@@ -677,11 +677,14 @@ class SberBridge:
             ``connecting`` — MQTT connection in progress.
             ``awaiting_ack`` — connected, published config, waiting for Sber to acknowledge.
             ``ready`` — fully operational, accepting commands.
-            ``disconnected`` — not connected to MQTT broker (bridge stopped,
-            or the broker refused the credentials and reauth is pending).
+            ``auth_failed`` — the broker refused the login or password;
+            reconnecting is stopped until a reauth reloads the entry.
+            ``disconnected`` — not connected to MQTT broker (bridge stopped).
         """
-        if not self._running or self._auth_failed:
+        if not self._running:
             return "disconnected"
+        if self._auth_failed:
+            return "auth_failed"
         if not self._ha_ready.is_set():
             return "starting"
         if not self.is_connected:
