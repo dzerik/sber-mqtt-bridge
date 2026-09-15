@@ -14,10 +14,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.sber_mqtt_bridge import PLATFORMS, async_setup_entry
+from custom_components.sber_mqtt_bridge import ACTIVE_ENTRY_KEY, PLATFORMS, async_setup_entry, async_unload_entry
 from custom_components.sber_mqtt_bridge.const import (
     CONF_SBER_BROKER,
     CONF_SBER_LOGIN,
@@ -135,3 +135,82 @@ async def test_bridge_start_failure_is_not_masked(hass: HomeAssistant, fake_brid
         await async_setup_entry(hass, entry)
 
     fake_bridge.async_stop.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Single config entry
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_extra_entry_fails_setup_with_explanation(
+    hass: HomeAssistant, fake_bridge, fake_http, caplog: pytest.LogCaptureFixture
+) -> None:
+    """An installation that still has two entries runs one bridge, not a retry loop.
+
+    ``single_config_entry`` only stops HA from creating new entries; existing
+    extra entries are still set up.  The extra one must fail permanently
+    (``ConfigEntryError`` — no retries) with a clear message, and must not
+    start a bridge or touch the panel of the running entry.
+    """
+    first = _entry(hass)
+    second = MockConfigEntry(domain=DOMAIN, data={**MOCK_DATA, CONF_SBER_LOGIN: "other"}, unique_id="other")
+    second.add_to_hass(hass)
+
+    with (
+        patch("custom_components.sber_mqtt_bridge.async_register_built_in_panel") as panel,
+        patch.object(hass.config_entries, "async_forward_entry_setups", AsyncMock()),
+    ):
+        assert await async_setup_entry(hass, first) is True
+        with pytest.raises(ConfigEntryError) as err:
+            await async_setup_entry(hass, second)
+
+    assert err.value.translation_key == "single_entry_only"
+    assert err.value.translation_placeholders == {"active": first.title}
+    assert "supports a single config entry" in caplog.text
+    fake_bridge.async_start.assert_awaited_once()
+    panel.assert_called_once()
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_single_entry_claim_is_released_on_unload_and_failures(
+    hass: HomeAssistant, fake_bridge, fake_http
+) -> None:
+    """Unloading (e.g. the reload after reauth) or a failed setup frees the slot."""
+    entry = _entry(hass)
+
+    fake_bridge.async_start.side_effect = OSError("broker unreachable")
+    with pytest.raises(OSError, match="broker unreachable"):
+        await async_setup_entry(hass, entry)
+    assert ACTIVE_ENTRY_KEY not in hass.data[DOMAIN]
+    fake_bridge.async_start.side_effect = None
+
+    with (
+        patch(
+            "custom_components.sber_mqtt_bridge.async_register_built_in_panel",
+            side_effect=ValueError("Overwriting panel sber-mqtt-bridge"),
+        ),
+        pytest.raises(ConfigEntryNotReady),
+    ):
+        await async_setup_entry(hass, entry)
+    assert ACTIVE_ENTRY_KEY not in hass.data[DOMAIN]
+
+    with (
+        patch("custom_components.sber_mqtt_bridge.async_register_built_in_panel"),
+        patch("custom_components.sber_mqtt_bridge.async_remove_panel"),
+        patch.object(hass.config_entries, "async_forward_entry_setups", AsyncMock()),
+        patch.object(hass.config_entries, "async_unload_platforms", AsyncMock(return_value=True)),
+    ):
+        assert await async_setup_entry(hass, entry) is True
+        assert hass.data[DOMAIN][ACTIVE_ENTRY_KEY] == entry.entry_id
+        assert await async_unload_entry(hass, entry) is True
+    assert ACTIVE_ENTRY_KEY not in hass.data[DOMAIN]
+
+    # Another entry can now take over.
+    other = MockConfigEntry(domain=DOMAIN, data={**MOCK_DATA, CONF_SBER_LOGIN: "other"}, unique_id="other")
+    other.add_to_hass(hass)
+    with (
+        patch("custom_components.sber_mqtt_bridge.async_register_built_in_panel"),
+        patch.object(hass.config_entries, "async_forward_entry_setups", AsyncMock()),
+    ):
+        assert await async_setup_entry(hass, other) is True

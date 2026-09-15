@@ -11,6 +11,7 @@ import asyncio
 import logging
 from typing import Any
 
+import aiomqtt
 import voluptuous as vol
 from homeassistant.config_entries import (
     ConfigEntry,
@@ -45,6 +46,7 @@ from .const import (
     SBER_PORT_DEFAULT,
     SETTINGS_DEFAULTS,
 )
+from .mqtt_errors import ERROR_CANNOT_CONNECT, ERROR_INVALID_AUTH, connection_error_key
 from .sber_entity_map import (
     SUPPORTED_DOMAINS,
     UI_OVERRIDABLE_CATEGORIES,
@@ -112,11 +114,13 @@ async def _validate_sber_connection(
         verify_ssl: Whether to verify the broker's SSL certificate.
 
     Returns:
-        Error key string, or None if connection successful.
+        ``None`` if the connection succeeded, otherwise a config-flow error
+        key: ``invalid_auth`` when the broker refused the credentials,
+        ``cannot_connect`` for any other (transient) failure — classified by
+        :func:`.mqtt_errors.connection_error_key`, the same rule the running
+        bridge uses to decide whether to start reauthentication.
     """
     try:
-        import aiomqtt
-
         ssl_context = await hass.async_add_executor_job(create_ssl_context, verify_ssl)
 
         async with aiomqtt.Client(
@@ -127,14 +131,18 @@ async def _validate_sber_connection(
             tls_context=ssl_context,
         ):
             pass
-    except aiomqtt.MqttCodeError as err:
-        _LOGGER.error("Sber MQTT auth failed: %s", err)
-        return "invalid_auth"
     except asyncio.CancelledError:
         raise
+    except aiomqtt.MqttError as err:
+        error_key = connection_error_key(err)
+        if error_key == ERROR_INVALID_AUTH:
+            _LOGGER.error("Sber MQTT broker rejected the login or password: %s", err)
+        else:
+            _LOGGER.error("Cannot connect to Sber MQTT broker %s:%s: %s", broker, port, err)
+        return error_key
     except Exception:
         _LOGGER.exception("Cannot connect to Sber MQTT broker")
-        return "cannot_connect"
+        return ERROR_CANNOT_CONNECT
     else:
         return None
 

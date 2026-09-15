@@ -6,6 +6,7 @@ Covers the previously untested race-prone paths:
 - connect handshake ordering (config before states, publish-before-subscribe)
 - HA-startup gating of the initial publish
 - disconnect handling (state reset, audit-timer cancellation, reconnect)
+- a refused login/password: one reauth flow, no reconnect storm
 - payload-size guard (no decode / no DevTools buffering of oversized payloads,
   inclusive boundary, DevTools log truncation of large-but-legal payloads)
 - per-handler error isolation in the MQTT message router (and CancelledError
@@ -26,10 +27,13 @@ from unittest.mock import AsyncMock
 
 import aiomqtt
 import pytest
+from aiomqtt.exceptions import MqttConnectError
+from homeassistant.config_entries import SOURCE_REAUTH
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
+from paho.mqtt.client import convert_connack_rc_to_reason_code
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.sber_mqtt_bridge.const import (
@@ -57,13 +61,16 @@ class FakeMqttClient:
     inspect everything the bridge published / subscribed to.
     """
 
-    def __init__(self, fail_connects: int = 0) -> None:
+    def __init__(self, fail_connects: int = 0, connect_error: Exception | None = None) -> None:
         """Create a fake client.
 
         Args:
             fail_connects: Number of initial ``__aenter__`` calls that
                 raise ``MqttError`` (simulates a broker that is down).
+            connect_error: Error raised by those failing connects instead of
+                the default generic ``MqttError`` (e.g. a negative CONNACK).
         """
+        self.connect_error = connect_error
         self.published: list[tuple[str, str | bytes]] = []
         self.subscribed: list[str] = []
         self.connect_count = 0
@@ -73,7 +80,7 @@ class FakeMqttClient:
     async def __aenter__(self) -> FakeMqttClient:
         self.connect_count += 1
         if self.connect_count <= self.fail_connects:
-            raise aiomqtt.MqttError("connection refused (fake)")
+            raise self.connect_error or aiomqtt.MqttError("connection refused (fake)")
         return self
 
     async def __aexit__(self, *exc: object) -> bool:
@@ -717,3 +724,89 @@ async def test_publish_raw_transport_error_counts_publish_error(hass: HomeAssist
     with pytest.raises(aiomqtt.MqttError):
         await bridge.async_publish_raw("{}", "status")
     assert bridge.stats["publish_errors"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Authentication failure → reauth
+# ---------------------------------------------------------------------------
+
+
+def _bad_credentials() -> MqttConnectError:
+    """Negative CONNACK exactly as aiomqtt raises it for a wrong password."""
+    return MqttConnectError(convert_connack_rc_to_reason_code(4))
+
+
+def _reauth_flows(hass: HomeAssistant, entry: MockConfigEntry) -> list:
+    return [
+        flow
+        for flow in hass.config_entries.flow.async_progress()
+        if flow["context"]["source"] == SOURCE_REAUTH and flow["context"].get("entry_id") == entry.entry_id
+    ]
+
+
+async def test_auth_failure_starts_one_reauth_and_stops_reconnecting(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    enable_custom_integrations: None,
+) -> None:
+    """A refused password opens one reauth flow and the broker is not retried."""
+    entry = _make_entry(hass, options={CONF_RECONNECT_MIN: 0, CONF_RECONNECT_MAX: 0})
+    fake = FakeMqttClient(fail_connects=10**9, connect_error=_bad_credentials())
+    _install_fake_mqtt(monkeypatch, fake)
+    bridge = SberBridge(hass, entry)
+
+    try:
+        with caplog.at_level(logging.WARNING):
+            await bridge.async_start()
+            await _wait_until(lambda: bridge._connection_task is not None and bridge._connection_task.done())
+            await hass.async_block_till_done()
+            # With zero backoff a retrying loop would reconnect hundreds of
+            # times in this window.
+            await asyncio.sleep(0.05)
+
+        assert fake.connect_count == 1, "a rejected password must not be retried"
+        assert len(_reauth_flows(hass, entry)) == 1
+        assert bridge.auth_failed
+        assert not bridge.is_connected
+        assert bridge.connection_phase == "disconnected"
+        errors = [r for r in caplog.records if r.levelno >= logging.ERROR and "rejected login" in r.getMessage()]
+        assert len(errors) == 1
+        assert "Reconnecting in" not in caplog.text
+
+        # A repeated report (e.g. from a racing path) neither logs nor reopens.
+        caplog.clear()
+        bridge._handle_auth_failure(_bad_credentials())
+        await hass.async_block_till_done()
+        assert len(_reauth_flows(hass, entry)) == 1
+        assert "rejected login" not in caplog.text
+    finally:
+        await asyncio.wait_for(bridge.async_stop(), timeout=2)
+    assert bridge._connection_task is None
+
+
+async def test_transient_connack_keeps_backoff_and_does_not_reauth(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, enable_custom_integrations: None
+) -> None:
+    """ "Server unavailable" is transient: keep reconnecting, never ask for a password."""
+    hass.states.async_set("switch.lamp", "on")
+    entry = _make_entry(
+        hass,
+        options={"exposed_entities": ["switch.lamp"], CONF_RECONNECT_MIN: 0, CONF_RECONNECT_MAX: 0},
+    )
+    fake = FakeMqttClient(fail_connects=3, connect_error=MqttConnectError(convert_connack_rc_to_reason_code(3)))
+    _install_fake_mqtt(monkeypatch, fake)
+    bridge = SberBridge(hass, entry)
+
+    try:
+        await bridge.async_start()
+        await _wait_until(lambda: fake.subscribed)
+        await hass.async_block_till_done()
+
+        assert fake.connect_count == 4
+        assert bridge.is_connected
+        assert bridge.stats["reconnect_count"] == 3
+        assert not bridge.auth_failed
+        assert _reauth_flows(hass, entry) == []
+    finally:
+        await asyncio.wait_for(bridge.async_stop(), timeout=2)

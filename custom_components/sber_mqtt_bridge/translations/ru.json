@@ -3,7 +3,7 @@
     "step": {
       "reauth_confirm": {
         "title": "Повторная аутентификация Sber MQTT Bridge",
-        "description": "Введите новый пароль MQTT.",
+        "description": "MQTT-брокер Сбера отклонил сохранённый пароль интеграции. Введите новый пароль MQTT из проекта интеграции в Sber Studio.",
         "data": {
           "sber_password": "Новый пароль MQTT"
         }
@@ -678,6 +678,11 @@
       "last_sber_error": {
         "name": "Код последней ошибки Сбера"
       }
+    }
+  },
+  "exceptions": {
+    "single_entry_only": {
+      "message": "Sber MQTT Bridge поддерживает только одну запись интеграции, и «{active}» уже работает. Удалите эту лишнюю запись."
     }
   }
 }

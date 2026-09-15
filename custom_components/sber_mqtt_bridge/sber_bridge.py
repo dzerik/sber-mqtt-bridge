@@ -62,6 +62,7 @@ from .mqtt_client_service import (
     MqttServiceHooks,
     SberMqttCredentials,
 )
+from .mqtt_errors import is_auth_failure
 from .redefinitions_store import RedefinitionsStore
 from .repairs import check_and_create_issues
 from .sber_constants import MqttTopicSuffix
@@ -225,6 +226,8 @@ class SberBridge:
         # read/write forwarding properties below for compatibility.
         self._connection_task: asyncio.Task | None = None
         self._running = False
+        self._auth_failed = False
+        """True once the broker refused the credentials; the reconnect loop is stopped until reauth reloads the entry."""
 
         # Configurable operational settings loaded from ``config_entry.options``.
         # All defaults live in ``SETTINGS_DEFAULTS`` (const.py) — this avoids
@@ -626,6 +629,11 @@ class SberBridge:
         return self._entry
 
     @property
+    def auth_failed(self) -> bool:
+        """Return True when the broker refused the credentials and reauth is pending."""
+        return self._auth_failed
+
+    @property
     def connection_phase(self) -> str:
         """Return the current connection lifecycle phase.
 
@@ -634,9 +642,10 @@ class SberBridge:
             ``connecting`` — MQTT connection in progress.
             ``awaiting_ack`` — connected, published config, waiting for Sber to acknowledge.
             ``ready`` — fully operational, accepting commands.
-            ``disconnected`` — not connected to MQTT broker.
+            ``disconnected`` — not connected to MQTT broker (bridge stopped,
+            or the broker refused the credentials and reauth is pending).
         """
-        if not self._running:
+        if not self._running or self._auth_failed:
             return "disconnected"
         if not self._ha_ready.is_set():
             return "starting"
@@ -1695,6 +1704,13 @@ class SberBridge:
     async def _handle_disconnect(self, err: Exception, *, unexpected: bool = False) -> bool:
         """Handle MQTT disconnection: reset state, log, backoff, check repairs.
 
+        A refused login or password (:func:`.mqtt_errors.is_auth_failure`)
+        stops the reconnect loop instead of retrying: the broker would
+        refuse the same credentials on every attempt.  The entry's reauth
+        flow is started so the user is asked for a new password; a
+        successful reauth updates the entry and reloads it, which builds a
+        fresh bridge with the new credentials.
+
         Args:
             err: The exception that caused disconnection.
             unexpected: True for non-MqttError exceptions (logged at exception level).
@@ -1714,6 +1730,9 @@ class SberBridge:
         self._stats.reconnect_count += 1
         if not self._running:
             return False
+        if is_auth_failure(err):
+            self._handle_auth_failure(err)
+            return False
         interval = self._mqtt_service.reconnect_interval
         if unexpected:
             _LOGGER.error(
@@ -1730,6 +1749,30 @@ class SberBridge:
             )
         await check_and_create_issues(self._hass, self)
         return True
+
+    def _handle_auth_failure(self, err: Exception) -> None:
+        """React once to the broker refusing the configured credentials.
+
+        Logs a single error and asks HA to start the entry's reauth flow.
+        The flag makes a repeated call a no-op, and HA itself refuses to
+        open a second reauth flow for the same entry.
+
+        Args:
+            err: The negative-CONNACK error returned by the broker.
+        """
+        if self._auth_failed:
+            return
+        self._auth_failed = True
+        self._notify_status_listeners()
+        _LOGGER.error(
+            "Sber MQTT broker %s:%d rejected login %s (%s). Reconnecting is stopped: "
+            "enter the new MQTT password in the re-authentication prompt of the integration",
+            self._broker,
+            self._port,
+            self._login,
+            err,
+        )
+        self._entry.async_start_reauth(self._hass)
 
     async def _handle_mqtt_message(self, topic: str, payload: bytes) -> None:
         """Route incoming MQTT messages to registered handlers.

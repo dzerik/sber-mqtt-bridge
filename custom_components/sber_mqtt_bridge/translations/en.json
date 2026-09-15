@@ -3,7 +3,7 @@
     "step": {
       "reauth_confirm": {
         "title": "Re-authenticate Sber MQTT Bridge",
-        "description": "Please enter the new MQTT password.",
+        "description": "The Sber MQTT broker rejected the saved password for this integration. Enter the new MQTT password from the Sber Studio integration project.",
         "data": {
           "sber_password": "New MQTT Password"
         }
@@ -678,6 +678,11 @@
       "last_sber_error": {
         "name": "Last Sber error code"
       }
+    }
+  },
+  "exceptions": {
+    "single_entry_only": {
+      "message": "Sber MQTT Bridge supports a single config entry, and \"{active}\" is already running. Delete this extra entry."
     }
   }
 }

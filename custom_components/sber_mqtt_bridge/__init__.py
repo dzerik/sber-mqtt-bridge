@@ -13,7 +13,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 
 from .cloud_device_registry import CloudDeviceRegistry, ModelIdentityMigration
 from .conflict import async_track_conflicts
@@ -95,6 +95,64 @@ def _async_migrate_model_identity(hass: HomeAssistant, entry: SberBridgeConfigEn
     ModelIdentityMigration(hass, entry, CloudDeviceRegistry(hass, entry)).async_run()
 
 
+ACTIVE_ENTRY_KEY = "active_entry_id"
+"""``hass.data[DOMAIN]`` key naming the one config entry that runs the bridge."""
+
+
+def _claim_single_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> None:
+    """Make ``entry`` the only config entry running the bridge on this HA.
+
+    The integration supports one config entry (``single_config_entry`` in
+    the manifest), but HA only stops *new* entries from being created — an
+    installation that already has two keeps both, and HA sets them up side
+    by side.  A second bridge cannot work: the sidebar panel and every
+    WebSocket command are bound to one entry, so the second setup used to
+    retry forever and unloading either entry took the panel away from the
+    other.  The first entry to set up claims the bridge; any other one fails
+    with a permanent, explained setup error instead.
+
+    The claim is taken synchronously, before any ``await``, so two entries
+    being set up concurrently at HA start cannot both win.
+
+    Args:
+        hass: Home Assistant core instance.
+        entry: Config entry being set up.
+
+    Raises:
+        ConfigEntryError: Another config entry of this integration already
+            runs the bridge.
+    """
+    domain_data: dict[str, Any] = hass.data.setdefault(DOMAIN, {})
+    active_id = domain_data.get(ACTIVE_ENTRY_KEY)
+    if active_id is not None and active_id != entry.entry_id:
+        active = hass.config_entries.async_get_entry(active_id)
+        active_title = active.title if active is not None else active_id
+        _LOGGER.error(
+            "Config entry '%s' is not started: Sber MQTT Bridge supports a single config entry "
+            "and '%s' is already running. Delete the extra entry in Settings → Devices & services",
+            entry.title,
+            active_title,
+        )
+        raise ConfigEntryError(
+            translation_domain=DOMAIN,
+            translation_key="single_entry_only",
+            translation_placeholders={"active": active_title},
+        )
+    domain_data[ACTIVE_ENTRY_KEY] = entry.entry_id
+
+
+def _release_single_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> None:
+    """Drop the claim taken by :func:`_claim_single_entry`, if ``entry`` holds it.
+
+    Args:
+        hass: Home Assistant core instance.
+        entry: Config entry being unloaded or rolled back.
+    """
+    domain_data = hass.data.get(DOMAIN)
+    if domain_data is not None and domain_data.get(ACTIVE_ENTRY_KEY) == entry.entry_id:
+        domain_data.pop(ACTIVE_ENTRY_KEY)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> bool:
     """Set up Sber MQTT Bridge from a config entry.
 
@@ -116,13 +174,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
         True if setup succeeded.
 
     Raises:
+        ConfigEntryError: Another config entry of this integration already
+            runs the bridge (see :func:`_claim_single_entry`).
         ConfigEntryNotReady: If frontend/WebSocket registration failed; the
             bridge is stopped first and HA retries the whole setup.
     """
-    _async_migrate_model_identity(hass, entry)
-
-    bridge = SberBridge(hass, entry)
-    await bridge.async_start()
+    _claim_single_entry(hass, entry)
+    try:
+        _async_migrate_model_identity(hass, entry)
+        bridge = SberBridge(hass, entry)
+        await bridge.async_start()
+    except BaseException:
+        _release_single_entry(hass, entry)
+        raise
 
     try:
         entry.runtime_data = SberBridgeData(bridge=bridge)
@@ -174,6 +238,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
     except Exception as err:
         _LOGGER.exception("Sber MQTT Bridge setup failed after bridge start, rolling back")
         await bridge.async_stop()
+        _release_single_entry(hass, entry)
         raise ConfigEntryNotReady(f"Sber MQTT Bridge frontend registration failed: {err}") from err
 
     return True
@@ -192,6 +257,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) 
     if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         return False
     await entry.runtime_data.bridge.async_stop()
+    _release_single_entry(hass, entry)
 
     # Remove panel from sidebar
     try:
