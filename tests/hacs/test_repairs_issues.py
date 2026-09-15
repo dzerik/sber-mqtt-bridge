@@ -14,11 +14,12 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 
-from custom_components.sber_mqtt_bridge.const import DOMAIN
+from custom_components.sber_mqtt_bridge.const import CONF_EXPOSED_ENTITIES, DOMAIN
 from custom_components.sber_mqtt_bridge.devices.base_entity import BaseEntity
-from custom_components.sber_mqtt_bridge.repairs import check_and_create_issues
+from custom_components.sber_mqtt_bridge.repairs import async_delete_all_issues, check_and_create_issues
 from custom_components.sber_mqtt_bridge.sber_bridge import SberBridge
 
 
@@ -42,8 +43,15 @@ def _make_entity(entity_id: str = "light.test", *, filled: bool = True) -> _Conc
     return entity
 
 
+def _register(registry: er.EntityRegistry, entity_id: str) -> None:
+    """Add ``entity_id`` to the entity registry."""
+    domain, object_id = entity_id.split(".", 1)
+    registry.async_get_or_create(domain, "test", f"{object_id}-uid", suggested_object_id=object_id)
+
+
 def _make_bridge(
     *,
+    exposed: list[str] | str | None = None,
     enabled: list[str] | None = None,
     entities: dict[str, _ConcreteEntity] | None = None,
     is_connected: bool = True,
@@ -67,7 +75,7 @@ def _make_bridge(
     bridge.entity_links = {}
     bridge.unacknowledged_entities = []
     bridge.config_entry = MagicMock()
-    bridge.config_entry.options = {}
+    bridge.config_entry.options = {} if exposed is None else {CONF_EXPOSED_ENTITIES: exposed}
     return bridge
 
 
@@ -79,9 +87,13 @@ def _issue_ids(registry: ir.IssueRegistry) -> set[str]:
 class TestEntityNotFoundIssue:
     """An exposed entity that no longer exists must be surfaced to the user."""
 
-    async def test_issue_created_for_missing_entity_only(self, hass, issue_registry):
+    async def test_issue_created_for_missing_entity_only(self, hass, issue_registry, entity_registry):
+        _register(entity_registry, "light.found")
+        # The loader only keeps entities it could build, so the missing one
+        # never reaches ``enabled_entity_ids``: the options are the source.
         bridge = _make_bridge(
-            enabled=["light.missing", "light.found"],
+            exposed=["light.missing", "light.found"],
+            enabled=["light.found"],
             entities={"light.found": _make_entity("light.found")},
         )
 
@@ -92,17 +104,87 @@ class TestEntityNotFoundIssue:
         assert issue.translation_key == "entity_not_found"
         assert issue.translation_placeholders == {"entity_id": "light.missing"}
 
-    async def test_issue_removed_once_entity_is_back(self, hass, issue_registry):
+    async def test_issue_removed_once_entity_is_back(self, hass, issue_registry, entity_registry):
         # Arrange: the entity was missing on a previous run.
-        bridge = _make_bridge(enabled=["light.a"])
+        bridge = _make_bridge(exposed=["light.a"])
         await check_and_create_issues(hass, bridge)
         assert issue_registry.async_get_issue(DOMAIN, "entity_not_found_light.a") is not None
 
-        # Act: it is loaded now.
-        bridge.entities = {"light.a": _make_entity("light.a")}
+        # Act: it is registered now.
+        _register(entity_registry, "light.a")
         await check_and_create_issues(hass, bridge)
 
         assert issue_registry.async_get_issue(DOMAIN, "entity_not_found_light.a") is None
+
+    async def test_issue_removed_once_entity_is_no_longer_exposed(self, hass, issue_registry):
+        # Arrange: the entity was exposed and missing on a previous run.
+        bridge = _make_bridge(exposed=["light.gone", "light.other"])
+        await check_and_create_issues(hass, bridge)
+        assert issue_registry.async_get_issue(DOMAIN, "entity_not_found_light.gone") is not None
+
+        # Act: the user removed it from the exposed list.
+        bridge.config_entry.options = {CONF_EXPOSED_ENTITIES: ["light.other"]}
+        await check_and_create_issues(hass, bridge)
+
+        assert _issue_ids(issue_registry) == {"entity_not_found_light.other"}
+
+    async def test_malformed_exposed_list_raises_nothing(self, hass, issue_registry):
+        await check_and_create_issues(hass, _make_bridge(exposed="light.a"))
+
+        assert _issue_ids(issue_registry) == set()
+
+    async def test_issues_of_other_integrations_are_left_alone(self, hass, issue_registry):
+        ir.async_create_issue(
+            hass,
+            "other_domain",
+            "entity_not_found_light.x",
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="x",
+        )
+
+        await check_and_create_issues(hass, _make_bridge())
+
+        assert issue_registry.async_get_issue("other_domain", "entity_not_found_light.x") is not None
+
+
+class TestDeleteAllIssues:
+    """Every tile the bridge raised goes away with it; foreign ones stay."""
+
+    async def test_every_issue_kind_is_deleted(self, hass, issue_registry):
+        bridge = _make_bridge(
+            exposed=["light.missing"],
+            enabled=["light.no_state"],
+            entities={"light.no_state": _make_entity("light.no_state", filled=False)},
+            is_connected=False,
+            reconnect_count=10,
+        )
+        bridge.stats.update(
+            {"errors_from_sber": 1, "last_error_detail": "boom", "validation_failures": ["light.no_state"]}
+        )
+        bridge.entity_links = {"light.no_state": {"temperature": "sensor.absent"}}
+        await check_and_create_issues(hass, bridge)
+        ir.async_create_issue(
+            hass,
+            "other_domain",
+            "sber_errors",
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="x",
+        )
+        assert _issue_ids(issue_registry) >= {
+            "entity_not_found_light.missing",
+            "entities_without_state",
+            "connection_issues",
+            "broken_entity_links",
+            "validation_failures",
+            "sber_errors",
+        }
+
+        async_delete_all_issues(hass)
+
+        assert _issue_ids(issue_registry) == set()
+        assert issue_registry.async_get_issue("other_domain", "sber_errors") is not None
 
 
 class TestEntitiesWithoutStateIssue:

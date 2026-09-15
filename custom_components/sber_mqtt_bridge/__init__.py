@@ -18,7 +18,8 @@ from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from .cloud_device_registry import CloudDeviceRegistry, ModelIdentityMigration
 from .conflict import async_track_conflicts
 from .const import DOMAIN as DOMAIN
-from .custom_capabilities import parse_yaml_config
+from .custom_capabilities import YAML_CONFIG_KEY, YAML_CONFIG_SCHEMA, parse_yaml_config
+from .repairs import async_delete_all_issues
 from .sber_bridge import SberBridge
 from .sber_protocol import VERSION as INTEGRATION_VERSION
 from .websocket_api import async_setup_websocket_api
@@ -26,9 +27,15 @@ from .websocket_api import async_setup_websocket_api
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = vol.Schema(
-    {DOMAIN: vol.Schema({}, extra=vol.ALLOW_EXTRA)},
+    {vol.Optional(DOMAIN): YAML_CONFIG_SCHEMA},
     extra=vol.ALLOW_EXTRA,
 )
+"""Validates the optional ``sber_mqtt_bridge:`` section of ``configuration.yaml``.
+
+``extra=ALLOW_EXTRA`` at this level is the HA convention: the dict handed
+over is the whole configuration, every other integration's section
+included.  What the section itself accepts is described by
+:data:`~.custom_capabilities.YAML_CONFIG_SCHEMA`."""
 
 
 @dataclass
@@ -52,8 +59,12 @@ type SberBridgeConfigEntry = ConfigEntry[SberBridgeData]
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the Sber MQTT Bridge component from configuration.yaml.
 
-    Parses the optional ``sber_mqtt_bridge:`` YAML section and stores
-    the custom entity configuration in ``hass.data[DOMAIN]``.
+    Parses the optional ``sber_mqtt_bridge:`` YAML section (already
+    validated by :data:`CONFIG_SCHEMA`) and stores the custom entity
+    configuration in ``hass.data[DOMAIN]`` under
+    :data:`~.custom_capabilities.YAML_CONFIG_KEY`.  HA runs this once per
+    start, so nothing tied to a config entry may drop that key — see
+    :func:`async_remove_entry`.
 
     Args:
         hass: Home Assistant core instance.
@@ -66,7 +77,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
     if DOMAIN in config:
         yaml_config = parse_yaml_config(config[DOMAIN])
-        hass.data[DOMAIN]["yaml_config"] = yaml_config
+        hass.data[DOMAIN][YAML_CONFIG_KEY] = yaml_config
         _LOGGER.info(
             "Loaded YAML config with %d entity overrides",
             len(yaml_config.entity_configs),
@@ -141,7 +152,7 @@ def _claim_single_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> No
     domain_data[ACTIVE_ENTRY_KEY] = entry.entry_id
 
 
-def _release_single_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> None:
+def _release_single_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Drop the claim taken by :func:`_claim_single_entry`, if ``entry`` holds it.
 
     Args:
@@ -258,6 +269,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) 
         return False
     await entry.runtime_data.bridge.async_stop()
     _release_single_entry(hass, entry)
+    if entry.disabled_by is not None:
+        # The user disabled the integration: the repair tiles describe a
+        # bridge that stays stopped, and nothing would clear them.  A plain
+        # unload is a reload (options saved, reauth, "Reload"): deleting
+        # would drop the user's "Ignore" choice, because a deleted issue is
+        # recreated as new; the restarted bridge re-checks them instead.
+        # Removal is handled by :func:`async_remove_entry`.
+        async_delete_all_issues(hass)
 
     # Remove panel from sidebar
     try:
@@ -271,14 +290,23 @@ async def async_unload_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Clean up when a config entry is removed.
 
-    Removes domain data from hass.data if no more entries remain.
+    Deletes the repair issues of the integration once no entry is left,
+    including those of an entry that was never loaded (its unload did not
+    run).  ``hass.data[DOMAIN]`` is deliberately kept: it holds the YAML
+    configuration parsed by :func:`async_setup`, which HA does not run again
+    until restart, so dropping it made an entry added afterwards ignore the
+    YAML overrides.  Only the single-entry claim of the removed entry is
+    dropped — normally :func:`async_unload_entry` has released it already,
+    but not when that unload failed, and a claim left behind would stop
+    the next entry from starting.
 
     Args:
         hass: Home Assistant core instance.
         entry: Config entry being removed.
     """
+    _release_single_entry(hass, entry)
     if not hass.config_entries.async_entries(DOMAIN):
-        hass.data.pop(DOMAIN, None)
+        async_delete_all_issues(hass)
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

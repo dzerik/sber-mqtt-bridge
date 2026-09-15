@@ -19,7 +19,6 @@ Three defence layers are guarded here:
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -397,7 +396,6 @@ class TestSendRawErrors:
 
     def _bridge(self, exc: Exception | None = None) -> MagicMock:
         bridge = MagicMock()
-        bridge._stats = SimpleNamespace(publish_errors=0)
         bridge.async_publish_raw = AsyncMock(side_effect=exc)
         return bridge
 
@@ -411,7 +409,6 @@ class TestSendRawErrors:
         await self._call(hass, connection, bridge)
 
         assert connection.send_error.call_args[0][1] == "publish_failed"
-        assert bridge._stats.publish_errors == 1
         connection.send_result.assert_not_called()
 
     async def test_runtime_error_maps_to_not_connected(self, hass: MagicMock, connection: MagicMock) -> None:
@@ -420,7 +417,6 @@ class TestSendRawErrors:
         await self._call(hass, connection, bridge)
 
         assert connection.send_error.call_args[0][1] == "not_connected"
-        assert bridge._stats.publish_errors == 0
 
     async def test_invalid_json_rejected_before_publish(self, hass: MagicMock, connection: MagicMock) -> None:
         bridge = self._bridge()
@@ -436,4 +432,3 @@ class TestSendRawErrors:
         await self._call(hass, connection, bridge)
 
         connection.send_result.assert_called_once_with(1, {"success": True})
-        assert bridge._stats.publish_errors == 0

@@ -9,23 +9,29 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.issue_registry import (
     IssueSeverity,
     async_create_issue,
     async_delete_issue,
 )
+from homeassistant.helpers.issue_registry import async_get as async_get_issue_registry
 
 if TYPE_CHECKING:
     from .sber_bridge import SberBridge
 
 from .const import (
+    CONF_EXPOSED_ENTITIES,
     CONF_SILENT_REJECTION_ALERTS,
     DOMAIN,
     SETTINGS_DEFAULTS,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+ENTITY_NOT_FOUND_PREFIX = "entity_not_found_"
+"""Prefix of the per-entity issue ids: ``entity_not_found_<entity_id>``."""
 
 
 async def check_and_create_issues(hass: HomeAssistant, bridge: SberBridge) -> None:
@@ -51,24 +57,78 @@ async def check_and_create_issues(hass: HomeAssistant, bridge: SberBridge) -> No
 def _check_entity_not_found(hass: HomeAssistant, bridge: SberBridge) -> None:
     """Create/delete issues for entities in exposed list but not found in registry.
 
+    The exposed list is read from the config entry options, not from
+    ``bridge.enabled_entity_ids``: the entity loader keeps only the entities
+    it could build, so an id missing from the entity registry never reaches
+    that list and the check against it could not fire.
+
+    Every other ``entity_not_found`` issue is stale and deleted — the entity
+    is back, or it is no longer exposed at all (the latter used to keep its
+    tile forever, because only exposed entities were ever checked).
+
     Args:
         hass: Home Assistant core instance.
         bridge: The active SberBridge instance.
     """
-    for eid in bridge.enabled_entity_ids:
-        entity = bridge.entities.get(eid)
-        if entity is None:
-            async_create_issue(
-                hass,
-                DOMAIN,
-                f"entity_not_found_{eid}",
-                is_fixable=False,
-                severity=IssueSeverity.WARNING,
-                translation_key="entity_not_found",
-                translation_placeholders={"entity_id": eid},
-            )
-        else:
-            async_delete_issue(hass, DOMAIN, f"entity_not_found_{eid}")
+    raw_exposed = bridge.config_entry.options.get(CONF_EXPOSED_ENTITIES, [])
+    exposed = raw_exposed if isinstance(raw_exposed, list) else []
+    registry = er.async_get(hass)
+    missing: dict[str, str] = {
+        f"{ENTITY_NOT_FOUND_PREFIX}{eid}": eid
+        for eid in exposed
+        if isinstance(eid, str) and registry.async_get(eid) is None
+    }
+    for issue_id, eid in missing.items():
+        async_create_issue(
+            hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            severity=IssueSeverity.WARNING,
+            translation_key="entity_not_found",
+            translation_placeholders={"entity_id": eid},
+        )
+    for issue_id in _own_issue_ids(hass):
+        if issue_id.startswith(ENTITY_NOT_FOUND_PREFIX) and issue_id not in missing:
+            async_delete_issue(hass, DOMAIN, issue_id)
+
+
+def _own_issue_ids(hass: HomeAssistant) -> list[str]:
+    """Return the ids of all issues currently registered for this integration.
+
+    Args:
+        hass: Home Assistant core instance.
+
+    Returns:
+        Issue ids owned by :data:`~.const.DOMAIN`, as a list (safe to delete
+        from while iterating).
+    """
+    return [issue_id for domain, issue_id in async_get_issue_registry(hass).issues if domain == DOMAIN]
+
+
+@callback
+def async_delete_all_issues(hass: HomeAssistant) -> None:
+    """Remove every repair issue registered under this integration's domain.
+
+    Called when the bridge goes away for good — the config entry is removed
+    or disabled, not merely reloaded (deleting an issue forgets that the
+    user ignored it).
+    Every issue the integration raises describes the running bridge — the
+    per-entity ``entity_not_found_<entity_id>`` ones and the fixed ids of
+    this module (``entities_without_state``, ``connection_issues``,
+    ``broken_entity_links``, ``missing_required_links``,
+    ``unacknowledged_entities``, ``validation_failures``, ``sber_errors``),
+    plus ``conflicting_integration`` from :mod:`.conflict` — and none of
+    them is re-checked, and so cleared, once the bridge is gone.  Deleting
+    by domain rather than by that list keeps an issue added later from
+    being forgotten here.  A bridge that starts again recreates whatever
+    still applies on its next :func:`check_and_create_issues`.
+
+    Args:
+        hass: Home Assistant core instance.
+    """
+    for issue_id in _own_issue_ids(hass):
+        async_delete_issue(hass, DOMAIN, issue_id)
 
 
 def _check_entities_without_state(hass: HomeAssistant, bridge: SberBridge) -> None:

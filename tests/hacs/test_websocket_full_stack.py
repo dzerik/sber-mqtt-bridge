@@ -49,6 +49,7 @@ from collections.abc import AsyncGenerator, Callable
 from datetime import timedelta
 from typing import Any
 
+import aiomqtt
 import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -825,6 +826,22 @@ class TestRawModule:
         result = await ok(admin, "send_raw_config", payload='{"devices": []}')
         assert result == {"success": True}
         assert [topic for topic, _ in transport.published] == [f"{SBER_TOPIC_PREFIX}/test/up/config"]
+
+    async def test_failed_raw_publish_is_counted_once(
+        self, admin: Any, entry: MockConfigEntry, transport: RecordingTransport, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A transport failure is one publish error in the stats, not two."""
+
+        async def _broken(topic: str, payload: str | bytes) -> None:
+            raise aiomqtt.MqttError("broken pipe")
+
+        monkeypatch.setattr(transport, "publish", _broken)
+        before = entry.runtime_data.bridge.stats["publish_errors"]
+
+        response = await call(admin, "send_raw_config", payload='{"devices": []}')
+
+        assert response["error"]["code"] == "publish_failed"
+        assert entry.runtime_data.bridge.stats["publish_errors"] == before + 1
 
     async def test_send_raw_state_rejects_non_json_before_publishing(
         self, admin: Any, transport: RecordingTransport
@@ -1744,6 +1761,29 @@ class TestPanelChangesKeepTheMqttSession:
         # The imported map is the whole truth: the lamp's unsaved rename is gone.
         assert entry.options["redefinitions"] == {PUMP: {"room": "Кухня"}}
         assert entry.runtime_data.bridge.redefinitions == {PUMP: {"room": "Кухня"}}
+
+    async def test_imported_redefinitions_survive_a_reload(
+        self,
+        hass: HomeAssistant,
+        admin: Any,
+        entry: MockConfigEntry,
+    ) -> None:
+        """Stopping the bridge right after an import must not flush the older rename over it.
+
+        The redefinitions store flushes whatever it still holds on shutdown;
+        a rename made just before the import, still inside the debounce,
+        would otherwise be written back over the imported map by the reload.
+        """
+        await ok(admin, "update_redefinitions", entity_id=LAMP, name="Старое имя")
+        await ok(admin, "import", config={"redefinitions": {LAMP: {"room": "Кухня"}}})
+
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=10))
+        await hass.async_block_till_done()
+
+        assert entry.options["redefinitions"] == {LAMP: {"room": "Кухня"}}
+        assert entry.runtime_data.bridge.redefinitions == {LAMP: {"room": "Кухня"}}
 
     @staticmethod
     async def _rename_twice(hass: HomeAssistant, admin: Any) -> None:

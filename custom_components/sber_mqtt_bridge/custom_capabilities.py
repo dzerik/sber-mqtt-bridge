@@ -12,7 +12,7 @@ Allows users to override Sber device properties per entity via
           sber_name: "Чайник"     # override display name
           sber_room: "Кухня"      # set room
 
-The parsed configuration is stored in ``hass.data[DOMAIN]["yaml_config"]``
+The parsed configuration is stored in ``hass.data[DOMAIN][YAML_CONFIG_KEY]``
 and applied during entity loading in :class:`SberBridge`.
 """
 
@@ -122,6 +122,57 @@ PLATFORM_SCHEMA = vol.Schema(
 )
 """Root schema for the ``sber_mqtt_bridge:`` YAML section."""
 
+YAML_KNOWN_KEYS: tuple[str, ...] = ("entity_config",)
+"""Top-level keys of the ``sber_mqtt_bridge:`` YAML section the integration reads."""
+
+YAML_CONFIG_KEY = "yaml_config"
+"""``hass.data[DOMAIN]`` key holding the parsed :class:`CustomConfig`.
+
+Parsed once in ``async_setup`` (HA sets a component up once per run), so it
+belongs to the component, not to a config entry: removing the entry must
+not drop it, or an entry added afterwards runs without the YAML overrides
+until Home Assistant restarts."""
+
+
+def _drop_unknown_yaml_keys(value: Any) -> dict[str, Any]:
+    """Accept an empty section and ignore unknown top-level keys with a warning.
+
+    The section used to accept any top-level key silently, so an existing
+    ``configuration.yaml`` may carry keys the integration never read (a typo,
+    a key from an old README).  Rejecting them now would stop the whole
+    integration from loading after an update; a warning names them instead
+    and the rest of the section still applies.  Keys *inside* an
+    ``entity_config`` item stay strict — a mistake there has always failed
+    setup, so no working configuration can contain one.
+
+    Args:
+        value: Raw value of the ``sber_mqtt_bridge:`` key (``None`` for an
+            empty section).
+
+    Returns:
+        The section without the unknown keys.
+
+    Raises:
+        vol.Invalid: The section is neither empty nor a mapping.
+    """
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise vol.Invalid(f"expected a mapping with the keys {', '.join(YAML_KNOWN_KEYS)}")
+    unknown = sorted(str(key) for key in value if key not in YAML_KNOWN_KEYS)
+    if unknown:
+        _LOGGER.warning(
+            "Ignoring unknown keys in the %s: section of configuration.yaml: %s (supported keys: %s)",
+            DOMAIN,
+            ", ".join(unknown),
+            ", ".join(YAML_KNOWN_KEYS),
+        )
+    return {key: item for key, item in value.items() if key in YAML_KNOWN_KEYS}
+
+
+YAML_CONFIG_SCHEMA = vol.All(_drop_unknown_yaml_keys, PLATFORM_SCHEMA)
+"""Validator of the ``sber_mqtt_bridge:`` value used by the component's ``CONFIG_SCHEMA``."""
+
 
 # ---------------------------------------------------------------------------
 # Parsing
@@ -182,5 +233,5 @@ def get_custom_config(hass: HomeAssistant) -> CustomConfig:
     domain_data = hass.data.get(DOMAIN)
     if domain_data is None:
         return CustomConfig()
-    yaml_config: CustomConfig = domain_data.get("yaml_config", CustomConfig())
+    yaml_config: CustomConfig = domain_data.get(YAML_CONFIG_KEY, CustomConfig())
     return yaml_config
