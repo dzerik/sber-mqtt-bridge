@@ -91,3 +91,28 @@ jobs:
             sber_mqtt_bridge.zip
             sber_mqtt_bridge.zip.sigstore.json
           prerelease: ${{ steps.channel.outputs.prerelease == 'true' }}
+
+  # Keep only the newest releases.  HACS offers every GitHub release as an
+  # installable version, and dozens of them only bury the useful ones.
+  # Only the release is deleted, never its tag: the tag still pins the
+  # code, and the notes live on in CHANGELOG.md.  Runs after a successful
+  # publish, so a failed build never prunes anything.
+  prune:
+    name: Prune old releases
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      KEEP: 10
+    steps:
+      - name: Delete releases beyond the newest ${{ env.KEEP }}
+        run: |
+          gh release list --limit 1000 --exclude-drafts --json tagName,createdAt \
+            --jq "sort_by(.createdAt) | reverse | .[${KEEP}:] | .[].tagName" |
+          while read -r tag; do
+            echo "::notice::Deleting release $tag (tag kept)"
+            gh release delete "$tag" --yes
+          done
