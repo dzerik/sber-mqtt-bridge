@@ -88,6 +88,7 @@ DOMAIN_LABELS: dict[str, str] = {
     "humidifier": "Humidifiers",
     "valve": "Valves",
     "input_boolean": "Input booleans (scenario buttons)",
+    "event": "Events (Zigbee buttons)",
     "script": "Scripts",
     "button": "Buttons",
     "media_player": "Media players (TV)",
@@ -181,6 +182,7 @@ DOMAIN_PRIORITY: dict[str, int] = {
     "script": 32,
     "button": 30,
     "input_boolean": 30,
+    "event": 30,
     "binary_sensor": 20,
     "sensor": 18,
 }

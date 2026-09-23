@@ -26,6 +26,7 @@
 | `binary_sensor` | `smoke` | sensor_smoke | SmokeSensorEntity | Датчик дыма | battery, signal_strength |
 | `binary_sensor` | `gas` | sensor_gas | GasSensorEntity | Датчик утечки газа | battery, signal_strength |
 | `input_boolean` | -- | scenario_button | ScenarioButtonEntity | Клик / двойной клик | -- |
+| `event` | `button`, `doorbell`, без класса | scenario_button | ScenarioButtonEntity | Клик / двойной клик / долгое нажатие | -- |
 | `valve` | -- | valve | ValveEntity | Открыть/закрыть вентиль | -- |
 | `humidifier` | -- | hvac_humidifier | HumidifierEntity | Вкл/выкл, влажность, режим работы | humidity |
 | `fan` | -- | hvac_fan | HvacFanEntity | Вентилятор | -- |
@@ -134,11 +135,33 @@
 
 **Роли связывания**: `battery`, `signal_strength`.
 
-## Сценарная кнопка (input_boolean)
+## Сценарная кнопка (input_boolean, event)
 
 **Категория Sber**: `scenario_button`
 
-Сущности `input_boolean` маппятся как сценарные кнопки Sber. Поддерживают события клика и двойного клика.
+Нажатие сценарной кнопки запускает сценарий в приложении Сбера. Источником
+нажатий может быть:
+
+- **`input_boolean`** — включение считается кликом, выключение двойным кликом.
+- **`event`** — кнопки и пульты Zigbee из Zigbee2MQTT и ZHA. Подходят сущности
+  с классом `button`, `doorbell` или без класса; `motion` — это датчик, а не
+  кнопка, и сюда не попадает. Тип события переводится по названию:
+
+  | `event_type` содержит | В Сбер уходит |
+  |---|---|
+  | `hold`, `long` | долгое нажатие (`long_press`) |
+  | `double` | двойной клик (`double_click`) |
+  | `single`, `click`, `short`, `press`, `toggle` | клик (`click`) |
+  | `release`, `triple`, `quadruple`, `many` и остальное | ничего — у Сбера нет такого значения |
+
+  Примеры: `single`, `double`, `hold` из Zigbee2MQTT; `remote_button_short_press`
+  из ZHA. Пульт с несколькими кнопками, у которого одна сущность `event` на все
+  кнопки, отображается в Сбере одной кнопкой.
+
+В Сбер уходит только новое нажатие. При запуске Home Assistant, переподключении
+к Сберу и запросе статуса мост сообщает лишь, что кнопка на связи, — прошлое
+нажатие не повторяется, и сценарий сам не срабатывает. Повторное одинаковое
+нажатие (два клика подряд) передаётся как два нажатия.
 
 ## Вентиль (valve)
 

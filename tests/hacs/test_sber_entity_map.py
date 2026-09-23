@@ -52,6 +52,7 @@ class TestEntityConstructorsMap(unittest.TestCase):
             "script",
             "button",
             "input_boolean",
+            "event",
             "climate",
             "valve",
             "humidifier",
