@@ -988,24 +988,27 @@ class TestScenarioButtonCompliance:
     def test_current_state_button_event_enum(self):
         """button_event must be ENUM in current state."""
         entity = ScenarioButtonEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state("on"))
+        entity.fill_by_ha_state(self._make_ha_state("off"))
+        entity.process_state_change(self._make_ha_state("off"), self._make_ha_state("on"))
         states = entity.to_sber_current_state()["input_boolean.scene"]["states"]
         _assert_enum_value_is_string(states, "button_event")
         event = _find_state(states, "button_event")
         assert event["value"]["enum_value"] == "click"
 
     def test_on_state_maps_to_click(self):
-        """HA 'on' state must map to button_event='click'."""
+        """Turning on must map to button_event='click'."""
         entity = ScenarioButtonEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state("on"))
+        entity.fill_by_ha_state(self._make_ha_state("off"))
+        entity.process_state_change(self._make_ha_state("off"), self._make_ha_state("on"))
         states = entity.to_sber_current_state()["input_boolean.scene"]["states"]
         event = _find_state(states, "button_event")
         assert event["value"]["enum_value"] == "click"
 
     def test_off_state_maps_to_double_click(self):
-        """HA 'off' state must map to button_event='double_click'."""
+        """Turning off must map to button_event='double_click'."""
         entity = ScenarioButtonEntity(self.ENTITY_DATA)
-        entity.fill_by_ha_state(self._make_ha_state("off"))
+        entity.fill_by_ha_state(self._make_ha_state("on"))
+        entity.process_state_change(self._make_ha_state("on"), self._make_ha_state("off"))
         states = entity.to_sber_current_state()["input_boolean.scene"]["states"]
         event = _find_state(states, "button_event")
         assert event["value"]["enum_value"] == "double_click"

@@ -46,7 +46,7 @@
 **Умная дедупликация** (только в режимах «по доменам» и «ВСЕ»): если устройство HA
 регистрирует несколько сущностей, например `light.кухня` и `switch.кухня`, добавляется одна —
 с наивысшим приоритетом домена: light > cover > climate > water_heater > humidifier > vacuum >
-media_player > fan > valve > lock > switch > script > button, input_boolean > binary_sensor >
+media_player > fan > valve > lock > switch > script > button, input_boolean, event > binary_sensor >
 sensor. Сущности без устройства HA добавляются всегда.
 
 ### Переопределение типов устройств

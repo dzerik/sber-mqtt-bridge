@@ -26,7 +26,7 @@
 
 ## ScenarioButtonEntity
 
-Кнопка сценария (input_boolean).
+Кнопка сценария (input_boolean, event).
 
 ::: custom_components.sber_mqtt_bridge.devices.scenario_button
     options:

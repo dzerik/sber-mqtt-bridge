@@ -522,20 +522,22 @@ class TestButtonEvent:
     """Verify button_event values match Sber docs: click, double_click, long_press."""
 
     def test_on_state_produces_click(self):
-        """HA state 'on' maps to button_event='click'."""
+        """Turning the input_boolean on maps to button_event='click'."""
         entity_id = "input_boolean.test"
         entity = ScenarioButtonEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({"state": "on", "attributes": {}})
+        entity.fill_by_ha_state({"state": "off", "attributes": {}})
+        entity.process_state_change({"state": "off", "attributes": {}}, {"state": "on", "attributes": {}})
         states = _get_states(entity, entity_id)
         event = _get_enum_value(states, "button_event")
         assert event == "click"
         assert event in SBER_BUTTON_EVENT
 
     def test_off_state_produces_double_click(self):
-        """HA state 'off' maps to button_event='double_click'."""
+        """Turning the input_boolean off maps to button_event='double_click'."""
         entity_id = "input_boolean.test"
         entity = ScenarioButtonEntity(_make_entity_data(entity_id))
-        entity.fill_by_ha_state({"state": "off", "attributes": {}})
+        entity.fill_by_ha_state({"state": "on", "attributes": {}})
+        entity.process_state_change({"state": "on", "attributes": {}}, {"state": "off", "attributes": {}})
         states = _get_states(entity, entity_id)
         event = _get_enum_value(states, "button_event")
         assert event == "double_click"
@@ -556,13 +558,14 @@ class TestButtonEvent:
         """Both possible state outputs must be in the documented set."""
         entity_id = "input_boolean.test"
         produced = set()
-        for state in ("on", "off"):
+        for old, new in (("off", "on"), ("on", "off")):
             entity = ScenarioButtonEntity(_make_entity_data(entity_id))
-            entity.fill_by_ha_state({"state": state, "attributes": {}})
+            entity.fill_by_ha_state({"state": old, "attributes": {}})
+            entity.process_state_change({"state": old, "attributes": {}}, {"state": new, "attributes": {}})
             states = _get_states(entity, entity_id)
             event = _get_enum_value(states, "button_event")
-            if event:
-                produced.add(event)
+            produced.add(event)
+        assert produced == {"click", "double_click"}
         undocumented = produced - SBER_BUTTON_EVENT
         assert not undocumented, f"Undocumented button_event values: {undocumented}"
 

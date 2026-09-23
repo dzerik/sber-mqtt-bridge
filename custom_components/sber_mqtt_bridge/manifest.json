@@ -12,5 +12,5 @@
   "quality_scale": "silver",
   "requirements": ["aiomqtt>=2.0,<3.0", "pydantic>=2.0,<3.0"],
   "single_config_entry": true,
-  "version": "1.57.0"
+  "version": "1.58.0"
 }
