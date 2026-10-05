@@ -51,6 +51,7 @@ class SberMqttCredentials:
     broker: str
     port: int
     verify_ssl: bool
+    trusted_certificate: str | None = None
 
 
 @dataclass(slots=True)
@@ -171,6 +172,18 @@ class MqttClientService:
             broker=self._credentials.broker,
             port=self._credentials.port,
             verify_ssl=verify_ssl,
+            trusted_certificate=self._credentials.trusted_certificate,
+        )
+
+    def update_trusted_certificate(self, certificate: str | None) -> None:
+        """Update the explicitly trusted broker certificate for next reconnect."""
+        self._credentials = SberMqttCredentials(
+            login=self._credentials.login,
+            password=self._credentials.password,
+            broker=self._credentials.broker,
+            port=self._credentials.port,
+            verify_ssl=self._credentials.verify_ssl,
+            trusted_certificate=certificate,
         )
 
     async def async_connect(self, connect_timeout: float) -> None:
@@ -201,7 +214,7 @@ class MqttClientService:
         loop = asyncio.get_running_loop()
         deadline = loop.time() + connect_timeout
         async with asyncio.timeout_at(deadline):
-            ssl_context = await self._hass.async_add_executor_job(create_ssl_context, self._credentials.verify_ssl)
+            ssl_context = await self._create_ssl_context()
         stack = contextlib.AsyncExitStack()
         attempt = self._hass.async_create_background_task(
             self._enter_session(stack, self._build_client(ssl_context)),
@@ -261,7 +274,7 @@ class MqttClientService:
             async with stack:
                 yield client
             return
-        ssl_context = await self._hass.async_add_executor_job(create_ssl_context, self._credentials.verify_ssl)
+        ssl_context = await self._create_ssl_context()
         async with self._build_client(ssl_context) as client:
             yield client
 
@@ -374,6 +387,16 @@ class MqttClientService:
             password=self._credentials.password,
             tls_context=ssl_context,
         )
+
+    async def _create_ssl_context(self) -> ssl.SSLContext:
+        """Build TLS context while keeping the one-argument test seam compatible."""
+        if self._credentials.trusted_certificate:
+            return await self._hass.async_add_executor_job(
+                create_ssl_context,
+                self._credentials.verify_ssl,
+                self._credentials.trusted_certificate,
+            )
+        return await self._hass.async_add_executor_job(create_ssl_context, self._credentials.verify_ssl)
 
     async def _consume_messages(self, client: aiomqtt.Client) -> None:
         """Forward every received message to ``hooks.on_message``.

@@ -286,6 +286,31 @@
       "hub_online": "Online",
       "hub_children": "Children",
       "hub_auto_parent": "Auto-assign parent_id",
+      "certificate_title": "Broker certificate",
+      "certificate_note": "Inspect the certificate before trusting it. Compare the fingerprint with a trusted Sber source.",
+      "certificate_subject": "Subject",
+      "certificate_issuer": "Issuer",
+      "certificate_validity": "Validity",
+      "certificate_fingerprint": "SHA-256 fingerprint",
+      "certificate_quality": "TLS checks",
+      "certificate_valid": "Hostname and dates valid",
+      "certificate_invalid": "Hostname or dates invalid",
+      "certificate_type": "Certificate type",
+      "certificate_self_signed": "Self-signed",
+      "certificate_ca_signed": "CA-signed (or incomplete chain)",
+      "certificate_status": "Status",
+      "certificate_trusted_state": "Trusted and pinned",
+      "certificate_untrusted_state": "Not trusted",
+      "certificate_not_loaded": "Certificate has not been inspected yet.",
+      "certificate_check": "Inspect",
+      "certificate_download": "Download PEM",
+      "certificate_trust": "Trust certificate",
+      "certificate_remove": "Remove trust",
+      "certificate_confirm": "Trust this certificate?\n\nSHA-256:\n{fingerprint}\n\nOnly confirm after checking this fingerprint with Sber or your administrator.",
+      "certificate_remove_confirm": "Remove the pinned broker certificate? The next connection will use the system CA store.",
+      "certificate_trusted": "Certificate pinned; it will be used on the next reconnect.",
+      "certificate_removed": "Pinned certificate removed.",
+      "certificate_failed": "Certificate operation failed: {reason}",
       "loading": "Loading settings…",
       "group": {
         "connection": "Connection",
@@ -560,7 +585,8 @@
         "menu_options": {
           "select_entities_menu": "Entity selection",
           "type_overrides": "Entity type overrides",
-          "device_sync": "Device sync timing"
+          "device_sync": "Device sync timing",
+          "connection_settings": "Connection and TLS"
         }
       },
       "select_entities_menu": {
@@ -615,6 +641,16 @@
         "data_description": {
           "config_settle_delay": "While devices are still loading, the device list is published once no new device has reported for this many seconds (0–300). When every device has already loaded, the list goes out at once",
           "config_max_wait": "The device list is published after this many seconds even if some devices have still not loaded (1–900)"
+        }
+      },
+      "connection_settings": {
+        "title": "Connection and TLS",
+        "description": "These settings are available even when the integration cannot start because the broker certificate is not trusted.",
+        "data": {
+          "sber_verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "sber_verify_ssl": "Disable only for a private or incomplete broker certificate chain. Prefer manually pinning the certificate in the Sber Bridge panel."
         }
       }
     },

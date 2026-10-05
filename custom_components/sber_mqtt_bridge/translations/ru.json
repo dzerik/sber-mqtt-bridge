@@ -286,6 +286,31 @@
       "hub_online": "На связи",
       "hub_children": "Дочерних устройств",
       "hub_auto_parent": "Назначать parent_id автоматически",
+      "certificate_title": "Сертификат брокера",
+      "certificate_note": "Проверьте сертификат перед доверием. Сверьте fingerprint с надёжным источником Sber.",
+      "certificate_subject": "Владелец",
+      "certificate_issuer": "Издатель",
+      "certificate_validity": "Срок действия",
+      "certificate_fingerprint": "SHA-256 fingerprint",
+      "certificate_quality": "Проверки TLS",
+      "certificate_valid": "Имя хоста и срок действия корректны",
+      "certificate_invalid": "Неверное имя хоста или срок действия",
+      "certificate_type": "Тип сертификата",
+      "certificate_self_signed": "Самоподписной",
+      "certificate_ca_signed": "Подписан CA (или цепочка неполная)",
+      "certificate_status": "Статус",
+      "certificate_trusted_state": "Доверен и закреплён",
+      "certificate_untrusted_state": "Не доверен",
+      "certificate_not_loaded": "Сертификат ещё не проверен.",
+      "certificate_check": "Проверить",
+      "certificate_download": "Скачать PEM",
+      "certificate_trust": "Доверять сертификату",
+      "certificate_remove": "Удалить доверие",
+      "certificate_confirm": "Доверять этому сертификату?\n\nSHA-256:\n{fingerprint}\n\nПодтверждайте только после сверки fingerprint с Sber или администратором.",
+      "certificate_remove_confirm": "Удалить закреплённый сертификат брокера? При следующем подключении будет использовано системное хранилище CA.",
+      "certificate_trusted": "Сертификат закреплён; он будет использован при следующем подключении.",
+      "certificate_removed": "Закреплённый сертификат удалён.",
+      "certificate_failed": "Операция с сертификатом не удалась: {reason}",
       "loading": "Загружаем настройки…",
       "group": {
         "connection": "Подключение",
@@ -560,7 +585,8 @@
         "menu_options": {
           "select_entities_menu": "Выбор сущностей",
           "type_overrides": "Переопределение типов устройств",
-          "device_sync": "Тайминги синхронизации устройств"
+          "device_sync": "Тайминги синхронизации устройств",
+          "connection_settings": "Подключение и TLS"
         }
       },
       "select_entities_menu": {
@@ -615,6 +641,16 @@
         "data_description": {
           "config_settle_delay": "Пока устройства ещё загружаются, список публикуется, когда столько секунд подряд не отчиталось ни одно новое устройство (0–300). Если все устройства уже загружены, список уходит сразу",
           "config_max_wait": "Через столько секунд список устройств публикуется, даже если часть устройств так и не загрузилась (1–900)"
+        }
+      },
+      "connection_settings": {
+        "title": "Подключение и TLS",
+        "description": "Эти настройки доступны даже когда интеграция не запускается из-за недоверенного сертификата брокера.",
+        "data": {
+          "sber_verify_ssl": "Проверять SSL-сертификат"
+        },
+        "data_description": {
+          "sber_verify_ssl": "Отключайте только для частного брокера или неполной цепочки сертификатов. Предпочтительно закрепить сертификат в панели Sber Bridge."
         }
       }
     },

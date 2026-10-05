@@ -21,11 +21,14 @@ from ..const import (
     CONF_MESSAGE_LOG_SIZE,
     CONF_RECONNECT_MAX,
     CONF_RECONNECT_MIN,
+    CONF_SBER_BROKER,
+    CONF_SBER_PORT,
+    CONF_SBER_TRUSTED_CERTIFICATE,
     CONF_SBER_VERIFY_SSL,
     CONF_SILENT_REJECTION_ALERTS,
     SETTINGS_DEFAULTS,
 )
-from ..ssl_utils import entry_verify_ssl
+from ..ssl_utils import entry_trusted_certificate, entry_verify_ssl, inspect_server_certificate
 from ._common import (  # noqa: F401 — get_config_entry re-exported for test patching
     get_bridge,
     get_config_entry,
@@ -214,4 +217,130 @@ async def ws_update_settings(
     if bridge is not None:
         bridge.apply_settings(new_options)
 
+    connection.send_result(msg["id"], {"success": True})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "sber_mqtt_bridge/inspect_certificate"}
+)
+@websocket_api.async_response
+@requires_entry
+async def ws_inspect_certificate(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    entry: Any,
+) -> None:
+    """Inspect the current broker certificate without trusting it."""
+    try:
+        certificate = await hass.async_add_executor_job(
+            inspect_server_certificate,
+            entry.data[CONF_SBER_BROKER],
+            entry.data[CONF_SBER_PORT],
+        )
+    except (OSError, TimeoutError, ValueError) as err:
+        connection.send_error(msg["id"], "certificate_unavailable", str(err))
+        return
+    trusted = entry_trusted_certificate(entry.data, entry.options)
+    result = certificate.as_dict()
+    result["trusted"] = bool(trusted and trusted == certificate.pem)
+    connection.send_result(msg["id"], {"certificate": result})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "sber_mqtt_bridge/download_certificate"}
+)
+@websocket_api.async_response
+@requires_entry
+async def ws_download_certificate(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    entry: Any,
+) -> None:
+    """Return the current broker certificate PEM for a deliberate download."""
+    try:
+        certificate = await hass.async_add_executor_job(
+            inspect_server_certificate,
+            entry.data[CONF_SBER_BROKER],
+            entry.data[CONF_SBER_PORT],
+        )
+    except (OSError, TimeoutError, ValueError) as err:
+        connection.send_error(msg["id"], "certificate_unavailable", str(err))
+        return
+    connection.send_result(msg["id"], {"certificate": certificate.as_dict(include_pem=True)})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "sber_mqtt_bridge/trust_certificate",
+        # Optional keeps the command schema valid for HA's authorization
+        # guard: non-admin users must receive ``unauthorized`` before any
+        # certificate-specific validation is attempted.
+        vol.Optional("fingerprint", default=""): str,
+    }
+)
+@websocket_api.async_response
+@requires_entry
+async def ws_trust_certificate(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    entry: Any,
+) -> None:
+    """Pin the freshly inspected certificate after fingerprint confirmation."""
+    try:
+        certificate = await hass.async_add_executor_job(
+            inspect_server_certificate,
+            entry.data[CONF_SBER_BROKER],
+            entry.data[CONF_SBER_PORT],
+        )
+    except (OSError, TimeoutError, ValueError) as err:
+        connection.send_error(msg["id"], "certificate_unavailable", str(err))
+        return
+    if msg["fingerprint"].replace(" ", "").upper() != certificate.fingerprint:
+        connection.send_error(
+            msg["id"],
+            "certificate_changed",
+            "The broker certificate changed since it was inspected",
+        )
+        return
+    if not certificate.valid_now or not certificate.hostname_matches:
+        connection.send_error(
+            msg["id"],
+            "certificate_invalid",
+            "The broker certificate is expired or does not match the broker hostname",
+        )
+        return
+    new_options = dict(entry.options)
+    new_options[CONF_SBER_TRUSTED_CERTIFICATE] = certificate.pem
+    # Pinning is useful only while certificate verification is enabled.  A
+    # deliberate trust action therefore restores the secure mode if the user
+    # had previously disabled verification as an emergency workaround.
+    new_options[CONF_SBER_VERIFY_SSL] = True
+    hass.config_entries.async_update_entry(entry, options=new_options)
+    bridge = get_bridge(hass)
+    if bridge is not None:
+        bridge.apply_settings(new_options)
+    connection.send_result(msg["id"], {"success": True, "certificate": certificate.as_dict()})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "sber_mqtt_bridge/remove_trusted_certificate"}
+)
+@websocket_api.async_response
+@requires_entry
+async def ws_remove_trusted_certificate(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    entry: Any,
+) -> None:
+    """Remove the pinned certificate and return to system CA verification."""
+    new_options = dict(entry.options)
+    new_options.pop(CONF_SBER_TRUSTED_CERTIFICATE, None)
+    hass.config_entries.async_update_entry(entry, options=new_options)
+    bridge = get_bridge(hass)
+    if bridge is not None:
+        bridge.apply_settings(new_options)
     connection.send_result(msg["id"], {"success": True})

@@ -22,6 +22,9 @@ CONF_SBER_PORT = "sber_port"
 CONF_SBER_VERIFY_SSL = "sber_verify_ssl"
 """Config key for enabling/disabling SSL certificate verification."""
 
+CONF_SBER_TRUSTED_CERTIFICATE = "sber_trusted_certificate"
+"""Config-entry option containing a manually trusted broker certificate PEM."""
+
 # Options keys
 
 CONF_EXPOSED_ENTITIES = "exposed_entities"

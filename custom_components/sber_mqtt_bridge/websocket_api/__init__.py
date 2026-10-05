@@ -61,7 +61,14 @@ from .log import ws_clear_message_log, ws_message_log, ws_subscribe_messages
 from .raw import ws_raw_config, ws_raw_states, ws_send_raw_config, ws_send_raw_state
 from .reference import ws_feature_labels
 from .replay import ws_command_schema, ws_inject_sber_message, ws_replay_message
-from .settings import ws_get_settings, ws_update_settings
+from .settings import (
+    ws_download_certificate,
+    ws_get_settings,
+    ws_inspect_certificate,
+    ws_remove_trusted_certificate,
+    ws_trust_certificate,
+    ws_update_settings,
+)
 from .status import (
     ws_device_detail,
     ws_get_devices,
@@ -93,6 +100,7 @@ __all__ = [
     "ws_command_schema",
     "ws_device_detail",
     "ws_diagnose_entity",
+    "ws_download_certificate",
     "ws_export",
     "ws_feature_labels",
     "ws_get_devices",
@@ -101,6 +109,7 @@ __all__ = [
     "ws_get_trace",
     "ws_import",
     "ws_inject_sber_message",
+    "ws_inspect_certificate",
     "ws_list_categories",
     "ws_list_devices_for_category",
     "ws_list_state_diffs",
@@ -112,6 +121,7 @@ __all__ = [
     "ws_raw_states",
     "ws_related_sensors",
     "ws_remove_entities",
+    "ws_remove_trusted_certificate",
     "ws_replay_message",
     "ws_republish",
     "ws_send_raw_config",
@@ -123,6 +133,7 @@ __all__ = [
     "ws_subscribe_traces",
     "ws_subscribe_validation_issues",
     "ws_suggest_links",
+    "ws_trust_certificate",
     "ws_update_entity_options",
     "ws_update_gate_options",
     "ws_update_redefinitions",
@@ -192,6 +203,10 @@ _COMMANDS = (
     # Settings
     ws_get_settings,
     ws_update_settings,
+    ws_inspect_certificate,
+    ws_download_certificate,
+    ws_trust_certificate,
+    ws_remove_trusted_certificate,
 )
 """All command handlers, in registration order."""
 

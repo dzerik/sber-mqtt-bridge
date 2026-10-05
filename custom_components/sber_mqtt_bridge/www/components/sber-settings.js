@@ -78,6 +78,8 @@ class SberSettings extends LitElement {
       _defaults: { type: Object },
       _limits: { type: Object },
       _hub: { type: Object },
+      _certificate: { type: Object },
+      _certificateLoading: { type: Boolean },
       _loading: { type: Boolean },
       _saving: { type: Boolean },
       _dirty: { type: Boolean },
@@ -90,6 +92,8 @@ class SberSettings extends LitElement {
     this._settings = {};
     this._defaults = {};
     this._hub = null;
+    this._certificate = null;
+    this._certificateLoading = false;
     this._loading = false;
     this._saving = false;
     this._dirty = false;
@@ -120,6 +124,74 @@ class SberSettings extends LitElement {
       this._toast(t(this.hass, "settings.load_failed", { reason: e.message || e }), "error");
     } finally {
       this._loading = false;
+    }
+  }
+
+  async _inspectCertificate() {
+    this._certificateLoading = true;
+    try {
+      const result = await this.hass.callWS({ type: "sber_mqtt_bridge/inspect_certificate" });
+      this._certificate = result.certificate;
+    } catch (e) {
+      this._toast(t(this.hass, "settings.certificate_failed", { reason: e.message || e }), "error");
+    } finally {
+      this._certificateLoading = false;
+    }
+  }
+
+  async _downloadCertificate() {
+    this._certificateLoading = true;
+    try {
+      const result = await this.hass.callWS({ type: "sber_mqtt_bridge/download_certificate" });
+      const certificate = result.certificate;
+      const blob = new Blob([certificate.pem], { type: "application/x-pem-file" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "sber-mqtt-server.pem";
+      link.click();
+      URL.revokeObjectURL(url);
+      this._certificate = certificate;
+    } catch (e) {
+      this._toast(t(this.hass, "settings.certificate_failed", { reason: e.message || e }), "error");
+    } finally {
+      this._certificateLoading = false;
+    }
+  }
+
+  async _trustCertificate() {
+    if (!this._certificate?.fingerprint) return;
+    const message = t(this.hass, "settings.certificate_confirm", {
+      fingerprint: this._certificate.fingerprint,
+    });
+    if (!window.confirm(message)) return;
+    this._certificateLoading = true;
+    try {
+      await this.hass.callWS({
+        type: "sber_mqtt_bridge/trust_certificate",
+        fingerprint: this._certificate.fingerprint,
+      });
+      this._settings = { ...this._settings, sber_verify_ssl: true };
+      await this._inspectCertificate();
+      this._toast(t(this.hass, "settings.certificate_trusted"), "success");
+    } catch (e) {
+      this._toast(t(this.hass, "settings.certificate_failed", { reason: e.message || e }), "error");
+    } finally {
+      this._certificateLoading = false;
+    }
+  }
+
+  async _removeTrustedCertificate() {
+    if (!window.confirm(t(this.hass, "settings.certificate_remove_confirm"))) return;
+    this._certificateLoading = true;
+    try {
+      await this.hass.callWS({ type: "sber_mqtt_bridge/remove_trusted_certificate" });
+      await this._inspectCertificate();
+      this._toast(t(this.hass, "settings.certificate_removed"), "success");
+    } catch (e) {
+      this._toast(t(this.hass, "settings.certificate_failed", { reason: e.message || e }), "error");
+    } finally {
+      this._certificateLoading = false;
     }
   }
 
@@ -349,6 +421,27 @@ class SberSettings extends LitElement {
           ${group.fields.map(f => this._renderField(f))}
         </div>
       `)}
+
+      <div class="card">
+        <h3>${t(this.hass, "settings.certificate_title")}</h3>
+        <div class="note">${t(this.hass, "settings.certificate_note")}</div>
+        ${this._certificate ? html`
+          <div class="field"><label>${t(this.hass, "settings.certificate_subject")}</label><span class="ro-value">${this._certificate.subject}</span></div>
+          <div class="field"><label>${t(this.hass, "settings.certificate_issuer")}</label><span class="ro-value">${this._certificate.issuer}</span></div>
+          <div class="field"><label>${t(this.hass, "settings.certificate_validity")}</label><span class="ro-value">${this._certificate.not_before} — ${this._certificate.not_after}</span></div>
+          <div class="field cert-fingerprint"><label>${t(this.hass, "settings.certificate_fingerprint")}</label><code>${this._certificate.fingerprint}</code></div>
+          <div class="field"><label>${t(this.hass, "settings.certificate_quality")}</label><span class="ro-value">${this._certificate.valid_now && this._certificate.hostname_matches ? t(this.hass, "settings.certificate_valid") : t(this.hass, "settings.certificate_invalid")}</span></div>
+          <div class="field"><label>${t(this.hass, "settings.certificate_type")}</label><span class="ro-value">${this._certificate.self_signed ? t(this.hass, "settings.certificate_self_signed") : t(this.hass, "settings.certificate_ca_signed")}</span></div>
+          <div class="field"><label>${t(this.hass, "settings.certificate_status")}</label><span class="ro-value">${this._certificate.trusted ? t(this.hass, "settings.certificate_trusted_state") : t(this.hass, "settings.certificate_untrusted_state")}</span></div>
+        ` : html`<div class="note">${t(this.hass, "settings.certificate_not_loaded")}</div>`}
+        <div class="actions certificate-actions">
+          <button class="btn-secondary" @click=${this._inspectCertificate} ?disabled=${this._certificateLoading}>${t(this.hass, "settings.certificate_check")}</button>
+          <button class="btn-secondary" @click=${this._downloadCertificate} ?disabled=${this._certificateLoading}>${t(this.hass, "settings.certificate_download")}</button>
+          ${this._certificate?.trusted
+            ? html`<button class="btn-secondary" @click=${this._removeTrustedCertificate} ?disabled=${this._certificateLoading}>${t(this.hass, "settings.certificate_remove")}</button>`
+            : html`<button class="btn-primary" @click=${this._trustCertificate} ?disabled=${!this._certificate || this._certificateLoading}>${t(this.hass, "settings.certificate_trust")}</button>`}
+        </div>
+      </div>
 
       <div class="actions">
         <button class="btn-secondary" @click=${this._resetDefaults} ?disabled=${this._saving}>

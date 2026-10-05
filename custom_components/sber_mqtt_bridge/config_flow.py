@@ -526,7 +526,30 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                 "select_entities_menu",
                 "type_overrides",
                 "device_sync",
+                "connection_settings",
             ],
+        )
+
+    async def async_step_connection_settings(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Change TLS verification even when the entry is not currently loaded.
+
+        The sidebar panel is unavailable while an entry is stuck in setup
+        retry because the broker certificate cannot be verified.  Keeping
+        this one connection setting in Options Flow lets the user recover
+        that entry without deleting and recreating it.
+        """
+        if user_input is not None:
+            return self._async_save_options(**user_input)
+        return self.async_show_form(
+            step_id="connection_settings",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_SBER_VERIFY_SSL,
+                        default=entry_verify_ssl(self.config_entry.data, self.config_entry.options),
+                    ): bool,
+                }
+            ),
         )
 
     async def async_step_device_sync(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:

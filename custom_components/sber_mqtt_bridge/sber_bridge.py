@@ -69,7 +69,7 @@ from .repairs import check_and_create_issues
 from .sber_constants import MqttTopicSuffix
 from .sber_publisher import ConfigPublishContext, PublisherDeps, SberPublisher
 from .schema_validator import ValidationCollector
-from .ssl_utils import entry_verify_ssl
+from .ssl_utils import entry_trusted_certificate, entry_verify_ssl
 from .state_diff import DiffCollector
 from .status_notifier import StatusNotifier
 from .trace_collector import TraceCollector
@@ -245,6 +245,7 @@ class SberBridge:
         self._broker: str = entry.data[CONF_SBER_BROKER]
         self._port: int = entry.data[CONF_SBER_PORT]
         self._verify_ssl: bool = entry_verify_ssl(entry.data, entry.options)
+        self._trusted_certificate: str | None = entry_trusted_certificate(entry.data, entry.options)
 
         self._root_topic = f"{SBER_TOPIC_PREFIX}/{self._login}"
         self._down_topic = f"{self._root_topic}/down"
@@ -308,6 +309,7 @@ class SberBridge:
                 broker=self._broker,
                 port=self._port,
                 verify_ssl=self._verify_ssl,
+                trusted_certificate=self._trusted_certificate,
             ),
             hooks=MqttServiceHooks(
                 on_message=self._handle_mqtt_message,
@@ -1223,6 +1225,7 @@ class SberBridge:
                 self._entry.data.get(CONF_SBER_VERIFY_SSL, SETTINGS_DEFAULTS[CONF_SBER_VERIFY_SSL]),
             )
         )
+        self._trusted_certificate = entry_trusted_certificate(self._entry.data, options)
 
     def apply_settings(self, options: dict) -> None:
         """Apply changed operational settings without full bridge restart.
@@ -1239,6 +1242,7 @@ class SberBridge:
         self._config_gate.update_delays(settle_delay=self._config_settle_delay, max_wait=self._config_max_wait)
         self._mqtt_service.update_backoff_limits(self._reconnect_min, self._reconnect_max)
         self._mqtt_service.update_verify_ssl(self._verify_ssl)
+        self._mqtt_service.update_trusted_certificate(self._trusted_certificate)
         self._devtools.resize(self._message_log_size)
         self._ack_audit.set_audit_delay(self._ack_audit_delay)
 
