@@ -89,9 +89,10 @@ def inspect_server_certificate(host: str, port: int, timeout: float = 10.0) -> S
     context = ssl.create_default_context()
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE
-    with socket.create_connection((host, port), timeout=timeout) as raw_socket, context.wrap_socket(
-        raw_socket, server_hostname=host
-    ) as tls_socket:
+    with (
+        socket.create_connection((host, port), timeout=timeout) as raw_socket,
+        context.wrap_socket(raw_socket, server_hostname=host) as tls_socket,
+    ):
         der = tls_socket.getpeercert(binary_form=True)
     if not der:
         raise ValueError("broker did not provide a certificate")

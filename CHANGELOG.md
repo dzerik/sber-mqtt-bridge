@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.59.0b2] - 2026-10-05
+
+### Fixed
+
+- Приведён формат Python-файлов к требованиям CI.
+
 ## [1.59.0b1] - 2026-10-05
 
 ### Added

@@ -220,9 +220,7 @@ async def ws_update_settings(
     connection.send_result(msg["id"], {"success": True})
 
 
-@websocket_api.websocket_command(
-    {vol.Required("type"): "sber_mqtt_bridge/inspect_certificate"}
-)
+@websocket_api.websocket_command({vol.Required("type"): "sber_mqtt_bridge/inspect_certificate"})
 @websocket_api.async_response
 @requires_entry
 async def ws_inspect_certificate(
@@ -247,9 +245,7 @@ async def ws_inspect_certificate(
     connection.send_result(msg["id"], {"certificate": result})
 
 
-@websocket_api.websocket_command(
-    {vol.Required("type"): "sber_mqtt_bridge/download_certificate"}
-)
+@websocket_api.websocket_command({vol.Required("type"): "sber_mqtt_bridge/download_certificate"})
 @websocket_api.async_response
 @requires_entry
 async def ws_download_certificate(
@@ -325,9 +321,7 @@ async def ws_trust_certificate(
     connection.send_result(msg["id"], {"success": True, "certificate": certificate.as_dict()})
 
 
-@websocket_api.websocket_command(
-    {vol.Required("type"): "sber_mqtt_bridge/remove_trusted_certificate"}
-)
+@websocket_api.websocket_command({vol.Required("type"): "sber_mqtt_bridge/remove_trusted_certificate"})
 @websocket_api.async_response
 @requires_entry
 async def ws_remove_trusted_certificate(
