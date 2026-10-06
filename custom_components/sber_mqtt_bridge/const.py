@@ -185,12 +185,11 @@ A change limited to these (plus :data:`HOT_APPLY_SETTINGS_OPTION_KEYS`) goes
 through ``SberBridge.async_apply_entity_changes`` instead of a config entry
 reload, so the MQTT session survives it."""
 
-HOT_APPLY_SETTINGS_OPTION_KEYS: frozenset[str] = frozenset(SETTINGS_DEFAULTS) - {CONF_SBER_VERIFY_SSL}
+HOT_APPLY_SETTINGS_OPTION_KEYS: frozenset[str] = frozenset(SETTINGS_DEFAULTS) | {CONF_SBER_TRUSTED_CERTIFICATE}
 """Operational settings ``SberBridge.apply_settings`` takes over without a restart.
 
-``sber_verify_ssl`` is left out: it decides how the *current* TLS session was
-verified, so changing it from the options flow reloads the entry and
-reconnects at once instead of waiting for the next reconnect."""
+TLS policy changes wake the existing connection loop and replace its session
+without unloading the local bridge or panel."""
 
 # NOTE: the list of HA domains exportable to Sber lives in
 # ``sber_entity_map.SUPPORTED_DOMAINS`` — it is derived from

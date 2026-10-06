@@ -161,6 +161,7 @@ async def ws_get_status(
             "connected": bridge.is_connected,
             "phase": phase,
             "auth_failed": auth_failed,
+            "connection_error": bridge.connection_error,
             "stats": stats,
             "last_error": last_error,
             "entities_count": bridge.entities_count,

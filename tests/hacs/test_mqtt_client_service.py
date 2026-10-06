@@ -183,6 +183,94 @@ CREDS = SberMqttCredentials(
 )
 
 
+async def test_requested_reconnect_wakes_long_backoff(monkeypatch, hooks, stub_ssl, no_jitter) -> None:
+    """A TLS policy change must not wait for a 300-second reconnect delay."""
+    failed = _FakeClient(connect_error=aiomqtt.MqttError("certificate verify failed"))
+    replacement = _FakeClient()
+    factory = _install_factory(monkeypatch, [failed, replacement])
+    service = _make_service(hooks, reconnect_min=300, reconnect_max=300)
+    task = asyncio.create_task(service.run())
+    try:
+        await _wait_for(lambda: len(hooks.disconnects) == 1)
+        service.update_verify_ssl(False)
+        service.request_reconnect()
+        await _wait_for(lambda: hooks.connected_count == 1)
+        assert service.is_connected
+        assert stub_ssl == [True, False]
+        assert len(factory.calls) == 2
+        assert not task.done()
+    finally:
+        await service.stop()
+        await asyncio.wait_for(task, 1)
+    assert replacement.exit_count == 1
+
+
+async def test_requested_reconnect_closes_blocked_active_session(monkeypatch, hooks, stub_ssl) -> None:
+    """Replace a session even while an inbound command handler is blocked."""
+    previous, replacement = _FakeClient(), _FakeClient()
+    factory = _install_factory(monkeypatch, [previous, replacement])
+    service = _make_service(hooks)
+    task = asyncio.create_task(service.run())
+    try:
+        await _wait_for(lambda: hooks.connected_count == 1)
+        hooks.block_on_message = True
+        previous.stream.queue.put_nowait(_FakeMessage("topic", b"blocked"))
+        await hooks.message_started.wait()
+        service.update_verify_ssl(False)
+        for _ in range(3):
+            service.request_reconnect()
+        await _wait_for(lambda: hooks.connected_count == 2)
+        assert previous.exit_count == 1
+        assert replacement.exit_count == 0
+        assert len(factory.calls) == 2
+        assert stub_ssl == [True, False]
+        assert not task.done()
+    finally:
+        await service.stop()
+        await asyncio.wait_for(task, 1)
+    assert replacement.exit_count == 1
+
+
+async def test_policy_change_before_run_discards_checked_session(monkeypatch, hooks, stub_ssl) -> None:
+    """Changing TLS before the loop starts must not reuse the old checked session."""
+    checked, replacement = _FakeClient(), _FakeClient()
+    factory = _install_factory(monkeypatch, [checked, replacement])
+    service = _make_service(hooks)
+    await service.async_connect(1)
+    service.update_verify_ssl(False)
+    service.request_reconnect()
+    task = asyncio.create_task(service.run())
+    try:
+        await _wait_for(lambda: hooks.connected_count == 1)
+        assert checked.exit_count == 1
+        assert len(factory.calls) == 2
+        assert stub_ssl == [True, False]
+    finally:
+        await service.stop()
+        await asyncio.wait_for(task, 1)
+
+
+async def test_policy_change_during_connect_does_not_run_stale_handshake(monkeypatch, hooks, stub_ssl) -> None:
+    """A delayed socket handshake cannot start publishing under an obsolete policy."""
+    gate = asyncio.Event()
+    stale, replacement = _FakeClient(connect_gate=gate), _FakeClient()
+    factory = _install_factory(monkeypatch, [stale, replacement])
+    service = _make_service(hooks)
+    task = asyncio.create_task(service.run())
+    try:
+        await _wait_for(lambda: len(factory.calls) == 1)
+        service.update_verify_ssl(False)
+        service.request_reconnect()
+        gate.set()
+        await _wait_for(lambda: hooks.connected_count == 1)
+        assert stale.exit_count == 1
+        assert len(factory.calls) == 2
+        assert stub_ssl == [True, False]
+    finally:
+        await service.stop()
+        await asyncio.wait_for(task, 1)
+
+
 @pytest.fixture
 def hooks() -> _Hooks:
     """Recording hooks."""
@@ -605,7 +693,7 @@ async def test_on_disconnected_hook_error_does_not_kill_loop(
     task = asyncio.create_task(service.run())
     try:
         # The loop must survive the hook error and reach a live session.
-        await _wait_for(lambda: service.is_connected)
+        await _wait_for(lambda: service.is_connected and hooks.connected_count == 1)
         assert hooks.connected_count == 1
         assert len(hooks.disconnects) == 1
         # Backoff was still applied before the retry (no reconnect storm).

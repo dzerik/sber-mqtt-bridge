@@ -905,7 +905,7 @@ async def test_outage_logs_one_warning_debug_attempts_and_one_restore(
     try:
         caplog.set_level(logging.DEBUG, logger="custom_components.sber_mqtt_bridge")
         await bridge.async_start()
-        await _wait_until(lambda: bridge.connection_phase == "awaiting_ack")
+        await _wait_until(lambda: len(_connection_records(caplog, logging.INFO)) == 1)
         first = _messages(_connection_records(caplog, logging.INFO))
         assert len(first) == 1
         assert "Connected to Sber MQTT broker" in first[0]
@@ -914,7 +914,7 @@ async def test_outage_logs_one_warning_debug_attempts_and_one_restore(
         fake.fail_connects = fake.connect_count + failed_attempts
         fake.push_error(aiomqtt.MqttError("broker went away"))
         await _wait_until(lambda: fake.connect_count == failed_attempts + 2)
-        await _wait_until(lambda: bridge.connection_phase == "awaiting_ack")
+        await _wait_until(lambda: len(_connection_records(caplog, logging.INFO)) == 1)
 
         warnings = _messages(_connection_records(caplog, logging.WARNING))
         assert len(warnings) == 1, warnings
@@ -931,7 +931,7 @@ async def test_outage_logs_one_warning_debug_attempts_and_one_restore(
         caplog.clear()
         fake.push_error(aiomqtt.MqttError("second outage"))
         await _wait_until(lambda: fake.connect_count == failed_attempts + 3)
-        await _wait_until(lambda: bridge.connection_phase == "awaiting_ack")
+        await _wait_until(lambda: len(_connection_records(caplog, logging.INFO)) == 1)
         warnings = _messages(_connection_records(caplog, logging.WARNING))
         assert len(warnings) == 1, warnings
         assert "second outage" in warnings[0]
@@ -958,7 +958,7 @@ async def test_repeated_unexpected_error_logs_one_traceback(
     try:
         caplog.set_level(logging.DEBUG, logger="custom_components.sber_mqtt_bridge")
         await bridge.async_start()
-        await _wait_until(lambda: bridge.connection_phase == "awaiting_ack")
+        await _wait_until(lambda: len(_connection_records(caplog, logging.INFO)) == 1)
 
         with_traceback = [r for r in caplog.records if r.exc_info and r.levelno >= logging.WARNING]
         assert len(with_traceback) == 1, _messages(with_traceback)
@@ -991,7 +991,7 @@ async def test_different_unexpected_error_in_same_outage_gets_its_traceback(
     try:
         caplog.set_level(logging.DEBUG, logger="custom_components.sber_mqtt_bridge")
         await bridge.async_start()
-        await _wait_until(lambda: bridge.connection_phase == "awaiting_ack")
+        await _wait_until(lambda: len(_connection_records(caplog, logging.INFO)) == 1)
 
         assert len(_connection_records(caplog, logging.WARNING)) == 1
         errors = _connection_records(caplog, logging.ERROR)

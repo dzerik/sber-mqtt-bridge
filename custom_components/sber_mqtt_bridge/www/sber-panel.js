@@ -696,6 +696,7 @@ class SberMqttPanel extends LitElement {
       ${this._error ? html`<div class="error-banner">${this._error}</div>` : ""}
       ${this._renderStaleBanner()}
       ${this._renderAuthFailedBanner()}
+      ${this._renderConnectionErrorBanner()}
       ${this._renderConflictBanner()}
 
       <div class="toolbar-wrapper">
@@ -816,6 +817,19 @@ class SberMqttPanel extends LitElement {
       <button class="auth-reauth" @click=${() => navigateTo(REAUTH_PATH)}>
         ${t(this.hass, "panel.auth_failed_action")}
       </button>
+    </div>`;
+  }
+
+  _renderConnectionErrorBanner() {
+    const error = this._status?.connection_error;
+    if (!error || this._status?.connected || error.kind === "auth") return "";
+    const kind = ["certificate", "tls", "timeout", "network"].includes(error.kind) ? error.kind : "network";
+    return html`<div class="error-banner" role="alert">
+      <span>${t(this.hass, `panel.connection_error_${kind}`)}</span>
+      ${kind === "certificate" || kind === "tls" ? html`
+        <button @click=${() => this._selectTab(TABS.indexOf("settings"))}>
+          ${t(this.hass, "panel.connection_settings_action")}
+        </button>` : ""}
     </div>`;
   }
 

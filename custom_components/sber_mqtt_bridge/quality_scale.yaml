@@ -52,8 +52,9 @@ rules:
     status: done
     comment: >-
       async_setup_entry (__init__.py) makes one bounded connection attempt before starting the
-      bridge: a refused login raises ConfigEntryAuthFailed, an unreachable broker or timeout raises
-      ConfigEntryNotReady (tests/hacs/test_setup_broker_check.py)
+      bridge: a refused login raises ConfigEntryAuthFailed. Network, TLS and timeout failures
+      allow local management to load with a disconnected transport and background retry
+      (tests/hacs/test_setup_broker_check.py).
   unique-config-entry:
     status: done
     comment: single_config_entry in manifest.json; the config flow also sets the MQTT login as unique_id
