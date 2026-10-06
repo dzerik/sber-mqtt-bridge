@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.59.0b4] - 2026-10-06
+
+### Changed
+
+- Обновлены иконка и логотип интеграции: дом с роботом и голосовым символом.
+  PNG, SVG и версии @2x используют единую айдентику с прозрачным фоном.
+
 ## [1.59.0b3] - 2026-10-06
 
 ### Added
