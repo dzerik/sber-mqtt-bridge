@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.59.0b3] - 2026-10-06
+
 ### Added
 
 - Панель показывает причину ошибки MQTT-соединения и предлагает перейти к
