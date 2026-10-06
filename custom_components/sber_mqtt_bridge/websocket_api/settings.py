@@ -28,7 +28,13 @@ from ..const import (
     CONF_SILENT_REJECTION_ALERTS,
     SETTINGS_DEFAULTS,
 )
-from ..ssl_utils import entry_trusted_certificate, entry_verify_ssl, inspect_server_certificate
+from ..ssl_utils import (
+    CertificateTrustError,
+    entry_trusted_certificate,
+    entry_verify_ssl,
+    inspect_server_certificate,
+    validate_certificate_trust,
+)
 from ._common import (  # noqa: F401 — get_config_entry re-exported for test patching
     get_bridge,
     get_config_entry,
@@ -294,19 +300,10 @@ async def ws_trust_certificate(
     except (OSError, TimeoutError, ValueError) as err:
         connection.send_error(msg["id"], "certificate_unavailable", str(err))
         return
-    if msg["fingerprint"].replace(" ", "").upper() != certificate.fingerprint:
-        connection.send_error(
-            msg["id"],
-            "certificate_changed",
-            "The broker certificate changed since it was inspected",
-        )
-        return
-    if not certificate.valid_now or not certificate.hostname_matches:
-        connection.send_error(
-            msg["id"],
-            "certificate_invalid",
-            "The broker certificate is expired or does not match the broker hostname",
-        )
+    try:
+        validate_certificate_trust(certificate, msg["fingerprint"])
+    except CertificateTrustError as err:
+        connection.send_error(msg["id"], err.code, str(err))
         return
     new_options = dict(entry.options)
     new_options[CONF_SBER_TRUSTED_CERTIFICATE] = certificate.pem
@@ -332,7 +329,8 @@ async def ws_remove_trusted_certificate(
 ) -> None:
     """Remove the pinned certificate and return to system CA verification."""
     new_options = dict(entry.options)
-    new_options.pop(CONF_SBER_TRUSTED_CERTIFICATE, None)
+    new_options[CONF_SBER_TRUSTED_CERTIFICATE] = None
+    new_options[CONF_SBER_VERIFY_SSL] = True
     hass.config_entries.async_update_entry(entry, options=new_options)
     bridge = get_bridge(hass)
     if bridge is not None:

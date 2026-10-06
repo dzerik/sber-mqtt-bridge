@@ -186,6 +186,7 @@ class SberSettings extends LitElement {
     this._certificateLoading = true;
     try {
       await this.hass.callWS({ type: "sber_mqtt_bridge/remove_trusted_certificate" });
+      this._settings = { ...this._settings, sber_verify_ssl: true };
       await this._inspectCertificate();
       this._toast(t(this.hass, "settings.certificate_removed"), "success");
     } catch (e) {

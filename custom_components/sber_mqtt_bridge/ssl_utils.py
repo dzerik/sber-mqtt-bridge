@@ -54,6 +54,24 @@ class ServerCertificate:
         return result
 
 
+class CertificateTrustError(ValueError):
+    """A certificate cannot be trusted using the reviewed fingerprint."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+def validate_certificate_trust(certificate: ServerCertificate, fingerprint: str) -> None:
+    """Require the reviewed fingerprint, current dates and matching hostname."""
+    if fingerprint.replace(" ", "").upper() != certificate.fingerprint:
+        raise CertificateTrustError("certificate_changed", "The broker certificate changed since it was inspected")
+    if not certificate.valid_now or not certificate.hostname_matches:
+        raise CertificateTrustError(
+            "certificate_invalid", "The broker certificate is expired or does not match the broker hostname"
+        )
+
+
 def _name_text(name: x509.Name) -> str:
     """Format a certificate name without exposing cryptography objects."""
     return ", ".join(f"{attribute.oid._name or attribute.oid.dotted_string}={attribute.value}" for attribute in name)

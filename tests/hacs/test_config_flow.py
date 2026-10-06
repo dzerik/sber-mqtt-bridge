@@ -35,6 +35,27 @@ MOCK_USER_INPUT = {
 }
 
 
+async def test_reauth_keeps_explicitly_trusted_certificate(hass, no_real_setup):
+    """Changing a password must keep the entry's TLS trust policy."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=MOCK_USER_INPUT,
+        options={"sber_trusted_certificate": "trusted PEM"},
+        unique_id="test_user",
+    )
+    entry.add_to_hass(hass)
+    with (
+        patch("custom_components.sber_mqtt_bridge.config_flow.create_ssl_context", return_value=object()) as context,
+        patch("custom_components.sber_mqtt_bridge.config_flow.aiomqtt.Client", return_value=_FakeConnectClient(None)),
+    ):
+        result = await entry.start_reauth_flow(hass)
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_SBER_PASSWORD: "new_pass"})
+        await hass.async_block_till_done()
+    assert result["reason"] == "reauth_successful"
+    context.assert_called_once_with(True, "trusted PEM")
+    assert entry.options["sber_trusted_certificate"] == "trusted PEM"
+
+
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Enable custom integrations in all tests."""

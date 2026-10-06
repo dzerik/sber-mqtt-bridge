@@ -60,6 +60,50 @@ def _read(rel: str) -> str:
     return (WWW / rel).read_text(encoding="utf-8")
 
 
+@requires_node
+def test_connection_error_banner_opens_certificate_settings_and_clears_on_recovery(tmp_path):
+    """Execute the shipped banner and its navigation callback."""
+    source = _read("sber-panel.js")
+    methods = _methods_as_object_body(source, ["_renderConnectionErrorBanner", "_selectTab"])
+    driver = r"""
+const TABS = ["devices", "status", "devtools", "settings"];
+let callbacks = [];
+function t(hass, key) { return key; }
+function html(parts, ...values) {
+  return parts.map((part, index) => {
+    const value = values[index];
+    if (typeof value === "function") { callbacks.push(value); return part; }
+    return part + (value ?? "");
+  }).join("");
+}
+const panel = {
+  hass: {}, _tab: 0, updateComplete: Promise.resolve(),
+  shadowRoot: { querySelector() { return null; } },
+  __METHODS__
+};
+panel._status = { connected: false, connection_error: { kind: "certificate" } };
+const certificate = panel._renderConnectionErrorBanner();
+callbacks[0]();
+const selected = panel._tab;
+callbacks = [];
+panel._status = { connected: false, connection_error: { kind: "network" } };
+const network = panel._renderConnectionErrorBanner();
+const networkActions = callbacks.length;
+panel._status.connected = true;
+const recovered = panel._renderConnectionErrorBanner();
+panel._status = { connected: false, connection_error: { kind: "auth" } };
+const auth = panel._renderConnectionErrorBanner();
+console.log(JSON.stringify({certificate, selected, network, networkActions, recovered, auth}));
+""".replace("__METHODS__", methods)
+    rendered = _run_node(tmp_path, driver)
+    assert "panel.connection_error_certificate" in rendered["certificate"]
+    assert rendered["selected"] == 3
+    assert "panel.connection_error_network" in rendered["network"]
+    assert rendered["networkActions"] == 0
+    assert rendered["recovered"] == ""
+    assert rendered["auth"] == ""
+
+
 def _js_modules() -> list[Path]:
     """Every first-party module shipped in ``www`` (vendored lit excluded)."""
     return sorted(p for p in WWW.rglob("*.js") if "vendor" not in p.parts)

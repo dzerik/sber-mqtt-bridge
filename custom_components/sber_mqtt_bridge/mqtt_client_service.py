@@ -42,6 +42,10 @@ seconds forever; only a session that survives this long counts as recovery.
 """
 
 
+class MqttReconnectRequested(aiomqtt.MqttError):
+    """A deliberate connection restart after the user changes TLS settings."""
+
+
 @dataclass(frozen=True, slots=True)
 class SberMqttCredentials:
     """Connection credentials for the Sber MQTT broker."""
@@ -125,6 +129,7 @@ class MqttClientService:
         self._pending_session: tuple[contextlib.AsyncExitStack, aiomqtt.Client] | None = None
         """Session opened by :meth:`async_connect` that :meth:`run` has not taken over yet."""
         self._running = False
+        self._reconnect_requested = asyncio.Event()
         self._stable_handle: asyncio.TimerHandle | None = None
         """Pending "session is stable" timer that resets the backoff; ``None`` when disarmed."""
 
@@ -163,6 +168,11 @@ class MqttClientService:
         """
         self._reconnect_min = reconnect_min
         self._reconnect_max = reconnect_max
+
+    def request_reconnect(self) -> None:
+        """Wake backoff or close the active session; keep a single connection loop."""
+        self._reconnect_interval = self._reconnect_min
+        self._reconnect_requested.set()
 
     def update_verify_ssl(self, verify_ssl: bool) -> None:
         """Update the ``verify_ssl`` flag for the next reconnect."""
@@ -301,19 +311,45 @@ class MqttClientService:
         self._running = True
         try:
             while self._running:
+                if self._reconnect_requested.is_set() and self._pending_session is not None:
+                    stack, _client = self._pending_session
+                    self._pending_session = None
+                    await self._close_session(stack)
+                self._reconnect_requested.clear()
                 try:
                     async with self._session() as client:
+                        self._check_reconnect_requested()
                         self._client = client
                         self._connected = True
                         self._arm_stable_timer()
                         try:
-                            await self._hooks.on_connected(client)
-                            await self._consume_messages(client)
+                            session = asyncio.create_task(self._serve_client(client), name="sber_mqtt_session")
+                            restart = asyncio.create_task(self._reconnect_requested.wait(), name="sber_mqtt_restart")
+                            try:
+                                done, _ = await asyncio.wait((session, restart), return_when=asyncio.FIRST_COMPLETED)
+                                if session in done:
+                                    await session
+                                if restart in done and self._running:
+                                    raise MqttReconnectRequested("TLS settings changed")
+                            finally:
+                                session.cancel()
+                                restart.cancel()
+                                await asyncio.gather(session, restart, return_exceptions=True)
                         finally:
                             # Disarm before ``__aexit__`` awaits the socket
                             # teardown: a session that has already ended must
                             # not be credited as stable.
                             self._cancel_stable_timer()
+                except MqttReconnectRequested as err:
+                    self._client = None
+                    self._connected = False
+                    try:
+                        if not await self._hooks.on_disconnected(err, False):
+                            break
+                    except asyncio.CancelledError:
+                        break
+                    except Exception:
+                        _LOGGER.exception("Error in on_disconnected hook during requested reconnect")
                 except aiomqtt.MqttError as err:
                     if not await self._after_error(err, unexpected=False):
                         break
@@ -374,6 +410,7 @@ class MqttClientService:
         :meth:`run` never took it over (setup failed after connecting).
         """
         self._running = False
+        self._reconnect_requested.set()
         pending, self._pending_session = self._pending_session, None
         if pending is not None:
             await self._close_session(pending[0])
@@ -397,6 +434,16 @@ class MqttClientService:
                 self._credentials.trusted_certificate,
             )
         return await self._hass.async_add_executor_job(create_ssl_context, self._credentials.verify_ssl)
+
+    async def _serve_client(self, client: aiomqtt.Client) -> None:
+        """Run the handshake and message consumer inside the cancellable session."""
+        await self._hooks.on_connected(client)
+        await self._consume_messages(client)
+
+    def _check_reconnect_requested(self) -> None:
+        """Discard a connection completed using a superseded TLS policy."""
+        if self._reconnect_requested.is_set() and self._running:
+            raise MqttReconnectRequested("TLS settings changed during connect")
 
     async def _consume_messages(self, client: aiomqtt.Client) -> None:
         """Forward every received message to ``hooks.on_message``.
@@ -449,9 +496,17 @@ class MqttClientService:
         if not keep_running or not self._running:
             return False
         jitter = random.uniform(0.5, 1.5)  # noqa: S311 — not crypto, backoff desync only
-        await asyncio.sleep(self._reconnect_interval * jitter)
-        self._reconnect_interval = min(self._reconnect_interval * 2, self._reconnect_max)
-        return True
+        delay = asyncio.create_task(asyncio.sleep(self._reconnect_interval * jitter), name="sber_mqtt_backoff")
+        restart = asyncio.create_task(self._reconnect_requested.wait(), name="sber_mqtt_backoff_restart")
+        try:
+            await asyncio.wait((delay, restart), return_when=asyncio.FIRST_COMPLETED)
+            if not self._reconnect_requested.is_set():
+                self._reconnect_interval = min(self._reconnect_interval * 2, self._reconnect_max)
+        finally:
+            delay.cancel()
+            restart.cancel()
+            await asyncio.gather(delay, restart, return_exceptions=True)
+        return self._running
 
     async def publish(self, topic: str, payload: str | bytes) -> None:
         """Publish a raw payload to the given topic.

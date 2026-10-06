@@ -24,6 +24,7 @@ and must never be read as a refused login.
 from __future__ import annotations
 
 import logging
+import ssl
 
 from aiomqtt.exceptions import MqttConnectError
 from paho.mqtt.reasoncodes import ReasonCode
@@ -76,3 +77,28 @@ def connection_error_key(err: BaseException) -> str:
         :data:`ERROR_CANNOT_CONNECT` for anything else.
     """
     return ERROR_INVALID_AUTH if is_auth_failure(err) else ERROR_CANNOT_CONNECT
+
+
+def connection_failure_kind(err: BaseException) -> str:
+    """Classify a connection failure for UI without exposing exception text.
+
+    aiomqtt may wrap socket/TLS exceptions, so inspect the exception chain
+    and the standard SSL error markers too. Credentials never enter the API.
+    """
+    seen: set[int] = set()
+    current: BaseException | None = err
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if is_auth_failure(current):
+            return "auth"
+        message = str(current).lower()
+        if isinstance(current, ssl.SSLCertVerificationError) or any(
+            marker in message for marker in ("certificate_verify_failed", "certificate verify failed")
+        ):
+            return "certificate"
+        if isinstance(current, TimeoutError) or "timed out" in message or "did not answer within" in message:
+            return "timeout"
+        if isinstance(current, ssl.SSLError) or "[ssl:" in message:
+            return "tls"
+        current = current.__cause__ or current.__context__
+    return "network"

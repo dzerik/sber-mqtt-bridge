@@ -160,6 +160,11 @@ export const EN_FALLBACK = {
   "panel.auth_failed":
     "Sber rejected the MQTT login or password — enter a new password. The bridge stopped reconnecting until you do.",
   "panel.auth_failed_action": "Enter password",
+  "panel.connection_error_certificate": "The MQTT broker certificate could not be verified. Open settings to inspect and trust the broker certificate.",
+  "panel.connection_error_tls": "A TLS connection to the MQTT broker could not be established. Check the broker certificate settings.",
+  "panel.connection_error_timeout": "The MQTT broker did not respond in time. The bridge will retry automatically; local settings remain available.",
+  "panel.connection_error_network": "The MQTT broker is unreachable. The bridge will retry automatically; local settings remain available.",
+  "panel.connection_settings_action": "Certificate settings",
   "panel.unconfirmed": "{action} was accepted but the bridge did not confirm it — press Refresh.",
   "panel.action_removal": "Removal",
   "panel.action_clear_all": "Clear all",
@@ -295,9 +300,9 @@ export const EN_FALLBACK = {
   "settings.certificate_trust": "Trust certificate",
   "settings.certificate_remove": "Remove trust",
   "settings.certificate_confirm": "Trust this certificate?\n\nSHA-256:\n{fingerprint}\n\nOnly confirm after checking this fingerprint with Sber or your administrator.",
-  "settings.certificate_remove_confirm": "Remove the pinned broker certificate? The next connection will use the system CA store.",
-  "settings.certificate_trusted": "Certificate pinned; it will be used on the next reconnect.",
-  "settings.certificate_removed": "Pinned certificate removed.",
+  "settings.certificate_remove_confirm": "Remove trust for the broker certificate? The connection will restart using system CAs.",
+  "settings.certificate_trusted": "Certificate trusted; reconnecting now.",
+  "settings.certificate_removed": "Trust removed; reconnecting now.",
   "settings.certificate_failed": "Certificate operation failed: {reason}",
 
   // --- wizard ---

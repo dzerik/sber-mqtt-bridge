@@ -21,6 +21,7 @@ from custom_components.sber_mqtt_bridge.mqtt_errors import (
     ERROR_CANNOT_CONNECT,
     ERROR_INVALID_AUTH,
     connection_error_key,
+    connection_failure_kind,
     is_auth_failure,
 )
 
@@ -28,6 +29,28 @@ from custom_components.sber_mqtt_bridge.mqtt_errors import (
 def _connack(name: str) -> ReasonCode:
     """Build a CONNACK reason code by its MQTT 5 name."""
     return ReasonCode(PacketTypes.CONNACK, name)
+
+
+@pytest.mark.parametrize(
+    ("error", "kind"),
+    [
+        (ssl.SSLCertVerificationError("untrusted issuer"), "certificate"),
+        (aiomqtt.MqttError("[SSL: CERTIFICATE_VERIFY_FAILED] private chain"), "certificate"),
+        (ssl.SSLError("handshake"), "tls"),
+        (TimeoutError(), "timeout"),
+        (aiomqtt.MqttError("operation timed out"), "timeout"),
+        (OSError("network unavailable"), "network"),
+        (MqttConnectError(_connack("Not authorized")), "auth"),
+    ],
+)
+def test_connection_failure_kind(error, kind):
+    assert connection_failure_kind(error) == kind
+
+
+def test_wrapped_certificate_error_is_classified_without_exposing_details():
+    error = aiomqtt.MqttError("connection failed")
+    error.__cause__ = ssl.SSLCertVerificationError("sensitive details")
+    assert connection_failure_kind(error) == "certificate"
 
 
 AUTH_FAILURES = [

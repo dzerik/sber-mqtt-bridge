@@ -222,7 +222,12 @@
       "stale_frontend": "This page still runs the panel of version {loaded}, while the bridge already runs {running}. Reload the page to get the new panel.",
       "reload": "Reload",
       "auth_failed": "Sber rejected the MQTT login or password — enter a new password. The bridge stopped reconnecting until you do.",
-      "auth_failed_action": "Enter password"
+      "auth_failed_action": "Enter password",
+      "connection_error_certificate": "The MQTT broker certificate could not be verified. Open settings to inspect and trust the broker certificate.",
+      "connection_error_tls": "A TLS connection to the MQTT broker could not be established. Check the broker certificate settings.",
+      "connection_error_timeout": "The MQTT broker did not respond in time. The bridge will retry automatically; local settings remain available.",
+      "connection_error_network": "The MQTT broker is unreachable. The bridge will retry automatically; local settings remain available.",
+      "connection_settings_action": "Certificate settings"
     },
     "diff": {
       "title": "State Diffs",
@@ -307,9 +312,9 @@
       "certificate_trust": "Trust certificate",
       "certificate_remove": "Remove trust",
       "certificate_confirm": "Trust this certificate?\n\nSHA-256:\n{fingerprint}\n\nOnly confirm after checking this fingerprint with Sber or your administrator.",
-      "certificate_remove_confirm": "Remove the pinned broker certificate? The next connection will use the system CA store.",
-      "certificate_trusted": "Certificate pinned; it will be used on the next reconnect.",
-      "certificate_removed": "Pinned certificate removed.",
+      "certificate_remove_confirm": "Remove trust for the broker certificate? The connection will restart using system CAs.",
+      "certificate_trusted": "Certificate trusted; reconnecting now.",
+      "certificate_removed": "Trust removed; reconnecting now.",
       "certificate_failed": "Certificate operation failed: {reason}",
       "loading": "Loading settings…",
       "group": {
@@ -586,7 +591,8 @@
           "select_entities_menu": "Entity selection",
           "type_overrides": "Entity type overrides",
           "device_sync": "Device sync timing",
-          "connection_settings": "Connection and TLS"
+          "connection_settings": "Connection and TLS",
+          "broker_certificate": "Broker certificate"
         }
       },
       "select_entities_menu": {
@@ -652,10 +658,27 @@
         "data_description": {
           "sber_verify_ssl": "Disable only for a private or incomplete broker certificate chain. Prefer manually pinning the certificate in the Sber Bridge panel."
         }
+      },
+      "broker_certificate": {
+        "title": "Broker certificate",
+        "description": "Inspect the broker certificate before adding trust. Compare its SHA-256 fingerprint with Sber or your administrator.\n\nSubject: {subject}\n\nIssuer: {issuer}\n\nValid from: {not_before}\n\nValid until: {not_after}\n\nSHA-256: {fingerprint}\n\nStored trust: {trusted}",
+        "data": {
+          "action": "Action",
+          "confirm": "I confirm this trust change"
+        },
+        "data_description": {
+          "confirm": "For adding trust, confirm only after checking the displayed fingerprint. Removing trust restores system CA verification."
+        }
       }
     },
     "abort": {
       "no_exposed_entities": "No entities are exposed to Sber yet. Add entities first, then set their device types."
+    },
+    "error": {
+      "certificate_unavailable": "Could not fetch the broker certificate. Check the network and try again.",
+      "certificate_changed": "The broker certificate changed since inspection. Review the new fingerprint before confirming again.",
+      "certificate_invalid": "The certificate is expired, not yet valid or does not match the broker hostname.",
+      "certificate_confirmation_required": "Confirm the trust change explicitly."
     }
   },
   "issues": {
@@ -758,6 +781,15 @@
     },
     "connect_timeout": {
       "message": "The Sber MQTT broker {broker} did not answer within {timeout} seconds."
+    }
+  },
+  "selector": {
+    "certificate_action": {
+      "options": {
+        "refresh": "Inspect again",
+        "trust": "Trust the displayed certificate",
+        "remove": "Remove stored trust"
+      }
     }
   }
 }

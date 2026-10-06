@@ -173,8 +173,8 @@ async def _async_connect_bridge(bridge: SberBridge, entry: SberBridgeConfigEntry
     The session opened here is kept by the bridge (see
     :meth:`.SberBridge.async_connect`).  A refused login or password is the
     only failure retrying cannot fix, so it asks the user for new
-    credentials; everything else — broker or network down, TLS failure, no
-    answer in time — is left to HA's setup retry with backoff.
+    credentials. The caller handles network, TLS and timeout failures by
+    starting local management with a background reconnect loop.
 
     Args:
         bridge: Bridge created for ``entry``, not started yet.
@@ -217,13 +217,11 @@ async def _async_connect_bridge(bridge: SberBridge, entry: SberBridgeConfigEntry
 async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -> bool:
     """Set up Sber MQTT Bridge from a config entry.
 
-    The broker is checked first (HA quality rule ``test-before-setup``):
-    one connection attempt bounded by
-    :data:`~.sber_bridge.SETUP_CONNECT_TIMEOUT`, made before the bridge
-    loads entities or subscribes to anything, so a failed check leaves
-    nothing to undo.  The connected session is kept and the bridge runs on
-    it; losing the connection later is handled by the bridge's own
-    reconnect loop and does not unload the entry.
+    Check the broker with a bounded attempt and reuse a successful session.
+    Network, TLS and timeout failures still allow local management to load:
+    the panel must be available to repair the connection (issue #72).
+    The bridge retries in the background. Refused credentials still raise
+    ConfigEntryAuthFailed so HA starts reauthentication.
 
     Every step after the connection check is rolled back on failure: a
     started bridge holds an MQTT client, background tasks and
@@ -242,15 +240,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: SberBridgeConfigEntry) -
         ConfigEntryError: Another config entry of this integration already
             runs the bridge (see :func:`_claim_single_entry`).
         ConfigEntryAuthFailed: The broker refused the login or password.
-        ConfigEntryNotReady: The broker could not be reached, or
-            frontend/WebSocket registration failed; the bridge is stopped
+        ConfigEntryNotReady: Frontend/WebSocket registration failed; the bridge is stopped
             first and HA retries the whole setup.
     """
     _claim_single_entry(hass, entry)
     try:
         _async_migrate_model_identity(hass, entry)
         bridge = SberBridge(hass, entry)
-        await _async_connect_bridge(bridge, entry)
+        try:
+            await _async_connect_bridge(bridge, entry)
+        except ConfigEntryNotReady as err:
+            cause = err.__cause__
+            bridge.record_setup_connection_failure(cause if isinstance(cause, Exception) else err)
         try:
             await bridge.async_start()
         except BaseException:

@@ -42,6 +42,7 @@ from .const import (
     CONF_SBER_LOGIN,
     CONF_SBER_PASSWORD,
     CONF_SBER_PORT,
+    CONF_SBER_TRUSTED_CERTIFICATE,
     CONF_SBER_VERIFY_SSL,
     DOMAIN,
     HOT_APPLY_ENTITY_OPTION_KEYS,
@@ -57,8 +58,15 @@ from .sber_entity_map import (
     build_probe_entity,
     category_label,
 )
+from .ssl_utils import (
+    CertificateTrustError,
+    ServerCertificate,
+    entry_trusted_certificate,
+    entry_verify_ssl,
+    inspect_server_certificate,
+    validate_certificate_trust,
+)
 from .ssl_utils import create_ssl_context as create_ssl_context
-from .ssl_utils import entry_verify_ssl
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,7 +115,14 @@ DOMAIN_LABELS: dict[str, str] = {
 
 
 async def _validate_sber_connection(
-    hass: HomeAssistant, login: str, password: str, broker: str, port: int, *, verify_ssl: bool = True
+    hass: HomeAssistant,
+    login: str,
+    password: str,
+    broker: str,
+    port: int,
+    *,
+    verify_ssl: bool = True,
+    trusted_certificate: str | None = None,
 ) -> str | None:
     """Validate Sber MQTT credentials by attempting a connection.
 
@@ -118,6 +133,7 @@ async def _validate_sber_connection(
         broker: MQTT broker hostname.
         port: MQTT broker port.
         verify_ssl: Whether to verify the broker's SSL certificate.
+        trusted_certificate: The certificate explicitly trusted for this entry.
 
     Returns:
         ``None`` if the connection succeeded, otherwise a config-flow error
@@ -127,7 +143,10 @@ async def _validate_sber_connection(
         bridge uses to decide whether to start reauthentication.
     """
     try:
-        ssl_context = await hass.async_add_executor_job(create_ssl_context, verify_ssl)
+        if trusted_certificate:
+            ssl_context = await hass.async_add_executor_job(create_ssl_context, verify_ssl, trusted_certificate)
+        else:
+            ssl_context = await hass.async_add_executor_job(create_ssl_context, verify_ssl)
 
         async with aiomqtt.Client(
             hostname=broker,
@@ -342,6 +361,7 @@ class SberMqttBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
                 reauth_entry.data[CONF_SBER_BROKER],
                 reauth_entry.data[CONF_SBER_PORT],
                 verify_ssl=entry_verify_ssl(reauth_entry.data, reauth_entry.options),
+                trusted_certificate=entry_trusted_certificate(reauth_entry.data, reauth_entry.options),
             )
             if error:
                 errors["base"] = error
@@ -426,7 +446,7 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
         options that no longer differ, and ``OptionsFlowWithReload`` —
         which reloads only on an actual change — leaves the entry alone.
 
-        Anything else (a connection setting, an unknown key) or an entry
+        Anything else (an unknown key) or an entry
         whose bridge is not running is left untouched here, and the
         automatic reload applies it as before.
 
@@ -527,16 +547,16 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                 "type_overrides",
                 "device_sync",
                 "connection_settings",
+                "broker_certificate",
             ],
         )
 
     async def async_step_connection_settings(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Change TLS verification even when the entry is not currently loaded.
 
-        The sidebar panel is unavailable while an entry is stuck in setup
-        retry because the broker certificate cannot be verified.  Keeping
-        this one connection setting in Options Flow lets the user recover
-        that entry without deleting and recreating it.
+        Keep a recovery route in the standard HA dialog even when frontend
+        registration fails or the entry has not loaded. The same setting
+        can be applied live to a loaded, disconnected bridge.
         """
         if user_input is not None:
             return self._async_save_options(**user_input)
@@ -550,6 +570,67 @@ class SberMqttBridgeOptionsFlow(OptionsFlowWithReload):
                     ): bool,
                 }
             ),
+        )
+
+    async def async_step_broker_certificate(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Inspect and explicitly trust the broker certificate without a loaded bridge.
+
+        A fresh TLS inspection on confirmation detects rotation between
+        review and trust. This diagnostic connection never sends MQTT credentials.
+        """
+        errors: dict[str, str] = {}
+        previous: ServerCertificate | None = getattr(self, "_reviewed_certificate", None)
+        action = user_input.get("action", "refresh") if user_input is not None else "refresh"
+        confirmed = user_input is not None and user_input.get("confirm", False)
+        if action in {"trust", "remove"} and not confirmed:
+            errors["confirm"] = "certificate_confirmation_required"
+        if action == "remove" and confirmed:
+            return self._async_save_options(**{CONF_SBER_TRUSTED_CERTIFICATE: None, CONF_SBER_VERIFY_SSL: True})
+
+        certificate: ServerCertificate | None = None
+        try:
+            certificate = await self.hass.async_add_executor_job(
+                inspect_server_certificate,
+                self.config_entry.data[CONF_SBER_BROKER],
+                self.config_entry.data[CONF_SBER_PORT],
+            )
+        except (OSError, TimeoutError, ValueError):
+            errors["base"] = "certificate_unavailable"
+        self._reviewed_certificate = certificate
+
+        if action == "trust" and confirmed and certificate is not None:
+            try:
+                validate_certificate_trust(certificate, previous.fingerprint if previous is not None else "")
+            except CertificateTrustError as err:
+                errors["base"] = err.code
+            else:
+                return self._async_save_options(
+                    **{CONF_SBER_TRUSTED_CERTIFICATE: certificate.pem, CONF_SBER_VERIFY_SSL: True}
+                )
+
+        placeholders = {
+            key: str(getattr(certificate, key, "—"))
+            for key in ("subject", "issuer", "not_before", "not_after", "fingerprint")
+        }
+        placeholders["trusted"] = (
+            "✓" if entry_trusted_certificate(self.config_entry.data, self.config_entry.options) else "—"
+        )
+        return self.async_show_form(
+            step_id="broker_certificate",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("action", default="refresh"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=["refresh", "trust", "remove"],
+                            mode=SelectSelectorMode.DROPDOWN,
+                            translation_key="certificate_action",
+                        )
+                    ),
+                    vol.Required("confirm", default=False): bool,
+                }
+            ),
+            description_placeholders=placeholders,
+            errors=errors,
         )
 
     async def async_step_device_sync(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:

@@ -15,7 +15,7 @@ import math
 import time
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from functools import cached_property
 from typing import Any
 
@@ -60,10 +60,11 @@ from .entity_registry import SberEntityLoader
 from .ha_state_forwarder import HaStateForwarder
 from .mqtt_client_service import (
     MqttClientService,
+    MqttReconnectRequested,
     MqttServiceHooks,
     SberMqttCredentials,
 )
-from .mqtt_errors import is_auth_failure
+from .mqtt_errors import connection_failure_kind, is_auth_failure
 from .redefinitions_store import RedefinitionsStore
 from .repairs import check_and_create_issues
 from .sber_constants import MqttTopicSuffix
@@ -269,6 +270,7 @@ class SberBridge:
         self._running = False
         self._auth_failed = False
         """True once the broker refused the credentials; the reconnect loop is stopped until reauth reloads the entry."""
+        self._connection_error: dict[str, str] | None = None
         self._outage_logged = False
         """True once the current loss of the broker link has been logged; cleared (with an info) when it is back."""
         self._outage_tracebacks: set[str] = set()
@@ -700,6 +702,22 @@ class SberBridge:
     def auth_failed(self) -> bool:
         """Return True when the broker refused the credentials and reauth is pending."""
         return self._auth_failed
+
+    @property
+    def connection_error(self) -> dict[str, str] | None:
+        """Return safe connection diagnostics, separate from Sber protocol errors."""
+        return dict(self._connection_error) if self._connection_error is not None else None
+
+    def _record_connection_error(self, err: BaseException) -> None:
+        self._connection_error = {
+            "kind": connection_failure_kind(err),
+            "occurred_at": datetime.now(UTC).isoformat(),
+        }
+
+    def record_setup_connection_failure(self, err: Exception) -> None:
+        """Keep the initial failed check visible while local setup completes."""
+        self._record_connection_error(err)
+        self._log_connection_failure(err, unexpected=False, was_connected=False)
 
     @property
     def connection_phase(self) -> str:
@@ -1232,17 +1250,21 @@ class SberBridge:
 
         Settings that take effect immediately: debounce_delay, max_mqtt_payload_size,
         message_log_size, ack_audit_delay (for audits scheduled after the change).
-        Settings that take effect on next reconnect: reconnect_min, reconnect_max, verify_ssl.
+        Reconnect bounds apply to subsequent retries. TLS policy changes
+        immediately request a fresh session from the existing connection loop.
 
         Args:
             options: Config entry options dict.
         """
+        previous_tls = (self._verify_ssl, self._trusted_certificate)
         self._load_settings_from_options(options)
         self._state_forwarder.set_debounce_delay(self._debounce_delay)
         self._config_gate.update_delays(settle_delay=self._config_settle_delay, max_wait=self._config_max_wait)
         self._mqtt_service.update_backoff_limits(self._reconnect_min, self._reconnect_max)
         self._mqtt_service.update_verify_ssl(self._verify_ssl)
         self._mqtt_service.update_trusted_certificate(self._trusted_certificate)
+        if previous_tls != (self._verify_ssl, self._trusted_certificate):
+            self._mqtt_service.request_reconnect()
         self._devtools.resize(self._message_log_size)
         self._ack_audit.set_audit_delay(self._ack_audit_delay)
 
@@ -1456,12 +1478,10 @@ class SberBridge:
     async def async_connect(self) -> None:
         """Connect to the Sber broker once, for :meth:`async_start` to continue on.
 
-        Called by the integration setup before :meth:`async_start`, so an
-        unreachable broker or refused credentials fail the setup instead of
-        leaving a loaded entry that silently retries in the background.  The
-        session stays open and becomes the first session of the reconnect
-        loop.  Nothing is logged here: the caller turns the error into the
-        setup outcome that HA reports.
+        Called before :meth:`async_start` to detect refused credentials and
+        report connection failures. Network/TLS failures allow local setup
+        and background retry; authentication failures start HA reauth. A
+        successful session stays open for the reconnect loop to reuse.
 
         Raises:
             aiomqtt.MqttError: The broker refused the connection or could not
@@ -1862,6 +1882,7 @@ class SberBridge:
     def _mark_connected(self) -> None:
         """Flip connection-related state flags after a successful MQTT handshake."""
         self._connected = True
+        self._connection_error = None
         self._stats.connected_since = time.monotonic()
         self._notify_status_listeners()
         _LOGGER.debug(
@@ -2034,6 +2055,8 @@ class SberBridge:
         self._mqtt_client = None
         self._pre_publish_backlog = 0
         self._session_ready = False
+        if not isinstance(err, MqttReconnectRequested):
+            self._record_connection_error(err)
         self._notify_status_listeners()
         # Cancel the pending silent-rejection audit: with the link down no
         # ack can physically arrive, so letting the timer fire would create
@@ -2042,6 +2065,8 @@ class SberBridge:
         self._ack_audit.cancel()
         was_connected = self._stats.connected_since is not None
         self._stats.connected_since = None
+        if isinstance(err, MqttReconnectRequested):
+            return self._running
         self._stats.reconnect_count += 1
         if not self._running:
             return False
