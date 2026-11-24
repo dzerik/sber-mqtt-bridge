@@ -29,6 +29,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 
@@ -172,8 +173,17 @@ class HaStateForwarder:
         entity_id = event.data["entity_id"]
         new_state = event.data.get("new_state")
         if new_state is None:
-            return
-        ha_state_dict = self._ha_state_to_dict(new_state)
+            entity = self._get_entities().get(entity_id)
+            if not (
+                entity_id.split(".", 1)[0] in ("input_boolean", "input_button", "scene")
+                and entity is not None
+                and entity.category == "relay"
+            ):
+                return
+            # Removing a helper/action is loss of availability, not a command.
+            ha_state_dict = {"entity_id": entity_id, "state": STATE_UNAVAILABLE, "attributes": {}}
+        else:
+            ha_state_dict = self._ha_state_to_dict(new_state)
 
         linked_reverse = self._get_linked_reverse()
         if entity_id in linked_reverse:

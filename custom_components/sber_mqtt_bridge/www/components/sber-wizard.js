@@ -584,6 +584,12 @@ class SberWizard extends LitElement {
     const isSelected = this._selectedDeviceId === device.device_id;
     const isDisabled = device.already_exposed;
     const subtitle = [device.manufacturer, device.model].filter(Boolean).join(" · ");
+    const domain = device.primary.entity_id.split(".")[0];
+    const hint = domain === "input_boolean"
+      ? t(this.hass, "input_boolean.representations")
+      : ["input_button", "scene"].includes(domain)
+        ? t(this.hass, "action_events.description")
+        : "";
     return html`
       <div
         class="device-card ${isSelected ? "selected" : ""} ${isDisabled ? "disabled" : ""}"
@@ -602,6 +608,16 @@ class SberWizard extends LitElement {
             <div class="device-meta">
               ${device.area ? html`<span class="meta-chip">📍 ${device.area}</span>` : ""}
               <span class="meta-chip">→ ${device.primary.entity_id}</span>
+              ${hint ? html`
+                <button
+                  type="button"
+                  class="representation-info"
+                  title=${hint}
+                  aria-label=${hint}
+                  @click=${(e) => e.stopPropagation()}
+                  @keydown=${(e) => e.stopPropagation()}
+                >ⓘ</button>
+              ` : ""}
               ${isDisabled ? html`<span class="meta-chip meta-chip-used">✓ Added</span>` : ""}
             </div>
           </div>
@@ -1041,6 +1057,20 @@ class SberWizard extends LitElement {
         color: var(--primary-text-color);
       }
       .step2-category-icon { font-size: 22px; }
+      .representation-info {
+        padding: 4px;
+        border: none;
+        background: none;
+        color: var(--secondary-text-color);
+        font-size: 18px;
+        line-height: 1;
+        cursor: help;
+      }
+      .representation-info:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+        border-radius: 50%;
+      }
 
       .device-list { display: flex; flex-direction: column; gap: 10px; }
 

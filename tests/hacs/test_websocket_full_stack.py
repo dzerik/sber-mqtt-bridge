@@ -2371,6 +2371,307 @@ class TestPanelChangesKeepTheMqttSession:
         assert entry.options["redefinitions"][LAMP] == {"name": "Мастер", "room": "Спальня"}
 
 
+async def test_input_boolean_category_change_keeps_metadata_and_complete_config(
+    hass: HomeAssistant,
+    admin: Any,
+    entry: MockConfigEntry,
+    transport: RecordingTransport,
+) -> None:
+    """Changing the logical representation preserves the other exported devices."""
+    entity_id = "input_boolean.guest_mode"
+    er.async_get(hass).async_get_or_create(
+        "input_boolean",
+        "input_boolean",
+        "guest-mode-uid",
+        suggested_object_id="guest_mode",
+    )
+    hass.states.async_set(entity_id, "on", {"friendly_name": "Guest mode"})
+    await ok(admin, "add_entities", entity_ids=[entity_id])
+    await ok(admin, "update_redefinitions", entity_id=entity_id, name="Гостевой режим", room="Гостиная")
+    bridge = entry.runtime_data.bridge
+    assert bridge.entities[entity_id].category == "scenario_button"
+
+    await ok(admin, "set_override", entity_id=entity_id, category="relay")
+    await hass.async_block_till_done()
+    _fire_entity_changes_publish(hass)
+    await hass.async_block_till_done()
+
+    assert entry.runtime_data.bridge is bridge
+    assert set(bridge.enabled_entity_ids) == {LAMP, entity_id}
+    assert bridge.entities[entity_id].category == "relay"
+    assert bridge.redefinitions[entity_id] == {"name": "Гостевой режим", "room": "Гостиная"}
+    configs = [json.loads(body) for topic, body in transport.published if topic == CONFIG_TOPIC]
+    assert configs
+    devices = {device["id"]: device for device in configs[-1]["devices"]}
+    assert set(devices) == {"root", LAMP, entity_id}
+    assert devices[entity_id]["name"] == "Гостевой режим"
+    assert devices[entity_id]["room"] == "Гостиная"
+
+    await ok(admin, "set_override", entity_id=entity_id, category="auto")
+    assert bridge.entities[entity_id].category == "scenario_button"
+    assert bridge.redefinitions[entity_id] == {"name": "Гостевой режим", "room": "Гостиная"}
+
+
+@pytest.mark.parametrize(("domain", "service"), [("input_button", "press"), ("scene", "turn_on")])
+async def test_action_events_from_real_ha_services_reach_sber(
+    hass: HomeAssistant,
+    admin: Any,
+    entry: MockConfigEntry,
+    transport: RecordingTransport,
+    domain: str,
+    service: str,
+) -> None:
+    """Real action services, orphan wizard selection and transient MQTT events."""
+    entity_id = f"{domain}.sber_action_test"
+    if domain == "input_button":
+        assert await async_setup_component(hass, domain, {domain: {"sber_action_test": {"name": "Sber action test"}}})
+    else:
+        assert await async_setup_component(
+            hass, "input_boolean", {"input_boolean": {"sber_scene_target": {"name": "Sber scene target"}}}
+        )
+        assert await async_setup_component(
+            hass,
+            "scene",
+            {
+                "scene": [
+                    {
+                        "name": "Sber action test",
+                        "id": "sber-action-test",
+                        "entities": {"input_boolean.sber_scene_target": "on"},
+                    }
+                ]
+            },
+        )
+    await hass.async_block_till_done()
+    assert hass.states.get(entity_id) is not None
+    candidates = await ok(admin, "list_devices_for_category", category="scenario_button")
+    candidate = next(device for device in candidates["devices"] if device["primary"]["entity_id"] == entity_id)
+    assert candidate["already_exposed"] is False
+    assert er.async_get(hass).async_get(entity_id).device_id is None
+    await ok(admin, "add_entities", entity_ids=[entity_id])
+    bridge = entry.runtime_data.bridge
+    assert bridge.entities[entity_id].category == "scenario_button"
+    _fire_entity_changes_publish(hass)
+    await hass.async_block_till_done()
+    configs = [json.loads(body) for topic, body in transport.published if topic == CONFIG_TOPIC]
+    device = next(device for device in configs[-1]["devices"] if device["id"] == entity_id)
+    model = device["model"]
+    assert model["category"] == "scenario_button"
+    assert model["allowed_values"]["button_event"]["enum_values"]["values"] == ["click"]
+
+    def events() -> list[str]:
+        return [
+            state["value"]["enum_value"]
+            for topic, body in transport.published
+            if topic == STATUS_TOPIC
+            for state in json.loads(body)["devices"].get(entity_id, {}).get("states", [])
+            if state["key"] == "button_event"
+        ]
+
+    transport.published.clear()
+    await bridge._publish_states(None, force=True)
+    assert events() == []
+    for _ in range(2):
+        transport.published.clear()
+        await hass.services.async_call(domain, service, {"entity_id": entity_id}, blocking=True)
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+        await hass.async_block_till_done()
+        assert events() == ["click"]
+        transport.published.clear()
+        await bridge._publish_states(None, force=True)
+        assert events() == []
+
+
+@pytest.mark.parametrize("domain", ["input_button", "scene"])
+async def test_momentary_relay_command_reaches_real_ha_action(
+    hass: HomeAssistant,
+    admin: Any,
+    entry: MockConfigEntry,
+    transport: RecordingTransport,
+    domain: str,
+) -> None:
+    """Sber on/on/off drives real services, reports off, and preserves metadata."""
+    entity_id = f"{domain}.sber_action_test"
+    if domain == "input_button":
+        assert await async_setup_component(hass, domain, {domain: {"sber_action_test": {"name": "Sber action test"}}})
+    else:
+        assert await async_setup_component(
+            hass, "input_boolean", {"input_boolean": {"sber_scene_target": {"name": "Target"}}}
+        )
+        assert await async_setup_component(
+            hass,
+            "scene",
+            {
+                "scene": [
+                    {
+                        "name": "Sber action test",
+                        "id": "momentary-scene",
+                        "entities": {"input_boolean.sber_scene_target": "on"},
+                    }
+                ]
+            },
+        )
+    await hass.async_block_till_done()
+    candidates = await ok(admin, "list_devices_for_category", category="relay")
+    assert any(device["primary"]["entity_id"] == entity_id for device in candidates["devices"])
+    assert er.async_get(hass).async_get(entity_id).device_id is None
+    await ok(admin, "add_entities", entity_ids=[entity_id])
+    await ok(admin, "update_redefinitions", entity_id=entity_id, name="Кнопа2", room="Коридор")
+    await ok(admin, "set_override", entity_id=entity_id, category="relay")
+    bridge = entry.runtime_data.bridge
+    _fire_entity_changes_publish(hass)
+    await hass.async_block_till_done()
+    configs = [json.loads(body) for topic, body in transport.published if topic == CONFIG_TOPIC]
+    devices = {d["id"]: d for d in configs[-1]["devices"]}
+    assert set(devices) == {"root", LAMP, entity_id}
+    assert devices[entity_id]["name"] == "Кнопа2"
+    assert devices[entity_id]["room"] == "Коридор"
+    assert devices[entity_id]["model"]["category"] == "relay"
+    assert set(devices[entity_id]["model"]["features"]) == {"online", "on_off"}
+
+    for value in (True, True, False):
+        transport.published.clear()
+        before = hass.states.get(entity_id).state
+        payload = {
+            "devices": {entity_id: {"states": [{"key": "on_off", "value": {"type": "BOOL", "bool_value": value}}]}}
+        }
+        await bridge._handle_sber_command(json.dumps(payload).encode())
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+        await hass.async_block_till_done()
+        after = hass.states.get(entity_id).state
+        assert (after != before) is value
+        published = [
+            json.loads(body)["devices"][entity_id]["states"]
+            for topic, body in transport.published
+            if topic == STATUS_TOPIC and entity_id in json.loads(body)["devices"]
+        ]
+        assert published
+        for states in published:
+            values = {state["key"]: state["value"] for state in states}
+            assert values["online"]["bool_value"] is True
+            assert values["on_off"]["bool_value"] is False
+            assert "button_event" not in values
+    assert bridge.command_confirm.snapshot() == []
+    if domain == "scene":
+        assert hass.states.get("input_boolean.sber_scene_target").state == "on"
+
+    last_state = hass.states.get(entity_id).state
+    for state in (None, last_state):
+        transport.published.clear()
+        if state is None:
+            hass.states.async_remove(entity_id)
+        else:
+            hass.states.async_set(entity_id, state)
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+        await hass.async_block_till_done()
+        assert bridge.entities[entity_id].is_online is (state is not None)
+        assert any(
+            topic == STATUS_TOPIC and entity_id in json.loads(body)["devices"] for topic, body in transport.published
+        )
+
+
+async def test_input_boolean_relay_publishes_real_ha_service_results(
+    hass: HomeAssistant,
+    admin: Any,
+    entry: MockConfigEntry,
+    transport: RecordingTransport,
+) -> None:
+    """Commands travel through HA services and the real state-change forwarder."""
+    entity_id = "input_boolean.guest_mode"
+    er.async_get(hass).async_get_or_create(
+        "input_boolean",
+        "input_boolean",
+        "guest-mode-uid",
+        suggested_object_id="guest_mode",
+    )
+    hass.states.async_set(entity_id, "off")
+    await ok(admin, "add_entities", entity_ids=[entity_id])
+    await ok(admin, "set_override", entity_id=entity_id, category="relay")
+    bridge = entry.runtime_data.bridge
+    calls = []
+
+    async def change_boolean(call):
+        calls.append(call.service)
+        hass.states.async_set(entity_id, "on" if call.service == "turn_on" else "off")
+
+    hass.services.async_register("input_boolean", "turn_on", change_boolean)
+    hass.services.async_register("input_boolean", "turn_off", change_boolean)
+
+    for value in (True, True, False):
+        transport.published.clear()
+        payload = {
+            "devices": {
+                entity_id: {
+                    "states": [
+                        {"key": "on_off", "value": {"type": "BOOL", "bool_value": value}},
+                    ]
+                }
+            }
+        }
+        await bridge._handle_sber_command(json.dumps(payload).encode())
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+        await hass.async_block_till_done()
+        states = [
+            json.loads(body)["devices"][entity_id]["states"]
+            for topic, body in transport.published
+            if topic == STATUS_TOPIC and entity_id in json.loads(body)["devices"]
+        ]
+        assert states
+        final = {item["key"]: item["value"] for item in states[-1]}
+        assert final["on_off"]["bool_value"] is value
+        assert "button_event" not in final
+
+    assert calls == ["turn_on", "turn_on", "turn_off"]
+
+
+async def test_removed_input_boolean_relay_goes_offline_and_recovers(
+    hass: HomeAssistant,
+    admin: Any,
+    entry: MockConfigEntry,
+    transport: RecordingTransport,
+) -> None:
+    """A removed HA state is an offline helper, not a permanently on relay."""
+    entity_id = "input_boolean.guest_mode"
+    er.async_get(hass).async_get_or_create(
+        "input_boolean",
+        "input_boolean",
+        "guest-mode-uid",
+        suggested_object_id="guest_mode",
+    )
+    hass.states.async_set(entity_id, "on")
+    await ok(admin, "add_entities", entity_ids=[entity_id])
+    await ok(admin, "set_override", entity_id=entity_id, category="relay")
+    await hass.async_block_till_done()
+    bridge = entry.runtime_data.bridge
+    assert bridge.entities[entity_id].is_online
+
+    for removed in (True, False):
+        transport.published.clear()
+        if removed:
+            hass.states.async_remove(entity_id)
+        else:
+            hass.states.async_set(entity_id, "on")
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+        await hass.async_block_till_done()
+        assert bridge.entities[entity_id].is_online is not removed
+        payloads = [
+            json.loads(body)["devices"][entity_id]["states"]
+            for topic, body in transport.published
+            if topic == STATUS_TOPIC and entity_id in json.loads(body)["devices"]
+        ]
+        assert payloads
+        values = {item["key"]: item["value"] for item in payloads[-1]}
+        assert values["online"]["bool_value"] is not removed
+        assert "button_event" not in values
+        if not removed:
+            assert values["on_off"]["bool_value"] is True
+
+
 class TestOptionsFlowAppliesLiveChangesWithoutReload:
     """The options flow (``OptionsFlowWithReload``) reloaded on every save."""
 

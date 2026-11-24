@@ -148,6 +148,21 @@ class TestEmptyRegistry:
         assert grouper.list_for_category("nonexistent_xyz") == []
 
 
+def test_input_boolean_without_device_is_available_in_both_categories(hass, mock_registries):
+    """Helpers are selectable without inventing a physical HA device."""
+    entity_reg, _, _ = mock_registries
+    entity_id = "input_boolean.guest_mode"
+    _set_entities(entity_reg, [_make_entity(entity_id, original_name="Guest mode", platform="input_boolean")])
+    hass.states.get.return_value = None
+    grouper = HaDeviceGrouper(hass)
+
+    for category in ("relay", "scenario_button"):
+        groups = grouper.list_for_category(category)
+        assert len(groups) == 1
+        assert groups[0].primary.entity_id == entity_id
+        assert groups[0].name == "Guest mode"
+
+
 class TestLightDevices:
     def test_single_light_device_with_battery_signal(self, hass, mock_registries):
         entity_reg, device_reg, area_reg = mock_registries

@@ -121,6 +121,20 @@ class SberEntityRow extends LitElement {
         gap: 4px;
         align-items: center;
       }
+      .representation-info {
+        padding: 4px;
+        border: none;
+        background: none;
+        color: var(--secondary-text-color);
+        font-size: 18px;
+        line-height: 1;
+        cursor: help;
+      }
+      .representation-info:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+        border-radius: 50%;
+      }
       .icon-btn {
         background: none;
         border: none;
@@ -341,6 +355,15 @@ class SberEntityRow extends LitElement {
   render() {
     const d = this.device;
     if (!d || !d.entity_id) return html``;
+    const domain = d.entity_id.split(".")[0];
+    const representation = domain === "input_boolean"
+      ? t(this.hass, "input_boolean.representations")
+      : ["input_button", "scene"].includes(domain)
+        ? t(this.hass, "action_events.description")
+        : "";
+    const hint = representation
+      ? `${representation}\n\n${t(this.hass, "input_boolean.category_warning")}`
+      : "";
 
     return html`
       <td class="cell-check">
@@ -396,6 +419,9 @@ class SberEntityRow extends LitElement {
               `
             )}
           </select>
+          ${hint ? html`
+            <button type="button" class="representation-info" title=${hint} aria-label=${hint}>ⓘ</button>
+          ` : ""}
           <button class="icon-btn" @click=${this._onLink} title="${t(this.hass, 'row.link')}" aria-label="${t(this.hass, 'row.link_entity', { entity: d.entity_id })}">
             \u{1F517}
           </button>

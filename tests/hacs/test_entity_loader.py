@@ -650,6 +650,42 @@ def test_options_type_override_beats_yaml_sber_type(env) -> None:
     assert result.entities["switch.plug"].category == "relay"
 
 
+@pytest.mark.parametrize(
+    ("ui", "yaml", "expected"),
+    [
+        (None, None, "scenario_button"),
+        (None, "relay", "relay"),
+        ("relay", "scenario_button", "relay"),
+        ("scenario_button", "relay", "scenario_button"),
+    ],
+)
+def test_input_boolean_override_priority_and_restart_preserve_metadata(env, ui, yaml, expected) -> None:
+    """Real loader restores the chosen representation without losing local names."""
+    entity_id = "input_boolean.guest_mode"
+    env.entries[entity_id] = _make_reg_entry(entity_id)
+    env.states[entity_id] = _FakeState(entity_id, "on")
+    if yaml is not None:
+        env.set_yaml({entity_id: EntityCustomConfig(sber_type=yaml)})
+    options = {
+        CONF_EXPOSED_ENTITIES: [entity_id],
+        "redefinitions": {entity_id: {"name": "Гостевой режим", "room": "Гостиная"}},
+    }
+    if ui is not None:
+        options[CONF_ENTITY_TYPE_OVERRIDES] = {entity_id: ui}
+    entry = env.make_entry(options)
+
+    for _ in range(2):
+        result = SberEntityLoader(env.hass, entry).load()
+        assert result.entities[entity_id].category == expected
+        assert result.enabled_entity_ids == [entity_id]
+        assert result.redefinitions[entity_id] == {"name": "Гостевой режим", "room": "Гостиная"}
+        states = result.entities[entity_id].to_sber_current_state()[entity_id]["states"]
+        by_key = {s["key"]: s["value"] for s in states}
+        assert "button_event" not in by_key
+        if expected == "relay":
+            assert by_key["on_off"]["bool_value"] is True
+
+
 # ---------------------------------------------------------------------------
 # Room overrides + redefinitions merge / prune
 # ---------------------------------------------------------------------------

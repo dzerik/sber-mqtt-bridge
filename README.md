@@ -156,8 +156,9 @@ flowchart LR
 | `binary_sensor` (протечка) | sensor_water_leak | Обнаружение протечки | battery, signal_strength |
 | `binary_sensor` (дым) | sensor_smoke | Датчик дыма | battery, signal_strength |
 | `binary_sensor` (газ) | sensor_gas | Датчик утечки газа | battery, signal_strength |
-| `input_boolean` | scenario_button | Клик / двойной клик | -- |
+| `input_boolean` | scenario_button (авто) / relay (явный выбор) | События on → клик, off → двойной клик; в relay — включение/выключение из Sber | -- |
 | `event` (кнопки Zigbee) | scenario_button | Клик / двойной клик / долгое нажатие | -- |
+| `input_button`, `scene` | scenario_button (авто) / relay (явный выбор) | Событие HA → Sber; в relay — разовый запуск из Sber с возвратом в off | -- |
 | `valve` | valve | Открыть/закрыть вентиль | -- |
 | `humidifier` | hvac_humidifier | Вкл/выкл, влажность, режим работы | humidity |
 | `fan` | hvac_fan | Вентилятор | -- |
@@ -272,7 +273,7 @@ flowchart LR
 **Умная дедупликация** (только в режимах «по доменам» и «ВСЕ»): если устройство HA
 регистрирует несколько сущностей, например `light.кухня` и `switch.кухня`, добавляется одна —
 с наивысшим приоритетом домена: light > cover > climate > water_heater > humidifier > vacuum >
-media_player > fan > valve > lock > switch > script > button, input_boolean, event > binary_sensor >
+media_player > fan > valve > lock > switch > script > button, input_boolean, input_button, scene, event > binary_sensor >
 sensor. Сущности без устройства HA добавляются всегда.
 
 #### Переопределение типов устройств

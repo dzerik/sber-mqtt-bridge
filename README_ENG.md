@@ -154,8 +154,9 @@ Online status logic is differentiated by sensor type:
 | `binary_sensor` (moisture) | sensor_water_leak | Leak detected (boolean) | battery, signal_strength |
 | `binary_sensor` (smoke) | sensor_smoke | Smoke detector | battery, signal_strength |
 | `binary_sensor` (gas) | sensor_gas | Gas leak detector | battery, signal_strength |
-| `input_boolean` | scenario_button | Click / double click events | -- |
+| `input_boolean` | scenario_button (automatic) / relay (explicit) | on → click, off → double click events; relay supports on/off control from Sber | -- |
 | `event` (Zigbee buttons) | scenario_button | Click / double click / long press | -- |
+| `input_button`, `scene` | scenario_button (automatic) / relay (explicit) | HA → Sber events; relay runs the HA action from Sber and returns off | -- |
 | `valve` | valve | Open/close valve | -- |
 | `humidifier` | hvac_humidifier | On/off, target humidity, work mode | humidity |
 | `fan` | hvac_fan | Fan/ventilator | -- |
@@ -264,7 +265,7 @@ The first screen asks "What would you like to do?":
 **Smart deduplication** ("by domain" and "ALL" modes only): when an HA device registers several
 entities, e.g. `light.kitchen` and `switch.kitchen`, only one is added — the one with the highest
 domain priority: light > cover > climate > water_heater > humidifier > vacuum > media_player > fan >
-valve > lock > switch > script > button, input_boolean, event > binary_sensor > sensor. Entities without an
+valve > lock > switch > script > button, input_boolean, input_button, scene, event > binary_sensor > sensor. Entities without an
 HA device are always added.
 
 #### Entity type overrides

@@ -59,6 +59,16 @@ class TestCategorySpec:
 class TestCategoryDomainMap:
     """Integration tests for the registry as a whole."""
 
+    def test_input_boolean_offers_relay_without_changing_legacy_default(self):
+        """A helper can be controlled explicitly while old exports stay event-based."""
+        assert categories_for_domain("input_boolean") == ["scenario_button", "relay"]
+        assert CATEGORY_DOMAIN_MAP["relay"].matches("input_boolean", None)
+
+    @pytest.mark.parametrize("domain", ["automation", "input_number", "input_select"])
+    def test_boolean_export_does_not_expand_other_helper_domains(self, domain):
+        """A boolean representation must not implicitly enable unrelated helpers."""
+        assert categories_for_domain(domain) == []
+
     def test_light_domain_maps_only_to_light_category_by_rank(self):
         cats = categories_for_domain("light", None)
         assert "light" in cats

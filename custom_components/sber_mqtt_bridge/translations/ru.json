@@ -180,6 +180,13 @@
       "expand": "Показать все строки: {lines}",
       "no_data": "Нет данных"
     },
+    "action_events": {
+      "description": "Relay (Sber → HA): включение запускает input_button или scene один раз; выключение ничего не делает, реле возвращается в off. Scenario button (HA → Sber): активация передаёт клик для сценариев Sber. Auto сохраняет Scenario button."
+    },
+    "input_boolean": {
+      "representations": "input_boolean: relay позволяет включать и выключать переключатель из Sber и показывает его состояние в HA. scenario_button передаёт изменения HA в сценарии Sber: on → click, off → double_click; голосового управления переключателем нет.",
+      "category_warning": "Смена категории может перерегистрировать устройство в Sber. Может потребоваться перенастройка облачных сценариев Sber; сохранность облачных связей не гарантируется."
+    },
     "row": {
       "online": "На связи",
       "offline": "Не на связи",

@@ -180,6 +180,13 @@
       "expand": "Show all {lines} lines",
       "no_data": "No data"
     },
+    "action_events": {
+      "description": "Relay (Sber → HA): on runs input_button or scene once; off does nothing, and the relay returns off. Scenario button (HA → Sber): activation sends a click to Sber scenarios. Auto keeps Scenario button."
+    },
+    "input_boolean": {
+      "representations": "input_boolean: relay lets Sber turn the helper on/off and shows its HA state. scenario_button sends HA changes to Sber scenarios: on → click, off → double_click; it does not support voice control of the helper.",
+      "category_warning": "Changing category may re-register the device in Sber. You may need to reconfigure Sber cloud scenarios; existing cloud links are not guaranteed to survive."
+    },
     "row": {
       "online": "Online",
       "offline": "Offline",

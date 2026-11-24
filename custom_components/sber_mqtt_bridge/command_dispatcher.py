@@ -320,7 +320,10 @@ class SberCommandDispatcher:
         # Before the service call: the echo and the state that follows are
         # compared against these keys (DevTools command confirmation).
         states = cmd_data.get("states")
-        if isinstance(states, list):
+        # A momentary action cannot confirm a persistent on state. Its trace
+        # still records the service call and its wire response reports ready/off.
+        momentary = entity_id.split(".", 1)[0] in ("input_button", "scene") and entity.category == "relay"
+        if isinstance(states, list) and not momentary:
             deps.devtools.command_confirm.record_command(entity_id, states, context_id=context.id)
 
         needs_state_update = False

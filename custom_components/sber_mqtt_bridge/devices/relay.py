@@ -1,9 +1,11 @@
-"""Sber Relay entity -- maps HA switch/script/button to Sber relay category."""
+"""Sber Relay entity -- maps switches, actions, and selected boolean helpers."""
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+
+from homeassistant.const import STATE_UNAVAILABLE
 
 from ..sber_constants import (
     SERVICE_PRESS,
@@ -24,7 +26,9 @@ RELAY_CATEGORY = "relay"
 class RelayEntity(OnOffEntity):
     """Sber relay entity for on/off control devices.
 
-    Maps HA switch, script, and button entities to the Sber 'relay' category.
+    Maps HA switch, script, button, and explicitly selected helpers/actions
+    to the Sber 'relay' category. input_button and scene are momentary:
+    on activates them, off is inert, and their ready state is off.
     Supports basic on/off toggling via the ``on_off`` Sber feature.
 
     Accepts the three metering links (:data:`~.base_entity.ENERGY_LINK_ROLES`)
@@ -53,18 +57,54 @@ class RelayEntity(OnOffEntity):
         """Return dispatch map for relay commands."""
         return {SberFeature.ON_OFF: self._cmd_on_off}
 
+    @property
+    def _is_momentary(self) -> bool:
+        """Return whether this relay represents a one-shot HA action."""
+        return self.category == RELAY_CATEGORY and self.get_entity_domain() in ("input_button", "scene")
+
+    @property
+    def _is_online(self) -> bool:
+        """Treat never-activated actions as ready, while absent ones are offline."""
+        if self._is_momentary:
+            return self.state not in (STATE_UNAVAILABLE, None)
+        return super()._is_online
+
     def _cmd_on_off(self, value: dict) -> list[CommandResult]:
-        """Handle ``on_off``: turn_on / turn_off (or press for button domain).
+        """Handle power control or one-shot activation for selected actions.
 
         Args:
             value: Sber value dict from the command payload.
 
         Returns:
-            List of HA service call dicts to execute.
+            HA service calls; off is inert for momentary action domains.
         """
         if value.get("type") != SberValueType.BOOL:
             return []
         on = value.get("bool_value", False)
-        domain = self.entity_id.split(".", 1)[0]
-        service = SERVICE_PRESS if domain == "button" else SERVICE_TURN_ON if on else SERVICE_TURN_OFF
+        domain = self.get_entity_domain()
+        if self._is_momentary:
+            if not on:
+                return []
+            service = SERVICE_PRESS if domain == "input_button" else SERVICE_TURN_ON
+        else:
+            service = SERVICE_PRESS if domain == "button" else SERVICE_TURN_ON if on else SERVICE_TURN_OFF
         return [self._build_service_call(domain, service, self.entity_id)]
+
+    def sanitize_echo_states(self, states: list[dict], commanded: set[str]) -> list[dict]:
+        """Ground helpers and one-shot responses in their actual representation.
+
+        Boolean helpers reflect HA state. Momentary actions report off as
+        readiness for another activation, even when an on request fails.
+        Physical relays retain their existing optimistic echo.
+
+        Args:
+            states: Proposed echo with command values over the baseline.
+            commanded: Feature keys supplied by the command.
+
+        Returns:
+            Publishable echo states without a latched-on action.
+        """
+        if self._is_momentary or (self.category == RELAY_CATEGORY and self.get_entity_domain() == "input_boolean"):
+            states = self.to_sber_current_state()[self.entity_id]["states"]
+            commanded = set()
+        return super().sanitize_echo_states(states, commanded)

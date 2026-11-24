@@ -161,7 +161,7 @@ CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
     ),
     "relay": CategorySpec(
         cls=RelayEntity,
-        domains=("switch", "script", "button"),
+        domains=("switch", "script", "button", "input_boolean", "input_button", "scene"),
         device_classes=None,
         preferred_rank=10,
         fallback_when_no_device_class=True,
@@ -170,9 +170,11 @@ CATEGORY_DOMAIN_MAP: dict[str, CategorySpec] = {
         cls=ScenarioButtonEntity,
         # ``event`` covers Zigbee buttons from Z2M / ZHA; its ``motion``
         # device class is a sensor, not a button, so it is left out.
-        domains=("input_boolean", "event"),
+        domains=("input_boolean", "event", "input_button", "scene"),
         device_classes=("button", "doorbell"),
-        preferred_rank=12,
+        # Keep the historical automatic representation of input_boolean;
+        # relay (rank 10) is available only when explicitly selected.
+        preferred_rank=9,
         fallback_when_no_device_class=True,
     ),
     # ── Covers ──────────────────────────────────────────────────────────

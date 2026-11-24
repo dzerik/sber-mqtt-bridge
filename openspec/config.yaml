@@ -1,0 +1,55 @@
+schema: spec-driven
+
+context: |
+  Language: Russian
+  All artifacts must be written in Russian.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  Project: Sber Smart Home MQTT Bridge, a HACS service integration exporting
+  Home Assistant entities to Sber Smart Home using aiomqtt (cloud_push).
+  Python source targets 3.13; HA tests and mypy run on 3.14. The frontend uses
+  vendored Lit 3.x without a build step. Runtime dependencies are aiomqtt and
+  Pydantic; OpenSpec is development tooling only.
+  Read local AGENTS.md and CLAUDE.md when present. Local .codex/PROJECT_CONTEXT.md
+  provides navigation and historical decisions; verify implementation facts in
+  current source, tests, CHANGELOG.md and .github/workflows/ci.yaml.
+  Existing docs/superpowers plans are historical source material. Use a single
+  active tasks.md for each OpenSpec change instead of maintaining parallel plans.
+  Sber up/config is an authoritative full device list. Changes must account for
+  readiness, cloud-known devices, reconnect ordering and preservation of rooms.
+  Button events are transient and must not be replayed as persistent state.
+  Before changes to device categories, features, allowed_values or serialization,
+  verify official Sber documentation. Generated protocol tables in _generated/
+  are maintained through tools/codegen.py and documentation snapshots.
+  Effective pytest configuration is tests/hacs/pytest.ini. CI checks ruff,
+  codegen drift, pytest with coverage >=95%, and mypy with an existing ratchet.
+  Write behavior-based tests; preserve quality gates. Use tools/bump_version.py
+  for version changes and the tag-triggered release workflow for releases.
+  Repository: https://github.com/dzerik/sber-mqtt-bridge (git remote github).
+
+rules:
+  proposal:
+    - Cite exact GitHub issue or PR URLs when a change originates there.
+    - Distinguish reporter observations, code-confirmed facts and hypotheses.
+    - State the intended outcome and boundaries; never invent an open issue.
+  specs:
+    - Describe observable behavior with concrete Given/When/Then scenarios.
+    - Include failure, restart or reconnect scenarios when relevant to the change.
+    - Reference canonical protocol artifacts instead of duplicating Sber enum tables.
+  design:
+    - Inspect existing code and tests before choosing an implementation.
+    - State alternatives, compatibility, rollout risks and unresolved decisions.
+    - Use Mermaid for diagrams.
+  tasks:
+    - Use checkboxes for actionable tasks and order dependent work explicitly.
+    - Include regression checks tied to the specified behavior.
+    - Keep diagnosis or missing evidence visible instead of marking a bug confirmed.
+
+operations:
+  apply:
+    guidance:
+      - Report changed behavior and checks actually run; distinguish failures from environment limits.
+      - GitHub comments, pushes, merges and releases require authorization from the current task.
+  archive:
+    guidance:
+      - Merge accepted behavior into main specs only after implementation and relevant checks.
+      - Preserve evidence and unresolved limitations in the archived change.

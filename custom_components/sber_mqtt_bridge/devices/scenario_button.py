@@ -70,6 +70,8 @@ class ScenarioButtonEntity(BaseEntity):
       ``double_click``.
     * ``event`` (Zigbee buttons from Z2M / ZHA) -- every new event is a
       press, its ``event_type`` mapped by :func:`map_event_type`.
+    * ``input_button`` and ``scene`` -- each new activation timestamp
+      reports a single ``click`` to Sber.
 
     Only a *fresh* press is reported: ``button_event`` is included in the
     published state while a press is pending and dropped once it went out.
@@ -98,16 +100,21 @@ class ScenarioButtonEntity(BaseEntity):
         return self.entity_id.startswith(f"{EVENT_DOMAIN}.")
 
     @property
+    def _is_action_domain(self) -> bool:
+        """Return whether a timestamp represents a single HA action."""
+        return self.entity_id.split(".", 1)[0] in ("input_button", "scene")
+
+    @property
     def _is_online(self) -> bool:
         """Check if entity is online (reachable).
 
-        For ``event`` entities ``unknown`` means "never pressed", not
+        For timestamp entities ``unknown`` means "never activated", not
         unreachable, so only ``unavailable`` counts as offline.
 
         Returns:
             True if the entity state indicates it is reachable.
         """
-        if self._is_event_domain:
+        if self._is_event_domain or self._is_action_domain:
             return self.state not in (STATE_UNAVAILABLE, None)
         return super()._is_online
 
@@ -163,6 +170,8 @@ class ScenarioButtonEntity(BaseEntity):
         """
         if self._is_event_domain:
             return map_event_type(ha_state.get("attributes", {}).get("event_type"))
+        if self._is_action_domain:
+            return "click"
         return "click" if ha_state.get("state") == "on" else "double_click"
 
     def mark_state_published(self, *, snapshot: dict | NoSnapshot | None = NO_SNAPSHOT) -> None:
@@ -208,7 +217,9 @@ class ScenarioButtonEntity(BaseEntity):
         return {
             "button_event": {
                 "type": "ENUM",
-                "enum_values": {"values": ["click", "double_click", "long_press"]},
+                "enum_values": {
+                    "values": ["click"] if self._is_action_domain else ["click", "double_click", "long_press"]
+                },
             },
         }
 

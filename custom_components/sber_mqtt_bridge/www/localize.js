@@ -62,6 +62,13 @@ export const CATEGORY = "config_panel";
  * `config_panel.` and must mirror `translations/en.json`.
  */
 export const EN_FALLBACK = {
+  // --- input_boolean representation ---
+  "action_events.description":
+    "Relay (Sber → HA): on runs input_button or scene once; off does nothing, and the relay returns off. Scenario button (HA → Sber): activation sends a click to Sber scenarios. Auto keeps Scenario button.",
+  "input_boolean.representations":
+    "input_boolean: relay lets Sber turn the helper on/off and shows its HA state. scenario_button sends HA changes to Sber scenarios: on → click, off → double_click; it does not support voice control of the helper.",
+  "input_boolean.category_warning":
+    "Changing category may re-register the device in Sber. You may need to reconfigure Sber cloud scenarios; existing cloud links are not guaranteed to survive.",
   // --- impulse gate settings (issue #53) ---
   "gate_options.title": "Impulse gate",
   "gate_options.invert_contact": "Inverted contact",
